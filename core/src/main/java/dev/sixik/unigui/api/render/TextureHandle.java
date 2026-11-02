@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.math.MutableRect;
 
 /**
  * Backend-neutral handle текстуры.
@@ -26,7 +27,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
                 "Widgets must never cast `nativeHandle()` directly to maintain cross-platform compatibility.",
                 "`options()` defines immutable sampling and wrapping parameters attached to the texture."
         },
-        related = {"SimpleTextureHandle", "TextureOptions", "TextureFilter", "TextureWrap", "NineSlice", "DrawScope"},
+        related = {"SimpleTextureHandle", "TextureRegion", "AnimatedTexture", "TextureClock", "TextureOptions", "TextureFilter", "TextureWrap", "NineSlice", "DrawScope"},
         examples = {
                 @AiDoc.Example(
                         title = "Draw texture with normalized UV coordinates",
@@ -130,5 +131,31 @@ public interface TextureHandle {
     @WikiReturn("<key:texture.handle.method.native_handle.return>")
     default Object nativeHandle() {
         return null;
+    }
+
+    /**
+     * Возвращает физическую текстуру, которую backend должен привязать.
+     *
+     * <p>Обычный handle возвращает себя. Виды ({@link TextureRegion}, {@link AnimatedTexture}) возвращают
+     * текстуру-источник (атлас или sprite sheet), а их UV-область даёт {@link #resolveUv(MutableRect)}.
+     * {@link DrawList} подменяет вид на {@code base()} до того, как команда попадёт в backend.</p>
+     *
+     * @return физическая текстура; для обычного handle — {@code this}
+     */
+    default TextureHandle base() {
+        return this;
+    }
+
+    /**
+     * Записывает UV-область этого handle внутри {@link #base()}.
+     *
+     * <p>Для анимированных текстур результат зависит от текущего тика {@link TextureClock}.
+     * Обычный handle занимает всю текстуру, поэтому ничего не записывает.</p>
+     *
+     * @param out прямоугольник {@code u, v, uWidth, vHeight} в нормализованных координатах {@code 0..1}
+     * @return {@code true}, если handle — вид и {@code out} заполнен; {@code false} для полной текстуры
+     */
+    default boolean resolveUv(MutableRect out) {
+        return false;
     }
 }

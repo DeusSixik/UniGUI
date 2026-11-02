@@ -28,7 +28,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:code.language.preset.title>",
         slug = "code-language-preset",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:code.language.preset.summary>",
         order = 280)
 @WikiSection(

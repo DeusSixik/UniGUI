@@ -17,6 +17,14 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
 
@@ -32,6 +40,29 @@ import java.util.List;
  * они дополнительно переводятся из экранных координат в локальные координаты offscreen target'а слоя.
  * Если backend не поддерживает {@link UiPostEffectBackend}, слой отрисует исходный subtree без эффекта.</p>
  */
+@AiDoc(
+        summary = "Post-processing layer widget rendering child elements into an offscreen target and executing GPU shader passes such as blur, bloom, or CRT distortion."
+)
+@WikiPage(
+        title = "PostProcessingLayer",
+        slug = "post-processing-layer",
+        category = "<key:effects.category>",
+        summary = "<key:post.processing.layer.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:post.processing.layer.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:post.processing.layer.example.basic.title>",
+        code = "PostProcessingLayer layer = new PostProcessingLayer();\nlayer.effect(\"unigui:bloom\");\nlayer.addChild(contentWidget);"
+)
+@WikiLink(
+        label = "PanelWidget",
+        target = "page:panel-widget",
+        description = "<key:panel.widget.summary>"
+)
 @XmlWidgetName("PostProcessingLayer")
 public class PostProcessingLayer extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.POST_PROCESSING_LAYER;
@@ -40,6 +71,9 @@ public class PostProcessingLayer extends PanelWidget {
     private float effectScale = 1.0f;
 
     /** @return текущая цепочка post-processing pass'ов */
+        @AiDoc(summary = "Returns a copy of the active post-processing effect chain.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.postEffectGet>")
+    @WikiReturn("<key:post.processing.layer.return.postEffect>")
     public UiPostEffectChain postEffect() {
         return postEffect.copy();
     }
@@ -50,7 +84,13 @@ public class PostProcessingLayer extends PanelWidget {
      * @param postEffect chain эффекта; {@code null} отключает эффект
      * @return этот слой для fluent-настройки
      */
-    public PostProcessingLayer postEffect(UiPostEffectChain postEffect) {
+        @AiDoc(summary = "Sets the post-processing effect chain applied to this layer's subtree.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.postEffectSet>")
+    @WikiReturn("<key:post.processing.layer.return.this>")
+    public PostProcessingLayer postEffect(
+            @WikiParameter(description = "<key:post.processing.layer.param.postEffect>")
+            UiPostEffectChain postEffect
+    ) {
         UiPostEffectChain normalized = postEffect == null ? UiPostEffectChain.none() : postEffect.copy();
         this.postEffect = normalized;
         invalidate(InvalidationFlags.VISUAL);
@@ -58,6 +98,9 @@ public class PostProcessingLayer extends PanelWidget {
     }
 
     /** @return id зарегистрированного эффекта или пустая строка для inline/none chain */
+        @AiDoc(summary = "Returns the effect identifier of the current post-processing chain, or empty string if none.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.effectGet>")
+    @WikiReturn("<key:post.processing.layer.return.effectId>")
     public String effect() {
         String id = postEffect.effectId();
         return id == null ? "" : id;
@@ -73,11 +116,20 @@ public class PostProcessingLayer extends PanelWidget {
      */
     @XmlAttribute(value = "effect", category = "Post Effect", defaultValue = "none",
             description = "Registered UI post-effect id applied to this layer only.")
-    public PostProcessingLayer effect(String effectId) {
+        @AiDoc(summary = "Configures a registered post-processing effect by its identifier string.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.effectSet>")
+    @WikiReturn("<key:post.processing.layer.return.this>")
+    public PostProcessingLayer effect(
+            @WikiParameter(description = "<key:post.processing.layer.param.effectId>")
+            String effectId
+    ) {
         return postEffect(UiPostEffectChain.of(effectId));
     }
 
     /** @return дополнительный scale offscreen target'а */
+        @AiDoc(summary = "Returns the offscreen target rendering scale factor.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.effectScaleGet>")
+    @WikiReturn("<key:post.processing.layer.return.effectScale>")
     public float effectScale() {
         return effectScale;
     }
@@ -93,7 +145,13 @@ public class PostProcessingLayer extends PanelWidget {
      */
     @XmlAttribute(value = "effectScale", category = "Post Effect", defaultValue = "1.0",
             description = "Offscreen target scale for the post-effect layer.")
-    public PostProcessingLayer effectScale(float effectScale) {
+        @AiDoc(summary = "Sets the offscreen render target scale factor relative to layer bounds.")
+    @WikiMethod(summary = "<key:post.processing.layer.method.effectScaleSet>")
+    @WikiReturn("<key:post.processing.layer.return.this>")
+    public PostProcessingLayer effectScale(
+            @WikiParameter(description = "<key:post.processing.layer.param.effectScale>")
+            float effectScale
+    ) {
         float normalized = Float.isFinite(effectScale) && effectScale > 0.0f ? effectScale : 1.0f;
         if (this.effectScale == normalized) return this;
         this.effectScale = normalized;

@@ -1,8 +1,6 @@
 package dev.sixik.unigui.cleanroom.backend;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
+import dev.sixik.unigui.backend.shared.PointerBlockers;
 
 /**
  * Registry of callbacks that say "an overlay covers the cursor here, the vanilla screen below must not react".
@@ -27,7 +25,7 @@ public final class CleanroomPointerBlockers<S> {
         boolean blocksPointer(S screen, double mouseX, double mouseY);
     }
 
-    private final List<Blocker<S>> blockers = new CopyOnWriteArrayList<>();
+    private final PointerBlockers<S> delegate = new PointerBlockers<>();
 
     /**
      * Registers a blocker.
@@ -35,26 +33,20 @@ public final class CleanroomPointerBlockers<S> {
      * @return handle that removes the blocker when closed
      */
     public AutoCloseable add(Blocker<S> blocker) {
-        Objects.requireNonNull(blocker, "blocker");
-        blockers.add(blocker);
-        return () -> blockers.remove(blocker);
+        return delegate.add(blocker::blocksPointer);
     }
 
     /**
      * @return {@code true} if any registered blocker covers the point; always {@code false} without a screen
      */
     public boolean blocks(S screen, double mouseX, double mouseY) {
-        if (screen == null) return false;
-        for (Blocker<S> blocker : blockers) {
-            if (blocker.blocksPointer(screen, mouseX, mouseY)) return true;
-        }
-        return false;
+        return delegate.blocks(screen, mouseX, mouseY);
     }
 
     /**
      * Removes all blockers.
      */
     public void clear() {
-        blockers.clear();
+        delegate.clear();
     }
 }

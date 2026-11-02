@@ -1,12 +1,43 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+@AiDoc(summary = "Hierarchical docking tree node: either a LEAF containing tabbed DockPanes or a SPLIT node dividing two children horizontally or vertically."
+)
+@WikiPage(
+        title = "DockNode",
+        slug = "dock-node",
+        category = "<key:docking.category>",
+        summary = "<key:dock.node.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:dock.node.section.overview.body>",
+        order = 10
+)
+@WikiLink(
+        label = "DockingManager",
+        target = "page:docking-manager",
+        description = "<key:docking.manager.summary>"
+)
+@WikiLink(
+        label = "DockPane",
+        target = "page:dock-pane",
+        description = "<key:dock.pane.summary>"
+)
 public final class DockNode {
+    @AiDoc(summary = "Node kind discriminator: LEAF containing panes, or SPLIT containing two child nodes.")
     public enum Kind {
         LEAF,
         SPLIT
@@ -25,17 +56,38 @@ public final class DockNode {
         this.kind = Objects.requireNonNull(kind, "kind");
     }
 
+    @AiDoc(summary = "Creates an empty leaf dock node.")
+    @WikiMethod(summary = "<key:dock.node.method.leafEmpty>")
+    @WikiReturn("<key:dock.node.return.node>")
     public static DockNode leaf() {
         return new DockNode(Kind.LEAF);
     }
 
-    public static DockNode leaf(DockPane pane) {
+    @AiDoc(summary = "Creates a leaf dock node populated with an initial pane.")
+    @WikiMethod(summary = "<key:dock.node.method.leafWithPane>")
+    @WikiReturn("<key:dock.node.return.node>")
+    public static DockNode leaf(
+            @WikiParameter(description = "<key:dock.node.param.pane>")
+            DockPane pane
+    ) {
         DockNode node = leaf();
         node.addPane(pane);
         return node;
     }
 
-    public static DockNode split(DockSplitOrientation orientation, DockNode first, DockNode second, float splitRatio) {
+    @AiDoc(summary = "Creates a split dock node dividing two children according to orientation and ratio.")
+    @WikiMethod(summary = "<key:dock.node.method.split>")
+    @WikiReturn("<key:dock.node.return.node>")
+    public static DockNode split(
+            @WikiParameter(description = "<key:dock.node.param.orientation>")
+            DockSplitOrientation orientation,
+            @WikiParameter(description = "<key:dock.node.param.first>")
+            DockNode first,
+            @WikiParameter(description = "<key:dock.node.param.second>")
+            DockNode second,
+            @WikiParameter(description = "<key:dock.node.param.splitRatio>")
+            float splitRatio
+    ) {
         DockNode node = new DockNode(Kind.SPLIT);
         node.orientation = orientation == null ? DockSplitOrientation.HORIZONTAL : orientation;
         node.first = first == null ? leaf() : first;
@@ -44,59 +96,107 @@ public final class DockNode {
         return node;
     }
 
+    @AiDoc(summary = "Returns the unique identifier of this dock node.")
+    @WikiMethod(summary = "<key:dock.node.method.id>")
+    @WikiReturn("<key:dock.node.return.id>")
     public String id() {
         return id;
     }
 
+    @AiDoc(summary = "Returns whether this node is a LEAF or SPLIT.")
+    @WikiMethod(summary = "<key:dock.node.method.kind>")
+    @WikiReturn("<key:dock.node.return.kind>")
     public Kind kind() {
         return kind;
     }
 
+    @AiDoc(summary = "Returns true if this node is a leaf containing panes.")
+    @WikiMethod(summary = "<key:dock.node.method.isLeaf>")
+    @WikiReturn("<key:dock.node.return.isLeaf>")
     public boolean isLeaf() {
         return kind == Kind.LEAF;
     }
 
+    @AiDoc(summary = "Returns true if this node is a split node containing two children.")
+    @WikiMethod(summary = "<key:dock.node.method.isSplit>")
+    @WikiReturn("<key:dock.node.return.isSplit>")
     public boolean isSplit() {
         return kind == Kind.SPLIT;
     }
 
+    @AiDoc(summary = "Returns the unmodifiable list of panes hosted in this leaf node.")
+    @WikiMethod(summary = "<key:dock.node.method.panes>")
+    @WikiReturn("<key:dock.node.return.panes>")
     public List<DockPane> panes() {
         return Collections.unmodifiableList(panes);
     }
 
+    @AiDoc(summary = "Returns the index of the currently active tab in this leaf.")
+    @WikiMethod(summary = "<key:dock.node.method.selectedIndex>")
+    @WikiReturn("<key:dock.node.return.selectedIndex>")
     public int selectedIndex() {
         return selectedIndex;
     }
 
+    @AiDoc(summary = "Returns the currently selected DockPane in this leaf, or null if empty.")
+    @WikiMethod(summary = "<key:dock.node.method.selectedPane>")
+    @WikiReturn("<key:dock.node.return.selectedPane>")
     public DockPane selectedPane() {
         return selectedIndex >= 0 && selectedIndex < panes.size() ? panes.get(selectedIndex) : null;
     }
 
+    @AiDoc(summary = "Returns the split orientation (HORIZONTAL or VERTICAL) if this is a split node.")
+    @WikiMethod(summary = "<key:dock.node.method.orientation>")
+    @WikiReturn("<key:dock.node.return.orientation>")
     public DockSplitOrientation orientation() {
         return orientation;
     }
 
+    @AiDoc(summary = "Returns the fractional split ratio between first and second children (0.1 to 0.9).")
+    @WikiMethod(summary = "<key:dock.node.method.splitRatio>")
+    @WikiReturn("<key:dock.node.return.splitRatio>")
     public float splitRatio() {
         return splitRatio;
     }
 
+    @AiDoc(summary = "Returns the first child node of a split.")
+    @WikiMethod(summary = "<key:dock.node.method.first>")
+    @WikiReturn("<key:dock.node.return.childNode>")
     public DockNode first() {
         return first;
     }
 
+    @AiDoc(summary = "Returns the second child node of a split.")
+    @WikiMethod(summary = "<key:dock.node.method.second>")
+    @WikiReturn("<key:dock.node.return.childNode>")
     public DockNode second() {
         return second;
     }
 
+    @AiDoc(summary = "Returns true if this leaf contains zero panes.")
+    @WikiMethod(summary = "<key:dock.node.method.empty>")
+    @WikiReturn("<key:dock.node.return.empty>")
     public boolean empty() {
         return isLeaf() && panes.isEmpty();
     }
 
-    public boolean containsPane(String paneId) {
+    @AiDoc(summary = "Checks whether this node or its descendants contain a pane with the given ID.")
+    @WikiMethod(summary = "<key:dock.node.method.containsPane>")
+    @WikiReturn("<key:dock.node.return.containsPane>")
+    public boolean containsPane(
+            @WikiParameter(description = "<key:dock.node.param.paneId>")
+            String paneId
+    ) {
         return findPane(paneId) != null;
     }
 
-    public DockPane findPane(String paneId) {
+    @AiDoc(summary = "Finds a DockPane by identifier within this node and its descendants.")
+    @WikiMethod(summary = "<key:dock.node.method.findPane>")
+    @WikiReturn("<key:dock.node.return.foundPane>")
+    public DockPane findPane(
+            @WikiParameter(description = "<key:dock.node.param.paneId>")
+            String paneId
+    ) {
         if (paneId == null || paneId.isEmpty()) return null;
         if (isLeaf()) {
             for (DockPane pane : panes) {

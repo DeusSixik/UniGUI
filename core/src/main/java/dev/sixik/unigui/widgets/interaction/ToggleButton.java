@@ -5,8 +5,6 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.*;
@@ -18,6 +16,10 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.api.utils.reactive.BindingData;
+import dev.sixik.unigui.api.utils.reactive.BindingKeys;
+import dev.sixik.unigui.api.utils.reactive.BooleanSignal;
+import dev.sixik.unigui.api.utils.reactive.SignalSubscription;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 
@@ -130,6 +132,20 @@ public class ToggleButton extends Button {
     @WikiMethod(order = 20, title = "<key:toggle.button.method.on_checked_changed.title>", summary = "<key:toggle.button.method.on_checked_changed.summary>")
     public EventSubscription onCheckedChanged(EventListener<? super CheckedChangedEvent> listener) {
         return on(CheckedChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T source) {
+        if (key == BindingKeys.TOGGLE_BUTTON_CHECKED) {
+            BooleanSignal checked = BindingKeys.TOGGLE_BUTTON_CHECKED.cast(source);
+            SignalSubscription signalSubscription = checked.subscribe(this::checked);
+            EventSubscription widgetSubscription = onCheckedChanged(event -> checked.set(event.newValue()));
+            return () -> {
+                widgetSubscription.close();
+                signalSubscription.close();
+            };
+        }
+        return super.createBinding(key, source);
     }
 
     @Override

@@ -3,6 +3,7 @@
   "package": "dev.sixik.unigui.cleanroom.mixin",
   "compatibilityLevel": "JAVA_8",
   "target": "@env(DEFAULT)",
+  "refmap": "unigui.refmap.json",
   "client": [
     "MixinGuiScreenUniGuiOverlay",
     "MixinGuiContainerUniGuiOverlay",

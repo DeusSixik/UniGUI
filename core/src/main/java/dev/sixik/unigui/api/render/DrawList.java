@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.math.MutableRect;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -103,6 +104,7 @@ public final class DrawList {
     private final ObjectArrayList<DrawCommand> recycledCommands = new ObjectArrayList<>();
     private final List<DrawCommand> commandsView = Collections.unmodifiableList(commands);
     private final VectorPath path = new VectorPath();
+    private final MutableRect viewScratch = new MutableRect();
     private ObjectArrayList<ObjectArrayList<DrawCommand>> channels;
     private int currentChannel;
 
@@ -119,11 +121,7 @@ public final class DrawList {
             @WikiParameter(name = "command", description = "<key:draw.list.method.add.command>")
             DrawCommand command) {
         if (command == null) return;
-        if (channels == null) {
-            commands.add(command.copy());
-        } else {
-            channels.get(currentChannel).add(command.copy());
-        }
+        addOwned(command.copy());
     }
 
     /**
@@ -149,6 +147,7 @@ public final class DrawList {
     /** Передаёт draw list уже подготовленную команду без глубокой копии. */
     void addOwned(DrawCommand command) {
         if (command == null) return;
+        TextureViews.resolve(command, viewScratch);
         if (channels == null) {
             commands.add(command);
         } else {

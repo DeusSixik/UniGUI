@@ -12,6 +12,7 @@ sourceSets {
 
 dependencies {
     api project(':core')
+    api project(':demo')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
@@ -19,6 +20,12 @@ dependencies {
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
     modCompileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
+}
+
+tasks.matching { it.name.startsWith('transformProduction') }.configureEach {
+    doFirst {
+        project.file('.gradle/.architectury-transformer').mkdirs()
+    }
 }
 
 tasks.withType(Test).configureEach {

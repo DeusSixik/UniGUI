@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:canvas.draw.callback.title>",
         slug = "canvas-draw-callback",
-        category = "<key:core.widgets.display.category>",
+        category = "<key:core.widgets.display.support.category>",
         summary = "<key:canvas.draw.callback.summary>",
         order = 120)
 @WikiSection(

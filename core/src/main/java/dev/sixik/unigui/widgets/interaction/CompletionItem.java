@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:completion.item.title>",
         slug = "completion-item",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:completion.item.summary>",
         order = 360)
 @WikiSection(

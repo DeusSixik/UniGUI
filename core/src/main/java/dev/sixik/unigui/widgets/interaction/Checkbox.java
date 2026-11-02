@@ -1,40 +1,23 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.event.ButtonClickEvent;
-import dev.sixik.unigui.api.event.CheckboxStateChangedEvent;
-import dev.sixik.unigui.api.event.CheckedChangedEvent;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.*;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
-import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @AiDoc(
@@ -318,7 +301,9 @@ public class Checkbox extends ToggleButton {
         ColorView borderOff = styleValue(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, borderColor());
         ColorView borderOn = styleValue(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, borderOff);
         ColorView hoverBorder = styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, borderOff);
-        ColorView markColor = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, checkedBackground());
+        ColorView accentMark = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, checkedBackground());
+        ColorView markColor = styleValue(StyleKeys.CHECKBOX_MARK_COLOR, WidgetState.CHECKED, accentMark);
+        CheckboxMarkShape markShape = styleValue(StyleKeys.CHECKBOX_MARK_SHAPE, WidgetState.NORMAL, CheckboxMarkShape.DOT);
         Float styledRadius = styleValue(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f);
         Float styledBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 1.0f);
         float progress = clamp01(checkProgress());
@@ -340,9 +325,7 @@ public class Checkbox extends ToggleButton {
                 draw.rectFilled(indicatorX + (boxSize - dashWidth) * 0.5f,
                         indicatorY + (boxSize - dashHeight) * 0.5f, dashWidth, dashHeight, markColor);
             } else {
-                float markSize = checkSize * progress;
-                draw.circleFilled(indicatorX + (boxSize - markSize) * 0.5f,
-                        indicatorY + (boxSize - markSize) * 0.5f, markSize, markSize, markColor);
+                renderMark(draw, markShape, markColor, indicatorX, indicatorY, progress);
             }
         }
 
@@ -367,6 +350,51 @@ public class Checkbox extends ToggleButton {
             }
         }
         renderChildren(context);
+    }
+
+    /**
+     * Рисует метку включённого флажка; {@code progress} (0..1) масштабирует её от центра квадрата.
+     *
+     * <p>Точка и квадрат занимают {@code checkSize * progress}. Галочка и крестик рисуются отрезками в долях стороны
+     * квадрата {@code S = boxSize}, толщина линии {@code max(1.5, S * 0.14)}:</p>
+     * <pre>
+     *   CHECK: (0.24S, 0.52S) -> (0.43S, 0.72S) -> (0.77S, 0.30S)
+     *   CROSS: (0.30S, 0.30S) -> (0.70S, 0.70S)  и  (0.70S, 0.30S) -> (0.30S, 0.70S)
+     *   точка p масштабируется: center + (p - center) * progress
+     * </pre>
+     */
+    private void renderMark(DrawScope draw, CheckboxMarkShape shape, ColorView color,
+                            float indicatorX, float indicatorY, float progress) {
+        switch (shape) {
+            case SQUARE -> {
+                float size = checkSize * progress;
+                draw.rectFilled(indicatorX + (boxSize - size) * 0.5f, indicatorY + (boxSize - size) * 0.5f,
+                        size, size, color);
+            }
+            case CHECK -> {
+                Paint stroke = Paint.stroke(color, Math.max(1.5f, boxSize * 0.14f));
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.24f, 0.52f, 0.43f, 0.72f);
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.43f, 0.72f, 0.77f, 0.30f);
+            }
+            case CROSS -> {
+                Paint stroke = Paint.stroke(color, Math.max(1.5f, boxSize * 0.14f));
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.30f, 0.30f, 0.70f, 0.70f);
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.70f, 0.30f, 0.30f, 0.70f);
+            }
+            default -> {
+                float size = checkSize * progress;
+                draw.circleFilled(indicatorX + (boxSize - size) * 0.5f, indicatorY + (boxSize - size) * 0.5f,
+                        size, size, color);
+            }
+        }
+    }
+
+    private void markLine(DrawScope draw, Paint paint, float indicatorX, float indicatorY, float progress,
+                          float x1, float y1, float x2, float y2) {
+        float s = boxSize;
+        draw.line(indicatorX + s * (0.5f + (x1 - 0.5f) * progress), indicatorY + s * (0.5f + (y1 - 0.5f) * progress),
+                indicatorX + s * (0.5f + (x2 - 0.5f) * progress), indicatorY + s * (0.5f + (y2 - 0.5f) * progress),
+                paint);
     }
 
     @Override

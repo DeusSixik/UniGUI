@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.feedback;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.core.UIContext;
@@ -73,6 +83,37 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
 /**
  * Retained overlay window/dialog shell hosted by {@link OverlayLayer}.
  */
+@AiDoc(summary = "Desktop-style floating window widget supporting title bar, dragging, resizing, collapse, modal dialogs, and docking integrations.")
+@WikiPage(
+        title = "WindowWidget",
+        slug = "window-widget",
+        category = "<key:feedback.category>",
+        summary = "<key:window.widget.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:window.widget.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:window.widget.example.basic.title>",
+        code = "WindowWidget window = new WindowWidget(\"Settings\", settingsForm);\nwindow.position(100, 100).open();"
+)
+@WikiLink(
+        label = "WindowManager",
+        target = "page:window-manager",
+        description = "<key:window.manager.summary>"
+)
+@WikiLink(
+        label = "OverlayLayer",
+        target = "page:overlay-layer",
+        description = "<key:overlay.layer.summary>"
+)
+@WikiLink(
+        label = "DockingRoot",
+        target = "page:docking-root",
+        description = "<key:docking.root.summary>"
+)
 @XmlWidgetName("WindowWidget")
 public class WindowWidget extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WINDOW_WIDGET;
@@ -147,6 +188,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private float resizeStartHeight;
     private final MutableRect hostBounds = new MutableRect();
 
+        @AiDoc(summary = "Constructs an empty WindowWidget with default title and dimensions.")
+    @WikiMethod(summary = "<key:window.widget.method.ctorDefault>")
     public WindowWidget() {
         applyComponentStyleDefaults(WidgetStyles.Window.DEFAULT);
         focusable(true);
@@ -194,24 +237,47 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return WidgetStyles.Window.DEFAULT;
     }
 
-    public WindowWidget(String title, Widget content) {
+        @AiDoc(summary = "Constructs a WindowWidget with a plain-text title and hosted content widget.")
+    @WikiMethod(summary = "<key:window.widget.method.ctorTitleContent>")
+    public WindowWidget(
+            @WikiParameter(description = "<key:window.widget.param.title>")
+            String title,
+            @WikiParameter(description = "<key:window.widget.param.content>")
+            Widget content
+    ) {
         this();
         title(title);
         content(content);
     }
 
-    public WindowWidget(RichText title, Widget content) {
+        @AiDoc(summary = "Constructs a WindowWidget with a RichText formatted title and hosted content.")
+    @WikiMethod(summary = "<key:window.widget.method.ctorRichTitleContent>")
+    public WindowWidget(
+            @WikiParameter(description = "<key:window.widget.param.richTitle>")
+            RichText title,
+            @WikiParameter(description = "<key:window.widget.param.content>")
+            Widget content
+    ) {
         this();
         richTitle(title);
         content(content);
     }
 
+        @AiDoc(summary = "Returns the window title string.")
+    @WikiMethod(summary = "<key:window.widget.method.titleGet>")
+    @WikiReturn("<key:window.widget.return.title>")
     public String title() {
         return title;
     }
 
     @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "Window title text.")
-    public WindowWidget title(String title) {
+        @AiDoc(summary = "Sets the window plain-text title.")
+    @WikiMethod(summary = "<key:window.widget.method.titleSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget title(
+            @WikiParameter(description = "<key:window.widget.param.title>")
+            String title
+    ) {
         String normalized = title == null ? "" : title;
         if (Objects.equals(this.title, normalized)) return this;
         this.title = normalized;
@@ -220,11 +286,20 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the RichText formatted title component.")
+    @WikiMethod(summary = "<key:window.widget.method.richTitleGet>")
+    @WikiReturn("<key:window.widget.return.richTitle>")
     public RichText richTitle() {
         return richTitle;
     }
 
-    public WindowWidget richTitle(RichText title) {
+        @AiDoc(summary = "Sets the RichText formatted title component.")
+    @WikiMethod(summary = "<key:window.widget.method.richTitleSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget richTitle(
+            @WikiParameter(description = "<key:window.widget.param.richTitle>")
+            RichText title
+    ) {
         RichText normalized = title == null ? RichText.plain("") : title;
         if (Objects.equals(this.richTitle, normalized)) return this;
         this.richTitle = normalized;
@@ -233,11 +308,20 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the hosted content widget.")
+    @WikiMethod(summary = "<key:window.widget.method.contentGet>")
+    @WikiReturn("<key:window.widget.return.content>")
     public Widget content() {
         return content;
     }
 
-    public WindowWidget content(Widget content) {
+        @AiDoc(summary = "Sets the hosted content widget.")
+    @WikiMethod(summary = "<key:window.widget.method.contentSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget content(
+            @WikiParameter(description = "<key:window.widget.param.content>")
+            Widget content
+    ) {
         if (this.content == content) return this;
         if (this.content != null) {
             removeChild(this.content);
@@ -254,13 +338,22 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /** Возвращает состояние свёрнутого окна: виден только title bar. */
+        @AiDoc(summary = "Returns true if the window is currently collapsed to header-only.")
+    @WikiMethod(summary = "<key:window.widget.method.collapsedGet>")
+    @WikiReturn("<key:window.widget.return.collapsed>")
     public boolean collapsed() {
         return collapsed;
     }
 
     /** Сворачивает или разворачивает содержимое окна, не закрывая само окно. */
     @XmlAttribute(value = "collapsed", category = "Behavior", defaultValue = "false", description = "Показывать только заголовок окна.")
-    public WindowWidget collapsed(boolean collapsed) {
+        @AiDoc(summary = "Sets whether the window is collapsed.")
+    @WikiMethod(summary = "<key:window.widget.method.collapsedSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget collapsed(
+            @WikiParameter(description = "<key:window.widget.param.collapsed>")
+            boolean collapsed
+    ) {
         if (this.collapsed == collapsed) return this;
         this.collapsed = collapsed;
         if (content instanceof dev.sixik.unigui.impl.widget.WidgetBase base) {
@@ -276,18 +369,30 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /** Меняет состояние сворачивания. */
+        @AiDoc(summary = "Toggles collapsed state between full and header-only.")
+    @WikiMethod(summary = "<key:window.widget.method.toggleCollapsed>")
+    @WikiReturn("<key:window.widget.return.this>")
     public WindowWidget toggleCollapsed() {
         return collapsed(!collapsed);
     }
 
     /** Возвращает, показывается ли кнопка сворачивания в title bar. */
+        @AiDoc(summary = "Returns true if the collapse toggle button is shown in the header.")
+    @WikiMethod(summary = "<key:window.widget.method.collapseButtonVisibleGet>")
+    @WikiReturn("<key:window.widget.return.collapseButtonVisible>")
     public boolean collapseButtonVisible() {
         return collapseButtonVisible;
     }
 
     /** Включает или отключает кнопку сворачивания в title bar. */
     @XmlAttribute(value = "collapseButtonVisible", category = "Behavior", defaultValue = "false", description = "Показывать кнопку сворачивания в заголовке.")
-    public WindowWidget collapseButtonVisible(boolean visible) {
+        @AiDoc(summary = "Sets the visibility of the header collapse button.")
+    @WikiMethod(summary = "<key:window.widget.method.collapseButtonVisibleSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget collapseButtonVisible(
+            @WikiParameter(description = "<key:window.widget.param.visible>")
+            boolean visible
+    ) {
         if (collapseButtonVisible == visible) return this;
         collapseButtonVisible = visible;
         collapseButton.visible(visible);
@@ -295,20 +400,35 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the window is currently opened and active in the overlay.")
+    @WikiMethod(summary = "<key:window.widget.method.opened>")
+    @WikiReturn("<key:window.widget.return.opened>")
     public boolean opened() {
         return open;
     }
 
+        @AiDoc(summary = "Returns true if this window currently holds focus in its WindowManager.")
+    @WikiMethod(summary = "<key:window.widget.method.active>")
+    @WikiReturn("<key:window.widget.return.active>")
     public boolean active() {
         return active;
     }
 
+        @AiDoc(summary = "Returns true if the window is modal, blocking interaction with windows below.")
+    @WikiMethod(summary = "<key:window.widget.method.modalGet>")
+    @WikiReturn("<key:window.widget.return.modal>")
     public boolean modal() {
         return modal;
     }
 
     @XmlAttribute(value = "modal", category = "Behavior", defaultValue = "false", description = "Whether the window blocks interaction outside itself while open.")
-    public WindowWidget modal(boolean modal) {
+        @AiDoc(summary = "Configures modal behavior for this window.")
+    @WikiMethod(summary = "<key:window.widget.method.modalSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget modal(
+            @WikiParameter(description = "<key:window.widget.param.modal>")
+            boolean modal
+    ) {
         if (this.modal == modal) return this;
         boolean oldModal = this.modal;
         this.modal = modal;
@@ -323,12 +443,21 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the modal window is fixed and cannot be dragged.")
+    @WikiMethod(summary = "<key:window.widget.method.fixedModalGet>")
+    @WikiReturn("<key:window.widget.return.fixedModal>")
     public boolean fixedModal() {
         return fixedModal;
     }
 
     @XmlAttribute(value = "fixedModal", category = "Behavior", defaultValue = "false", description = "Whether modal state disables dragging and resizing.")
-    public WindowWidget fixedModal(boolean fixedModal) {
+        @AiDoc(summary = "Configures whether this modal window has a fixed non-draggable position.")
+    @WikiMethod(summary = "<key:window.widget.method.fixedModalSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget fixedModal(
+            @WikiParameter(description = "<key:window.widget.param.fixedModal>")
+            boolean fixedModal
+    ) {
         if (this.fixedModal == fixedModal) return this;
         this.fixedModal = fixedModal;
         if (fixedModal && modal) {
@@ -344,6 +473,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return тема, по которой рисуются заголовок, рамка и тень окна
      */
+        @AiDoc(summary = "Returns the active DockTheme applied to window chrome.")
+    @WikiMethod(summary = "<key:window.widget.method.themeGet>")
+    @WikiReturn("<key:window.widget.return.theme>")
     public DockTheme theme() {
         DockTheme own = theme;
         return own != null ? own : DockTheme.defaultTheme();
@@ -355,7 +487,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param theme тема; {@code null} возвращает окно на глобальную тему
      * @return это окно для fluent-настройки
      */
-    public WindowWidget theme(DockTheme theme) {
+        @AiDoc(summary = "Applies a custom DockTheme to window chrome and controls.")
+    @WikiMethod(summary = "<key:window.widget.method.themeSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget theme(
+            @WikiParameter(description = "<key:window.widget.param.theme>")
+            DockTheme theme
+    ) {
         this.theme = theme;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
@@ -366,6 +504,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return иконка или {@link UiIcon#NONE}
      */
+        @AiDoc(summary = "Returns the title bar icon.")
+    @WikiMethod(summary = "<key:window.widget.method.iconGet>")
+    @WikiReturn("<key:window.widget.return.icon>")
     public UiIcon icon() {
         return icon;
     }
@@ -376,7 +517,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param icon иконка; {@code null} убирает иконку
      * @return это окно для fluent-настройки
      */
-    public WindowWidget icon(UiIcon icon) {
+        @AiDoc(summary = "Sets the title bar icon.")
+    @WikiMethod(summary = "<key:window.widget.method.iconSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget icon(
+            @WikiParameter(description = "<key:window.widget.param.icon>")
+            UiIcon icon
+    ) {
         UiIcon normalized = icon == null ? UiIcon.NONE : icon;
         if (this.icon == normalized) return this;
         this.icon = normalized;
@@ -384,12 +531,21 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if redocking this window into other hosts is locked.")
+    @WikiMethod(summary = "<key:window.widget.method.dockRedockLockedGet>")
+    @WikiReturn("<key:window.widget.return.dockRedockLocked>")
     public boolean dockRedockLocked() {
         return dockRedockLocked;
     }
 
     @XmlAttribute(value = "dockRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether docking/redocking actions are locked for this window.")
-    public WindowWidget dockRedockLocked(boolean dockRedockLocked) {
+        @AiDoc(summary = "Locks or unlocks redocking capability for this window.")
+    @WikiMethod(summary = "<key:window.widget.method.dockRedockLockedSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockRedockLocked(
+            @WikiParameter(description = "<key:window.widget.param.dockRedockLocked>")
+            boolean dockRedockLocked
+    ) {
         if (this.dockRedockLocked == dockRedockLocked) return this;
         this.dockRedockLocked = dockRedockLocked;
         if (dockRedockLocked) {
@@ -408,6 +564,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return текущая политика
      */
+        @AiDoc(summary = "Returns the docking policy (FULL, GUEST_ONLY, DISABLED).")
+    @WikiMethod(summary = "<key:window.widget.method.dockPolicyGet>")
+    @WikiReturn("<key:window.widget.return.dockPolicy>")
     public DockPolicy dockPolicy() {
         return dockPolicy;
     }
@@ -419,7 +578,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "dockPolicy", category = "Behavior", defaultValue = "full", description = "Docking participation: full, guest_only or disabled.")
-    public WindowWidget dockPolicy(DockPolicy dockPolicy) {
+        @AiDoc(summary = "Sets the docking integration policy.")
+    @WikiMethod(summary = "<key:window.widget.method.dockPolicySet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockPolicy(
+            @WikiParameter(description = "<key:window.widget.param.dockPolicy>")
+            DockPolicy dockPolicy
+    ) {
         DockPolicy normalized = dockPolicy == null ? DockPolicy.FULL : dockPolicy;
         if (this.dockPolicy == normalized) return this;
         this.dockPolicy = normalized;
@@ -438,6 +603,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return {@code true}, если окно может быть источником дропа
      */
+        @AiDoc(summary = "Returns true if this window can be docked into an external host.")
+    @WikiMethod(summary = "<key:window.widget.method.dockableGet>")
+    @WikiReturn("<key:window.widget.return.dockable>")
     public boolean dockable() {
         return dockPolicy.canBeDocked() && !modal;
     }
@@ -450,7 +618,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "true", description = "Whether this window may be docked into a DockingRoot or another window.")
-    public WindowWidget dockable(boolean dockable) {
+        @AiDoc(summary = "Enables or disables docking capability.")
+    @WikiMethod(summary = "<key:window.widget.method.dockableSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockable(
+            @WikiParameter(description = "<key:window.widget.param.dockable>")
+            boolean dockable
+    ) {
         if (dockable) {
             if (dockPolicy == DockPolicy.DISABLED) dockPolicy(DockPolicy.FULL);
         } else {
@@ -464,6 +638,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return {@code true}, если политика разрешает приём, окно открыто, не модальное и не залочено
      */
+        @AiDoc(summary = "Returns true if this window accepts foreign panes dropped into it.")
+    @WikiMethod(summary = "<key:window.widget.method.acceptsDocking>")
+    @WikiReturn("<key:window.widget.return.acceptsDocking>")
     public boolean acceptsDocking() {
         return dockPolicy.acceptsDrops() && !modal && !dockRedockLocked && open && dockableContentHost();
     }
@@ -482,6 +659,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * <p>Пустая строка означает авто-id: сначала используется widget id окна,
      * иначе генерируется случайный id панели.</p>
      */
+        @AiDoc(summary = "Returns the pane ID representing this window when docked.")
+    @WikiMethod(summary = "<key:window.widget.method.dockPaneIdGet>")
+    @WikiReturn("<key:window.widget.return.dockPaneId>")
     public String dockPaneId() {
         return dockPaneId;
     }
@@ -493,7 +673,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "dockPaneId", category = "Behavior", defaultValue = "", description = "Pane id used when this window is docked into a DockingRoot.")
-    public WindowWidget dockPaneId(String dockPaneId) {
+        @AiDoc(summary = "Sets the pane ID representing this window when docked.")
+    @WikiMethod(summary = "<key:window.widget.method.dockPaneIdSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockPaneId(
+            @WikiParameter(description = "<key:window.widget.param.dockPaneId>")
+            String dockPaneId
+    ) {
         String normalized = dockPaneId == null ? "" : dockPaneId.trim();
         if (this.dockPaneId.equals(normalized)) return this;
         this.dockPaneId = normalized;
@@ -503,6 +689,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Роль будущей dock-панели: документ или tool-панель.
      */
+        @AiDoc(summary = "Returns the classification kind (DOCUMENT or TOOL) when docked.")
+    @WikiMethod(summary = "<key:window.widget.method.dockKindGet>")
+    @WikiReturn("<key:window.widget.return.dockKind>")
     public DockPaneKind dockKind() {
         return dockKind;
     }
@@ -514,7 +703,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "dockKind", category = "Behavior", defaultValue = "tool", description = "Dock pane kind used when this window is docked: tool or document.")
-    public WindowWidget dockKind(DockPaneKind dockKind) {
+        @AiDoc(summary = "Sets the docking classification kind.")
+    @WikiMethod(summary = "<key:window.widget.method.dockKindSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockKind(
+            @WikiParameter(description = "<key:window.widget.param.dockKind>")
+            DockPaneKind dockKind
+    ) {
         DockPaneKind normalized = dockKind == null ? DockPaneKind.TOOL : dockKind;
         if (this.dockKind == normalized) return this;
         this.dockKind = normalized;
@@ -524,6 +719,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Id-источник для drop intent при перетаскивании окна над {@link DockingRoot}.
      */
+        @AiDoc(summary = "Returns the source docking host ID if this window was torn off from a dock.")
+    @WikiMethod(summary = "<key:window.widget.method.dockSourceId>")
+    @WikiReturn("<key:window.widget.return.dockSourceId>")
     public String dockSourceId() {
         if (!dockPaneId.isEmpty()) return dockPaneId;
         String widgetId = id();
@@ -539,6 +737,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return {@code true}, если контент окна — его внутренний docking root
      */
+        @AiDoc(summary = "Returns true if docking features are actively enabled.")
+    @WikiMethod(summary = "<key:window.widget.method.dockingEnabledGet>")
+    @WikiReturn("<key:window.widget.return.dockingEnabled>")
     public boolean dockingEnabled() {
         return dockHost;
     }
@@ -555,7 +756,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area right now.")
-    public WindowWidget dockingEnabled(boolean dockingEnabled) {
+        @AiDoc(summary = "Enables or disables docking integration.")
+    @WikiMethod(summary = "<key:window.widget.method.dockingEnabledSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockingEnabled(
+            @WikiParameter(description = "<key:window.widget.param.dockingEnabled>")
+            boolean dockingEnabled
+    ) {
         if (dockingEnabled) {
             if (!dockPolicy.acceptsDrops()) dockPolicy = DockPolicy.FULL;
             autoDockHost = false;
@@ -573,6 +780,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Внутренний {@link DockingRoot} окна-хоста или {@code null}, если окно ни разу не было хостом.
      */
+        @AiDoc(summary = "Returns the internal DockingRoot hosted inside this window, or null.")
+    @WikiMethod(summary = "<key:window.widget.method.dockingRoot>")
+    @WikiReturn("<key:window.widget.return.dockingRoot>")
     public DockingRoot dockingRoot() {
         return dockingRoot;
     }
@@ -586,6 +796,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return внутренний root или {@code null}, если окно не принимает дропы
      */
+        @AiDoc(summary = "Initializes and returns an embedded DockingRoot instance as content.")
+    @WikiMethod(summary = "<key:window.widget.method.ensureDockHost>")
+    @WikiReturn("<key:window.widget.return.dockingRoot>")
     public DockingRoot ensureDockHost() {
         if (dockHost && dockingRoot != null && content == dockingRoot) return dockingRoot;
         if (!acceptsDocking()) return null;
@@ -601,6 +814,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * <p>Если хост создан явно ({@link #dockingEnabled(boolean)}) или в него уже что-то стыковали,
      * метод ничего не делает.</p>
      */
+        @AiDoc(summary = "Releases an automatically created docking host if empty.")
+    @WikiMethod(summary = "<key:window.widget.method.releaseAutoDockHost>")
     public void releaseAutoDockHost() {
         if (!autoDockHost || !dockHost || dockingRoot == null) return;
         if (dockingRoot.manager().paneCount() > 1) {
@@ -630,6 +845,8 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Закрепляет хост: после реального дропа он больше не откатывается как временный.
      */
+        @AiDoc(summary = "Commits an auto-created docking host, making it permanent.")
+    @WikiMethod(summary = "<key:window.widget.method.commitDockHost>")
     public void commitDockHost() {
         autoDockHost = false;
     }
@@ -640,7 +857,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param pane панель для добавления; {@code null} игнорируется
      * @return это окно для fluent-настройки
      */
-    public WindowWidget dockPane(DockPane pane) {
+        @AiDoc(summary = "Docks a pane into this window's embedded docking host.")
+    @WikiMethod(summary = "<key:window.widget.method.dockPane>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockPane(
+            @WikiParameter(description = "<key:window.widget.param.pane>")
+            DockPane pane
+    ) {
         if (pane == null) return this;
         if (!dockHost) dockingEnabled(true);
         autoDockHost = false;
@@ -651,14 +874,34 @@ public class WindowWidget extends Box implements OverlayHostAware {
     /**
      * Добавляет документ во внутреннюю docking area.
      */
-    public WindowWidget dockDocument(String id, String title, Widget content) {
+        @AiDoc(summary = "Docks a document pane into this window's docking host.")
+    @WikiMethod(summary = "<key:window.widget.method.dockDocument>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockDocument(
+            @WikiParameter(description = "<key:window.widget.param.id>")
+            String id,
+            @WikiParameter(description = "<key:window.widget.param.title>")
+            String title,
+            @WikiParameter(description = "<key:window.widget.param.content>")
+            Widget content
+    ) {
         return dockPane(DockPane.document(id, title, content));
     }
 
     /**
      * Добавляет tool-панель во внутреннюю docking area.
      */
-    public WindowWidget dockTool(String id, String title, Widget content) {
+        @AiDoc(summary = "Docks a tool pane into this window's docking host.")
+    @WikiMethod(summary = "<key:window.widget.method.dockTool>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockTool(
+            @WikiParameter(description = "<key:window.widget.param.id>")
+            String id,
+            @WikiParameter(description = "<key:window.widget.param.title>")
+            String title,
+            @WikiParameter(description = "<key:window.widget.param.content>")
+            Widget content
+    ) {
         return dockPane(DockPane.tool(id, title, content));
     }
 
@@ -672,7 +915,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param source окно-хост, чьи панели переносятся
      * @return {@code true}, если перенесена хотя бы одна панель
      */
-    public boolean mergeDockingFrom(WindowWidget source) {
+        @AiDoc(summary = "Merges docking panes from another window into this window's dock host.")
+    @WikiMethod(summary = "<key:window.widget.method.mergeDockingFrom>")
+    @WikiReturn("<key:window.widget.return.mergeSuccess>")
+    public boolean mergeDockingFrom(
+            @WikiParameter(description = "<key:window.widget.param.sourceWindow>")
+            WindowWidget source
+    ) {
         if (source == null || source == this) return false;
         DockingRoot sourceRoot = source.dockingRoot;
         if (sourceRoot == null) return false;
@@ -746,6 +995,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return исходная панель или {@code null}
      */
+        @AiDoc(summary = "Returns the source DockPane representation when floating.")
+    @WikiMethod(summary = "<key:window.widget.method.dockSourcePaneGet>")
+    @WikiReturn("<key:window.widget.return.dockSourcePane>")
     public DockPane dockSourcePane() {
         return dockSourcePane;
     }
@@ -756,7 +1008,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param pane панель, из которой окно вытащено, или {@code null}
      * @return это окно для fluent-настройки
      */
-    public WindowWidget dockSourcePane(DockPane pane) {
+        @AiDoc(summary = "Sets the source DockPane representation.")
+    @WikiMethod(summary = "<key:window.widget.method.dockSourcePaneSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget dockSourcePane(
+            @WikiParameter(description = "<key:window.widget.param.pane>")
+            DockPane pane
+    ) {
         this.dockSourcePane = pane;
         return this;
     }
@@ -766,6 +1024,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return {@code true}, если окно сейчас док-хост
      */
+        @AiDoc(summary = "Returns true if the window renders without a title bar header.")
+    @WikiMethod(summary = "<key:window.widget.method.captionless>")
+    @WikiReturn("<key:window.widget.return.captionless>")
     public boolean captionless() {
         return dockHost && dockingRoot != null && content == dockingRoot;
     }
@@ -787,25 +1048,43 @@ public class WindowWidget extends Box implements OverlayHostAware {
     private EdgeInsets contentPadding() {
         return captionless() ? EdgeInsets.ZERO : padding;
     }
+        @AiDoc(summary = "Opens this window as a modal dialog.")
+    @WikiMethod(summary = "<key:window.widget.method.openModal>")
+    @WikiReturn("<key:window.widget.return.this>")
     public WindowWidget openModal() {
         modal(true);
         return open();
     }
 
+        @AiDoc(summary = "Opens the window.")
+    @WikiMethod(summary = "<key:window.widget.method.open>")
+    @WikiReturn("<key:window.widget.return.this>")
     public WindowWidget open() {
         return open(true);
     }
 
+        @AiDoc(summary = "Closes the window.")
+    @WikiMethod(summary = "<key:window.widget.method.close>")
+    @WikiReturn("<key:window.widget.return.this>")
     public WindowWidget close() {
         return open(false);
     }
 
+        @AiDoc(summary = "Toggles between open and closed states.")
+    @WikiMethod(summary = "<key:window.widget.method.toggle>")
+    @WikiReturn("<key:window.widget.return.this>")
     public WindowWidget toggle() {
         return open(!open);
     }
 
     @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the window is visible.")
-    public WindowWidget open(boolean open) {
+        @AiDoc(summary = "Sets the open state of the window.")
+    @WikiMethod(summary = "<key:window.widget.method.openState>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget open(
+            @WikiParameter(description = "<key:window.widget.param.open>")
+            boolean open
+    ) {
         if (this.open == open) return this;
         this.open = open;
         if (!open) {
@@ -831,12 +1110,21 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if window dragging by the header is enabled.")
+    @WikiMethod(summary = "<key:window.widget.method.draggableGet>")
+    @WikiReturn("<key:window.widget.return.draggable>")
     public boolean draggable() {
         return draggable;
     }
 
     @XmlAttribute(value = "draggable", category = "Behavior", defaultValue = "true", description = "Whether the window can be moved by dragging its header.")
-    public WindowWidget draggable(boolean draggable) {
+        @AiDoc(summary = "Enables or disables window dragging.")
+    @WikiMethod(summary = "<key:window.widget.method.draggableSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget draggable(
+            @WikiParameter(description = "<key:window.widget.param.draggable>")
+            boolean draggable
+    ) {
         if (this.draggable == draggable) return this;
         this.draggable = draggable;
         if (!effectiveDraggable()) {
@@ -845,6 +1133,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the window is currently being moved.")
+    @WikiMethod(summary = "<key:window.widget.method.dragging>")
+    @WikiReturn("<key:window.widget.return.dragging>")
     public boolean dragging() {
         return dragging;
     }
@@ -859,6 +1150,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return X указателя в root-координатах на момент последнего drag-события
      */
+        @AiDoc(summary = "Returns the last pointer root X coordinate during dragging.")
+    @WikiMethod(summary = "<key:window.widget.method.lastDragRootX>")
+    @WikiReturn("<key:window.widget.return.coordinate>")
     public float lastDragRootX() {
         return lastDragRootX;
     }
@@ -868,16 +1162,28 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return Y указателя в root-координатах на момент последнего drag-события
      */
+        @AiDoc(summary = "Returns the last pointer root Y coordinate during dragging.")
+    @WikiMethod(summary = "<key:window.widget.method.lastDragRootY>")
+    @WikiReturn("<key:window.widget.return.coordinate>")
     public float lastDragRootY() {
         return lastDragRootY;
     }
 
+        @AiDoc(summary = "Returns true if window border and grip resizing is enabled.")
+    @WikiMethod(summary = "<key:window.widget.method.resizableGet>")
+    @WikiReturn("<key:window.widget.return.resizable>")
     public boolean resizable() {
         return resizable;
     }
 
     @XmlAttribute(value = "resizable", category = "Behavior", defaultValue = "true", description = "Whether the window can be resized by edge handles.")
-    public WindowWidget resizable(boolean resizable) {
+        @AiDoc(summary = "Enables or disables border and grip resizing.")
+    @WikiMethod(summary = "<key:window.widget.method.resizableSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget resizable(
+            @WikiParameter(description = "<key:window.widget.param.resizable>")
+            boolean resizable
+    ) {
         if (this.resizable == resizable) return this;
         this.resizable = resizable;
         if (!effectiveResizable()) {
@@ -887,20 +1193,35 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns true if the window is actively being resized.")
+    @WikiMethod(summary = "<key:window.widget.method.resizing>")
+    @WikiReturn("<key:window.widget.return.resizing>")
     public boolean resizing() {
         return resizing;
     }
 
+        @AiDoc(summary = "Returns the name of the active resize handle (e.g. BOTTOM_RIGHT).")
+    @WikiMethod(summary = "<key:window.widget.method.resizeHandle>")
+    @WikiReturn("<key:window.widget.return.resizeHandle>")
     public String resizeHandle() {
         return resizeHandle.publicName();
     }
 
+        @AiDoc(summary = "Returns true if the title bar close button is visible.")
+    @WikiMethod(summary = "<key:window.widget.method.closeButtonVisibleGet>")
+    @WikiReturn("<key:window.widget.return.closeButtonVisible>")
     public boolean closeButtonVisible() {
         return closeButtonVisible;
     }
 
     @XmlAttribute(value = "closeButtonVisible", category = "Behavior", defaultValue = "true", description = "Whether the close button is shown in the header.")
-    public WindowWidget closeButtonVisible(boolean closeButtonVisible) {
+        @AiDoc(summary = "Sets the visibility of the close button.")
+    @WikiMethod(summary = "<key:window.widget.method.closeButtonVisibleSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget closeButtonVisible(
+            @WikiParameter(description = "<key:window.widget.param.closeButtonVisible>")
+            boolean closeButtonVisible
+    ) {
         if (this.closeButtonVisible == closeButtonVisible) return this;
         this.closeButtonVisible = closeButtonVisible;
         closeButton.visible(closeButtonVisible);
@@ -908,41 +1229,76 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the title bar close button widget.")
+    @WikiMethod(summary = "<key:window.widget.method.closeButton>")
+    @WikiReturn("<key:window.widget.return.button>")
     public Button closeButton() {
         return closeButton;
     }
 
+        @AiDoc(summary = "Returns true if clicking outside dismisses this window.")
+    @WikiMethod(summary = "<key:window.widget.method.closeOnOutsideClickGet>")
+    @WikiReturn("<key:window.widget.return.closeOnOutsideClick>")
     public boolean closeOnOutsideClick() {
         return closeOnOutsideClick;
     }
 
     @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "false", description = "Whether outside pointer presses close the window.")
-    public WindowWidget closeOnOutsideClick(boolean closeOnOutsideClick) {
+        @AiDoc(summary = "Configures whether clicking outside closes the window.")
+    @WikiMethod(summary = "<key:window.widget.method.closeOnOutsideClickSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget closeOnOutsideClick(
+            @WikiParameter(description = "<key:window.widget.param.closeOnOutsideClick>")
+            boolean closeOnOutsideClick
+    ) {
         this.closeOnOutsideClick = closeOnOutsideClick;
         return this;
     }
 
+        @AiDoc(summary = "Returns true if window coordinates are clamped within the host boundary.")
+    @WikiMethod(summary = "<key:window.widget.method.constrainToHostGet>")
+    @WikiReturn("<key:window.widget.return.constrainToHost>")
     public boolean constrainToHost() {
         return constrainToHost;
     }
 
     @XmlAttribute(value = "constrainToHost", category = "Layout", defaultValue = "true", description = "Whether arrangement clamps the window inside the overlay host.")
-    public WindowWidget constrainToHost(boolean constrainToHost) {
+        @AiDoc(summary = "Configures host boundary clamping.")
+    @WikiMethod(summary = "<key:window.widget.method.constrainToHostSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget constrainToHost(
+            @WikiParameter(description = "<key:window.widget.param.constrainToHost>")
+            boolean constrainToHost
+    ) {
         if (this.constrainToHost == constrainToHost) return this;
         this.constrainToHost = constrainToHost;
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+        @AiDoc(summary = "Returns the window horizontal X coordinate.")
+    @WikiMethod(summary = "<key:window.widget.method.windowX>")
+    @WikiReturn("<key:window.widget.return.coordinate>")
     public float windowX() {
         return x;
     }
 
+        @AiDoc(summary = "Returns the window vertical Y coordinate.")
+    @WikiMethod(summary = "<key:window.widget.method.windowY>")
+    @WikiReturn("<key:window.widget.return.coordinate>")
     public float windowY() {
         return y;
     }
 
-    public WindowWidget position(float x, float y) {
+        @AiDoc(summary = "Sets the window coordinates in UI pixels.")
+    @WikiMethod(summary = "<key:window.widget.method.position>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget position(
+            @WikiParameter(description = "<key:window.widget.param.x>")
+            float x,
+            @WikiParameter(description = "<key:window.widget.param.y>")
+            float y
+    ) {
         float normalizedX = Float.isFinite(x) ? x : 0.0f;
         float normalizedY = Float.isFinite(y) ? y : 0.0f;
         if (this.x == normalizedX && this.y == normalizedY) return this;
@@ -952,12 +1308,21 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the title bar header height in UI pixels.")
+    @WikiMethod(summary = "<key:window.widget.method.headerHeightGet>")
+    @WikiReturn("<key:window.widget.return.headerHeight>")
     public float headerHeight() {
         return headerHeight;
     }
 
     @XmlAttribute(value = "headerHeight", category = "Layout", defaultValue = "22", description = "Window header height in UI pixels.")
-    public WindowWidget headerHeight(float headerHeight) {
+        @AiDoc(summary = "Sets the title bar header height in UI pixels.")
+    @WikiMethod(summary = "<key:window.widget.method.headerHeightSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget headerHeight(
+            @WikiParameter(description = "<key:window.widget.param.headerHeight>")
+            float headerHeight
+    ) {
         float normalized = Float.isFinite(headerHeight) ? Math.max(12.0f, headerHeight) : DEFAULT_HEADER_HEIGHT;
         if (this.headerHeight == normalized) return this;
         this.headerHeight = normalized;
@@ -965,7 +1330,15 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
-    public WindowWidget minWindowSize(float width, float height) {
+        @AiDoc(summary = "Sets minimum width and height limits for window resizing.")
+    @WikiMethod(summary = "<key:window.widget.method.minWindowSize>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget minWindowSize(
+            @WikiParameter(description = "<key:window.widget.param.width>")
+            float width,
+            @WikiParameter(description = "<key:window.widget.param.height>")
+            float height
+    ) {
         float normalizedWidth = Float.isFinite(width) ? Math.max(0.0f, width) : DEFAULT_MIN_WIDTH;
         float normalizedHeight = Float.isFinite(height) ? Math.max(0.0f, height) : DEFAULT_MIN_HEIGHT;
         if (minWindowWidth == normalizedWidth && minWindowHeight == normalizedHeight) return this;
@@ -975,12 +1348,21 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the window content padding.")
+    @WikiMethod(summary = "<key:window.widget.method.paddingGet>")
+    @WikiReturn("<key:window.widget.return.padding>")
     public EdgeInsets padding() {
         return padding;
     }
 
     @XmlAttribute(value = "padding", category = "Layout", defaultValue = "8", description = "Inner padding around window content.")
-    public WindowWidget padding(EdgeInsets padding) {
+        @AiDoc(summary = "Sets the window content padding.")
+    @WikiMethod(summary = "<key:window.widget.method.paddingSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget padding(
+            @WikiParameter(description = "<key:window.widget.param.padding>")
+            EdgeInsets padding
+    ) {
         EdgeInsets normalized = padding == null ? EdgeInsets.ZERO : padding;
         if (this.padding.equals(normalized)) return this;
         this.padding = normalized;
@@ -988,14 +1370,23 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return this;
     }
 
+        @AiDoc(summary = "Returns the mutable background color of the title bar header.")
+    @WikiMethod(summary = "<key:window.widget.method.headerColor>")
+    @WikiReturn("<key:window.widget.return.mutableColor>")
     public MutableColor headerColor() {
         return headerColor;
     }
 
+        @AiDoc(summary = "Returns the mutable separator line color between header and content.")
+    @WikiMethod(summary = "<key:window.widget.method.headerSeparatorColor>")
+    @WikiReturn("<key:window.widget.return.mutableColor>")
     public MutableColor headerSeparatorColor() {
         return headerSeparatorColor;
     }
 
+        @AiDoc(summary = "Returns the mutable title text color.")
+    @WikiMethod(summary = "<key:window.widget.method.titleColor>")
+    @WikiReturn("<key:window.widget.return.mutableColor>")
     public MutableColor titleColor() {
         return titleColor;
     }
@@ -1101,7 +1492,12 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     @Override
-    public void arrangeInHost(RectView bounds) {
+        @AiDoc(summary = "Positions the window inside the host boundaries.")
+    @WikiMethod(summary = "<key:window.widget.method.arrangeInHost>")
+    public void arrangeInHost(
+            @WikiParameter(description = "<key:window.widget.param.bounds>")
+            RectView bounds
+    ) {
         if (!open || visibility() == Visibility.COLLAPSED) {
             mutableLayoutBounds().set(bounds.x(), bounds.y(), 0.0f, 0.0f);
             return;
@@ -1277,6 +1673,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return стиль ручки
      */
+        @AiDoc(summary = "Returns the active resize grip visual style.")
+    @WikiMethod(summary = "<key:window.widget.method.resizeGripGet>")
+    @WikiReturn("<key:window.widget.return.resizeGrip>")
     public ResizeGripStyle resizeGrip() {
         return resizeGrip != null ? resizeGrip : theme().resizeGrip();
     }
@@ -1287,7 +1686,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param resizeGrip стиль ручки; {@code null} возвращает стиль темы
      * @return это окно для fluent-настройки
      */
-    public WindowWidget resizeGrip(ResizeGripStyle resizeGrip) {
+        @AiDoc(summary = "Sets the corner resize grip visual style.")
+    @WikiMethod(summary = "<key:window.widget.method.resizeGripSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget resizeGrip(
+            @WikiParameter(description = "<key:window.widget.param.resizeGrip>")
+            ResizeGripStyle resizeGrip
+    ) {
         this.resizeGrip = resizeGrip;
         invalidate(InvalidationFlags.VISUAL);
         return this;
@@ -1298,6 +1703,9 @@ public class WindowWidget extends Box implements OverlayHostAware {
      *
      * @return {@code true} по умолчанию
      */
+        @AiDoc(summary = "Returns true if the corner resize grip is rendered.")
+    @WikiMethod(summary = "<key:window.widget.method.resizeGripVisibleGet>")
+    @WikiReturn("<key:window.widget.return.resizeGripVisible>")
     public boolean resizeGripVisible() {
         return resizeGripVisible;
     }
@@ -1310,7 +1718,13 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @return это окно для fluent-настройки
      */
     @XmlAttribute(value = "resizeGripVisible", category = "Appearance", defaultValue = "true", description = "Whether the resize grip is drawn in the bottom-right corner.")
-    public WindowWidget resizeGripVisible(boolean visible) {
+        @AiDoc(summary = "Sets whether the corner resize grip is visible.")
+    @WikiMethod(summary = "<key:window.widget.method.resizeGripVisibleSet>")
+    @WikiReturn("<key:window.widget.return.this>")
+    public WindowWidget resizeGripVisible(
+            @WikiParameter(description = "<key:window.widget.param.visible>")
+            boolean visible
+    ) {
         if (resizeGripVisible == visible) return this;
         resizeGripVisible = visible;
         invalidate(InvalidationFlags.VISUAL);

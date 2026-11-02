@@ -22,7 +22,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:code.validation.context.title>",
         slug = "code-validation-context",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:code.validation.context.summary>",
         order = 374)
 @WikiSection(

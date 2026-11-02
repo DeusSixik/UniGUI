@@ -11,6 +11,13 @@ import java.util.function.Predicate;
  */
 public interface UniGuiBackend {
     /**
+     * Returns the logger provided by this game-version backend.
+     */
+    default UniGuiLogger logger(String name) {
+        return UniGuiRuntime.fallbackLogger(name);
+    }
+
+    /**
      * Opens the native screen represented by the supplied UniGUI screen.
      */
     void openScreen(UniScreen screen);

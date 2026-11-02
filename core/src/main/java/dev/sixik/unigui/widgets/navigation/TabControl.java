@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventPhase;
@@ -31,6 +41,27 @@ import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 
+@AiDoc(summary = "Tabbed navigation container with a scrollable header bar and switched content area.")
+@WikiPage(
+        title = "TabControl",
+        slug = "tab-control",
+        category = "<key:navigation.category>",
+        summary = "<key:tab.control.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tab.control.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tab.control.example.basic.title>",
+        code = "TabControl tabs = new TabControl();\ntabs.addTab(\"Editor\", new PanelWidget());\ntabs.addTab(\"Console\", new PanelWidget());\ntabs.selectTab(0);"
+)
+@WikiLink(
+        label = "PageView",
+        target = "page:page-view",
+        description = "<key:page.view.summary>"
+)
 @XmlWidgetName("TabControl")
 public class TabControl extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TAB_CONTROL;
@@ -46,6 +77,8 @@ public class TabControl extends LinearBox {
     private final List<Tab> tabs = new ObjectArrayList<>();
     private int selectedIndex = -1;
 
+        @AiDoc(summary = "Constructs a new TabControl instance.")
+    @WikiMethod(summary = "<key:tab.control.method.ctorDefault>")
     public TabControl() {
         super(Orientation.VERTICAL);
         spacing(4.0f);
@@ -65,56 +98,95 @@ public class TabControl extends LinearBox {
         super.addChild(contentHost);
     }
 
+        @AiDoc(summary = "Returns an unmodifiable list of tab descriptors.")
+    @WikiMethod(summary = "<key:tab.control.method.tabs>")
+    @WikiReturn("<key:tab.control.return.tabs>")
     public List<Tab> tabs() {
         return Collections.unmodifiableList(tabs);
     }
 
+        @AiDoc(summary = "Returns the total number of tabs.")
+    @WikiMethod(summary = "<key:tab.control.method.tabCount>")
+    @WikiReturn("<key:tab.control.return.tabCount>")
     public int tabCount() {
         return tabs.size();
     }
 
+        @AiDoc(summary = "Returns the 0-based index of the currently selected tab, or -1 if none.")
+    @WikiMethod(summary = "<key:tab.control.method.selectedIndexGet>")
+    @WikiReturn("<key:tab.control.return.selectedIndex>")
     public int selectedIndex() {
         return selectedIndex;
     }
 
+        @AiDoc(summary = "Returns the currently selected Tab descriptor, or null if none.")
+    @WikiMethod(summary = "<key:tab.control.method.selectedTab>")
+    @WikiReturn("<key:tab.control.return.selectedTab>")
     public Tab selectedTab() {
         return selectedIndex >= 0 && selectedIndex < tabs.size() ? tabs.get(selectedIndex) : null;
     }
 
+        @AiDoc(summary = "Returns the content widget of the selected tab, or null if none.")
+    @WikiMethod(summary = "<key:tab.control.method.selectedContent>")
+    @WikiReturn("<key:tab.control.return.selectedContent>")
     public Widget selectedContent() {
         Tab tab = selectedTab();
         return tab == null ? null : tab.content();
     }
 
+        @AiDoc(summary = "Returns the header container holding tab toggle buttons.")
+    @WikiMethod(summary = "<key:tab.control.method.tabHeader>")
+    @WikiReturn("<key:tab.control.return.tabHeader>")
     public HBox tabHeader() {
         return tabHeader;
     }
 
+        @AiDoc(summary = "Returns the scroll view wrapping the tab header.")
+    @WikiMethod(summary = "<key:tab.control.method.tabHeaderScroll>")
+    @WikiReturn("<key:tab.control.return.tabHeaderScroll>")
     public ScrollView tabHeaderScroll() {
         return tabHeaderScroll;
     }
 
+        @AiDoc(summary = "Returns the stack container holding tab page contents.")
+    @WikiMethod(summary = "<key:tab.control.method.contentHost>")
+    @WikiReturn("<key:tab.control.return.contentHost>")
     public StackPanel contentHost() {
         return contentHost;
     }
 
-    public ToggleButton tabButton(int index) {
+        @AiDoc(summary = "Returns the toggle button corresponding to the tab at the given index.")
+    @WikiMethod(summary = "<key:tab.control.method.tabButton>")
+    @WikiReturn("<key:tab.control.return.tabButton>")
+    public ToggleButton tabButton(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index) {
         return tabs.get(index).button();
     }
 
-    public TabControl addTab(String title, Widget content) {
+        @AiDoc(summary = "Appends a new tab with plain text title and content widget.")
+    @WikiMethod(summary = "<key:tab.control.method.addTabString>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl addTab(@WikiParameter(name = "title", description = "<key:tab.control.param.title>") String title, @WikiParameter(name = "content", description = "<key:tab.control.param.content>") Widget content) {
         return insertTab(tabs.size(), title, content);
     }
 
-    public TabControl addTab(RichText title, Widget content) {
+        @AiDoc(summary = "Appends a new tab with RichText title and content widget.")
+    @WikiMethod(summary = "<key:tab.control.method.addTabRich>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl addTab(@WikiParameter(name = "title", description = "<key:tab.control.param.title>") RichText title, @WikiParameter(name = "content", description = "<key:tab.control.param.content>") Widget content) {
         return insertTab(tabs.size(), title, content);
     }
 
-    public TabControl insertTab(int index, String title, Widget content) {
+        @AiDoc(summary = "Inserts a new tab with plain text title at the specified index.")
+    @WikiMethod(summary = "<key:tab.control.method.insertTabString>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl insertTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index, @WikiParameter(name = "title", description = "<key:tab.control.param.title>") String title, @WikiParameter(name = "content", description = "<key:tab.control.param.content>") Widget content) {
         return insertTab(index, RichText.resolve(title), content);
     }
 
-    public TabControl insertTab(int index, RichText title, Widget content) {
+        @AiDoc(summary = "Inserts a new tab with RichText title at the specified index.")
+    @WikiMethod(summary = "<key:tab.control.method.insertTabRich>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl insertTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index, @WikiParameter(name = "title", description = "<key:tab.control.param.title>") RichText title, @WikiParameter(name = "content", description = "<key:tab.control.param.content>") Widget content) {
         Widget normalizedContent = content == null ? new PanelWidget() : content;
         int insertIndex = Math.max(0, Math.min(index, tabs.size()));
         RichText normalizedTitle = title == null ? RichText.plain("") : title;
@@ -143,7 +215,10 @@ public class TabControl extends LinearBox {
         return this;
     }
 
-    public TabControl removeTab(int index) {
+        @AiDoc(summary = "Removes the tab at the specified index.")
+    @WikiMethod(summary = "<key:tab.control.method.removeTab>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl removeTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index) {
         if (index < 0 || index >= tabs.size()) return this;
         int oldSelection = selectedIndex;
         Tab removed = tabs.remove(index);
@@ -164,6 +239,9 @@ public class TabControl extends LinearBox {
         return this;
     }
 
+        @AiDoc(summary = "Removes all tabs and their content.")
+    @WikiMethod(summary = "<key:tab.control.method.clearTabs>")
+    @WikiReturn("<key:tab.control.return.self>")
     public TabControl clearTabs() {
         if (tabs.isEmpty()) return this;
         tabs.clear();
@@ -174,12 +252,18 @@ public class TabControl extends LinearBox {
         return this;
     }
 
-    public TabControl selectTab(int index) {
+        @AiDoc(summary = "Selects the tab at the specified index, firing a selection change event.")
+    @WikiMethod(summary = "<key:tab.control.method.selectTab>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl selectTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index) {
         setSelectedIndex(index, true);
         return this;
     }
 
-    public TabControl selectRelative(int delta) {
+        @AiDoc(summary = "Shifts tab selection by the relative delta offset.")
+    @WikiMethod(summary = "<key:tab.control.method.selectRelative>")
+    @WikiReturn("<key:tab.control.return.self>")
+    public TabControl selectRelative(@WikiParameter(name = "delta", description = "<key:tab.control.param.delta>") int delta) {
         if (tabs.isEmpty()) return this;
         int base = selectedIndex < 0 ? 0 : selectedIndex;
         int next = Math.max(0, Math.min(tabs.size() - 1, base + delta));
@@ -187,13 +271,19 @@ public class TabControl extends LinearBox {
         return this;
     }
 
+    @AiDoc(summary = "Silently selects the tab at the given index without emitting events.")
+    @WikiMethod(summary = "<key:tab.control.method.silentSelectTab>")
+    @WikiReturn("<key:tab.control.return.self>")
     @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected tab index without emitting change events during XML load.")
-    public TabControl silentSelectTab(int index) {
+    public TabControl silentSelectTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index) {
         setSelectedIndex(index, false);
         return this;
     }
 
-    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        @AiDoc(summary = "Registers a listener invoked when the selected tab index changes.")
+    @WikiMethod(summary = "<key:tab.control.method.onSelectionChanged>")
+    @WikiReturn("<key:tab.control.return.subscription>")
+    public EventSubscription onSelectionChanged(@WikiParameter(name = "listener", description = "<key:tab.control.param.listener>") EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
 
@@ -281,6 +371,7 @@ public class TabControl extends LinearBox {
         return title == null ? "" : title;
     }
 
+    @AiDoc(summary = "Descriptor for an individual tab within a TabControl, managing its title, content, and button.")
     public static final class Tab {
         private String title;
         private RichText richTitle;
@@ -296,14 +387,17 @@ public class TabControl extends LinearBox {
             this.slot.addChild(content);
         }
 
+        @AiDoc(summary = "Returns plain text title of the tab.")
         public String title() {
             return title;
         }
 
+        @AiDoc(summary = "Returns RichText title of the tab.")
         public RichText richTitle() {
             return richTitle;
         }
 
+        @AiDoc(summary = "Returns the content widget of the tab.")
         public Widget content() {
             return content;
         }
@@ -312,10 +406,12 @@ public class TabControl extends LinearBox {
             return slot;
         }
 
+        @AiDoc(summary = "Returns the header ToggleButton associated with this tab.")
         public ToggleButton button() {
             return button;
         }
 
+        @AiDoc(summary = "Sets the plain text title of the tab.")
         public Tab title(String title) {
             this.title = normalize(title);
             this.richTitle = RichText.resolve(this.title);
@@ -323,6 +419,7 @@ public class TabControl extends LinearBox {
             return this;
         }
 
+        @AiDoc(summary = "Sets the RichText title of the tab.")
         public Tab richTitle(RichText title) {
             this.richTitle = title == null ? RichText.plain("") : title;
             this.title = this.richTitle.plainText();

@@ -1,18 +1,20 @@
 package dev.sixik.unigui.testmod.client;
 
 import dev.sixik.unigui.demo.ui.DominionScreen;
+import dev.sixik.unigui.demo.ui.interactive.space_ship_minigame.SolarNavigationScreen;
+import dev.sixik.unigui.demo.ui.BindingDemoScreen;
 import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
 import dev.sixik.unigui.demo.ui.MarkerCullingDemoScreen;
 import dev.sixik.unigui.demo.ui.MarkerScalingDemoScreen;
 import dev.sixik.unigui.demo.ui.ForkInSocketMinigameScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import dev.sixik.unigui.testmod.client.ui.LoadingScreenDemo;
+import dev.sixik.unigui.testmod.client.ui.InventoryDemoScreen;
 import dev.sixik.unigui.demo.ui.OverlayRenderDemo;
 import dev.sixik.unigui.demo.ui.PlugSocketMinigameScreen;
 import dev.sixik.unigui.demo.ui.PostProcessingLayerTestScreen;
 import dev.sixik.unigui.demo.ui.RetroTerminalScreen;
 import dev.sixik.unigui.demo.ui.RibbonRoadsDemoScreen;
-import dev.sixik.unigui.testmod.client.ui.SolarNavigationScreen;
 import dev.sixik.unigui.demo.ui.SpannerRhythmMinigameScreen;
 import dev.sixik.unigui.demo.ui.SyncBatteryMinigameScreen;
 import dev.sixik.unigui.demo.ui.TutorialScreen;
@@ -39,6 +41,10 @@ public final class TestModClient implements ClientModInitializer {
      */
     public static void openDemo() {
         TestWidgetsScreen.openGui();
+    }
+
+    public static void openBindingDemo() {
+        BindingDemoScreen.open();
     }
 
     public static void openRetroTerminal() {
@@ -103,5 +109,9 @@ public final class TestModClient implements ClientModInitializer {
 
     public static void openUnityInspector() {
         UnityInspectorScreen.open();
+    }
+
+    public static void openInventoryDemo() {
+        InventoryDemoScreen.open();
     }
 }

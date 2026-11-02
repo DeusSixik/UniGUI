@@ -1,6 +1,7 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiBackend;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.screen.UniScreen;
@@ -22,6 +23,11 @@ import java.util.function.Predicate;
  */
 public final class CleanroomUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, CleanroomWidgetScreen> openScreens = new IdentityHashMap<>();
+
+    @Override
+    public UniGuiLogger logger(String name) {
+        return new Log4j2UniGuiLogger(name);
+    }
     private final CleanroomLayerRegistry<Object> hudLayers = new CleanroomLayerRegistry<>();
     private final CleanroomLayerRegistry<Object> overlayLayers = new CleanroomLayerRegistry<>();
     private final CleanroomLayerRegistry<Object> loadingLayers = new CleanroomLayerRegistry<>();

@@ -8,8 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,7 +18,7 @@ import java.util.Map;
 
 /** Загружает recipe types и recipes из datapack-каталога {@code isf}. */
 public final class IsfDefinitionReloadListener extends SimpleJsonResourceReloadListener {
-    private static final Logger LOGGER = LoggerFactory.getLogger(IsfDefinitionReloadListener.class);
+    private static final Logger LOGGER = LogManager.getLogger(IsfDefinitionReloadListener.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String TYPE_PREFIX = "recipe_types/";
     private static final String RECIPE_PREFIX = "recipes/";

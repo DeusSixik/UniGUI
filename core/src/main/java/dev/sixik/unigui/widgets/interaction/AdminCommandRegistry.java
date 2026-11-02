@@ -56,7 +56,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:admin.command.registry.title>",
         slug = "admin-command-registry",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:admin.command.registry.summary>",
         order = 390)
 @WikiSection(

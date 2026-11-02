@@ -1,5 +1,6 @@
 package dev.sixik.unigui.demo.ui.unity;
 
+import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEnteredEvent;
@@ -52,6 +53,7 @@ public class UnityComponentSection extends LinearBox {
     private ContextMenu contextMenu;
     private Tooltip helpTooltip;
     private boolean wasMenuOpenOnPress = false;
+    private boolean menuOpenLastFrame = false;
     private boolean draggable = true;
     private DragController dragController;
 
@@ -211,6 +213,9 @@ public class UnityComponentSection extends LinearBox {
             ensureOverlays();
             if (contextMenu != null) {
                 if (!wasMenuOpenOnPress) {
+                    // ContextMenu.close() removes the menu from its OverlayLayer, so a menu that was closed once
+                    // has to be put back before it can be opened again.
+                    attachContextMenu();
                     RectView b = menuButton.layoutBounds();
                     float menuWidth = 175.0f;
                     float menuX = b.x() + b.width() - menuWidth;
@@ -224,7 +229,10 @@ public class UnityComponentSection extends LinearBox {
 
         menuButton.on(PointerPressedEvent.TYPE, event -> {
             if (event.phase() == EventPhase.BUBBLE && event.button() == PointerButton.PRIMARY) {
-                wasMenuOpenOnPress = contextMenu != null && contextMenu.opened();
+                // OverlayLayer closes an open menu on any outside press before the event reaches this button, so
+                // opened() is already false here. The state of the previous frame says whether this press is the
+                // one that closed it: then the click must not open the menu again (toggle behaviour).
+                wasMenuOpenOnPress = menuOpenLastFrame || (contextMenu != null && contextMenu.opened());
             }
         });
 
@@ -283,6 +291,20 @@ public class UnityComponentSection extends LinearBox {
         if (this.overlayLayer != null) {
             setupTooltip();
             setupContextMenu();
+        }
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        // Input arrives between frames, so this is the menu state from before the next press.
+        menuOpenLastFrame = contextMenu != null && contextMenu.opened();
+    }
+
+    /** Puts the context menu back into the overlay layer if closing it took it out. */
+    private void attachContextMenu() {
+        if (overlayLayer != null && contextMenu != null && contextMenu.parent() != overlayLayer) {
+            overlayLayer.addOverlay(contextMenu);
         }
     }
 

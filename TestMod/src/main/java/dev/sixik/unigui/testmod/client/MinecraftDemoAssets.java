@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.backend.minecraft_impl.UniGuiTextures;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,8 +20,22 @@ final class MinecraftDemoAssets {
         TextureHandle cached = UniGuiTextures.get(id);
         if (cached != null) return cached;
         try (InputStream stream = MinecraftDemoAssets.class.getClassLoader().getResourceAsStream(resourcePath)) {
-            if (stream == null) return placeholder(id, options);
-            return UniGuiTextures.replace(id, NativeImage.read(stream), options);
+            if (stream != null) return UniGuiTextures.replace(id, NativeImage.read(stream), options);
+        } catch (IOException | RuntimeException failure) {
+            return loadMinecraftResource(id, resourcePath, options);
+        }
+        return loadMinecraftResource(id, resourcePath, options);
+    }
+
+    private static TextureHandle loadMinecraftResource(String id, String resourcePath, TextureOptions options) {
+        ResourceLocation location = ResourceLocation.tryParse(resourcePath);
+        if (location == null) return placeholder(id, options);
+        try {
+            var resource = Minecraft.getInstance().getResourceManager().getResource(location).orElse(null);
+            if (resource == null) return placeholder(id, options);
+            try (InputStream stream = resource.open()) {
+                return UniGuiTextures.replace(id, NativeImage.read(stream), options);
+            }
         } catch (IOException | RuntimeException failure) {
             return placeholder(id, options);
         }

@@ -1,5 +1,10 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 /**
  * Роль цвета в {@link DockTheme}.
  *
@@ -7,6 +12,24 @@ package dev.sixik.unigui.widgets.docking;
  * ({@code theme.color(DockColor.TAB_ACCENT, ...)}) перекрашивает вкладки, заголовки окон и зоны дропа
  * одновременно.</p>
  */
+@AiDoc(summary = "Semantic color roles used throughout DockTheme to style tabs, split bars, floating window chrome, and drop preview zones."
+)
+@WikiPage(
+        title = "DockColor",
+        slug = "dock-color",
+        category = "<key:docking.category>",
+        summary = "<key:dock.color.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:dock.color.section.overview.body>",
+        order = 10
+)
+@WikiLink(
+        label = "DockTheme",
+        target = "page:dock-theme",
+        description = "<key:dock.theme.summary>"
+)
 public enum DockColor {
     /** Фон полосы вкладок (и заголовка окна). */
     STRIP_BACKGROUND,

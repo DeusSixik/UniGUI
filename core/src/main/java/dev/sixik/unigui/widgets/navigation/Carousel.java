@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.navigation;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.EventListener;
@@ -31,6 +41,27 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  * <p>Навигация — шевроны штрихами по краям и ряд точек вместо текста
  * {@code 1 / 3}. Сам {@code PageView} хрома не рисует.</p>
  */
+@AiDoc(summary = "Rotating carousel container displaying slides with previous/next navigation buttons and dot page indicators.")
+@WikiPage(
+        title = "Carousel",
+        slug = "carousel",
+        category = "<key:navigation.category>",
+        summary = "<key:carousel.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:carousel.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:carousel.example.basic.title>",
+        code = "Carousel carousel = new Carousel();\ncarousel.addPage(slide1).addPage(slide2);"
+)
+@WikiLink(
+        label = "PageView",
+        target = "page:page-view",
+        description = "<key:page.view.summary>"
+)
 @XmlWidgetName("Carousel")
 public class Carousel extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CAROUSEL;
@@ -51,6 +82,8 @@ public class Carousel extends LinearBox {
     private final NavButton next = new NavButton(true);
     private final PageView pageView = new PageView();
 
+        @AiDoc(summary = "Constructs an empty Carousel with default header controls and dot indicators.")
+    @WikiMethod(summary = "<key:carousel.method.ctorDefault>")
     public Carousel() {
         super(Orientation.VERTICAL);
         spacing(6.0f);
@@ -77,53 +110,95 @@ public class Carousel extends LinearBox {
         updateIndicator();
     }
 
-    public Carousel addPage(Widget page) {
+        @AiDoc(summary = "Appends a slide page to the carousel.")
+    @WikiMethod(summary = "<key:carousel.method.addPage>")
+    @WikiReturn("<key:carousel.return.this>")
+    public Carousel addPage(
+            @WikiParameter(description = "<key:carousel.param.page>")
+            Widget page
+    ) {
         pageView.addPage(page);
         updateIndicator();
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
         return this;
     }
 
+        @AiDoc(summary = "Returns an unmodifiable list of all slide pages in the carousel.")
+    @WikiMethod(summary = "<key:carousel.method.pages>")
+    @WikiReturn("<key:carousel.return.pages>")
     public List<Widget> pages() {
         return pageView.pages();
     }
 
+        @AiDoc(summary = "Returns the internal PageView managing slide presentation.")
+    @WikiMethod(summary = "<key:carousel.method.pageView>")
+    @WikiReturn("<key:carousel.return.pageView>")
     public PageView pageView() {
         return pageView;
     }
 
+        @AiDoc(summary = "Returns the index of the currently active slide.")
+    @WikiMethod(summary = "<key:carousel.method.selectedIndexGet>")
+    @WikiReturn("<key:carousel.return.index>")
     public int selectedIndex() {
         return pageView.selectedIndex();
     }
 
-    public Carousel selectedIndex(int selectedIndex) {
+        @AiDoc(summary = "Switches to the specified slide index and dispatches a selection event.")
+    @WikiMethod(summary = "<key:carousel.method.selectedIndexSet>")
+    @WikiReturn("<key:carousel.return.this>")
+    public Carousel selectedIndex(
+            @WikiParameter(description = "<key:carousel.param.index>")
+            int selectedIndex
+    ) {
         pageView.selectedIndex(selectedIndex);
         updateIndicator();
         return this;
     }
 
     @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected carousel page without emitting change events during XML load.")
-    public Carousel silentSelectedIndex(int selectedIndex) {
+        @AiDoc(summary = "Switches to the specified slide index without triggering event callbacks.")
+    @WikiMethod(summary = "<key:carousel.method.silentSelectedIndex>")
+    @WikiReturn("<key:carousel.return.this>")
+    public Carousel silentSelectedIndex(
+            @WikiParameter(description = "<key:carousel.param.index>")
+            int selectedIndex
+    ) {
         pageView.silentSelectedIndex(selectedIndex);
         updateIndicator();
         return this;
     }
 
-    public Carousel selectRelative(int delta) {
+        @AiDoc(summary = "Steps the slide index by the specified relative delta.")
+    @WikiMethod(summary = "<key:carousel.method.selectRelative>")
+    @WikiReturn("<key:carousel.return.this>")
+    public Carousel selectRelative(
+            @WikiParameter(description = "<key:carousel.param.delta>")
+            int delta
+    ) {
         if (pageView.pageCount() == 0) return this;
         pageView.selectedIndex((selectedIndex() + delta + pageView.pageCount()) % pageView.pageCount());
         updateIndicator();
         return this;
     }
 
+        @AiDoc(summary = "Returns the top header container hosting navigation buttons and indicators.")
+    @WikiMethod(summary = "<key:carousel.method.header>")
+    @WikiReturn("<key:carousel.return.header>")
     public HBox header() {
         return footer;
     }
 
+        @AiDoc(summary = "Returns the navigation button stepping to the previous slide.")
+    @WikiMethod(summary = "<key:carousel.method.previousButton>")
+    @WikiReturn("<key:carousel.return.button>")
     public Button previousButton() {
         return previous;
     }
 
+        @AiDoc(summary = "Returns the navigation button stepping to the next slide.")
+    @WikiMethod(summary = "<key:carousel.method.nextButton>")
+    @WikiReturn("<key:carousel.return.button>")
     public Button nextButton() {
         return next;
     }
@@ -136,6 +211,9 @@ public class Carousel extends LinearBox {
      *
      * @return скрытая метка индикатора
      */
+        @AiDoc(summary = "Returns the numeric page indicator label.")
+    @WikiMethod(summary = "<key:carousel.method.indicator>")
+    @WikiReturn("<key:carousel.return.indicator>")
     public Label indicator() {
         return indicator;
     }
@@ -145,6 +223,9 @@ public class Carousel extends LinearBox {
      *
      * @return индикатор точками
      */
+        @AiDoc(summary = "Returns the DotIndicator widget displaying carousel page dots.")
+    @WikiMethod(summary = "<key:carousel.method.dots>")
+    @WikiReturn("<key:carousel.return.dots>")
     public DotIndicator dots() {
         return dots;
     }
@@ -155,7 +236,13 @@ public class Carousel extends LinearBox {
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
-    public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
+        @AiDoc(summary = "Registers a listener invoked when the active carousel page changes.")
+    @WikiMethod(summary = "<key:carousel.method.onSelectionChanged>")
+    @WikiReturn("<key:carousel.return.subscription>")
+    public EventSubscription onSelectionChanged(
+            @WikiParameter(description = "<key:carousel.param.listener>")
+            EventListener<? super SelectionChangedEvent> listener
+    ) {
         return on(SelectionChangedEvent.TYPE, listener);
     }
 

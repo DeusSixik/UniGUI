@@ -133,6 +133,19 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISABLED_TEXT_COLOR, "Tree disabled text color", "TreeView", null, color, "Text color of a non-selectable tree row."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_DISCLOSURE_COLOR, "Tree disclosure color", "TreeView", null, color, "Color of branch expansion markers."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TREE_ICON_COLOR, "Tree icon color", "TreeView", null, color, "Color of built-in folder and file icons."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_HEADER_COLOR, "Table header color", "VirtualTableView", null, color, "Background color of the table header."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_HEADER_HOVER_COLOR, "Table header hover color", "VirtualTableView", null, color, "Background color of a hovered or dragged column header."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_HEADER_TEXT_COLOR, "Table header text color", "VirtualTableView", null, color, "Text color of column headers; falls back to the text color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_ROW_COLOR, "Table row color", "VirtualTableView", null, color, "Background color of even table rows."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_ALTERNATE_ROW_COLOR, "Table alternate row color", "VirtualTableView", null, color, "Background color of odd table rows; transparent disables zebra striping."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_HOVER_COLOR, "Table hover color", "VirtualTableView", null, color, "Background color of the row under the pointer."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_SELECTED_COLOR, "Table selected color", "VirtualTableView", null, color, "Background color of selected rows."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_GRID_COLOR, "Table grid color", "VirtualTableView", null, color, "Color of grid lines and column dividers."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_GRID_LINES, "Table grid lines", "VirtualTableView", TableGridLines.BOTH, StyleValueCodec.enumCodec(TableGridLines.class), "Which grid lines are drawn between cells."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_ACTIVE_CELL_COLOR, "Table active cell color", "VirtualTableView", null, color, "Outline color of the active cell and column drop marker."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_CELL_PADDING, "Table cell padding", "VirtualTableView", 3.0f, number, "Horizontal text padding inside cells and headers."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_SORT_INDICATOR_STYLE, "Table sort indicator style", "VirtualTableView", TableSortIndicatorStyle.CHEVRON, StyleValueCodec.enumCodec(TableSortIndicatorStyle.class), "Shape of the sort direction indicator."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.TABLE_SORT_INDICATOR_COLOR, "Table sort indicator color", "VirtualTableView", null, color, "Color of the sort direction indicator; falls back to the header text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_COLOR, "Text color", "Text", null, color, "Primary text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_SIZE, "Text size", "Text", null, number, "The text size in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TEXT_TRACKING, "Character spacing", "Text", null, number, "Additional spacing between characters in logical pixels."))
@@ -141,6 +154,13 @@ public final class StyleKeyRegistry {
                 .register(new StylePropertyDescriptor<>(StyleKeys.CHECKBOX_BACKGROUND_COLOR,
                         "The color of the flag indicator", "Controls", null, color,
                         "The fill color of the square Checkbox indicator for the state."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.CHECKBOX_MARK_COLOR,
+                        "Checkbox mark color", "Controls", null, color,
+                        "Color of the Checkbox mark (dot, check or cross); falls back to the accent color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.CHECKBOX_MARK_SHAPE,
+                        "Checkbox mark shape", "Controls", CheckboxMarkShape.DOT,
+                        StyleValueCodec.enumCodec(CheckboxMarkShape.class),
+                        "Shape of the Checkbox mark: dot, square, check or cross."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.PLACEHOLDER_COLOR, "Placeholder color", "Text", null, color, "Placeholder text color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.CARET_COLOR, "Caret color", "Text", null, color, "Text editor caret color."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.FOCUS_RING_COLOR, "Focus ring color", "Focus", null, color, "Outer focus ring color for text inputs."))
@@ -161,6 +181,56 @@ public final class StyleKeyRegistry {
                         "RadioButton selected mark size in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.RADIO_TEXT_GAP, "RadioButton text gap", "Controls", null, number,
                         "Gap between the RadioButton indicator and its label in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_LINE_COLOR, "Plot line color", "Plot", null, color,
+                        "Series line color of Sparkline and line Chart."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_LINE_WIDTH, "Plot line width", "Plot", null, number,
+                        "Series line thickness in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_FILL_COLOR, "Plot fill color", "Plot", null, color,
+                        "Fill color of the area under the series line."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_FILL_VISIBLE, "Plot fill visible", "Plot", true, bool,
+                        "Whether the area under the series line is filled."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_POINT_COLOR, "Plot point color", "Plot", null, color,
+                        "Data point marker color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_POINT_HOVER_COLOR, "Plot point hover color", "Plot", null, color,
+                        "Color of the hovered data point marker and the hover guide."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_POINT_RADIUS, "Plot point radius", "Plot", null, number,
+                        "Data point marker radius in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_AXIS_COLOR, "Plot axis color", "Plot", null, color,
+                        "Axis line and tick mark color of Chart."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_GRID_COLOR, "Plot grid color", "Plot", null, color,
+                        "Color of the horizontal grid lines of Chart."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_GRID_VISIBLE, "Plot grid visible", "Plot", true, bool,
+                        "Whether Chart draws the horizontal grid and the value axis labels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_BAR_COLOR, "Plot bar color", "Plot", null, color,
+                        "Bar fill color of bar Chart."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_BAR_HOVER_COLOR, "Plot bar hover color", "Plot", null, color,
+                        "Fill color of the hovered bar."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_BAR_GAP, "Plot bar gap", "Plot", null, number,
+                        "Gap between neighbouring bars in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_BAR_RADIUS, "Plot bar radius", "Plot", null, number,
+                        "Corner radius of the bar end that faces away from the baseline."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_TOOLTIP_BACKGROUND_COLOR, "Plot tooltip background", "Plot", null, color,
+                        "Background color of the hover tooltip."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_TOOLTIP_BORDER_COLOR, "Plot tooltip border", "Plot", null, color,
+                        "Border color of the hover tooltip."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.PLOT_TOOLTIP_TEXT_COLOR, "Plot tooltip text", "Plot", null, color,
+                        "Text color of the hover tooltip."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_NODE_COLOR, "Graph node color", "GraphView", null, color,
+                        "Node fill color of GraphView."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_NODE_HOVER_COLOR, "Graph node hover color", "GraphView", null, color,
+                        "Fill color of the hovered node."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_NODE_BORDER_COLOR, "Graph node border color", "GraphView", null, color,
+                        "Node outline color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_NODE_RADIUS, "Graph node radius", "GraphView", null, number,
+                        "Node radius in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_EDGE_COLOR, "Graph edge color", "GraphView", null, color,
+                        "Edge line and arrowhead color."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_EDGE_HOVER_COLOR, "Graph edge hover color", "GraphView", null, color,
+                        "Color of the edges attached to the hovered node."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_EDGE_WIDTH, "Graph edge width", "GraphView", null, number,
+                        "Edge line thickness in logical pixels."))
+                .register(new StylePropertyDescriptor<>(StyleKeys.GRAPH_ARROW_SIZE, "Graph arrow size", "GraphView", null, number,
+                        "Arrowhead length of directed edges in logical pixels."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_DURATION, "Transition duration", "Animation", 0.0f, number, "Automatic style transition duration in seconds."))
                 .register(new StylePropertyDescriptor<>(StyleKeys.TRANSITION_EASING, "Transition easing", "Animation", AnimationEasing.EASE_OUT, easing, "Automatic style transition easing curve."));
     }

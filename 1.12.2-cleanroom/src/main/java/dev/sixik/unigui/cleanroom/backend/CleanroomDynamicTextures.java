@@ -1,5 +1,6 @@
 package dev.sixik.unigui.cleanroom.backend;
 
+import dev.sixik.unigui.backend.shared.PixelFormats;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import net.minecraft.client.Minecraft;
@@ -48,7 +49,7 @@ public final class CleanroomDynamicTextures {
         if (REGISTRY.containsKey(normalized)) {
             throw new IllegalStateException("UniGUI texture is already registered: " + normalized);
         }
-        return put(normalized, width, height, CleanroomPixels.rgbaToArgb(width, height, rgba), options);
+        return put(normalized, width, height, PixelFormats.rgbaToArgb(width, height, rgba), options);
     }
 
     /**
@@ -64,7 +65,7 @@ public final class CleanroomDynamicTextures {
      */
     public static synchronized TextureHandle replace(String id, int width, int height, ByteBuffer rgba,
                                                      TextureOptions options) {
-        return put(normalizeId(id), width, height, CleanroomPixels.rgbaToArgb(width, height, rgba), options);
+        return put(normalizeId(id), width, height, PixelFormats.rgbaToArgb(width, height, rgba), options);
     }
 
     /**

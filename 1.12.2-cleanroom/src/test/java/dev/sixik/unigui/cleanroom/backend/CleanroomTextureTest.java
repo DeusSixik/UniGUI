@@ -1,5 +1,6 @@
 package dev.sixik.unigui.cleanroom.backend;
 
+import dev.sixik.unigui.backend.shared.PixelFormats;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.render.DrawCommand;
@@ -52,22 +53,22 @@ class CleanroomTextureTest {
         ByteBuffer rgba = ByteBuffer.wrap(new byte[]{
                 (byte) 0x11, (byte) 0x22, (byte) 0x33, (byte) 0x44,
                 (byte) 0xFF, 0x00, (byte) 0x80, (byte) 0xFF});
-        assertArrayEquals(new int[]{0x44112233, 0xFFFF0080}, CleanroomPixels.rgbaToArgb(2, 1, rgba));
+        assertArrayEquals(new int[]{0x44112233, 0xFFFF0080}, PixelFormats.rgbaToArgb(2, 1, rgba));
     }
 
     @Test
     void rgbaToArgb_ignoresBufferStateAndReadsFromPosition() {
         ByteBuffer rgba = ByteBuffer.wrap(new byte[]{9, 9, 9, 9, 1, 2, 3, 4});
         rgba.position(4);
-        assertArrayEquals(new int[]{0x04010203}, CleanroomPixels.rgbaToArgb(1, 1, rgba));
+        assertArrayEquals(new int[]{0x04010203}, PixelFormats.rgbaToArgb(1, 1, rgba));
         assertEquals(4, rgba.position(), "position must not change");
     }
 
     @Test
     void rgbaToArgb_rejectsBadInput() {
-        assertThrows(IllegalArgumentException.class, () -> CleanroomPixels.rgbaToArgb(0, 1, ByteBuffer.allocate(4)));
-        assertThrows(IllegalArgumentException.class, () -> CleanroomPixels.rgbaToArgb(2, 2, ByteBuffer.allocate(15)));
-        assertThrows(NullPointerException.class, () -> CleanroomPixels.rgbaToArgb(1, 1, null));
+        assertThrows(IllegalArgumentException.class, () -> PixelFormats.rgbaToArgb(0, 1, ByteBuffer.allocate(4)));
+        assertThrows(IllegalArgumentException.class, () -> PixelFormats.rgbaToArgb(2, 2, ByteBuffer.allocate(15)));
+        assertThrows(NullPointerException.class, () -> PixelFormats.rgbaToArgb(1, 1, null));
     }
 
     // ---- sampler options ------------------------------------------------------------------------------------

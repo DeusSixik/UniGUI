@@ -18,14 +18,14 @@ import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.util.Objects;
 
 /** Batches UI images that share one texture into one position-texture-color draw call. */
 final class MinecraftTextureBatchRenderer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftTextureBatchRenderer.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftTextureBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
 
     boolean render(GuiGraphics graphics, DrawBatch batch, boolean renderingToPremultipliedTarget) {

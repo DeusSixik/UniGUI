@@ -2,6 +2,7 @@ package dev.sixik.unigui.widgets.interaction;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.*;
 import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.layout.Alignment;
@@ -18,10 +19,12 @@ import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.utils.reactive.*;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -29,19 +32,11 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.feedback.Popup;
-import dev.sixik.unigui.widgets.WidgetStyles;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
 
 @AiDoc(
         summary = "Selection dropdown widget allowing picking one item from a list.",
@@ -613,6 +608,20 @@ public class ComboBox extends LinearBox {
 
     public EventSubscription onSelectionChanged(EventListener<? super SelectionChangedEvent> listener) {
         return on(SelectionChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T signal) {
+        if (key == BindingKeys.COMBO_BOX_INDEX) {
+            IntegerSignal value = BindingKeys.COMBO_BOX_INDEX.cast(signal);
+            SignalSubscription signalSubscription = value.subscribe(this::selectedIndex);
+            EventSubscription widgetSubscription = onSelectionChanged(event -> value.set(selectedIndex()));
+            return () -> {
+                widgetSubscription.close();
+                signalSubscription.close();
+            };
+        }
+        return super.createBinding(key, signal);
     }
 
     @Override

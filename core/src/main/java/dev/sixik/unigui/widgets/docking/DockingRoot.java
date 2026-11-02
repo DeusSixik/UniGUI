@@ -3,6 +3,14 @@ package dev.sixik.unigui.widgets.docking;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.DockLayoutChangedEvent;
 import dev.sixik.unigui.api.event.DockLayoutRestoredEvent;
 import dev.sixik.unigui.api.event.DockDragEndedEvent;
@@ -65,6 +73,40 @@ import dev.sixik.unigui.api.style.Style;
  * <p>Use {@link DockPanel} for simple edge-based child layout. DockingRoot is
  * the docking system root; DockPanel is only a layout container.</p>
  */
+@AiDoc(summary = "Root visual widget for the IDE docking system hosting dock tree nodes, tab strips, split handles, drop previews, and tear-off floating window integrations."
+)
+@WikiPage(
+        title = "DockingRoot",
+        slug = "docking-root",
+        category = "<key:docking.widget.category>",
+        summary = "<key:docking.root.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:docking.root.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:docking.root.example.basic.title>",
+        code = "DockingRoot root = new DockingRoot();\n"
+                + "root.addDocument(\"code-1\", \"CodeEditor.java\", editorWidget);\n"
+                + "root.addToolPane(\"proj-1\", \"Project\", projectTreeWidget, DockArea.LEFT);"
+)
+@WikiLink(
+        label = "DockingManager",
+        target = "page:docking-manager",
+        description = "<key:docking.manager.summary>"
+)
+@WikiLink(
+        label = "DockPane",
+        target = "page:dock-pane",
+        description = "<key:dock.pane.summary>"
+)
+@WikiLink(
+        label = "DockTheme",
+        target = "page:dock-theme",
+        description = "<key:dock.theme.summary>"
+)
 @XmlWidgetName("DockingRoot")
 public final class DockingRoot extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCKING_ROOT;
@@ -80,6 +122,7 @@ public final class DockingRoot extends Box {
     private static final float DROP_ZONE_GAP = 6.0f;
 
     /** Визуальный стиль разделителя панелей. */
+    @AiDoc(summary = "Visual rendering style of split handles: BLOCK with solid background and center line, or SEAM with thin shared border.")
     public enum SplitHandleStyle {
         /** Блок с центральной линией. */
         BLOCK,
@@ -129,6 +172,8 @@ public final class DockingRoot extends Box {
     private DockSplitOrientation splitDragOrientation;
     private float splitDragAvailable;  // total track length (px) at drag start
 
+    @AiDoc(summary = "Constructs a new DockingRoot widget initialized with default theme and styling.")
+    @WikiMethod(summary = "<key:docking.root.method.ctor>")
     public DockingRoot() {
         applyComponentStyleDefaults(WidgetStyles.Tools.DOCKING_ROOT);
         focusable(true);
@@ -148,10 +193,16 @@ public final class DockingRoot extends Box {
         return WidgetStyles.Tools.DOCKING_ROOT;
     }
 
+    @AiDoc(summary = "Returns the non-visual DockingManager coordinating this root.")
+    @WikiMethod(summary = "<key:docking.root.method.dockingManager>")
+    @WikiReturn("<key:docking.root.return.dockingManager>")
     public DockingManager dockingManager() {
         return manager;
     }
 
+    @AiDoc(summary = "Convenience shortcut returning the DockingManager.")
+    @WikiMethod(summary = "<key:docking.root.method.manager>")
+    @WikiReturn("<key:docking.root.return.dockingManager>")
     public DockingManager manager() {
         return manager;
     }
@@ -160,6 +211,9 @@ public final class DockingRoot extends Box {
      * Окно-хост, внутрь которого встроен этот root, или {@code null} для
      * обычных корневых docking area.
      */
+    @AiDoc(summary = "Returns the parent WindowWidget hosting this docking root, or null if root is top-level.")
+    @WikiMethod(summary = "<key:docking.root.method.windowHostGet>")
+    @WikiReturn("<key:docking.root.return.windowHost>")
     public WindowWidget windowHost() {
         return windowHost;
     }
@@ -168,7 +222,12 @@ public final class DockingRoot extends Box {
      * Привязывает root к окну-хосту. Вызывается из {@link WindowWidget}
      * при включении внутренней docking area.
      */
-    public void windowHost(WindowWidget windowHost) {
+    @AiDoc(summary = "Binds this docking root to a host WindowWidget.")
+    @WikiMethod(summary = "<key:docking.root.method.windowHostSet>")
+    public void windowHost(
+            @WikiParameter(description = "<key:docking.root.param.windowHost>")
+            WindowWidget windowHost
+    ) {
         this.windowHost = windowHost;
     }
 
@@ -179,28 +238,49 @@ public final class DockingRoot extends Box {
      * окна ({@link WindowWidget#dockPolicy()}) разрешает приём: после запрета
      * панели остаются на месте, но новые дропы блокируются.</p>
      */
+    @AiDoc(summary = "Returns true if this docking root currently accepts drop operations based on window dock policy.")
+    @WikiMethod(summary = "<key:docking.root.method.acceptsDockDrops>")
+    @WikiReturn("<key:docking.root.return.acceptsDockDrops>")
     public boolean acceptsDockDrops() {
         return windowHost == null || windowHost.dockPolicy().acceptsDrops();
     }
 
+    @AiDoc(summary = "Returns the root DockNode of the docking layout tree.")
+    @WikiMethod(summary = "<key:docking.root.method.rootNode>")
+    @WikiReturn("<key:docking.root.return.rootNode>")
     public DockNode rootNode() {
         return manager.rootNode();
     }
 
+    @AiDoc(summary = "Returns the DockDragController managing tab and window dragging.")
+    @WikiMethod(summary = "<key:docking.root.method.dragController>")
+    @WikiReturn("<key:docking.root.return.dragController>")
     public DockDragController dragController() {
         return dragController;
     }
 
+    @AiDoc(summary = "Returns the current drop preview intent.")
+    @WikiMethod(summary = "<key:docking.root.method.dockDropPreview>")
+    @WikiReturn("<key:docking.root.return.dockDropPreview>")
     public DockDropIntent dockDropPreview() {
         return dragController.previewIntent();
     }
 
+    @AiDoc(summary = "Returns true if floating dock windows are allowed to move outside host bounds.")
+    @WikiMethod(summary = "<key:docking.root.method.allowFloatingOutsideHostGet>")
+    @WikiReturn("<key:docking.root.return.allowFloatingOutsideHost>")
     public boolean allowFloatingOutsideHost() {
         return allowFloatingOutsideHost;
     }
 
+    @AiDoc(summary = "Sets whether floating dock windows may move outside root host bounds.")
+    @WikiMethod(summary = "<key:docking.root.method.allowFloatingOutsideHostSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "allowFloatingOutsideHost", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows may move outside the root host bounds.")
-    public DockingRoot allowFloatingOutsideHost(boolean allowFloatingOutsideHost) {
+    public DockingRoot allowFloatingOutsideHost(
+            @WikiParameter(description = "<key:docking.root.param.allowFloatingOutsideHost>")
+            boolean allowFloatingOutsideHost
+    ) {
         if (this.allowFloatingOutsideHost == allowFloatingOutsideHost) return this;
         this.allowFloatingOutsideHost = allowFloatingOutsideHost;
         return this;
@@ -211,6 +291,9 @@ public final class DockingRoot extends Box {
      *
      * @return {@code true} для tear-off поведения (default)
      */
+    @AiDoc(summary = "Returns whether dragging a tab out of the docking area tears it off into a floating window.")
+    @WikiMethod(summary = "<key:docking.root.method.tearOffOnDragOutGet>")
+    @WikiReturn("<key:docking.root.return.tearOffOnDragOut>")
     public boolean tearOffOnDragOut() {
         return tearOffOnDragOut;
     }
@@ -226,67 +309,154 @@ public final class DockingRoot extends Box {
      * @param tearOffOnDragOut {@code true}, чтобы разрешить отрыв панелей
      * @return этот root для fluent-настройки
      */
+    @AiDoc(summary = "Enables or disables automatic tear-off of tabs into floating windows when dropped outside dock zones.")
+    @WikiMethod(summary = "<key:docking.root.method.tearOffOnDragOutSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "tearOffOnDragOut", category = "Behavior", defaultValue = "true", description = "Whether dropping a dragged pane outside all zones tears it off into a floating window.")
-    public DockingRoot tearOffOnDragOut(boolean tearOffOnDragOut) {
+    public DockingRoot tearOffOnDragOut(
+            @WikiParameter(description = "<key:docking.root.param.tearOffOnDragOut>")
+            boolean tearOffOnDragOut
+    ) {
         if (this.tearOffOnDragOut == tearOffOnDragOut) return this;
         this.tearOffOnDragOut = tearOffOnDragOut;
         return this;
     }
 
+    @AiDoc(summary = "Returns whether floating windows spawned from this root are prevented from redocking.")
+    @WikiMethod(summary = "<key:docking.root.method.floatingWindowsRedockLockedGet>")
+    @WikiReturn("<key:docking.root.return.floatingWindowsRedockLocked>")
     public boolean floatingWindowsRedockLocked() {
         return floatingWindowsRedockLocked;
     }
 
+    @AiDoc(summary = "Locks or unlocks redocking capability for floating windows.")
+    @WikiMethod(summary = "<key:docking.root.method.floatingWindowsRedockLockedSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "floatingWindowsRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows are prevented from redocking.")
-    public DockingRoot floatingWindowsRedockLocked(boolean floatingWindowsRedockLocked) {
+    public DockingRoot floatingWindowsRedockLocked(
+            @WikiParameter(description = "<key:docking.root.param.floatingWindowsRedockLocked>")
+            boolean floatingWindowsRedockLocked
+    ) {
         this.floatingWindowsRedockLocked = floatingWindowsRedockLocked;
         syncFloatingDockWindowRedockLocks();
         return this;
     }
 
+    @AiDoc(summary = "Returns true if a docking tab drag gesture is currently underway.")
+    @WikiMethod(summary = "<key:docking.root.method.dockDragging>")
+    @WikiReturn("<key:docking.root.return.dockDragging>")
     public boolean dockDragging() {
         return dragController.dragging();
     }
 
+    @AiDoc(summary = "Returns the last WindowWidget created by a float or tear-off operation, or null.")
+    @WikiMethod(summary = "<key:docking.root.method.lastFloatingWindow>")
+    @WikiReturn("<key:docking.root.return.lastFloatingWindow>")
     public WindowWidget lastFloatingWindow() {
         return lastFloatingWindow;
     }
 
-    public DockingRoot addPane(DockPane pane) {
+    @AiDoc(summary = "Adds a pane to the docking layout.")
+    @WikiMethod(summary = "<key:docking.root.method.addPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addPane(
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
         manager.addPane(pane);
         return this;
     }
 
-    public DockingRoot splitPane(String targetPaneId, DockArea area, DockPane pane) {
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area.")
+    @WikiMethod(summary = "<key:docking.root.method.splitPaneDefault>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
         manager.splitPane(targetPaneId, area, pane);
         return this;
     }
 
-    public DockingRoot splitPane(String targetPaneId, DockArea area, DockPane pane, float splitRatio) {
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area with a custom split ratio.")
+    @WikiMethod(summary = "<key:docking.root.method.splitPaneRatio>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane,
+            @WikiParameter(description = "<key:docking.root.param.splitRatio>")
+            float splitRatio
+    ) {
         manager.splitPane(targetPaneId, area, pane, splitRatio);
         return this;
     }
 
-    public DockingRoot tabPane(String targetPaneId, DockPane pane) {
+    @AiDoc(summary = "Adds a pane as a tab into the leaf containing targetPaneId.")
+    @WikiMethod(summary = "<key:docking.root.method.tabPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot tabPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
         manager.tabPane(targetPaneId, pane);
         return this;
     }
 
-    public DockPane findPane(String paneId) {
+    @AiDoc(summary = "Finds a DockPane by its unique identifier.")
+    @WikiMethod(summary = "<key:docking.root.method.findPane>")
+    @WikiReturn("<key:docking.root.return.foundPane>")
+    public DockPane findPane(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
         return manager.findPane(paneId);
     }
 
-    public DockingRoot selectPane(String paneId) {
+    @AiDoc(summary = "Selects and brings into view the pane with the specified ID.")
+    @WikiMethod(summary = "<key:docking.root.method.selectPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot selectPane(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
         manager.selectPane(paneId);
         return this;
     }
 
-    public DockingRoot restoreLayout(DockLayoutSnapshot snapshot, Map<String, DockPane> paneRegistry) {
+    @AiDoc(summary = "Restores layout structure from snapshot.")
+    @WikiMethod(summary = "<key:docking.root.method.restoreLayout>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot restoreLayout(
+            @WikiParameter(description = "<key:docking.root.param.snapshot>")
+            DockLayoutSnapshot snapshot,
+            @WikiParameter(description = "<key:docking.root.param.paneRegistry>")
+            Map<String, DockPane> paneRegistry
+    ) {
         manager.restore(snapshot, paneRegistry);
         return this;
     }
 
-    public DockingRoot addDocument(String id, String title, Widget content) {
+    @AiDoc(summary = "Convenience method to add a DOCUMENT kind pane into the central editor workspace.")
+    @WikiMethod(summary = "<key:docking.root.method.addDocument>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addDocument(
+            @WikiParameter(description = "<key:docking.root.param.id>")
+            String id,
+            @WikiParameter(description = "<key:docking.root.param.title>")
+            String title,
+            @WikiParameter(description = "<key:docking.root.param.content>")
+            Widget content
+    ) {
         DockPane pane = DockPane.document(id, title, content);
         DockPane target = firstDocumentPane();
         if (target == null) {
@@ -297,7 +467,19 @@ public final class DockingRoot extends Box {
         return this;
     }
 
-    public DockingRoot addToolPane(String id, String title, Widget content, DockArea area) {
+    @AiDoc(summary = "Convenience method to add a TOOL kind utility pane docked to a perimeter area.")
+    @WikiMethod(summary = "<key:docking.root.method.addToolPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addToolPane(
+            @WikiParameter(description = "<key:docking.root.param.id>")
+            String id,
+            @WikiParameter(description = "<key:docking.root.param.title>")
+            String title,
+            @WikiParameter(description = "<key:docking.root.param.content>")
+            Widget content,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area
+    ) {
         DockPane pane = DockPane.tool(id, title, content);
         DockArea dockArea = area == null ? DockArea.LEFT : area;
         DockPane target = firstDocumentPane();
@@ -318,24 +500,42 @@ public final class DockingRoot extends Box {
                 : 1.0f - DEFAULT_TOOL_PANE_FRACTION;
     }
 
+    @AiDoc(summary = "Closes the currently active tab.")
+    @WikiMethod(summary = "<key:docking.root.method.closeActivePane>")
+    @WikiReturn("<key:docking.root.return.closed>")
     public boolean closeActivePane() {
         return manager.closeActivePane();
     }
 
+    @AiDoc(summary = "Selects the next tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.root.method.selectNextTab>")
+    @WikiReturn("<key:docking.root.return.tabChanged>")
     public boolean selectNextTab() {
         return manager.selectNextTab();
     }
 
+    @AiDoc(summary = "Selects the previous tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.root.method.selectPreviousTab>")
+    @WikiReturn("<key:docking.root.return.tabChanged>")
     public boolean selectPreviousTab() {
         return manager.selectPreviousTab();
     }
 
+    @AiDoc(summary = "Returns the height of tab strips in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.tabHeightGet>")
+    @WikiReturn("<key:docking.root.return.tabHeight>")
     public float tabHeight() {
         return tabHeight;
     }
 
+    @AiDoc(summary = "Sets the height of tab strips in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.tabHeightSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "tabHeight", category = "Layout", defaultValue = "22", description = "Dock tab strip height in UI pixels.")
-    public DockingRoot tabHeight(float tabHeight) {
+    public DockingRoot tabHeight(
+            @WikiParameter(description = "<key:docking.root.param.tabHeight>")
+            float tabHeight
+    ) {
         float normalized = Float.isFinite(tabHeight) ? Math.max(14.0f, tabHeight) : 22.0f;
         if (this.tabHeight == normalized) return this;
         this.tabHeight = normalized;
@@ -343,12 +543,21 @@ public final class DockingRoot extends Box {
         return this;
     }
 
+    @AiDoc(summary = "Returns the split handle thickness in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleThicknessGet>")
+    @WikiReturn("<key:docking.root.return.splitThickness>")
     public float splitHandleThickness() {
         return splitHandleThickness;
     }
 
+    @AiDoc(summary = "Sets the split handle thickness in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleThicknessSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "splitHandleThickness", category = "Layout", defaultValue = "5", description = "Dock split handle thickness in UI pixels.")
-    public DockingRoot splitHandleThickness(float splitHandleThickness) {
+    public DockingRoot splitHandleThickness(
+            @WikiParameter(description = "<key:docking.root.param.splitThickness>")
+            float splitHandleThickness
+    ) {
         float normalized = Float.isFinite(splitHandleThickness) ? Math.max(1.0f, splitHandleThickness) : 5.0f;
         if (this.splitHandleThickness == normalized) return this;
         this.splitHandleThickness = normalized;
@@ -356,12 +565,21 @@ public final class DockingRoot extends Box {
         return this;
     }
 
+    @AiDoc(summary = "Returns the visual rendering style of split handles.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleStyleGet>")
+    @WikiReturn("<key:docking.root.return.splitHandleStyle>")
     public SplitHandleStyle splitHandleStyle() {
         return splitHandleStyle;
     }
 
+    @AiDoc(summary = "Sets the visual rendering style of split handles (BLOCK or SEAM).")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleStyleSet>")
+    @WikiReturn("<key:docking.root.return.this>")
     @XmlAttribute(value = "splitHandleStyle", category = "Appearance", defaultValue = "block", description = "Split handle visual style: block with a centre line or shared seam line.")
-    public DockingRoot splitHandleStyle(SplitHandleStyle splitHandleStyle) {
+    public DockingRoot splitHandleStyle(
+            @WikiParameter(description = "<key:docking.root.param.splitHandleStyle>")
+            SplitHandleStyle splitHandleStyle
+    ) {
         SplitHandleStyle normalized = splitHandleStyle == null ? SplitHandleStyle.BLOCK : splitHandleStyle;
         if (this.splitHandleStyle == normalized) return this;
         this.splitHandleStyle = normalized;
@@ -374,6 +592,9 @@ public final class DockingRoot extends Box {
      *
      * @return тема, по которой рисуются вкладки, разделители и зоны дропа
      */
+    @AiDoc(summary = "Returns the active DockTheme applied to this root.")
+    @WikiMethod(summary = "<key:docking.root.method.themeGet>")
+    @WikiReturn("<key:docking.root.return.theme>")
     public DockTheme theme() {
         DockTheme own = theme;
         return own != null ? own : DockTheme.defaultTheme();
@@ -385,7 +606,13 @@ public final class DockingRoot extends Box {
      * @param theme тема; {@code null} возвращает root на глобальную тему по умолчанию
      * @return этот root для fluent-настройки
      */
-    public DockingRoot theme(DockTheme theme) {
+    @AiDoc(summary = "Applies a custom DockTheme to this root.")
+    @WikiMethod(summary = "<key:docking.root.method.themeSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot theme(
+            @WikiParameter(description = "<key:docking.root.param.theme>")
+            DockTheme theme
+    ) {
         this.theme = theme;
         DockTheme effective = theme();
         this.tabHeight = effective.tabHeight();
@@ -395,39 +622,69 @@ public final class DockingRoot extends Box {
         return this;
     }
 
+    @AiDoc(summary = "Returns custom pane renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.paneRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
     public WidgetRender paneRenderer() {
         return paneRenderer;
     }
 
-    public DockingRoot paneRenderer(WidgetRender paneRenderer) {
+    @AiDoc(summary = "Sets custom pane renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.paneRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot paneRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender paneRenderer
+    ) {
         if (this.paneRenderer == paneRenderer) return this;
         this.paneRenderer = paneRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Returns custom split handle renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
     public WidgetRender splitHandleRenderer() {
         return splitHandleRenderer;
     }
 
-    public DockingRoot splitHandleRenderer(WidgetRender splitHandleRenderer) {
+    @AiDoc(summary = "Sets custom split handle renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitHandleRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender splitHandleRenderer
+    ) {
         if (this.splitHandleRenderer == splitHandleRenderer) return this;
         this.splitHandleRenderer = splitHandleRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Returns custom drop preview renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.dropPreviewRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
     public WidgetRender dropPreviewRenderer() {
         return dropPreviewRenderer;
     }
 
-    public DockingRoot dropPreviewRenderer(WidgetRender dropPreviewRenderer) {
+    @AiDoc(summary = "Sets custom drop preview renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.dropPreviewRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot dropPreviewRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender dropPreviewRenderer
+    ) {
         if (this.dropPreviewRenderer == dropPreviewRenderer) return this;
         this.dropPreviewRenderer = dropPreviewRenderer;
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
 
+    @AiDoc(summary = "Resets all custom renderers to built-in docking defaults.")
+    @WikiMethod(summary = "<key:docking.root.method.useDefaultDockingRenderers>")
+    @WikiReturn("<key:docking.root.return.this>")
     public DockingRoot useDefaultDockingRenderers() {
         renderer(null);
         paneRenderer = null;
@@ -437,27 +694,63 @@ public final class DockingRoot extends Box {
         return this;
     }
 
-    public EventSubscription onLayoutChanged(EventListener<? super DockLayoutChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when docking layout structure changes.")
+    @WikiMethod(summary = "<key:docking.root.method.onLayoutChanged>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onLayoutChanged(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockLayoutChangedEvent> listener
+    ) {
         return on(DockLayoutChangedEvent.TYPE, listener);
     }
 
-    public EventSubscription onLayoutRestored(EventListener<? super DockLayoutRestoredEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when layout is restored from snapshot.")
+    @WikiMethod(summary = "<key:docking.root.method.onLayoutRestored>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onLayoutRestored(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockLayoutRestoredEvent> listener
+    ) {
         return on(DockLayoutRestoredEvent.TYPE, listener);
     }
 
-    public EventSubscription onDragStarted(EventListener<? super DockDragStartedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a dock tab drag gesture starts.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragStarted>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragStarted(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragStartedEvent> listener
+    ) {
         return on(DockDragStartedEvent.TYPE, listener);
     }
 
-    public EventSubscription onDragMoved(EventListener<? super DockDragMovedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called on pointer movement during tab drag.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragMoved>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragMoved(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragMovedEvent> listener
+    ) {
         return on(DockDragMovedEvent.TYPE, listener);
     }
 
-    public EventSubscription onDragEnded(EventListener<? super DockDragEndedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when a tab drag gesture ends.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragEnded>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragEnded(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragEndedEvent> listener
+    ) {
         return on(DockDragEndedEvent.TYPE, listener);
     }
 
-    public EventSubscription onDropPreviewChanged(EventListener<? super DockDropPreviewChangedEvent> listener) {
+    @AiDoc(summary = "Registers a listener called when the drop preview target intent updates.")
+    @WikiMethod(summary = "<key:docking.root.method.onDropPreviewChanged>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDropPreviewChanged(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDropPreviewChangedEvent> listener
+    ) {
         return on(DockDropPreviewChangedEvent.TYPE, listener);
     }
 
@@ -752,7 +1045,13 @@ public final class DockingRoot extends Box {
      * @param paneId id панели
      * @return границы вкладки или {@code null}, если панели нет или вкладка прокручена за край полосы
      */
-    public RectView tabBounds(String paneId) {
+    @AiDoc(summary = "Returns the bounding rectangle of a tab in root coordinates, or null if invisible.")
+    @WikiMethod(summary = "<key:docking.root.method.tabBounds>")
+    @WikiReturn("<key:docking.root.return.tabBounds>")
+    public RectView tabBounds(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
         DockTabLayout tab = tabLayoutOf(paneId);
         return tab == null ? null : new MutableRect(tab.x(), tab.y(), tab.width(), tab.height());
     }
@@ -763,7 +1062,13 @@ public final class DockingRoot extends Box {
      * @param paneId id панели
      * @return границы кнопки или {@code null}, если панели нет, она не закрываемая или вкладка не видна
      */
-    public RectView tabCloseBounds(String paneId) {
+    @AiDoc(summary = "Returns the bounding rectangle of a tab close button in root coordinates, or null if invisible/unclosable.")
+    @WikiMethod(summary = "<key:docking.root.method.tabCloseBounds>")
+    @WikiReturn("<key:docking.root.return.tabCloseBounds>")
+    public RectView tabCloseBounds(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
         DockTabLayout tab = tabLayoutOf(paneId);
         if (tab == null || !tab.pane().closable()) return null;
         return DockChrome.closeRect(tab, theme(), new MutableRect());
@@ -789,7 +1094,15 @@ public final class DockingRoot extends Box {
      * @param rootY Y точки в root-координатах
      * @return {@code true}, если нажатие здесь должно двигать окно
      */
-    public boolean windowDragZoneAt(float rootX, float rootY) {
+    @AiDoc(summary = "Checks whether pressing at (rootX, rootY) initiates window drag for host WindowWidgets.")
+    @WikiMethod(summary = "<key:docking.root.method.windowDragZoneAt>")
+    @WikiReturn("<key:docking.root.return.windowDragZoneAt>")
+    public boolean windowDragZoneAt(
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
         if (windowHost == null) return false;
         if (splitHandleAt(rootNode(), layoutBounds(), rootX, rootY) != null) return false;
         LeafHit strip = tabStripAt(rootNode(), layoutBounds(), rootX, rootY);
@@ -1281,7 +1594,16 @@ public final class DockingRoot extends Box {
      * @param rootX X указателя в root-координатах
      * @param rootY Y указателя в root-координатах
      */
-    public static void previewForeignWindowDrop(WindowWidget window, float rootX, float rootY) {
+    @AiDoc(summary = "Calculates and updates docking drop preview for an externally dragged WindowWidget.")
+    @WikiMethod(summary = "<key:docking.root.method.previewForeignWindowDrop>")
+    public static void previewForeignWindowDrop(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
         if (window == null || !window.dockable() || window.dockRedockLocked()) {
             clearForeignWindowDropPreview(window);
             return;
@@ -1338,7 +1660,17 @@ public final class DockingRoot extends Box {
      * @param rootY Y указателя в root-координатах
      * @return {@code true}, если контент окна стал dock-панелью
      */
-    public static boolean finishForeignWindowDrop(WindowWidget window, float rootX, float rootY) {
+    @AiDoc(summary = "Completes drop of an external WindowWidget into the docking layout.")
+    @WikiMethod(summary = "<key:docking.root.method.finishForeignWindowDrop>")
+    @WikiReturn("<key:docking.root.return.docked>")
+    public static boolean finishForeignWindowDrop(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
         DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
         if (previous != null) {
             previous.floatingDropPreview(DockDropIntent.none());
@@ -1363,7 +1695,12 @@ public final class DockingRoot extends Box {
      *
      * @param window окно-источник или {@code null}
      */
-    public static void clearForeignWindowDropPreview(WindowWidget window) {
+    @AiDoc(summary = "Clears any active foreign window drop preview highlighting.")
+    @WikiMethod(summary = "<key:docking.root.method.clearForeignWindowDropPreview>")
+    public static void clearForeignWindowDropPreview(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window
+    ) {
         if (window == null) return;
         DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
         if (previous != null) {
@@ -1385,7 +1722,17 @@ public final class DockingRoot extends Box {
      * @param rootY Y дропа в root-координатах
      * @return {@code true}, если панель добавлена в дерево
      */
-    public boolean dockForeignWindow(WindowWidget window, float rootX, float rootY) {
+    @AiDoc(summary = "Docks the content of an external WindowWidget into this DockingRoot.")
+    @WikiMethod(summary = "<key:docking.root.method.dockForeignWindow>")
+    @WikiReturn("<key:docking.root.return.docked>")
+    public boolean dockForeignWindow(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
         if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
         if (!acceptsDockDrops()) return false;
         floatingDropPreview(DockDropIntent.none());
@@ -1615,7 +1962,15 @@ public final class DockingRoot extends Box {
      * @param area зона: TOP/BOTTOM/LEFT/RIGHT — стороны креста, CENTER/TAB — центр
      * @return rect ячейки; для прочих зон — пустой rect
      */
-    public static MutableRect crossCellRect(RectView leafBounds, DockArea area) {
+    @AiDoc(summary = "Calculates the geometric bounds of a drop cross directional trigger cell.")
+    @WikiMethod(summary = "<key:docking.root.method.crossCellRect>")
+    @WikiReturn("<key:docking.root.return.crossCellRect>")
+    public static MutableRect crossCellRect(
+            @WikiParameter(description = "<key:docking.root.param.leafBounds>")
+            RectView leafBounds,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area
+    ) {
         if (leafBounds == null) return new MutableRect();
         float cell = dropZoneCell(leafBounds);
         float gap = DROP_ZONE_GAP;

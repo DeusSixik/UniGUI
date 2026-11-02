@@ -208,6 +208,125 @@ public final class WidgetStyles {
     }
 
     /**
+     * Стили виджетов отображения табличных данных.
+     */
+    public static final class Data {
+        /**
+         * Стандартное оформление {@code VirtualTableView}; уступает теме и локальным стилям.
+         *
+         * <p>Фон и рамка самого виджета по умолчанию не рисуются: таблица состоит из шапки и строк.
+         * Достаточно объявить {@code background.visible} и {@code border.visible}, чтобы получить
+         * обрамляющую поверхность.</p>
+         */
+        public static final Style VIRTUAL_TABLE_VIEW = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                .put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.BORDER_WIDTH, 1.0f)
+                .put(StyleKeys.RADIUS, 0.0f)
+                .put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.04f, 0.04f, 0.04f, 0.82f))
+                .put(StyleKeys.BORDER_COLOR, MutableColor.rgba(0.25f, 0.25f, 0.25f, 0.65f))
+                .put(StyleKeys.TEXT_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.TABLE_HEADER_COLOR, MutableColor.rgba(0.10f, 0.10f, 0.10f, 1.0f))
+                .put(StyleKeys.TABLE_HEADER_HOVER_COLOR, MutableColor.rgba(0.17f, 0.17f, 0.18f, 1.0f))
+                .put(StyleKeys.TABLE_ROW_COLOR, MutableColor.rgba(0.04f, 0.04f, 0.04f, 0.35f))
+                .put(StyleKeys.TABLE_ALTERNATE_ROW_COLOR, MutableColor.rgba(0.08f, 0.08f, 0.08f, 0.35f))
+                .put(StyleKeys.TABLE_HOVER_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.07f))
+                .put(StyleKeys.TABLE_SELECTED_COLOR, MutableColor.rgba(0.18f, 0.45f, 0.75f, 0.42f))
+                .put(StyleKeys.TABLE_GRID_COLOR, MutableColor.rgba(0.25f, 0.25f, 0.25f, 0.65f))
+                .put(StyleKeys.TABLE_GRID_LINES, dev.sixik.unigui.api.style.TableGridLines.BOTH)
+                .put(StyleKeys.TABLE_ACTIVE_CELL_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 0.72f))
+                .put(StyleKeys.TABLE_CELL_PADDING, 3.0f)
+                .put(StyleKeys.TABLE_SORT_INDICATOR_STYLE, dev.sixik.unigui.api.style.TableSortIndicatorStyle.CHEVRON);
+
+        /**
+         * Запрещает создавать экземпляр пространства имён стилей.
+         */
+        private Data() {
+        }
+    }
+
+    /**
+     * Стили виджетов визуализации данных: {@code Sparkline}, {@code Chart} и {@code GraphView}.
+     *
+     * <p>Значения воспроизводят прежнюю тёмную палитру. Цвета, которые пользователь задал на экземпляре
+     * через {@code lineColor()}, {@code barColor()} и аналогичные методы, остаются приоритетнее стиля.</p>
+     */
+    public static final class Plot {
+        private static MutableColor c(float r, float g, float b, float a) {
+            return MutableColor.rgba(r, g, b, a);
+        }
+
+        /**
+         * Компактный график тренда без фона и рамки; тонкая линия с лёгкой заливкой под ней.
+         */
+        public static final Style SPARKLINE = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                .put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.BACKGROUND_COLOR, c(0.04f, 0.05f, 0.07f, 0.55f))
+                .put(StyleKeys.BORDER_COLOR, c(0.20f, 0.25f, 0.33f, 0.80f))
+                .put(StyleKeys.BORDER_WIDTH, 1.0f)
+                .put(StyleKeys.RADIUS, 3.0f)
+                .put(StyleKeys.TEXT_COLOR, c(0.92f, 0.96f, 1.0f, 1.0f))
+                .put(StyleKeys.TEXT_SIZE, 9.0f)
+                .put(StyleKeys.PLOT_LINE_COLOR, c(0.25f, 0.85f, 1.0f, 1.0f))
+                .put(StyleKeys.PLOT_LINE_WIDTH, 1.5f)
+                .put(StyleKeys.PLOT_FILL_COLOR, c(0.25f, 0.85f, 1.0f, 0.34f))
+                .put(StyleKeys.PLOT_FILL_VISIBLE, true)
+                .put(StyleKeys.PLOT_POINT_COLOR, c(0.90f, 0.96f, 1.0f, 0.96f))
+                .put(StyleKeys.PLOT_POINT_HOVER_COLOR, c(1.0f, 0.84f, 0.34f, 1.0f))
+                .put(StyleKeys.PLOT_POINT_RADIUS, 3.0f)
+                .put(StyleKeys.PLOT_TOOLTIP_BACKGROUND_COLOR, c(0.025f, 0.030f, 0.040f, 0.96f))
+                .put(StyleKeys.PLOT_TOOLTIP_BORDER_COLOR, c(0.25f, 0.78f, 1.0f, 0.92f))
+                .put(StyleKeys.PLOT_TOOLTIP_TEXT_COLOR, c(0.92f, 0.96f, 1.0f, 1.0f));
+
+        /**
+         * Полноразмерный график с осями, сеткой, столбцами и поверхностью-подложкой.
+         */
+        public static final Style CHART = new MutableStyle()
+                .putAll(SPARKLINE)
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BORDER_VISIBLE, true)
+                .put(StyleKeys.PLOT_LINE_WIDTH, 2.0f)
+                .put(StyleKeys.PLOT_AXIS_COLOR, c(0.35f, 0.45f, 0.58f, 0.85f))
+                .put(StyleKeys.PLOT_GRID_COLOR, c(0.35f, 0.45f, 0.58f, 0.22f))
+                .put(StyleKeys.PLOT_GRID_VISIBLE, true)
+                .put(StyleKeys.PLOT_BAR_COLOR, c(0.25f, 0.72f, 1.0f, 0.72f))
+                .put(StyleKeys.PLOT_BAR_HOVER_COLOR, c(1.0f, 0.78f, 0.28f, 0.88f))
+                .put(StyleKeys.PLOT_BAR_GAP, 4.0f)
+                .put(StyleKeys.PLOT_BAR_RADIUS, 2.0f);
+
+        /**
+         * Диаграмма связей: круглые узлы, направленные рёбра со стрелками и подсветка связей наведённого узла.
+         */
+        public static final Style GRAPH_VIEW = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BORDER_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_COLOR, c(0.04f, 0.05f, 0.07f, 0.55f))
+                .put(StyleKeys.BORDER_COLOR, c(0.20f, 0.25f, 0.33f, 0.80f))
+                .put(StyleKeys.BORDER_WIDTH, 1.0f)
+                .put(StyleKeys.RADIUS, 3.0f)
+                .put(StyleKeys.TEXT_COLOR, c(0.75f, 0.90f, 1.0f, 1.0f))
+                .put(StyleKeys.TEXT_SIZE, 9.0f)
+                .put(StyleKeys.GRAPH_NODE_COLOR, c(0.25f, 0.78f, 1.0f, 0.95f))
+                .put(StyleKeys.GRAPH_NODE_HOVER_COLOR, c(1.0f, 0.78f, 0.28f, 1.0f))
+                .put(StyleKeys.GRAPH_NODE_BORDER_COLOR, c(0.0f, 0.0f, 0.0f, 0.40f))
+                .put(StyleKeys.GRAPH_NODE_RADIUS, 6.0f)
+                .put(StyleKeys.GRAPH_EDGE_COLOR, c(0.55f, 0.68f, 0.82f, 0.70f))
+                .put(StyleKeys.GRAPH_EDGE_HOVER_COLOR, c(1.0f, 0.78f, 0.28f, 0.95f))
+                .put(StyleKeys.GRAPH_EDGE_WIDTH, 1.5f)
+                .put(StyleKeys.GRAPH_ARROW_SIZE, 7.0f)
+                .put(StyleKeys.PLOT_TOOLTIP_BACKGROUND_COLOR, c(0.025f, 0.030f, 0.040f, 0.96f))
+                .put(StyleKeys.PLOT_TOOLTIP_BORDER_COLOR, c(0.25f, 0.78f, 1.0f, 0.92f))
+                .put(StyleKeys.PLOT_TOOLTIP_TEXT_COLOR, c(0.92f, 0.96f, 1.0f, 1.0f));
+
+        /**
+         * Запрещает создавать экземпляр пространства имён стилей.
+         */
+        private Plot() {
+        }
+    }
+
+    /**
      * Стили элементов навигации и их поверхностей.
      */
     public static final class Navigation {
@@ -230,6 +349,27 @@ public final class WidgetStyles {
                 .put(StyleKeys.TREE_DISABLED_TEXT_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
                 .put(StyleKeys.TREE_DISCLOSURE_COLOR, MutableColor.rgba(0.373f, 0.404f, 0.447f, 1.0f))
                 .put(StyleKeys.TREE_ICON_COLOR, MutableColor.rgba(0.604f, 0.643f, 0.690f, 1.0f));
+
+        /**
+         * Боковая навигация: полноширинные строки, шеврон у групп, акцентная заливка выбранного пункта.
+         *
+         * <p>Использует ключи {@code tree.*}, потому что {@code NavigationView} построен на {@code TreeView}.
+         * Фон и рамка выключены: подложку даёт контейнер, в котором лежит навигация.</p>
+         */
+        public static final Style NAVIGATION_VIEW = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_VISIBLE, false)
+                .put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.TREE_ROW_HEIGHT, 34.0f)
+                .put(StyleKeys.TREE_ROW_STYLE, dev.sixik.unigui.api.style.TreeRowStyle.FULL_WIDTH)
+                .put(StyleKeys.TREE_DISCLOSURE_STYLE, dev.sixik.unigui.api.style.TreeDisclosureStyle.CHEVRON)
+                .put(StyleKeys.TREE_INDENT_WIDTH, 16.0f)
+                .put(StyleKeys.TREE_HOVER_COLOR, MutableColor.rgba(0.200f, 0.243f, 0.290f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_COLOR, MutableColor.rgba(0.0f, 0.396f, 0.667f, 1.0f))
+                .put(StyleKeys.TREE_TEXT_COLOR, MutableColor.rgba(0.835f, 0.871f, 0.906f, 1.0f))
+                .put(StyleKeys.TREE_SELECTED_TEXT_COLOR, MutableColor.rgba(1.0f, 1.0f, 1.0f, 1.0f))
+                .put(StyleKeys.TREE_DISABLED_TEXT_COLOR, MutableColor.rgba(0.435f, 0.482f, 0.529f, 1.0f))
+                .put(StyleKeys.TREE_DISCLOSURE_COLOR, MutableColor.rgba(0.835f, 0.871f, 0.906f, 1.0f))
+                .put(StyleKeys.TREE_ICON_COLOR, MutableColor.rgba(0.690f, 0.745f, 0.800f, 1.0f));
 
         /**
          * Форма элементов пути навигации; цвета состояний задаются во время работы.

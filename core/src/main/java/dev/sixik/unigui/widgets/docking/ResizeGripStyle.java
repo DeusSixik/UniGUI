@@ -1,5 +1,12 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.render.DrawScope;
 
@@ -15,6 +22,28 @@ import dev.sixik.unigui.api.render.DrawScope;
  * }</pre>
  */
 @FunctionalInterface
+@AiDoc(summary = "Styling and rendering interface for bottom-right window resize grips, including preset TRIANGLE and LINES patterns."
+)
+@WikiPage(
+        title = "ResizeGripStyle",
+        slug = "resize-grip-style",
+        category = "<key:docking.category>",
+        summary = "<key:resize.grip.style.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:resize.grip.style.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:resize.grip.style.example.custom.title>",
+        code = "theme.resizeGrip(ResizeGripStyle.LINES);"
+)
+@WikiLink(
+        label = "DockTheme",
+        target = "page:dock-theme",
+        description = "<key:dock.theme.summary>"
+)
 public interface ResizeGripStyle {
     /**
      * Рисует ручку.
@@ -26,7 +55,22 @@ public interface ResizeGripStyle {
      * @param cornerRadius радиус скругления угла окна; рисунок не должен выходить за скругление
      * @param color цвет, уже выбранный по состоянию (покой, наведение, перетаскивание)
      */
-    void paint(DrawScope draw, float right, float bottom, float size, float cornerRadius, ColorView color);
+    @AiDoc(summary = "Paints the custom resize grip into the provided drawing scope.")
+    @WikiMethod(summary = "<key:resize.grip.style.method.paint>")
+    void paint(
+            @WikiParameter(description = "<key:resize.grip.style.param.draw>")
+            DrawScope draw,
+            @WikiParameter(description = "<key:resize.grip.style.param.right>")
+            float right,
+            @WikiParameter(description = "<key:resize.grip.style.param.bottom>")
+            float bottom,
+            @WikiParameter(description = "<key:resize.grip.style.param.size>")
+            float size,
+            @WikiParameter(description = "<key:resize.grip.style.param.cornerRadius>")
+            float cornerRadius,
+            @WikiParameter(description = "<key:resize.grip.style.param.color>")
+            ColorView color
+    );
 
     /** Сплошной треугольник в углу, как в Dear ImGui. Значение по умолчанию. */
     ResizeGripStyle TRIANGLE = (draw, right, bottom, size, radius, color) -> {

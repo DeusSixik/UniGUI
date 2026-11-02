@@ -1,29 +1,18 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.event.Event;
-import dev.sixik.unigui.api.event.EventListener;
-import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.event.KeyPressedEvent;
-import dev.sixik.unigui.api.event.NumberValueChangedEvent;
-import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
 import dev.sixik.unigui.api.input.KeyCodes;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
-
-import java.util.Locale;
+import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.utils.reactive.*;
+import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.widgets.WidgetStyles;
+
+import java.util.Locale;
 
 @AiDoc(
         summary = "Numeric input field with validation, step adjustment, and min/max limits.",
@@ -152,6 +141,20 @@ public class NumberField extends TextInput {
 
     public EventSubscription onValueChanged(EventListener<? super NumberValueChangedEvent> listener) {
         return on(NumberValueChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    protected <T> SignalSubscription createBinding(BindingData<T> key, T source) {
+        if (key == BindingKeys.NUMBER_FIELD_VALUE) {
+            DoubleSignal value = BindingKeys.NUMBER_FIELD_VALUE.cast(source);
+            SignalSubscription signalSubscription = value.subscribe(this::value);
+            EventSubscription widgetSubscription = onValueChanged(event -> value.set(event.newValue()));
+            return () -> {
+                widgetSubscription.close();
+                signalSubscription.close();
+            };
+        }
+        return super.createBinding(key, source);
     }
 
     @Override

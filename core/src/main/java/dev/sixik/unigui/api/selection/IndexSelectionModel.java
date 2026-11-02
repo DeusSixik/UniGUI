@@ -128,6 +128,85 @@ public final class IndexSelectionModel {
         return changed;
     }
 
+    /**
+     * Сдвигает выбранные индексы после вставки элементов в модель.
+     *
+     * <p>Каждый индекс {@code i >= index} превращается в {@code i + count}; индекс якоря
+     * сдвигается по тому же правилу. Порядок выбора сохраняется.</p>
+     *
+     * @param index индекс первого вставленного элемента
+     * @param count число вставленных элементов; неположительное значение ничего не меняет
+     * @return {@code true}, если множество выбранных индексов изменилось
+     */
+    public boolean shiftForInsert(int index, int count) {
+        if (count <= 0) return false;
+        if (anchorIndex >= index) {
+            anchorIndex += count;
+        }
+        if (selected.isEmpty()) return false;
+        IntLinkedOpenHashSet shifted = new IntLinkedOpenHashSet(selected.size());
+        boolean changed = false;
+        IntIterator iterator = selected.iterator();
+        while (iterator.hasNext()) {
+            int current = iterator.nextInt();
+            if (current >= index) {
+                current += count;
+                changed = true;
+            }
+            shifted.add(current);
+        }
+        if (!changed) return false;
+        selected.clear();
+        selected.addAll(shifted);
+        markSelectedIndicesDirty();
+        return true;
+    }
+
+    /**
+     * Обновляет выбор после удаления диапазона элементов из модели.
+     *
+     * <p>Индексы внутри {@code [index, index + count)} исключаются, индексы правее диапазона
+     * сдвигаются на {@code count} влево. Якорь внутри диапазона сбрасывается на первый выбранный.</p>
+     *
+     * @param index индекс первого удалённого элемента
+     * @param count число удалённых элементов; неположительное значение ничего не меняет
+     * @return {@code true}, если множество выбранных индексов изменилось
+     */
+    public boolean shiftForRemove(int index, int count) {
+        if (count <= 0) return false;
+        int end = index + count;
+        boolean anchorRemoved = anchorIndex >= index && anchorIndex < end;
+        if (anchorIndex >= end) {
+            anchorIndex -= count;
+        }
+        boolean changed = false;
+        if (!selected.isEmpty()) {
+            IntLinkedOpenHashSet shifted = new IntLinkedOpenHashSet(selected.size());
+            IntIterator iterator = selected.iterator();
+            while (iterator.hasNext()) {
+                int current = iterator.nextInt();
+                if (current >= index && current < end) {
+                    changed = true;
+                    continue;
+                }
+                if (current >= end) {
+                    current -= count;
+                    changed = true;
+                }
+                shifted.add(current);
+            }
+            if (changed) {
+                selected.clear();
+                selected.addAll(shifted);
+                markSelectedIndicesDirty();
+            }
+        }
+        if (anchorRemoved) {
+            anchorIndex = selected.isEmpty() ? -1 : selected.iterator().nextInt();
+        }
+        return changed;
+    }
+
     private boolean replace(IntLinkedOpenHashSet nextSelection) {
         if (selected.equals(nextSelection)) return false;
         selected.clear();

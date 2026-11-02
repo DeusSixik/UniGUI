@@ -22,7 +22,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:completion.context.title>",
         slug = "completion-context",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:completion.context.summary>",
         order = 370)
 @WikiSection(

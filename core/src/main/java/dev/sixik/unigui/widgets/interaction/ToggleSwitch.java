@@ -1,32 +1,21 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.docs.WikiExample;
-import dev.sixik.unigui.api.docs.WikiLink;
-import dev.sixik.unigui.api.docs.WikiMethod;
-import dev.sixik.unigui.api.docs.WikiPage;
-import dev.sixik.unigui.api.docs.WikiParameter;
-import dev.sixik.unigui.api.docs.WikiReturn;
-import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.docs.*;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.style.StyleIds;
-import dev.sixik.unigui.api.style.StyleKeys;
-import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.style.*;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
-import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 @AiDoc(
@@ -56,10 +45,14 @@ import dev.sixik.unigui.widgets.WidgetStyles;
 @WikiLink(label = "ToggleButton", target = "page:toggle-button")
 @XmlWidgetName("ToggleSwitch")
 public class ToggleSwitch extends ToggleButton {
-    /** Style type id для StylePack selector/binding. */
+    /**
+     * Style type id для StylePack selector/binding.
+     */
     public static final String STYLE_TYPE = StyleIds.Widget.TOGGLE_SWITCH;
 
-    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    /**
+     * Event id, которые имеет смысл показывать для checked-контролов.
+     */
     public static final class AnimationEvents {
         public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
         public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;

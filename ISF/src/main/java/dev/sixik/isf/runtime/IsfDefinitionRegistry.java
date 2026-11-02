@@ -9,6 +9,8 @@ import dev.sixik.isf.definition.IsfTriggerBinding;
 import dev.sixik.isf.definition.IsfTriggerDocument;
 import dev.sixik.isf.definition.IsfVisualNode;
 import net.minecraft.resources.ResourceLocation;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -22,8 +24,7 @@ import java.util.Set;
 
 /** Реестр исходных и разрешённых ISF-документов. */
 public final class IsfDefinitionRegistry {
-    private static final org.slf4j.Logger LOGGER =
-            org.slf4j.LoggerFactory.getLogger(IsfDefinitionRegistry.class);
+    private static final Logger LOGGER = LogManager.getLogger(IsfDefinitionRegistry.class);
     private final Map<ResourceLocation, IsfRecipeTypeDefinition> types = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfRecipeDefinition> recipes = new LinkedHashMap<>();
     private final Map<ResourceLocation, IsfResolvedRecipe> resolved = new LinkedHashMap<>();

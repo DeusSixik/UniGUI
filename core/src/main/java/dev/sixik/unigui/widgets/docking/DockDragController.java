@@ -1,7 +1,36 @@
 package dev.sixik.unigui.widgets.docking;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 
-
+@AiDoc(summary = "Handles drag-and-drop interactions for docking tabs within DockingRoot, computing drop previews, live tear-offs, and docking intents."
+)
+@WikiPage(
+        title = "DockDragController",
+        slug = "dock-drag-controller",
+        category = "<key:docking.category>",
+        summary = "<key:dock.drag.controller.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:dock.drag.controller.section.overview.body>",
+        order = 10
+)
+@WikiLink(
+        label = "DockingRoot",
+        target = "page:docking-root",
+        description = "<key:docking.root.summary>"
+)
+@WikiLink(
+        label = "DockDropIntent",
+        target = "page:dock-drop-intent",
+        description = "<key:dock.drop.intent.summary>"
+)
 public final class DockDragController {
     private static final float DEFAULT_DRAG_THRESHOLD = 4.0f;
 
@@ -21,31 +50,55 @@ public final class DockDragController {
         this.owner = owner;
     }
 
+    @AiDoc(summary = "Returns true if a drag gesture is currently active or pressed.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.active>")
+    @WikiReturn("<key:dock.drag.controller.return.active>")
     public boolean active() {
         return active;
     }
 
+    @AiDoc(summary = "Returns true if the drag gesture has exceeded the threshold and is actively dragging.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.dragging>")
+    @WikiReturn("<key:dock.drag.controller.return.dragging>")
     public boolean dragging() {
         return dragging;
     }
 
+    @AiDoc(summary = "Returns the identifier of the dock pane currently being dragged.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.paneId>")
+    @WikiReturn("<key:dock.drag.controller.return.paneId>")
     public String paneId() {
         return paneId;
     }
 
+    @AiDoc(summary = "Returns the active pointer identifier.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.pointerId>")
+    @WikiReturn("<key:dock.drag.controller.return.pointerId>")
     public int pointerId() {
         return pointerId;
     }
 
+    @AiDoc(summary = "Returns the drag activation threshold in pixels.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.dragThreshold>")
+    @WikiReturn("<key:dock.drag.controller.return.dragThreshold>")
     public float dragThreshold() {
         return dragThreshold;
     }
 
-    public DockDragController dragThreshold(float dragThreshold) {
+    @AiDoc(summary = "Sets the minimum movement threshold in pixels before drag initiates.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.setDragThreshold>")
+    @WikiReturn("<key:dock.drag.controller.return.this>")
+    public DockDragController dragThreshold(
+            @WikiParameter(description = "<key:dock.drag.controller.param.threshold>")
+            float dragThreshold
+    ) {
         this.dragThreshold = Float.isFinite(dragThreshold) ? Math.max(0.0f, dragThreshold) : DEFAULT_DRAG_THRESHOLD;
         return this;
     }
 
+    @AiDoc(summary = "Returns the current drop preview intent.")
+    @WikiMethod(summary = "<key:dock.drag.controller.method.previewIntent>")
+    @WikiReturn("<key:dock.drag.controller.return.previewIntent>")
     public DockDropIntent previewIntent() {
         return previewIntent;
     }

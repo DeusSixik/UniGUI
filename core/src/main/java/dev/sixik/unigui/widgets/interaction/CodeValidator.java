@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:code.validator.title>",
         slug = "code-validator",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:code.validator.summary>",
         order = 330)
 @WikiSection(

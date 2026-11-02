@@ -22,7 +22,7 @@ import java.util.Objects;
 @WikiPage(
         title = "<key:radio.group.title>",
         slug = "radio-group",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:radio.group.summary>",
         order = 100
 )

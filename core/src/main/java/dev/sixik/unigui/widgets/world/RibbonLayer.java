@@ -1,5 +1,15 @@
 package dev.sixik.unigui.widgets.world;
 
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawMesh;
@@ -38,6 +48,32 @@ import java.util.List;
  * canvas.addWorldLayer(road);
  * }</pre>
  */
+@AiDoc(summary = "World canvas layer rendering textured or solid ribbon lines, paths, and waypoint routes in world coordinates.")
+@WikiPage(
+        title = "RibbonLayer",
+        slug = "ribbon-layer",
+        category = "<key:world.category>",
+        summary = "<key:ribbon.layer.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:ribbon.layer.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:ribbon.layer.example.basic.title>",
+        code = "RibbonLayer ribbon = new RibbonLayer()\n    .width(16.0f)\n    .addPoint(0, 0)\n    .addPoint(100, 150);\ncanvas.addWorldLayer(ribbon);"
+)
+@WikiLink(
+        label = "WorldCanvas",
+        target = "page:world-canvas",
+        description = "<key:world.canvas.summary>"
+)
+@WikiLink(
+        label = "WorldLayer",
+        target = "page:world-layer",
+        description = "<key:world.layer.summary>"
+)
 public final class RibbonLayer implements WorldLayer {
     /**
      * Сентинел невидимой ленты: пустой shared mesh вместо {@code null}.
@@ -121,6 +157,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return handle текстуры или {@code null} для сплошной цветной ленты
      */
+        @AiDoc(summary = "Returns the texture handle applied to this ribbon, or null for solid color fill.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.textureGet>")
+    @WikiReturn("<key:ribbon.layer.return.texture>")
     public TextureHandle texture() {
         return texture;
     }
@@ -131,7 +170,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param texture handle текстуры или {@code null} для сплошной заливки
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer texture(TextureHandle texture) {
+        @AiDoc(summary = "Sets the texture applied to this ribbon.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.textureSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer texture(
+            @WikiParameter(description = "<key:ribbon.layer.param.texture>")
+            TextureHandle texture
+    ) {
         if (this.texture != texture) {
             this.texture = texture;
             invalidateCache();
@@ -144,6 +189,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return изменяемый цвет
      */
+        @AiDoc(summary = "Returns the mutable vertex tint color of the ribbon.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.tintGet>")
+    @WikiReturn("<key:ribbon.layer.return.mutableColor>")
     public MutableColor tint() {
         return tint;
     }
@@ -154,7 +202,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param tint новый цвет; {@code null} игнорируется
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer tint(ColorView tint) {
+        @AiDoc(summary = "Sets the vertex tint color of the ribbon.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.tintSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer tint(
+            @WikiParameter(description = "<key:ribbon.layer.param.tint>")
+            ColorView tint
+    ) {
         if (tint != null) {
             this.tint.set(tint);
             invalidateCache();
@@ -167,6 +221,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return ширина мира
      */
+        @AiDoc(summary = "Returns the ribbon width in world units.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.widthGet>")
+    @WikiReturn("<key:ribbon.layer.return.dimension>")
     public float width() {
         return width;
     }
@@ -180,7 +237,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param width ширина; неположительные значения дают невидимую ленту
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer width(float width) {
+        @AiDoc(summary = "Sets the ribbon width in world units.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.widthSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer width(
+            @WikiParameter(description = "<key:ribbon.layer.param.width>")
+            float width
+    ) {
         if (Float.compare(this.width, width) != 0) {
             this.width = width;
             invalidateCache();
@@ -193,6 +256,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return длина тайла
      */
+        @AiDoc(summary = "Returns the world-space distance corresponding to one full texture tile repeat.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.textureLengthGet>")
+    @WikiReturn("<key:ribbon.layer.return.dimension>")
     public float textureLength() {
         return textureLength;
     }
@@ -203,7 +269,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param textureLength длина тайла вдоль пути
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer textureLength(float textureLength) {
+        @AiDoc(summary = "Sets the world-space distance for one full texture tile repeat.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.textureLengthSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer textureLength(
+            @WikiParameter(description = "<key:ribbon.layer.param.textureLength>")
+            float textureLength
+    ) {
         if (Float.compare(this.textureLength, textureLength) != 0) {
             this.textureLength = textureLength;
             invalidateCache();
@@ -216,6 +288,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return текущий immutable options-объект
      */
+        @AiDoc(summary = "Returns the active ribbon generation options.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.optionsGet>")
+    @WikiReturn("<key:ribbon.layer.return.options>")
     public RibbonOptions options() {
         return options;
     }
@@ -226,7 +301,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param options новые параметры; {@code null} означает {@link RibbonOptions#defaults()}
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer options(RibbonOptions options) {
+        @AiDoc(summary = "Sets the ribbon generation options.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.optionsSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer options(
+            @WikiParameter(description = "<key:ribbon.layer.param.options>")
+            RibbonOptions options
+    ) {
         RibbonOptions next = options == null ? RibbonOptions.defaults() : options;
         if (!this.options.equals(next)) {
             this.options = next;
@@ -240,6 +321,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return лимит в половинах ширины
      */
+        @AiDoc(summary = "Returns the miter join bevel threshold.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.miterLimitGet>")
+    @WikiReturn("<key:ribbon.layer.return.dimension>")
     public float miterLimit() {
         return options.miterLimit();
     }
@@ -250,7 +334,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param miterLimit лимит в половинах ширины ленты
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer miterLimit(float miterLimit) {
+        @AiDoc(summary = "Sets the miter join bevel threshold.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.miterLimitSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer miterLimit(
+            @WikiParameter(description = "<key:ribbon.layer.param.miterLimit>")
+            float miterLimit
+    ) {
         return options(options.miterLimit(miterLimit));
     }
 
@@ -259,6 +349,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return {@code true}, если конец соединяется с началом
      */
+        @AiDoc(summary = "Returns true if the ribbon path forms a closed loop.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.closedGet>")
+    @WikiReturn("<key:ribbon.layer.return.flag>")
     public boolean closed() {
         return options.closed();
     }
@@ -269,7 +362,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param closed {@code true} для замкнутого контура
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer closed(boolean closed) {
+        @AiDoc(summary = "Configures whether the ribbon path connects its end back to its start.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.closedSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer closed(
+            @WikiParameter(description = "<key:ribbon.layer.param.closed>")
+            boolean closed
+    ) {
         return options(options.closed(closed));
     }
 
@@ -278,6 +377,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return {@code true}, если {@code u} идёт вдоль пути, а {@code v} — поперёк
      */
+        @AiDoc(summary = "Returns true if U and V texture axes are swapped.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.swapUvGet>")
+    @WikiReturn("<key:ribbon.layer.return.flag>")
     public boolean swapUv() {
         return options.swapUv();
     }
@@ -291,7 +393,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param swapUv {@code true}, чтобы поменять U и V местами
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer swapUv(boolean swapUv) {
+        @AiDoc(summary = "Configures swapping of U and V texture axes.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.swapUvSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer swapUv(
+            @WikiParameter(description = "<key:ribbon.layer.param.swapUv>")
+            boolean swapUv
+    ) {
         return options(options.swapUv(swapUv));
     }
 
@@ -300,6 +408,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return {@code true}, если U отражается
      */
+        @AiDoc(summary = "Returns true if the horizontal U texture coordinate is inverted.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.flipUGet>")
+    @WikiReturn("<key:ribbon.layer.return.flag>")
     public boolean flipU() {
         return options.flipU();
     }
@@ -310,7 +421,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param flipU {@code true}, чтобы отразить U
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer flipU(boolean flipU) {
+        @AiDoc(summary = "Configures horizontal inversion of the texture U coordinate.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.flipUSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer flipU(
+            @WikiParameter(description = "<key:ribbon.layer.param.flipU>")
+            boolean flipU
+    ) {
         return options(options.flipU(flipU));
     }
 
@@ -319,6 +436,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return {@code true}, если V отражается
      */
+        @AiDoc(summary = "Returns true if the vertical V texture coordinate is inverted.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.flipVGet>")
+    @WikiReturn("<key:ribbon.layer.return.flag>")
     public boolean flipV() {
         return options.flipV();
     }
@@ -332,7 +452,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param flipV {@code true}, чтобы отразить V
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer flipV(boolean flipV) {
+        @AiDoc(summary = "Configures vertical inversion of the texture V coordinate.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.flipVSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer flipV(
+            @WikiParameter(description = "<key:ribbon.layer.param.flipV>")
+            boolean flipV
+    ) {
         return options(options.flipV(flipV));
     }
 
@@ -341,6 +467,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return {@code true}, если стыки включены
      */
+        @AiDoc(summary = "Returns true if rounded joint filler dots are rendered at path vertices.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.jointDotsGet>")
+    @WikiReturn("<key:ribbon.layer.return.flag>")
     public boolean jointDots() {
         return options.jointDots();
     }
@@ -354,7 +483,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param jointDots {@code true}, чтобы рисовать диски на стыках
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer jointDots(boolean jointDots) {
+        @AiDoc(summary = "Configures rendering of rounded joint filler dots at path vertices.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.jointDotsSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer jointDots(
+            @WikiParameter(description = "<key:ribbon.layer.param.jointDots>")
+            boolean jointDots
+    ) {
         return options(options.jointDots(jointDots));
     }
 
@@ -363,6 +498,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return число сегментов; {@code 0} означает авто-подбор по радиусу
      */
+        @AiDoc(summary = "Returns the segment count used for rounded joint circles.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.jointSegmentsGet>")
+    @WikiReturn("<key:ribbon.layer.return.count>")
     public int jointSegments() {
         return options.jointSegments();
     }
@@ -373,7 +511,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param jointSegments число сегментов диска; {@code 0} — авто-подбор по радиусу
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer jointSegments(int jointSegments) {
+        @AiDoc(summary = "Sets the segment count used for rounded joint circles.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.jointSegmentsSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer jointSegments(
+            @WikiParameter(description = "<key:ribbon.layer.param.jointSegments>")
+            int jointSegments
+    ) {
         return options(options.jointSegments(jointSegments));
     }
 
@@ -382,6 +526,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return число render-вызовов, переиспользовавших mesh без ребилда
      */
+        @AiDoc(summary = "Returns the count of successful mesh cache hits.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.cacheHits>")
+    @WikiReturn("<key:ribbon.layer.return.count>")
     public long cacheHits() {
         return cacheHits;
     }
@@ -391,17 +538,24 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return число render-вызовов, перестроивших mesh
      */
+        @AiDoc(summary = "Returns the count of mesh cache rebuilds.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.cacheRebuilds>")
+    @WikiReturn("<key:ribbon.layer.return.count>")
     public long cacheRebuilds() {
         return cacheRebuilds;
     }
 
     /** Сбрасывает диагностические счётчики кэша. */
+        @AiDoc(summary = "Resets mesh caching diagnostic statistics.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.resetCacheStats>")
     public void resetCacheStats() {
         cacheHits = 0L;
         cacheRebuilds = 0L;
     }
 
     /** Принудительно сбрасывает кэш mesh: следующий render перестроит ленту. */
+        @AiDoc(summary = "Forces invalidation of the cached mesh geometry.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.invalidateCache>")
     public void invalidateCache() {
         cachedMesh = null;
         cachedTint = null;
@@ -417,7 +571,13 @@ public final class RibbonLayer implements WorldLayer {
      * @param points путь; {@code null} очищает слой
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer path(List<ViewportPoint> points) {
+        @AiDoc(summary = "Replaces the entire ribbon path with the given list of world points.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.pathSet>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer path(
+            @WikiParameter(description = "<key:ribbon.layer.param.points>")
+            List<ViewportPoint> points
+    ) {
         path.clear();
         if (points != null) {
             for (ViewportPoint point : points) {
@@ -437,7 +597,15 @@ public final class RibbonLayer implements WorldLayer {
      * @param worldY Y в мировых координатах
      * @return этот слой для fluent-настройки
      */
-    public RibbonLayer addPoint(float worldX, float worldY) {
+        @AiDoc(summary = "Appends a new point in world coordinates to the end of the ribbon path.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.addPoint>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
+    public RibbonLayer addPoint(
+            @WikiParameter(description = "<key:ribbon.layer.param.worldX>")
+            float worldX,
+            @WikiParameter(description = "<key:ribbon.layer.param.worldY>")
+            float worldY
+    ) {
         path.add(new ViewportPoint(worldX, worldY));
         pathRevision++;
         pathMinX = Float.NaN;
@@ -450,6 +618,9 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return этот слой для fluent-настройки
      */
+        @AiDoc(summary = "Clears all points from the ribbon path.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.clear>")
+    @WikiReturn("<key:ribbon.layer.return.this>")
     public RibbonLayer clear() {
         if (!path.isEmpty()) {
             path.clear();
@@ -465,12 +636,22 @@ public final class RibbonLayer implements WorldLayer {
      *
      * @return независимый список точек
      */
+        @AiDoc(summary = "Returns an unmodifiable view of all world points along the ribbon path.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.pathGet>")
+    @WikiReturn("<key:ribbon.layer.return.points>")
     public List<ViewportPoint> path() {
         return new ArrayList<>(path);
     }
 
     @Override
-    public void render(WorldCanvas canvas, DrawScope draw) {
+        @AiDoc(summary = "Renders the ribbon mesh into the canvas draw scope.")
+    @WikiMethod(summary = "<key:ribbon.layer.method.render>")
+    public void render(
+            @WikiParameter(description = "<key:ribbon.layer.param.canvas>")
+            WorldCanvas canvas,
+            @WikiParameter(description = "<key:ribbon.layer.param.draw>")
+            DrawScope draw
+    ) {
         if (canvas == null || draw == null || path.size() < 2) return;
         float zoom = canvas.viewport().zoom();
         float screenWidth = width * zoom;

@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 @WikiPage(
         title = "<key:completion.provider.title>",
         slug = "completion-provider",
-        category = "<key:core.widgets.interaction.category>",
+        category = "<key:core.widgets.interaction.support.category>",
         summary = "<key:completion.provider.summary>",
         order = 350)
 @WikiSection(

@@ -1,5 +1,7 @@
 package dev.sixik.unigui.demo.ui;
 
+import dev.sixik.unigui.demo.ui.interactive.space_ship_minigame.SolarNavigationScreen;
+
 import dev.sixik.unigui.api.core.UnityLikeUIScaleProvider;
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
@@ -222,7 +224,7 @@ public final class TutorialScreen {
                                         "Оранжевые маркеры показывают важную цель или активную задачу.",
                                         "Зелёные зоны используются для переходов между этажами и безопасных систем."))
                         ),
-                        List.of()
+                        List.of(new TutorialAction("Открыть навигацию", SolarNavigationScreen::open))
                 ),
                 new TutorialPage(
                         "quests",
@@ -277,7 +279,7 @@ public final class TutorialScreen {
                                         "Квестовые станции могут отображаться стрелкой за краем карты.",
                                         "Поверх станции можно выводить сидированное имя из пула названий."))
                         ),
-                        List.of()
+                        List.of(new TutorialAction("Открыть навигацию", SolarNavigationScreen::open))
                 ),
                 new TutorialPage(
                         "map",

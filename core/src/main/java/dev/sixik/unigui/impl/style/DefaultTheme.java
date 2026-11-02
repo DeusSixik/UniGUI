@@ -5,8 +5,12 @@ import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.ResolvedStyle;
 import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleBackend;
+import dev.sixik.unigui.api.style.StyleDefinition;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.StyleSelector;
 import dev.sixik.unigui.api.style.Theme;
 import dev.sixik.unigui.api.style.ThemeTokens;
 import dev.sixik.unigui.api.style.WidgetState;
@@ -107,6 +111,21 @@ public final class DefaultTheme implements Theme {
             result += style.version();
         }
         return result;
+    }
+
+    StylePack copyStylePack() {
+        StylePack pack = StylePack.create("default")
+                .fallback(new MutableStyle().putAll(fallback))
+                .tokens(tokens);
+        for (Map.Entry<String, Style> entry : styles.entrySet()) {
+            String widgetType = entry.getKey();
+            String styleId = "default." + widgetType;
+            Style style = new MutableStyle().putAll(entry.getValue());
+            pack.put(new StyleDefinition(styleId, new StyleSelector(widgetType, "", ""),
+                    StyleBackend.declarative(style), Map.of()));
+            pack.bind(widgetType, styleId);
+        }
+        return pack;
     }
 
     private void register(String widgetType, Style style) {

@@ -38,6 +38,17 @@ allprojects {
     }
 }
 
+// Architectury Loom copies one transformer agent to the root .gradle directory during IDE sync.
+// Stonecutter's versioned projects share that destination, so serialize only their sync tasks.
+gradle.projectsEvaluated {
+    def ideaSyncTasks = allprojects.collectMany { candidate ->
+        candidate.tasks.matching { task -> task.name == 'ideaSyncTask' }.toList()
+    }
+    ideaSyncTasks.eachWithIndex { task, index ->
+        if (index > 0) task.mustRunAfter(ideaSyncTasks[index - 1])
+    }
+}
+
 subprojects {
     def minecraftIndependent = project.name in ['core', 'demo']
     if (minecraftIndependent) {
