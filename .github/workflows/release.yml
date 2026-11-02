@@ -135,17 +135,36 @@ jobs:
         run: |
           mkdir -p release-files
           shopt -s nullglob
-          mkdir -p release-files/modern release-files/cleanroom release-files/gtnh
-          for f in \
-              build/stonecutter/*/fabric/libs/*.jar \
-              build/stonecutter/*/forge/libs/*.jar \
-              build/stonecutter/*/neoforge/libs/*.jar
-          do
-            case "$f" in
-              *-sources.jar|*-dev.jar|*-dev-shadow.jar|*-all.jar) continue ;;
-            esac
-            cp "$f" release-files/modern/
-          done
+          mkdir -p \
+            release-files/forge-1.20.1 \
+            release-files/fabric-1.20.1 \
+            release-files/forge-1.21.1 \
+            release-files/fabric-1.21.1 \
+            release-files/neoforge-1.21.1 \
+            release-files/cleanroom \
+            release-files/gtnh
+
+          copy_modern_jar() {
+            local source=$1 destination=$2
+            local jars=()
+            for f in "$source"/*.jar; do
+              case "$f" in
+                *-sources.jar|*-dev.jar|*-dev-shadow.jar|*-all.jar) continue ;;
+              esac
+              jars+=("$f")
+            done
+            if [ "${#jars[@]}" -ne 1 ]; then
+              echo "Expected exactly one release jar in $source, found ${#jars[@]}" >&2
+              exit 1
+            fi
+            cp "${jars[0]}" "$destination/"
+          }
+
+          copy_modern_jar build/stonecutter/1.20.1/forge/libs release-files/forge-1.20.1
+          copy_modern_jar build/stonecutter/1.20.1/fabric/libs release-files/fabric-1.20.1
+          copy_modern_jar build/stonecutter/1.21.1/forge/libs release-files/forge-1.21.1
+          copy_modern_jar build/stonecutter/1.21.1/fabric/libs release-files/fabric-1.21.1
+          copy_modern_jar build/stonecutter/1.21.1/neoforge/libs release-files/neoforge-1.21.1
           cp "1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar" release-files/cleanroom/
           cp "1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-${{ steps.version.outputs.version }}.jar" release-files/gtnh/
           count=$(find release-files -name '*.jar' | wc -l)
@@ -169,33 +188,70 @@ jobs:
           fail_on_unmatched_files: true
 
 
-      - name: Publish modern versions to CurseForge
+      - name: Publish Forge 1.20.1 to CurseForge
         if: steps.version.outputs.release == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          
-          files: release-files/modern/*.jar
-          
-          name: UniGUI ${{ steps.version.outputs.version }}
-          version: ${{ steps.version.outputs.version }}
-          version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
-          
-#          changelog-file: CHANGELOG.md
-          
-          loaders: |
-            fabric
-            forge
-            neoforge
-          
-          game-versions: |
-            1.20.1
-            1.21.1
-          
-          java: |
-            17
-            21
+          files: release-files/forge-1.20.1/*.jar
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.20.1 (Forge)
+          curseforge-version: ${{ steps.version.outputs.version }}-forge-1.20.1
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: forge
+          curseforge-game-versions: 1.20.1
+
+      - name: Publish Fabric 1.20.1 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release-files/fabric-1.20.1/*.jar
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.20.1 (Fabric)
+          curseforge-version: ${{ steps.version.outputs.version }}-fabric-1.20.1
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: fabric
+          curseforge-game-versions: 1.20.1
+
+      - name: Publish Forge 1.21.1 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release-files/forge-1.21.1/*.jar
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (Forge)
+          curseforge-version: ${{ steps.version.outputs.version }}-forge-1.21.1
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: forge
+          curseforge-game-versions: 1.21.1
+
+      - name: Publish Fabric 1.21.1 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release-files/fabric-1.21.1/*.jar
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (Fabric)
+          curseforge-version: ${{ steps.version.outputs.version }}-fabric-1.21.1
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: fabric
+          curseforge-game-versions: 1.21.1
+
+      - name: Publish NeoForge 1.21.1 to CurseForge
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release-files/neoforge-1.21.1/*.jar
+          curseforge-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (NeoForge)
+          curseforge-version: ${{ steps.version.outputs.version }}-neoforge-1.21.1
+          curseforge-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          curseforge-loaders: neoforge
+          curseforge-game-versions: 1.21.1
 
 
       - name: Publish Cleanroom 1.12.2 to CurseForge
@@ -232,25 +288,70 @@ jobs:
             998880(required)
 
 
-      - name: Publish modern versions to Modrinth
+      - name: Publish Forge 1.20.1 to Modrinth
         if: steps.version.outputs.release == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-
-          files: release-files/modern/*.jar
-
-          modrinth-name: UniGUI ${{ steps.version.outputs.version }}
-          modrinth-version: ${{ steps.version.outputs.version }}
+          files: release-files/forge-1.20.1/*.jar
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.20.1 (Forge)
+          modrinth-version: ${{ steps.version.outputs.version }}-forge-1.20.1
           modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
-          modrinth-loaders: |
-            fabric
-            forge
-            neoforge
-          modrinth-game-versions: |
-            1.20.1
-            1.21.1
+          modrinth-loaders: forge
+          modrinth-game-versions: 1.20.1
+
+      - name: Publish Fabric 1.20.1 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-files/fabric-1.20.1/*.jar
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.20.1 (Fabric)
+          modrinth-version: ${{ steps.version.outputs.version }}-fabric-1.20.1
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: fabric
+          modrinth-game-versions: 1.20.1
+
+      - name: Publish Forge 1.21.1 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-files/forge-1.21.1/*.jar
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (Forge)
+          modrinth-version: ${{ steps.version.outputs.version }}-forge-1.21.1
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: forge
+          modrinth-game-versions: 1.21.1
+
+      - name: Publish Fabric 1.21.1 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-files/fabric-1.21.1/*.jar
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (Fabric)
+          modrinth-version: ${{ steps.version.outputs.version }}-fabric-1.21.1
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: fabric
+          modrinth-game-versions: 1.21.1
+
+      - name: Publish NeoForge 1.21.1 to Modrinth
+        if: steps.version.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-files/neoforge-1.21.1/*.jar
+          modrinth-name: UniGUI ${{ steps.version.outputs.version }} for Minecraft 1.21.1 (NeoForge)
+          modrinth-version: ${{ steps.version.outputs.version }}-neoforge-1.21.1
+          modrinth-version-type: ${{ steps.version.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          modrinth-loaders: neoforge
+          modrinth-game-versions: 1.21.1
 
 
       - name: Publish Cleanroom 1.12.2 to Modrinth
