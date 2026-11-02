@@ -235,7 +235,7 @@
 
 - [ ] **10.1 Версия из `gradle.properties`:** `@Mod(version)`, `mcmod.info` через `processResources` (D12).
 - [ ] **10.2 CI.** Отдельный job для cleanroom (JDK 25, сначала `:core:jar` на JDK 21) в `.github/workflows/release.yml`. Артефакт `unigui-cleanroom-1.12.2-<ver>.jar`.
-- [ ] **10.3 Проверка bundled jar:** `fastutil` и `core` внутри мода, нет конфликтов с другими модами (relocate при необходимости).
+- [x] **10.3 Проверка bundled jar:** `core` находится внутри мода; fastutil поставляется Minecraft 1.12.2 и в мод не упаковывается.
 - [ ] **10.4 Проверка совместимости:** запуск вместе с JEI и рендер-модами (Optifine-подобными, Celeritas и т. п.) — проверить миксины и GL-state.
 - [ ] **10.5 README:** убирать пункты из раздела «not implemented yet» по мере закрытия задач; добавить таблицу capability'ев (`supportsPostEffects`, shaders, loading screen, world surface).
 

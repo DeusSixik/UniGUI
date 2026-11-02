@@ -61,9 +61,22 @@ dependencies {
     compileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.33:dev') { transitive = false }
     // Key code constants of org.lwjglx.input.Keyboard are inlined at compile time, the class is not needed at run time.
     testCompileOnly('com.github.GTNewHorizons:lwjgl3ify:3.0.33:dev') { transitive = false }
+    compileOnly('it.unimi.dsi:fastutil:8.5.18')
 
-    implementation files(coreJar)
-    implementation files(demoJar)
+    shadowImplementation files(coreJar)
+    shadowImplementation files(demoJar)
+}
+
+configurations {
+    uniguiFastutilShade {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    // Keep the shaded runtime out of the dev classpath, where GTNHLib supplies fastutil 8.5.18.
+    uniguiFastutilShade('it.unimi.dsi:fastutil:8.5.18')
 }
 
 /** Stamps {@code @Lwjgl3Aware} on every class compiled by the task (idempotent). */
@@ -123,6 +136,16 @@ tasks.named('jar') {
         exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+shadowJar {
+    configurations = [
+            project.configurations.shadowImplementation,
+            project.configurations.shadeCompile,
+            project.configurations.shadowCompile,
+            project.configurations.uniguiFastutilShade
+    ]
+    relocate 'it.unimi.dsi.fastutil', 'dev.sixik.unigui.gtnh.shadow.fastutil'
 }
 
 // Demo textures live in the demo jar under assets/unigui_testmod; the backend resolves them as assets/unigui.

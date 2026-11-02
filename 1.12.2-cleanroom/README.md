@@ -23,7 +23,7 @@ Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this dir
 ./gradlew.bat runClient
 ```
 
-The produced mod jar includes the core jar, including its bundled fastutil dependency.
+The produced mod jar includes the UniGUI core classes. Fastutil is supplied by Minecraft 1.12.2 and is not bundled into the mod.
 
 The produced mod jar also embeds the portable `demo` library. After joining a world, use
 `/unigui demo <name>` to activate an example. Available names are `widgets`, `docking`, `dominion`,

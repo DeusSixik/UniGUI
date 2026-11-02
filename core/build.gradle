@@ -35,11 +35,13 @@ configurations {
 }
 
 dependencies {
-    include 'it.unimi.dsi:fastutil:8.5.9'
+    // Minecraft 1.12+ supplies fastutil; compile against the oldest API baseline without packaging it in core.
+    compileOnly 'it.unimi.dsi:fastutil:7.1.0'
     include 'org.slf4j:slf4j-api:2.0.18'
     include 'org.jetbrains:annotations:26.0.1'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testImplementation 'it.unimi.dsi:fastutil:7.1.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
