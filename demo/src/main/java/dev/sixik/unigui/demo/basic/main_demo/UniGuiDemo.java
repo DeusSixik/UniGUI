@@ -35,7 +35,7 @@ import java.util.Locale;
 
 public final class UniGuiDemo {
 
-    private static final FloatSignal SCALE = new FloatSignal(1f);
+    private static final FloatSignal SCALE = new FloatSignal(1.5f);
 
     private UniGuiDemo() {
     }
@@ -354,7 +354,7 @@ public final class UniGuiDemo {
             footer.backgroundVisible(true);
             footer.background().set(SIDEBAR_HEADER);
             footer.layout(style -> style.widthPercent(100.0f).padding(12.0f, 14.0f).flexGrow(0.0f).flexShrink(0.0f));
-            footer.addChild(label("UniGUI  ·  Interactive controls", color(164, 187, 203)));
+            footer.addChild(label("ctrl + shift + p - open profiler", color(164, 187, 203)));
             sidebar.addChild(footer);
             return sidebar;
         }
