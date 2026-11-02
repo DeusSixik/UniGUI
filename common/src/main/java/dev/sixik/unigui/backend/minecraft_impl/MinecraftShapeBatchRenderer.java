@@ -17,13 +17,13 @@ import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 
 /** Batches untextured UI primitives into one position-color draw call. */
 final class MinecraftShapeBatchRenderer implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShapeBatchRenderer.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float MIN_SCREEN_STROKE_WIDTH = 1.0f;
     /** Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого. */

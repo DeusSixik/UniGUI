@@ -1,6 +1,7 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.backend.UniGuiBackend;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
@@ -19,6 +20,11 @@ import java.util.function.Predicate;
  */
 public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, MinecraftWidgetScreen> openScreens = new IdentityHashMap<>();
+
+    @Override
+    public UniGuiLogger logger(String name) {
+        return new Log4j2UniGuiLogger(name);
+    }
 
     /**
      * Creates the current-version native layer for a neutral layer description.

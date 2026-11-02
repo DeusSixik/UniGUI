@@ -20,8 +20,8 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.api.distmarker.Dist;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 
@@ -29,7 +29,7 @@ import java.util.Map;
 @Mod(IsfMod.MOD_ID)
 public final class IsfMod {
     public static final String MOD_ID = "isf";
-    public static final Logger LOGGER = LoggerFactory.getLogger("ISF");
+    public static final Logger LOGGER = LogManager.getLogger("ISF");
     private static final IsfRuntime RUNTIME = new IsfRuntime();
 
     public IsfMod() {

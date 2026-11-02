@@ -26,8 +26,8 @@ import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL31;
 import org.lwjgl.opengl.GL33;
 import org.lwjgl.system.MemoryStack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.nio.FloatBuffer;
 
@@ -40,7 +40,7 @@ import java.nio.FloatBuffer;
  * её границы.</p>
  */
 final class MinecraftSdfShapeRenderer implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfShapeRenderer.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftSdfShapeRenderer.class);
     private static final float AA_PAD = SdfShapeShaderSources.AA_PAD;
     private static final float MIN_STROKE_WIDTH = SdfShapeShaderSources.MIN_STROKE_WIDTH;
 

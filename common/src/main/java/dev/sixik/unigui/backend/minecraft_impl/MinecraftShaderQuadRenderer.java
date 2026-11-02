@@ -25,14 +25,14 @@ import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.system.MemoryStack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.nio.FloatBuffer;
 import java.util.IdentityHashMap;
 import java.util.Map;
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftShaderQuadRenderer.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftShaderQuadRenderer.class);
     private static final int TEXTURE_BINDING_CACHE_SIZE = 500;
 
     @Language("GLSL")

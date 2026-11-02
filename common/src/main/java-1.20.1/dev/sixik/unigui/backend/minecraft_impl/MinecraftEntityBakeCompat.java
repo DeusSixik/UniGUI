@@ -12,8 +12,8 @@ import net.minecraft.world.entity.LivingEntity;
 import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.nio.IntBuffer;
 import java.util.Collections;
@@ -30,7 +30,7 @@ import java.util.Set;
  * texture-командой, уважающей transform/clip Z-слоёв UniGUI.</p>
  */
 public final class MinecraftEntityBakeCompat {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftEntityBakeCompat.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftEntityBakeCompat.class);
     private static final int ICON_PIXELS = 64;
     private static final int CACHE_CAPACITY = 64;
     /** Доля иконки, которую занимает модель по большей стороне (остальное — поля). */

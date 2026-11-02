@@ -6,6 +6,8 @@
 
 import org.gradle.api.Action
 import org.gradle.api.Task
+import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.compile.JavaCompile
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassReader
@@ -146,6 +148,12 @@ shadowJar {
             project.configurations.uniguiFastutilShade
     ]
     relocate 'it.unimi.dsi.fastutil', 'dev.sixik.unigui.gtnh.shadow.fastutil'
+
+    // The full fastutil is ~12 900 classes (~23 MB of the jar). Keep only the classes reachable from our own code.
+    // Everything that is not fastutil (core and demo jars, mod classes) is excluded from minimization and kept whole.
+    minimize {
+        exclude({ it.moduleGroup != 'it.unimi.dsi' } as Spec<ResolvedDependency>)
+    }
 }
 
 // Demo textures live in the demo jar under assets/unigui_testmod; the backend resolves them as assets/unigui.

@@ -1,6 +1,7 @@
 package dev.sixik.unigui.gtnh.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiBackend;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.screen.UniScreen;
@@ -22,6 +23,11 @@ import java.util.function.Predicate;
  */
 public final class GtnhUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, GtnhWidgetScreen> openScreens = new IdentityHashMap<>();
+
+    @Override
+    public UniGuiLogger logger(String name) {
+        return new Log4j2UniGuiLogger(name);
+    }
     private final GtnhLayerRegistry<Object> hudLayers = new GtnhLayerRegistry<>();
     private final GtnhLayerRegistry<Object> overlayLayers = new GtnhLayerRegistry<>();
     private final GtnhLayerRegistry<Object> loadingLayers = new GtnhLayerRegistry<>();

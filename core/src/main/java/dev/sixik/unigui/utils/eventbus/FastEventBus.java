@@ -8,8 +8,8 @@ import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,7 +71,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 public final class FastEventBus {
 
     public static final FastEventBus DEFAULT_BUS = new FastEventBus();
-    private static final Logger LOGGER = LoggerFactory.getLogger(FastEventBus.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(FastEventBus.class);
 
     /**
      * Глобальный генератор ID для типов событий.

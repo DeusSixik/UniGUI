@@ -34,8 +34,8 @@ import org.lwjgl.opengl.GL31;
 import org.lwjgl.opengl.GL33;
 import org.lwjgl.opengl.ARBInstancedArrays;
 import org.lwjgl.opengl.GL;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
@@ -57,7 +57,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
     private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
     private static final float MATRIX_EPSILON = 0.0001f;
-    private static final Logger LOGGER = LoggerFactory.getLogger(MinecraftSdfTextRenderer.class);
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftSdfTextRenderer.class);
 
     // GLSL sources and glyph-instance layout are shared with the other version backends (core).
     private static final String VERTEX_SHADER = SdfTextShaderSources.VERTEX;
