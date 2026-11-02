@@ -226,6 +226,35 @@ abstract class DemoCategory {
                     draw.rectFilled(x + 1.0f, y + 1.0f, cx - x - 1.0f, cy - y - 1.0f, fill);
                     draw.rectFilled(cx, cy, x + width - 1.0f - cx, y + height - 1.0f - cy, fill);
                 }
+                case "mc-items" -> {
+                    draw.rect(x + 1.5f, y + 1.5f, width - 3.0f, height - 3.0f, stroke);
+                    draw.rectFilled(x + 4.5f, y + 4.5f, width - 9.0f, height - 9.0f, fill);
+                }
+                case "mc-blocks" -> {
+                    draw.line(cx, y + 1.0f, x + width - 1.5f, y + 4.5f, stroke);
+                    draw.line(cx, y + 1.0f, x + 1.5f, y + 4.5f, stroke);
+                    draw.line(cx, cy - 1.0f, x + width - 1.5f, y + 4.5f, stroke);
+                    draw.line(cx, cy - 1.0f, x + 1.5f, y + 4.5f, stroke);
+                    draw.line(x + 1.5f, y + 4.5f, x + 1.5f, y + height - 4.5f, stroke);
+                    draw.line(x + width - 1.5f, y + 4.5f, x + width - 1.5f, y + height - 4.5f, stroke);
+                    draw.line(cx, cy - 1.0f, cx, y + height - 1.0f, stroke);
+                    draw.line(x + 1.5f, y + height - 4.5f, cx, y + height - 1.0f, stroke);
+                    draw.line(x + width - 1.5f, y + height - 4.5f, cx, y + height - 1.0f, stroke);
+                }
+                case "mc-entities" -> {
+                    draw.circle(cx - 3.0f, y + 1.0f, 6.0f, 6.0f, stroke);
+                    draw.line(cx, y + 7.0f, cx, y + height - 4.5f, stroke);
+                    draw.line(x + 3.0f, cy, x + width - 3.0f, cy, stroke);
+                    draw.line(cx, y + height - 4.5f, x + 3.5f, y + height - 1.0f, stroke);
+                    draw.line(cx, y + height - 4.5f, x + width - 3.5f, y + height - 1.0f, stroke);
+                }
+                case "mc-pickers" -> {
+                    draw.rect(x + 1.0f, y + 2.0f, width - 2.0f, height - 4.0f, stroke);
+                    draw.rectFilled(x + 4.0f, y + 5.0f, 3.0f, 3.0f, fill);
+                    draw.rectFilled(x + width - 7.0f, y + 5.0f, 3.0f, 3.0f, fill);
+                    draw.rectFilled(x + 4.0f, y + height - 8.0f, 3.0f, 3.0f, fill);
+                    draw.rectFilled(x + width - 7.0f, y + height - 8.0f, 3.0f, 3.0f, fill);
+                }
                 case "post-effects" -> {
                     draw.line(cx, y + 1.0f, cx, y + height - 1.0f, stroke);
                     draw.line(x + 1.0f, cy, x + width - 1.0f, cy, stroke);

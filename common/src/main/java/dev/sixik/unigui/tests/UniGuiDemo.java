@@ -436,6 +436,8 @@ public final class UniGuiDemo {
     }
 
     public static void openDemo() {
+        // Без хоста категория Minecraft в галерее показывает только заглушку.
+        dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost.install();
 //        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
         // Системный буфер обмена: без него демо использует MemoryClipboardService, и копирование не выходит за игру.
         RenderSystem.recordRenderCall(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));

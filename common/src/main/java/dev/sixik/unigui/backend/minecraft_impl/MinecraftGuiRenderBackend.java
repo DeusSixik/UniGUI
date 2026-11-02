@@ -53,6 +53,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix4f;
+import org.joml.Vector4f;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.ARBTimerQuery;
@@ -275,7 +276,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
-            graphics.renderComponentTooltip(minecraft.font, lines, round(x), round(y));
+            inVanillaGuiSpace(x, y, (guiX, guiY) -> graphics.renderComponentTooltip(minecraft.font, lines, guiX, guiY));
             graphics.flush();
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -308,10 +309,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
-            graphics.renderTooltip(minecraft.font,
+            inVanillaGuiSpace(x, y, (guiX, guiY) -> graphics.renderTooltip(minecraft.font,
                     lines == null ? java.util.List.of() : lines,
                     java.util.Optional.of(component),
-                    round(x), round(y));
+                    guiX, guiY));
             graphics.flush();
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -330,12 +331,50 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             MinecraftUiBlend.applyStraightAlpha(activeRenderTarget != null);
             RenderSystem.disableDepthTest();
             RenderSystem.depthMask(false);
-            graphics.renderTooltip(minecraft.font, stack, round(x), round(y));
+            inVanillaGuiSpace(x, y, (guiX, guiY) -> graphics.renderTooltip(minecraft.font, stack, guiX, guiY));
             graphics.flush();
         } finally {
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             restoreState(state);
         }
+    }
+
+    /**
+     * Рисует ванильную подсказку в системе координат ванильного GUI, а не в единицах UniGUI.
+     *
+     * <p>Custom-команды выполняются под {@code pose.scale(uiScale / guiScale)}: их координаты остаются в единицах UI.
+     * Ванильная подсказка сама зажимает позицию в экране, сравнивая её с {@code guiWidth() x guiHeight()} в
+     * ванильных единицах. Когда UI-масштаб не совпадает с ванильным, сравнение шло между разными единицами:
+     * подсказка упиралась в «нижнюю границу» гораздо выше реального края окна, а у нижних иконок оказывалась над
+     * верхними. Поэтому точка переводится матрицей позы в ванильные единицы, а поза на время вызова сбрасывается в
+     * единичную: подсказка получает обычный ванильный вид и зажимается по настоящему экрану.</p>
+     *
+     * <p>В offscreen-цель подсказка не переводится: там координаты привязаны к пикселям цели, а не к экрану.</p>
+     *
+     * @param x    X точки привязки в текущих единицах позы
+     * @param y    Y точки привязки в текущих единицах позы
+     * @param draw вызов ванильного рендера с координатами в ванильных единицах
+     */
+    private void inVanillaGuiSpace(float x, float y, VanillaTooltipDraw draw) {
+        if (activeRenderTarget != null) {
+            draw.draw(round(x), round(y));
+            return;
+        }
+        PoseStack pose = graphics.pose();
+        Vector4f point = pose.last().pose().transform(new Vector4f(x, y, 0.0f, 1.0f));
+        pose.pushPose();
+        try {
+            pose.last().pose().identity();
+            pose.last().normal().identity();
+            draw.draw(Math.round(point.x()), Math.round(point.y()));
+        } finally {
+            pose.popPose();
+        }
+    }
+
+    @FunctionalInterface
+    private interface VanillaTooltipDraw {
+        void draw(int guiX, int guiY);
     }
 
     private void renderItemPreviewTexture(TextureHandle texture, float x, float y, float size, float opacity) {
