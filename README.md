@@ -25,6 +25,10 @@
   <a href="https://deussixik.github.io/UniGUI/"><img src="https://img.shields.io/badge/Documentation-Read%20Now-242629?style=for-the-badge&logo=gitbook&logoColor=white" alt="Documentation"></a>
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/TEUrpKJynj"><img src="https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+</p>
+
 UniGUI is a Java UI library for building custom interfaces in Minecraft mods. Instead of drawing each control by hand,
 you compose a retained widget tree: UniGUI handles layout, input, focus, and drawing, while your mod defines the screen
 and behavior. The shared `core` module contains the UI logic; version-specific backends connect it to Minecraft
