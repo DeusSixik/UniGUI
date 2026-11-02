@@ -47,6 +47,18 @@ final class GtnhVanillaDraw {
     private GtnhVanillaDraw() {
     }
 
+    /**
+     * Turns texturing on before vanilla draws.
+     *
+     * <p>The vanilla item, entity and tooltip renderers never enable {@code GL_TEXTURE_2D} themselves: in a container
+     * screen it is always on. UniGUI's untextured shapes ({@link GtnhGlState#flat()}, for example the lines of an
+     * icon) switch it off and leave it off until the next textured command, so a preview drawn after them came out as
+     * a flat white silhouette. A baked item icon would keep that white picture for good.</p>
+     */
+    private static void enableTexturing() {
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+    }
+
     private static RenderItem renderItem() {
         if (renderItem == null) renderItem = new RenderItem();
         return renderItem;
@@ -75,6 +87,7 @@ final class GtnhVanillaDraw {
             // Uniform scale: GL_RESCALE_NORMAL only corrects uniform scaling, and 3D blocks are lit by their normals.
             GL11.glScalef(scale, scale, scale);
             GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            enableTexturing();
             GtnhGlState.clearDepth();
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             GL11.glDepthFunc(GL11.GL_LEQUAL);
@@ -114,6 +127,7 @@ final class GtnhVanillaDraw {
             GL11.glTranslatef(x, y, 0.0f);
             GL11.glScalef(scale, scale, scale);
             GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            enableTexturing();
             renderItem().renderItemOverlayIntoGUI(fontOf(stack, minecraft), minecraft.getTextureManager(), stack, 0, 0,
                 null);
         } catch (RuntimeException | LinkageError e) {
@@ -144,6 +158,7 @@ final class GtnhVanillaDraw {
         int matrixDepth = matrixDepth();
         try {
             GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            enableTexturing();
             GtnhGlState.clearDepth();
             GL11.glEnable(GL11.GL_DEPTH_TEST);
             GL11.glDepthFunc(GL11.GL_LEQUAL);
@@ -194,6 +209,7 @@ final class GtnhVanillaDraw {
         int matrixDepth = matrixDepth();
         try {
             GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            enableTexturing();
             if (tooltipScreen == null) tooltipScreen = new TooltipScreen();
             // The box code of the screen edits nothing in the list, but mods may: the caller's copy stays untouched.
             tooltipScreen.draw(minecraft, new ArrayList<>(lines), mouseX, mouseY, Math.max(1, screenWidth),
