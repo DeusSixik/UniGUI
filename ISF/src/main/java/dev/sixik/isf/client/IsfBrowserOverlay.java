@@ -840,7 +840,8 @@ final class IsfBrowserOverlay {
                     .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(5.0f))
                     .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL, new MinecraftTextureHandle(
                             ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
-                            64, 64, TextureOptions.nearest()));
+                            64, 64, TextureOptions.nearest())
+                    );
         });
 
         detailPanel.addChild(content);

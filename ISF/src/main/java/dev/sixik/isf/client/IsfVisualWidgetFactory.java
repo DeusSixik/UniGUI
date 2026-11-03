@@ -13,8 +13,11 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -22,6 +25,7 @@ import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -48,7 +52,7 @@ final class IsfVisualWidgetFactory {
     private final Button recipePlus = new Button();
     /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
     private static final float CHANCE_TEXT_SIZE = 7.0f;
-    static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
+    static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/dark_slot.png";
     static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
 
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
@@ -165,9 +169,11 @@ final class IsfVisualWidgetFactory {
         String id = string(value(node, "texture"), SLOT_TEXTURE);
         int width = Math.max(1, integer(value(node, "width"), 16));
         int height = Math.max(1, integer(value(node, "height"), 16));
-        dev.sixik.unigui.widgets.display.TextureWidget texture =
-                new dev.sixik.unigui.widgets.display.TextureWidget(
-                        new dev.sixik.unigui.api.render.SimpleTextureHandle(id, width, height));
+        final SimpleTextureHandle handle = new SimpleTextureHandle(id, width, height);
+        TextureWidget texture =
+                new TextureWidget(
+                        handle);
+        texture.style(s -> s.put(StyleKeys.BACKGROUND_TEXTURE, handle));
         texture.layout(style -> style.size(width, height).flexNone());
         return texture;
     }
@@ -175,12 +181,14 @@ final class IsfVisualWidgetFactory {
     private static WidgetBase slotBackground(float size, String textureId) {
         Box background = new Box();
         background.layout(style -> style.size(size, size).flexNone());
-        dev.sixik.unigui.widgets.display.TextureWidget texture =
-                new dev.sixik.unigui.widgets.display.TextureWidget(
-                        new dev.sixik.unigui.api.render.SimpleTextureHandle(textureId, 18, 18));
+        final SimpleTextureHandle handle = new SimpleTextureHandle(textureId, 18, 18);
+        TextureWidget texture =
+                new TextureWidget(
+                        handle);
         // Текстура не участвует в hit-test — она декорация.
         texture.enabled(false);
         texture.layout(style -> style.sizePercent(100.0f, 100.0f).flexNone());
+        texture.style(s -> s.put(StyleKeys.BACKGROUND_TEXTURE, handle));
         background.addChild(texture);
         return background;
     }
