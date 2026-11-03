@@ -808,7 +808,7 @@ final class IsfBrowserOverlay {
                 .widthPercent(100.0f)
                 .height(TAB_ROW_CONTENT)
                 .flexNone()
-                .left(CATALYST_CELL + 2)
+                .left(CATALYST_CELL - 3.0f)
                 .overflowX(Overflow.AUTO)
                 .overflowY(Overflow.HIDDEN));
         tabScroll.overlayScrollBars(false);
@@ -827,17 +827,17 @@ final class IsfBrowserOverlay {
         content.layout(style -> style
                 .position(PositionType.ABSOLUTE)
                 .top(TAB_CELL - 3.0f)
-                .left(CATALYST_CELL - 1)
+                .left(CATALYST_CELL - 6.0f)
                 .right(0.0f)
                 .bottom(0.0f)
-                .padding(6.0f, 4.0f, 6.0f, 4.0f)
+                .padding(6.0f, 5.0f, 6.0f, 4.0f)
         );
 
         content.style(style -> {
             style.put(StyleKeys.BACKGROUND_VISIBLE, true)
                     .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
                     .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
-                    .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(4.0f))
+                    .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(5.0f))
                     .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL, new MinecraftTextureHandle(
                             ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/gui_background.png"),
                             64, 64, TextureOptions.nearest()));
@@ -847,19 +847,21 @@ final class IsfBrowserOverlay {
         detailPanel.addChild(tabScroll);
 
         catalystColumn.layout(style -> style
-                .width(SizeValue.auto())
+                .width(CATALYST_CELL)
                 .flexNone()
-                .top(TAB_CELL - 1)
+                .top(TAB_CELL - 3)
                 .alignSelf(Align.START)
         );
         catalystColumn.themeEnabled(false);
+        catalystColumn.boxVisualEnabled(true);
         catalystColumn.style(style -> style.put(StyleKeys.BACKGROUND_VISIBLE, true)
                 .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
                 .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
-                .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(1.0f))
-                .put(StyleKeys.BACKGROUND_TEXTURE,new MinecraftTextureHandle(
+                .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(3.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL, new MinecraftTextureHandle(
                         ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/dark_catalyst_tab.png"),
-                        14, 50, TextureOptions.nearest())));
+                        28, 28, TextureOptions.nearest()))
+        );
 
         detailPanel.addChild(catalystColumn);
 
@@ -881,10 +883,9 @@ final class IsfBrowserOverlay {
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailClose.onClick(event -> {
-            //sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", null,null, null,20, 20, 2.0f);
-            closeDetail();
-        });
+        detailClose.onClick(event ->
+            closeDetail()
+        );
 
         detailHeader.addChild(detailTitle);
         detailHeader.addChild(detailPin);
@@ -1549,7 +1550,7 @@ final class IsfBrowserOverlay {
                         .put(StyleKeys.BACKGROUND_VISIBLE, true)
                         .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
                         .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
-                        .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(2.0f))
+                        .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(3.0f))
                         .put(StyleKeys.BACKGROUND_TEXTURE, tabTexture(false)));
                 tab.radius(2.0f);
                 tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
