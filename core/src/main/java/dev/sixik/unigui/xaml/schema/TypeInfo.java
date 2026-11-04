@@ -34,12 +34,14 @@ public final class TypeInfo<T extends Widget> {
     private final Map<String, PropertyInfo<? super T, ?>> properties;
     private final Map<String, Integer> order;
     private final ChildSink<T> content;
+    private final BiConsumer<? super T, LoadContext> afterLoad;
     private final Function<? super T, List<Widget>> childSource;
     private final boolean childrenNotExportable;
     private final Map<String, SlotInfo<T>> slots;
 
     private TypeInfo(Builder<T> builder, Map<String, PropertyInfo<? super T, ?>> properties) {
         this.childSource = builder.childSource;
+        this.afterLoad = builder.afterLoad;
         this.childrenNotExportable = builder.childrenNotExportable;
         Map<String, Integer> positions = new java.util.HashMap<>(properties.size() * 2);
         for (String propertyName : properties.keySet()) positions.put(propertyName, positions.size());
@@ -190,6 +192,16 @@ public final class TypeInfo<T extends Widget> {
         content.add(parent, child);
     }
 
+    /**
+     * Завершает загрузку виджета этого типа.
+     *
+     * @param widget  загруженный виджет
+     * @param context контекст загрузки
+     */
+    public void finishLoad(T widget, LoadContext context) {
+        if (afterLoad != null) afterLoad.accept(widget, context);
+    }
+
     private static String defaultCategory(String typeName) {
         return switch (typeName) {
             case "Panel", "Box", "VBox", "HBox", "StackPanel", "WrapPanel", "ScrollView" -> "Containers";
@@ -217,6 +229,7 @@ public final class TypeInfo<T extends Widget> {
         private final Map<String, PropertyInfo<? super T, ?>> manual = new LinkedHashMap<>();
         private final List<String> bindable = new ArrayList<>();
         private ChildSink<T> content;
+        private BiConsumer<? super T, LoadContext> afterLoad;
         private Function<? super T, List<Widget>> childSource;
         private boolean childrenNotExportable;
         private final Map<String, Function<? super T, ?>> getters = new LinkedHashMap<>();
@@ -389,6 +402,18 @@ public final class TypeInfo<T extends Widget> {
          */
         public Builder<T> content(ChildSink<T> sink) {
             this.content = sink;
+            return this;
+        }
+
+        /**
+         * Задаёт действие, которое загрузчик выполняет над виджетом, когда все его свойства и дети применены.
+         * Нужно типам, которые собирают своё содержимое из уже заданных свойств (компоненты).
+         *
+         * @param action действие; получает виджет и контекст загрузки
+         * @return этот билдер
+         */
+        public Builder<T> afterLoad(BiConsumer<? super T, LoadContext> action) {
+            this.afterLoad = action;
             return this;
         }
 

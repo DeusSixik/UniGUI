@@ -195,6 +195,14 @@ public final class XamlLoader {
                     throw fail(childNode.location(), failure.getMessage(), failure);
                 }
             }
+            try {
+                type.finishLoad(widget, load);
+            } catch (XamlLoadException failure) {
+                throw failure;
+            } catch (RuntimeException failure) {
+                throw fail(node.location(), "Cannot finish loading " + type.name().local() + ": "
+                        + failure.getMessage(), failure);
+            }
             return widget;
         }
 
@@ -517,6 +525,11 @@ public final class XamlLoader {
             @Override
             public boolean bindable() {
                 return info.bindable();
+            }
+
+            @Override
+            public Class<?> valueType() {
+                return info.valueType();
             }
 
             @Override

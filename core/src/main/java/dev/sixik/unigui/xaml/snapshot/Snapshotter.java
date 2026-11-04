@@ -85,7 +85,10 @@ public final class Snapshotter {
         private final Map<String, String> usedNamespaces = new LinkedHashMap<>();
 
         UiNode node(Widget widget, String path) {
-            Optional<TypeInfo<?>> found = schema.typeOf(widget.getClass());
+            // Все компоненты — один Java-класс, поэтому тип определяет не класс, а определение компонента.
+            Optional<TypeInfo<?>> found = widget instanceof dev.sixik.unigui.xaml.component.ComponentHost host
+                    ? schema.type(host.definition().tag())
+                    : schema.typeOf(widget.getClass());
             if (found.isEmpty()) {
                 diagnostics.add(path + ": no XAML type is registered for " + widget.getClass().getName()
                         + "; the widget was skipped");

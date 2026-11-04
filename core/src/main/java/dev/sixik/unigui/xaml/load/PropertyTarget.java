@@ -20,6 +20,13 @@ public interface PropertyTarget {
     /** @return {@code true}, если свойство допускает привязку к источнику данных */
     boolean bindable();
 
+    /**
+     * Тип значения свойства: то, что принимает {@link #setValue(Object)}.
+     *
+     * @return класс значения
+     */
+    Class<?> valueType();
+
     /** @return тип значения источника для привязки или {@code null} */
     Class<?> bindingType();
 
