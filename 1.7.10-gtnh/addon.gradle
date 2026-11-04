@@ -2,7 +2,7 @@
 //
 // `core` and `demo` are version neutral modules of the parent project and are built by the root build (JDK 17).
 // This module consumes their jars, exactly like 1.12.2-cleanroom does, so after any change in `core` run
-// `./gradlew :core:jar :demo:jar` in the repository root first.
+// `./gradlew :core:jar :editor:jar :demo:jar` in the repository root first.
 
 import org.gradle.api.Action
 import org.gradle.api.Task
@@ -34,10 +34,12 @@ if (!uniguiVersion) {
 def archivesName = rootProperties.getProperty('archives_name')
 def coreJar = file("../core/build/libs/${archivesName}-core-${uniguiVersion}.jar")
 def demoJar = file("../demo/build/libs/${archivesName}-demo-${uniguiVersion}.jar")
+def editorJar = file("../editor/build/libs/${archivesName}-editor-${uniguiVersion}.jar")
 
 ext.uniguiVersion = uniguiVersion
 ext.uniguiCoreJar = coreJar
 ext.uniguiDemoJar = demoJar
+ext.uniguiEditorJar = editorJar
 
 // ---------------------------------------------------------------------------------------------------------------
 // LWJGL 3
@@ -66,6 +68,7 @@ dependencies {
     compileOnly('it.unimi.dsi:fastutil:8.5.18')
 
     shadowImplementation files(coreJar)
+    shadowImplementation files(editorJar)
     shadowImplementation files(demoJar)
 }
 
@@ -132,6 +135,9 @@ tasks.named('jar') {
 
     // Ship core and demo inside the mod jar (they are not published anywhere as separate mods).
     from({ zipTree(coreJar) }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    }
+    from({ zipTree(editorJar) }) {
         exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
     }
     from({ zipTree(demoJar) }) {

@@ -83,6 +83,7 @@ jobs:
           # Java 17 for 1.20.1 is fetched by the foojay toolchain resolver.
           ./gradlew \
             :core:jar \
+            :editor:jar \
             :demo:jar \
             :1.20.1:fabric:build \
             :1.20.1:forge:build \

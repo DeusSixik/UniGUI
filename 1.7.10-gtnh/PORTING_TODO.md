@@ -39,7 +39,7 @@ render backend и ввод для Minecraft 1.7.10 (форк GTNH, запуск 
 
 ```
 # в корне репозитория (JDK 17 для core/demo)
-./gradlew :core:jar :demo:jar
+./gradlew :core:jar :editor:jar :demo:jar
 
 # в 1.7.10-gtnh (JAVA_HOME = JDK 25)
 ./gradlew build

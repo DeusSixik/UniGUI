@@ -1,6 +1,7 @@
 package dev.sixik.unigui.demo.basic.main_demo;
 
 import dev.sixik.unigui.demo.ui.RetroTerminalScreen;
+import dev.sixik.unigui.demo.ui.editor.UiEditorScreen;
 import dev.sixik.unigui.demo.ui.interactive.space_ship_minigame.SolarNavigationScreen;
 import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -12,7 +13,8 @@ final class DemoAppsCategory extends DemoCategory {
     private static final List<Control> CONTROLS = List.of(
             new Control("solar-navigation", "Solar Navigation", "Fly through a seeded star system, locate stations, and dock at your targets."),
             new Control("retro-terminal", "Retro Terminal", "Explore a CRT-style command terminal with interactive output and post-processing."),
-            new Control("unity", "Unity", "Open a Unity-inspired editor interface with hierarchy, scene, project, and inspector panels."));
+            new Control("unity", "Unity", "Open a Unity-inspired editor interface with hierarchy, scene, project, and inspector panels."),
+            new Control("ui-editor", "UI Editor", "Edit a XAML interface: hierarchy, widget palette, property inspector, live preview, XAML text and problems, with undo and save."));
 
     @Override
     String title() {
@@ -35,6 +37,7 @@ final class DemoAppsCategory extends DemoCategory {
             case "solar-navigation" -> addLauncher(root, "Solar Navigation", CONTROLS.get(0).description(), SolarNavigationScreen::open);
             case "retro-terminal" -> addLauncher(root, "Retro Terminal", CONTROLS.get(1).description(), RetroTerminalScreen::open);
             case "unity" -> addLauncher(root, "Unity", CONTROLS.get(2).description(), UnityInspectorScreen::open);
+            case "ui-editor" -> addLauncher(root, "UI Editor", CONTROLS.get(3).description(), UiEditorScreen::open);
             default -> root.addChild(samplePanel("Preview", "Interactive demo", label(controlId, UniGuiDemo.GalleryTemplate.TEXT_DARK), ""));
         }
     }

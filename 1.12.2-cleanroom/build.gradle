@@ -17,6 +17,7 @@ if (!rootModVersion) {
 }
 def coreJar = file("../core/build/libs/${rootProperties.getProperty('archives_name')}-core-${rootProperties.getProperty('mod_version')}.jar")
 def demoJar = file("../demo/build/libs/${rootProperties.getProperty('archives_name')}-demo-${rootProperties.getProperty('mod_version')}.jar")
+def editorJar = file("../editor/build/libs/${rootProperties.getProperty('archives_name')}-editor-${rootProperties.getProperty('mod_version')}.jar")
 
 version = rootModVersion
 
@@ -65,6 +66,7 @@ tasks.named('compileJava') {
 dependencies {
     implementation cleanroom.userdev('0.7.14-alpha')
     implementation files(coreJar)
+    implementation files(editorJar)
     implementation files(demoJar)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     jmh 'org.openjdk.jmh:jmh-core:1.37'
@@ -103,6 +105,9 @@ tasks.named('jar', Jar) {
 
     from {
         zipTree(coreJar)
+    }
+    from {
+        zipTree(editorJar)
     }
     from {
         zipTree(demoJar)
