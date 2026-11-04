@@ -1,6 +1,10 @@
 package dev.sixik.unigui.xaml.schema;
 
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.xaml.UiName;
 import dev.sixik.unigui.xaml.schema.builtin.BuiltInTypes;
 
@@ -114,6 +118,78 @@ public final class Schema {
             throw new IllegalArgumentException("Duplicate type: " + name);
         }
         return this;
+    }
+
+    /**
+     * Определяет тип по аннотациям {@code @XmlWidgetName} и {@code @XmlAttribute} на классе виджета.
+     *
+     * <p>Класс должен иметь конструктор без аргументов; для остальных случаев используйте перегрузку с
+     * фабрикой. Контейнеры ({@code PanelWidget}) получают слот {@code Children}, {@code ScrollView} — слот
+     * {@code Content}.</p>
+     *
+     * @param type класс виджета
+     * @param <T>  тип виджета
+     * @return этот реестр
+     */
+    public <T extends Widget> Schema defineAnnotated(Class<T> type) {
+        return defineAnnotated(type, constructorFactory(type));
+    }
+
+    /**
+     * Определяет аннотированный тип с явной фабрикой экземпляров.
+     *
+     * @param type    класс виджета с {@code @XmlWidgetName}
+     * @param factory фабрика
+     * @param <T>     тип виджета
+     * @return этот реестр
+     * @throws IllegalArgumentException если на классе нет {@code @XmlWidgetName}
+     */
+    public <T extends Widget> Schema defineAnnotated(Class<T> type, Supplier<T> factory) {
+        XmlWidgetName annotation = type.getAnnotation(XmlWidgetName.class);
+        if (annotation == null || annotation.value().isBlank()) {
+            throw new IllegalArgumentException("Missing @XmlWidgetName on " + type.getName());
+        }
+        String name = annotation.value().trim();
+        return define(name, () -> {
+            TypeInfo.Builder<T> builder = TypeInfo.of(name(name), type, factory)
+                    .describe(type.getSimpleName(), categoryFor(type), "");
+            if (PanelWidget.class.isAssignableFrom(type)) {
+                ChildSink<T> children = (parent, child) -> ((PanelWidget) parent).addChild(child);
+                builder.content(children).slot(SlotInfo.many("Children", children,
+                        "Child widgets hosted by this annotated container."));
+            } else if (ScrollView.class.isAssignableFrom(type)) {
+                builder.slot(SlotInfo.single("Content", (parent, child) -> ((ScrollView) parent).content(child),
+                        "Single scrollable content widget."));
+            }
+            return builder.build();
+        });
+    }
+
+    private static <T extends Widget> Supplier<T> constructorFactory(Class<T> type) {
+        java.lang.reflect.Constructor<T> constructor;
+        try {
+            constructor = type.getDeclaredConstructor();
+        } catch (NoSuchMethodException failure) {
+            throw new IllegalArgumentException("Annotated widget " + type.getName()
+                    + " must have a no-arg constructor or an explicit factory", failure);
+        }
+        constructor.setAccessible(true);
+        return () -> {
+            try {
+                return constructor.newInstance();
+            } catch (ReflectiveOperationException failure) {
+                throw new IllegalStateException("Cannot instantiate annotated widget " + type.getName(), failure);
+            }
+        };
+    }
+
+    private static String categoryFor(Class<?> type) {
+        String packageName = type.getPackageName();
+        if (packageName.contains(".widgets.containers")) return "Containers";
+        if (packageName.contains(".widgets.display")) return "Display";
+        if (packageName.contains(".widgets.interaction")) return "Controls";
+        if (packageName.contains(".widgets.feedback")) return "Feedback";
+        return "Widgets";
     }
 
     /**

@@ -62,4 +62,16 @@ public class XamlLoadBenchmark {
     public Widget loadLarge() {
         return XMLWidget.create(large, registry);
     }
+
+    /** То же самое документом новым загрузчиком ({@code xaml}): для прямого сравнения с {@link #loadLarge()}. */
+    @Benchmark
+    public Widget loadLargeWithNewLoader() {
+        return dev.sixik.unigui.xaml.Xaml.load(large);
+    }
+
+    /** Маленький документ новым загрузчиком. */
+    @Benchmark
+    public Widget loadSimpleWithNewLoader() {
+        return dev.sixik.unigui.xaml.Xaml.load(SIMPLE);
+    }
 }

@@ -63,7 +63,10 @@ public final class XmlValueParsers {
         // который превращает marker'ы {icon:...}/{texture:...} в inline texture span'ы.
         InlineContentResolverScope inlineScope = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
                 (id, width, height) -> normalizedResolver.resolve(id, width, height, TextureOptions.defaults())));
-        return new TextureResolverScope(previousResolver, previousCommands, inlineScope);
+        // Setter-ы виджетов перепривязывают текстуры через TextureResolution; legacy-загрузчик тоже её заполняет.
+        dev.sixik.unigui.xaml.load.TextureResolution.Scope shared =
+                dev.sixik.unigui.xaml.load.TextureResolution.push(normalizedResolver);
+        return new TextureResolverScope(previousResolver, previousCommands, inlineScope, shared);
     }
 
     public static TextureHandle resolveTexture(String id, int width, int height, TextureOptions options) {
@@ -294,16 +297,20 @@ public final class XmlValueParsers {
         private final XmlTextureResolver previousResolver;
         private final XmlCommandRegistry previousCommands;
         private final InlineContentResolverScope inlineScope;
+        private final dev.sixik.unigui.xaml.load.TextureResolution.Scope sharedScope;
 
         private TextureResolverScope(XmlTextureResolver previousResolver, XmlCommandRegistry previousCommands,
-                                     InlineContentResolverScope inlineScope) {
+                                     InlineContentResolverScope inlineScope,
+                                     dev.sixik.unigui.xaml.load.TextureResolution.Scope sharedScope) {
             this.previousResolver = previousResolver;
             this.previousCommands = previousCommands;
             this.inlineScope = inlineScope;
+            this.sharedScope = sharedScope;
         }
 
         @Override
         public void close() {
+            if (sharedScope != null) sharedScope.close();
             if (inlineScope != null) inlineScope.close();
             if (previousResolver == null) {
                 TEXTURE_RESOLVER.remove();

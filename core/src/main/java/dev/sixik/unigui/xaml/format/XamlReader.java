@@ -207,6 +207,14 @@ final class XamlReader {
         UiName owner = new UiName(full.namespace(), full.local().substring(0, dot), full.prefix());
         UiName member = new UiName(full.namespace(), full.local().substring(dot + 1), full.prefix());
 
+        // Одно свойство нельзя задать дважды: ни двумя property-элементами, ни атрибутом и элементом сразу.
+        for (UiProperty existing : parent.properties()) {
+            if (existing.name().local().equalsIgnoreCase(member.local())
+                    && (existing.owner() == null || existing.owner().local().equals(owner.local()))) {
+                throw fail("Property '" + full.qualified() + "' is set more than once", child.location());
+            }
+        }
+
         boolean hasNodes = false;
         for (UiContent item : child.content()) {
             if (!(item instanceof UiContent.Text)) hasNodes = true;

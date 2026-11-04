@@ -30,10 +30,14 @@ public final class TypeInfo<T extends Widget> {
     private final String category;
     private final String description;
     private final Map<String, PropertyInfo<? super T, ?>> properties;
+    private final Map<String, Integer> order;
     private final ChildSink<T> content;
     private final Map<String, SlotInfo<T>> slots;
 
     private TypeInfo(Builder<T> builder, Map<String, PropertyInfo<? super T, ?>> properties) {
+        Map<String, Integer> positions = new java.util.HashMap<>(properties.size() * 2);
+        for (String propertyName : properties.keySet()) positions.put(propertyName, positions.size());
+        this.order = positions;
         this.name = builder.name;
         this.javaType = builder.javaType;
         this.factory = builder.factory;
@@ -106,6 +110,20 @@ public final class TypeInfo<T extends Widget> {
      */
     public Optional<PropertyInfo<? super T, ?>> property(String propertyName) {
         return Optional.ofNullable(properties.get(propertyName));
+    }
+
+    /**
+     * Возвращает позицию свойства в порядке применения.
+     *
+     * <p>Загрузчик применяет свойства в порядке схемы, а не в порядке записи в документе: так {@code min} и
+     * {@code max} слайдера всегда выставляются до {@code value}, как бы автор ни расположил атрибуты.</p>
+     *
+     * @param propertyName имя свойства
+     * @return индекс или {@code -1}, если свойства нет
+     */
+    public int order(String propertyName) {
+        Integer index = order.get(propertyName);
+        return index == null ? -1 : index;
     }
 
     /** @return {@code true}, если тип принимает вложенные виджеты напрямую (без property-элемента) */

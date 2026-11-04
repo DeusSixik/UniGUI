@@ -53,7 +53,7 @@ public final class XmlTextureAttributes {
     }
 
     private static TextureHandle copy(TextureHandle texture, int width, int height, TextureOptions options) {
-        return XmlValueParsers.resolveTexture(texture.id(), width, height, options);
+        return dev.sixik.unigui.xaml.load.TextureResolution.resolve(texture.id(), width, height, options);
     }
 
     private static int positive(int value, String name) {
