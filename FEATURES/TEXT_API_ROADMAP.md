@@ -56,7 +56,7 @@
 
 ### Проверка и оставшиеся хвосты A
 
-- `:core:test` и `:1.20.1:common:renderPolishSelfTest`, `widgetRenderCacheSelfTest`, `xmlWidgetSelfTest` проходят.
+- `:core:test` и `:1.20.1:common:renderPolishSelfTest`, `widgetRenderCacheSelfTest`, `xmlWidgetSelfTest` (теперь JUnit-тесты загрузчика в `:core:test`) проходят.
 - `:1.20.1:common:basicControlsSelfTest` падает (`Button should apply NORMAL theme background at render time`).
   Падение воспроизводится и без изменений этапа A.
 - Модуль `1.12.2-cleanroom` не удалось собрать в сессии (таймаут `gradlew`). Правка там тривиальная

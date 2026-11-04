@@ -10,10 +10,13 @@
 - [ ] 3D widget rendering (like [Noesis GUI](https://www.noesisengine.com/xamltoy/8ab948fb3b5a3edaaee5bb6cd7017a8b))
 - [ ] Support for rendering 3D elements inside UI
 - [ ] Better style pack & style API. It should allow building most things without writing custom render code for a widget
-- [ ] Bring the XAML API out of its Legacy state: optimize it, add examples, and finish action bindings
+- [x] Bring the XAML API out of its Legacy state: own parser, lazy schema, markup extensions (`{Binding}`, `{StaticResource}`, `{Command}`), `x:Name`, resources, diagnostics with source positions
+- [ ] Finish XAML action bindings: command parameters and TwoWay bindings
 
 # Serialization
 - [ ] Rework and extend widget serialization. Design it so that any serialization language can be plugged in: XAML (priority), Java, JS (KubeJS), ZS (CraftTweaker)
+  - Done: language-neutral markup tree (`UiDocument`), `UiFormat` SPI, XAML format, snapshotter (live widgets back to a document)
+  - Todo: Java, JS (KubeJS) and ZS (CraftTweaker) formats
 
 # Asset Packs
 - [ ] Assets Pack mechanism: UI as serializable data packaged into a single archive containing assets, fonts, shaders, and the UI code itself (like Unity AssetBundle)
