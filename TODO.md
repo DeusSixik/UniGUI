@@ -21,7 +21,8 @@
 # Asset Packs
 - [x] Assets Pack mechanism: UI as serializable data packaged into a single archive containing assets, fonts, shaders, and the UI code itself (like Unity AssetBundle)
   - Done in core: archive format (`pack.xaml` manifest, structs, components, screens, textures), safe reading with limits, deterministic writer, installation that can be undone, pack texture resolver
-  - Todo: export from the in-game editor
+  - Done: the editor-side project model (`Project`): files by kind, create/rename/delete with tag updates, shared edit sessions, whole-project check, folder and pack round trip, live install
+  - Todo: export from the in-game editor (UI over `Project.toPack()` / `Project.save()`)
 
 # Tooling
 - [ ] In-game UI editor, in the spirit of the Unity / Unreal Engine editors (UMG Designer, UI Toolkit Builder), running directly inside Minecraft ***(Required (Assets Pack & XAML API))***
@@ -35,6 +36,9 @@
   - Undo/redo: command-based history for all edits
   - Live preview and hot reload: edits apply instantly in the running game, plus a play mode to test interactions without leaving the editor
   - Serialization integration: open and save UI through the serialization layer (XAML first), and export to an Assets Pack
+  - Done (mechanisms, covered by tests): grouped edit transactions, rename refactoring with reference updates (params, variables, events, graph nodes, component tags), struct and style edits, graph edits with node catalog, debug trace of graph runs, component contract edits and preview
+  - Done (first UI pass, to be reworked): panels for hierarchy tree, tile palette, inspector groups, framed viewport with Play mode, contract, graph, drag and drop, anchors for StackPanel children
+  - Todo (UI): project/asset browser panel, struct and style editors, typed value editors (color, texture, font), anchors for other containers, rename dialogs
   - Dogfooding: the editor is built with UniGUI itself, which doubles as a large-scale test of the library
 
 # Text & Layout

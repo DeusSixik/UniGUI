@@ -508,11 +508,24 @@ final class GraphPanel extends SessionPanel {
         if (root == null) return;
         List<String> wires = new ArrayList<>(graph.selectedConnectionIds());
         List<String> nodes = new ArrayList<>(graph.selectedItemIds());
-        for (String id : wires) {
-            NodeGraphConnection connection = graph.connection(id);
-            if (connection != null) commit(GraphEdits.disconnect(root, endpoint(connection.from()), endpoint(connection.to())));
+        EditorSession session = session().orElse(null);
+        if (session == null) return;
+        // Удаление выбранного — один шаг отмены, сколько бы проводов и нод в него ни входило.
+        applying = true;
+        try {
+            session.transaction("Delete selection", () -> {
+                for (String id : wires) {
+                    NodeGraphConnection connection = graph.connection(id);
+                    if (connection != null) {
+                        session.apply(GraphEdits.disconnect(root(), endpoint(connection.from()), endpoint(connection.to())));
+                    }
+                }
+                for (String id : nodes) session.apply(GraphEdits.removeNode(root(), id));
+                return true;
+            });
+        } finally {
+            applying = false;
         }
-        for (String id : nodes) commit(GraphEdits.removeNode(root, id));
         rebuild();
     }
 

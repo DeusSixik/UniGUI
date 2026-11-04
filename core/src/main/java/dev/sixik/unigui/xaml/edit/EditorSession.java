@@ -223,6 +223,34 @@ public final class EditorSession {
     }
 
     /**
+     * Выполняет несколько правок как одну: один шаг отмены на всё действие. Если тело вернуло {@code false} или
+     * бросило исключение, всё уже применённое внутри откатывается, и документ остаётся прежним.
+     *
+     * @param label описание шага отмены
+     * @param body  правки; внутри вызывается {@link #apply}; {@code false} означает «не вышло»
+     * @return {@code true}, если все правки применены
+     */
+    public boolean transaction(String label, java.util.function.BooleanSupplier body) {
+        history.beginGroup();
+        boolean done;
+        try {
+            done = body.getAsBoolean();
+        } catch (RuntimeException failure) {
+            history.abortGroup();
+            afterDocumentChange(history.undoCount(), history.redoCount());
+            throw failure;
+        }
+        if (!done) {
+            history.abortGroup();
+            afterDocumentChange(history.undoCount(), history.redoCount());
+            return false;
+        }
+        history.endGroup(label);
+        emit(SessionChange.Kind.UNDO_STACK_CHANGED);
+        return true;
+    }
+
+    /**
      * Отменяет последнюю правку.
      *
      * @return {@code true}, если было что отменять

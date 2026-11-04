@@ -142,6 +142,41 @@ public final class GraphEdits {
     }
 
     /**
+     * Переименовывает ноду: меняет её идентификатор, концы проводов и ссылки {@code Target} других нод.
+     *
+     * @param componentRoot корневой узел документа компонента
+     * @param oldId         прежний идентификатор
+     * @param newId         новый идентификатор: буквы, цифры и подчёркивания
+     * @return правка
+     */
+    public static Edit renameNode(UiNode componentRoot, String oldId, String newId) {
+        return edit(componentRoot, "Rename node " + oldId + " to " + newId, items -> {
+            if (!newId.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                throw new IllegalArgumentException("'" + newId + "' is not a valid node id.");
+            }
+            int index = indexOfNode(items, oldId);
+            if (index < 0) throw new IllegalArgumentException("No graph node '" + oldId + "'.");
+            if (indexOfNode(items, newId) >= 0) throw new IllegalArgumentException("Graph node '" + newId + "' already exists.");
+            for (int i = 0; i < items.size(); i++) {
+                if (!(items.get(i) instanceof UiNode item)) continue;
+                if (item.type().local().equals("Node")) {
+                    UiNode copy = item.copy();
+                    if (oldId.equals(item.attributeText("Id", ""))) copy.set("Id", newId);
+                    if (oldId.equals(item.attributeText("Target", ""))) copy.set("Target", newId);
+                    items.set(i, copy);
+                } else if (item.type().local().equals("Wire")) {
+                    UiNode copy = item.copy();
+                    for (String end : new String[]{"From", "To"}) {
+                        String value = item.attributeText(end, "");
+                        if (value.startsWith(oldId + ".")) copy.set(end, newId + value.substring(oldId.length()));
+                    }
+                    items.set(i, copy);
+                }
+            }
+        }, true, null);
+    }
+
+    /**
      * Передвигает ноду в редакторе. Подряд идущие сдвиги одной ноды сливаются в один шаг отмены; проверка при сдвиге
      * не нужна, потому что положение смысл графа не меняет.
      *

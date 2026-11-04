@@ -233,4 +233,18 @@ final class GraphEditsTest {
         assertTrue(apply(GraphEdits.addNode(root(), "Math_Add_1", "Math.Add", Map.of(), 0, 0)));
         assertEquals("Math_Add_2", GraphEdits.freshId(root(), "Math.Add"));
     }
+
+    @Test
+    void renamingANodeKeepsItsWiresAndRefusesTakenNames() {
+        build();
+        assertTrue(apply(GraphEdits.renameNode(root(), "set", "retitle")));
+        assertTrue(session.text().contains("To=\"retitle.exec\""), session.text());
+        assertEquals(1, graph().wires().size());
+        assertTrue(graph().nodes().stream().anyMatch(node -> node.id().equals("retitle")));
+
+        assertFalse(apply(GraphEdits.renameNode(root(), "retitle", "in")), "the id is taken");
+        assertFalse(apply(GraphEdits.renameNode(root(), "retitle", "bad id")));
+        assertTrue(session.undo());
+        assertTrue(graph().nodes().stream().anyMatch(node -> node.id().equals("set")));
+    }
 }
