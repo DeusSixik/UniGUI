@@ -24,14 +24,14 @@ import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.OverlayLayoutResolver;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
-@XmlWidgetName("Popup")
+@XamlWidget("Popup")
 @AiDoc(summary = "Anchored floating popup panel positioned relative to a target anchor widget.")
 @WikiPage(
         title = "Popup",
@@ -180,7 +180,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return open(!open);
     }
 
-    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the popup is visible.")
+    @XamlProperty(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the popup is visible.")
         @AiDoc(summary = "Sets the open state of the popup.")
     @WikiMethod(summary = "<key:popup.method.openState>")
     @WikiReturn("<key:popup.return.this>")
@@ -219,7 +219,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
-    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the popup.")
+    @XamlProperty(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the popup.")
         @AiDoc(summary = "Sets whether outside clicks automatically close the popup.")
     @WikiMethod(summary = "<key:popup.method.closeOnOutsideClickSet>")
     @WikiReturn("<key:popup.return.this>")
@@ -238,7 +238,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return placement;
     }
 
-    @XmlAttribute(value = "placement", category = "Layout", defaultValue = "below", description = "Where the popup is placed relative to its anchor.")
+    @XamlProperty(value = "placement", category = "Layout", defaultValue = "below", description = "Where the popup is placed relative to its anchor.")
         @AiDoc(summary = "Sets the preferred anchor placement edge.")
     @WikiMethod(summary = "<key:popup.method.placementSet>")
     @WikiReturn("<key:popup.return.this>")
@@ -271,7 +271,7 @@ public final class Popup extends Box implements OverlayHostAware {
         return this;
     }
 
-    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "6", description = "Inner padding around popup content.")
+    @XamlProperty(value = "padding", category = "Layout", defaultValue = "6", description = "Inner padding around popup content.")
         @AiDoc(summary = "Sets the interior padding around popup content.")
     @WikiMethod(summary = "<key:popup.method.padding>")
     @WikiReturn("<key:popup.return.this>")

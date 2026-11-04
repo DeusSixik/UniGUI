@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.render.TextureHandle;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
@@ -37,7 +37,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:image.view.example.basic.title>",
         code = "<key:image.view.example.basic.code>",
         order = 10)
-@XmlWidgetName("ImageView")
+@XamlWidget("ImageView")
 @Deprecated(forRemoval = false)
 public final class ImageView extends TextureWidget {
     public static final String STYLE_TYPE = StyleIds.Widget.IMAGE_VIEW;

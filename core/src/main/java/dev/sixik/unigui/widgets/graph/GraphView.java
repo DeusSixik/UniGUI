@@ -34,8 +34,8 @@ import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.display.OverridableColor;
@@ -86,7 +86,7 @@ import java.util.function.Function;
         target = "page:node-graph",
         description = "<key:node.graph.summary>"
 )
-@XmlWidgetName("GraphView")
+@XamlWidget("GraphView")
 public class GraphView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRAPH_VIEW;
 
@@ -407,7 +407,7 @@ public class GraphView extends WidgetBase {
      * @param directed {@code true} — рисовать стрелку у узла-назначения
      * @return этот виджет
      */
-    @XmlAttribute(value = "directed", category = "Appearance", defaultValue = "true", description = "Whether edges are drawn with an arrowhead at the target node.")
+    @XamlProperty(value = "directed", category = "Appearance", defaultValue = "true", description = "Whether edges are drawn with an arrowhead at the target node.")
     @AiDoc(summary = "Enables or disables target arrowheads for edges.", section = "Appearance", sectionOrder = 20, order = 10)
     @WikiMethod(summary = "Enables or disables arrowheads at edge targets.", section = "Appearance", sectionOrder = 20, order = 30)
     @WikiReturn("This graph view for fluent configuration.")
@@ -429,7 +429,7 @@ public class GraphView extends WidgetBase {
         return directed;
     }
 
-    @XmlAttribute(value = "nodeLabelsVisible", category = "Appearance", defaultValue = "true", description = "Whether node labels are rendered.")
+    @XamlProperty(value = "nodeLabelsVisible", category = "Appearance", defaultValue = "true", description = "Whether node labels are rendered.")
     @AiDoc(summary = "Sets whether text labels are rendered alongside node points.")
     @WikiMethod(summary = "<key:graph.view.method.nodeLabelsVisible>")
     @WikiReturn("<key:graph.view.return.self>")
@@ -440,7 +440,7 @@ public class GraphView extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "nodeLabelPlacement", category = "Appearance", defaultValue = "right", description = "Placement of labels relative to graph nodes.")
+    @XamlProperty(value = "nodeLabelPlacement", category = "Appearance", defaultValue = "right", description = "Placement of labels relative to graph nodes.")
     @AiDoc(summary = "Sets relative placement of text labels around node points.")
     @WikiMethod(summary = "<key:graph.view.method.nodeLabelPlacement>")
     @WikiReturn("<key:graph.view.return.self>")
@@ -502,7 +502,7 @@ public class GraphView extends WidgetBase {
         return preferredWidth;
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "240", description = "Intrinsic graph width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "240", description = "Intrinsic graph width before layout constraints are applied.")
     @AiDoc(summary = "Sets the preferred width of this graph view.")
     @WikiMethod(summary = "<key:graph.view.method.preferredWidthSet>")
     @WikiReturn("<key:graph.view.return.self>")
@@ -521,7 +521,7 @@ public class GraphView extends WidgetBase {
         return preferredHeight;
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "130", description = "Intrinsic graph height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "130", description = "Intrinsic graph height before layout constraints are applied.")
     @AiDoc(summary = "Sets the preferred height of this graph view.")
     @WikiMethod(summary = "<key:graph.view.method.preferredHeightSet>")
     @WikiReturn("<key:graph.view.return.self>")

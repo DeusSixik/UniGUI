@@ -258,7 +258,7 @@ public final class TypeInfo<T extends Widget> {
         }
 
         /**
-         * Отключает автоматический поиск {@code @XmlAttribute} на классе виджета.
+         * Отключает автоматический поиск {@code @XamlProperty} на классе виджета.
          *
          * @return этот билдер
          */

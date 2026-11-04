@@ -18,8 +18,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.impl.layout.flex.FlexSolver;
@@ -80,7 +80,7 @@ import java.util.List;
 @WikiLink(label = "SettingRow", target = "page:setting-row")
 @WikiLink(label = "HBox", target = "page:hbox")
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
-@XmlWidgetName("PanelRowWidget")
+@XamlWidget("PanelRowWidget")
 public class PanelRowWidget extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_ROW_WIDGET;
 
@@ -227,7 +227,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param rowHeight высота строки; {@link LayoutConstraints#AUTO} оставляет высоту по содержимому
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "rowHeight", category = "Layout", defaultValue = "24", description = "Preferred row height or auto.")
+    @XamlProperty(value = "rowHeight", category = "Layout", defaultValue = "24", description = "Preferred row height or auto.")
     @WikiMethod(order = 50, title = "<key:panel.row.widget.method.row_height.title>", summary = "<key:panel.row.widget.method.row_height>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Sizing", sectionOrder = 20, order = 50, summary = "Sets preferred row height in UI pixels.")
@@ -254,7 +254,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param gap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "gap", category = "Layout", defaultValue = "8", description = "Gap between left and right widget groups.")
+    @XamlProperty(value = "gap", category = "Layout", defaultValue = "8", description = "Gap between left and right widget groups.")
     @WikiMethod(order = 60, title = "<key:panel.row.widget.method.gap.title>", summary = "<key:panel.row.widget.method.gap>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Sizing", sectionOrder = 20, order = 60, summary = "Sets uniform spacing between elements and groups.")
@@ -281,7 +281,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param leftGap gap в пикселях UI-пространства
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "leftGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the left group.")
+    @XamlProperty(value = "leftGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the left group.")
     public PanelRowWidget leftGap(float leftGap) {
         float normalized = normalizeGap(leftGap, DEFAULT_GAP);
         if (this.leftGap == normalized) return this;
@@ -305,7 +305,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param rightGap gap в пикселях UI-пространства
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "rightGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the right group.")
+    @XamlProperty(value = "rightGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the right group.")
     public PanelRowWidget rightGap(float rightGap) {
         float normalized = normalizeGap(rightGap, DEFAULT_GAP);
         if (this.rightGap == normalized) return this;
@@ -329,7 +329,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param leftWidth ширина группы или {@link LayoutConstraints#AUTO}
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "leftWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the left widget group.")
+    @XamlProperty(value = "leftWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the left widget group.")
     public PanelRowWidget leftWidth(float leftWidth) {
         float normalized = normalizeSizeOrAuto(leftWidth, LayoutConstraints.AUTO);
         if (this.leftWidth == normalized || bothAuto(this.leftWidth, normalized)) return this;
@@ -353,7 +353,7 @@ public class PanelRowWidget extends PanelWidget {
      * @param rightWidth ширина группы или {@link LayoutConstraints#AUTO}
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "rightWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right widget group.")
+    @XamlProperty(value = "rightWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right widget group.")
     public PanelRowWidget rightWidth(float rightWidth) {
         float normalized = normalizeSizeOrAuto(rightWidth, LayoutConstraints.AUTO);
         if (this.rightWidth == normalized || bothAuto(this.rightWidth, normalized)) return this;

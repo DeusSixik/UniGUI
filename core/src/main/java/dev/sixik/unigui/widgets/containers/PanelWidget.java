@@ -21,7 +21,7 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.impl.layout.ZOrder;
@@ -84,7 +84,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
         code = "<key:panel.widget.example.basic.code>", order = 10)
 @WikiLink(label = "SurfaceWidget", target = "page:surface-widget")
 @WikiLink(label = "StackPanel", target = "page:stack-panel")
-@XmlWidgetName("Panel")
+@XamlWidget("Panel")
 public class PanelWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PANEL_WIDGET;
 

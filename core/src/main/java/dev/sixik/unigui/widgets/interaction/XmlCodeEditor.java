@@ -1,7 +1,7 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.xaml.UiDiagnostic;
 import dev.sixik.unigui.xaml.Xaml;
 import dev.sixik.unigui.xaml.format.UiFormat;
@@ -45,7 +45,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:xml.code.editor.example.basic.title>",
         code = "<key:xml.code.editor.example.basic.code>",
         order = 10)
-@XmlWidgetName("XmlCodeEditor")
+@XamlWidget("XmlCodeEditor")
 public class XmlCodeEditor extends CodeEditor {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_CODE_EDITOR;
 
@@ -64,7 +64,7 @@ public class XmlCodeEditor extends CodeEditor {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable XML source text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable XML source text.")
     public XmlCodeEditor text(String text) {
         super.text(text);
         return this;

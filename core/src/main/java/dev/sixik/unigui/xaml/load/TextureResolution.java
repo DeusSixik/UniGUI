@@ -2,8 +2,6 @@ package dev.sixik.unigui.xaml.load;
 
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
-import dev.sixik.unigui.api.xml.XmlTextureResolver;
-import dev.sixik.unigui.api.xml.XmlWidgetOptions;
 
 import java.util.function.UnaryOperator;
 
@@ -19,7 +17,7 @@ import java.util.function.UnaryOperator;
  * на время прогона и всегда закрывает, восстанавливая предыдущее значение.</p>
  */
 public final class TextureResolution {
-    private static final ThreadLocal<XmlTextureResolver> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<XamlTextureResolver> CURRENT = new ThreadLocal<>();
 
     private TextureResolution() {
     }
@@ -30,9 +28,9 @@ public final class TextureResolution {
      * @param resolver резолвер; {@code null} означает резолвер по умолчанию
      * @return область, которую нужно закрыть; закрытие восстанавливает предыдущий резолвер
      */
-    public static Scope push(XmlTextureResolver resolver) {
-        XmlTextureResolver previous = CURRENT.get();
-        CURRENT.set(resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver);
+    public static Scope push(XamlTextureResolver resolver) {
+        XamlTextureResolver previous = CURRENT.get();
+        CURRENT.set(resolver == null ? XamlTextureResolver.DEFAULT : resolver);
         return new Scope(previous);
     }
 
@@ -46,8 +44,8 @@ public final class TextureResolution {
      * @return runtime-handle
      */
     public static TextureHandle resolve(String id, int width, int height, TextureOptions options) {
-        XmlTextureResolver resolver = CURRENT.get();
-        XmlTextureResolver effective = resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver;
+        XamlTextureResolver resolver = CURRENT.get();
+        XamlTextureResolver effective = resolver == null ? XamlTextureResolver.DEFAULT : resolver;
         return effective.resolve(id, Math.max(1, width), Math.max(1, height),
                 options == null ? TextureOptions.defaults() : options);
     }
@@ -93,9 +91,9 @@ public final class TextureResolution {
 
     /** Область действия резолвера. */
     public static final class Scope implements AutoCloseable {
-        private final XmlTextureResolver previous;
+        private final XamlTextureResolver previous;
 
-        private Scope(XmlTextureResolver previous) {
+        private Scope(XamlTextureResolver previous) {
             this.previous = previous;
         }
 

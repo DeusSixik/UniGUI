@@ -1,6 +1,6 @@
 package dev.sixik.unigui.xaml.load;
 
-import dev.sixik.unigui.api.xml.XmlBinding;
+import dev.sixik.unigui.xaml.bind.XamlBinding;
 import dev.sixik.unigui.xaml.UiValue;
 
 import java.util.Set;
@@ -45,7 +45,7 @@ final class BuiltInExtensions {
         }
         @SuppressWarnings("unchecked")
         Class<Object> valueType = (Class<Object>) target.bindingType();
-        XmlBinding<Object> binding = context.bindings().bind(path.trim(), valueType, target::setValue, target.describe());
+        XamlBinding<Object> binding = context.bindings().bind(path.trim(), valueType, target::setValue, target.describe());
         context.session().add(binding);
         if (oneTime) binding.close();
     };

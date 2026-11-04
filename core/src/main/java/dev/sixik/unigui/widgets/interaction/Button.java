@@ -34,8 +34,8 @@ import dev.sixik.unigui.api.text.TextTransform;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -84,7 +84,7 @@ import java.util.Objects;
 )
 @WikiLink(label = "HoldButton", target = "page:hold-button")
 @WikiLink(label = "ToggleButton", target = "page:toggle-button")
-@XmlWidgetName("Button")
+@XamlWidget("Button")
 public class Button extends SurfaceWidget<Button> {
     public static final String STYLE_TYPE = StyleIds.Widget.BUTTON;
 
@@ -242,7 +242,7 @@ public class Button extends SurfaceWidget<Button> {
         return text;
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Button label text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Button label text.")
     public Button text(String text) {
         String normalized = normalize(text);
         RichText normalizedRichText = RichText.resolve(normalized);
@@ -321,7 +321,7 @@ public class Button extends SurfaceWidget<Button> {
         return textColor;
     }
 
-    @XmlAttribute(value = "textColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Button text color parsed from XML color syntax.")
+    @XamlProperty(value = "textColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Button text color parsed from XML color syntax.")
     public Button textColor(ColorView color) {
         if (color != null) {
             customTextColor = true;
@@ -364,7 +364,7 @@ public class Button extends SurfaceWidget<Button> {
         return textPaddingX(horizontal).textPaddingY(vertical);
     }
 
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "8", description = "Horizontal padding around button text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "8", description = "Horizontal padding around button text.")
     public Button textPaddingX(float textPaddingX) {
         float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingX == normalized) return this;
@@ -377,7 +377,7 @@ public class Button extends SurfaceWidget<Button> {
         return textPaddingY;
     }
 
-    @XmlAttribute(value = "textPaddingY", category = "Layout", defaultValue = "4", description = "Vertical padding around button text.")
+    @XamlProperty(value = "textPaddingY", category = "Layout", defaultValue = "4", description = "Vertical padding around button text.")
     public Button textPaddingY(float textPaddingY) {
         float normalized = Float.isFinite(textPaddingY) ? Math.max(0.0f, textPaddingY) : DEFAULT_TEXT_PADDING_Y;
         if (this.textPaddingY == normalized) return this;
@@ -430,7 +430,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param focusRingVisible {@code true}, чтобы рисовать кольцо в фокусе
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "focusRingVisible", category = "Appearance", defaultValue = "false", description = "Whether the button paints an outer halo ring while focused.")
+    @XamlProperty(value = "focusRingVisible", category = "Appearance", defaultValue = "false", description = "Whether the button paints an outer halo ring while focused.")
     public Button focusRingVisible(boolean focusRingVisible) {
         if (this.focusRingVisible == focusRingVisible) return this;
         this.focusRingVisible = focusRingVisible;
@@ -463,7 +463,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param color новый hover-цвет; {@code null} сбрасывает к теме
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "hoverBackground", category = "Appearance", defaultValue = "", description = "Explicit hover background color; empty means themed.")
+    @XamlProperty(value = "hoverBackground", category = "Appearance", defaultValue = "", description = "Explicit hover background color; empty means themed.")
     @WikiMethod(order = 90, title = "<key:button.method.hover_background.title>", summary = "<key:button.method.hover_background.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     public Button hoverBackground(@WikiParameter(description = "<key:button.param.color>") ColorView color) {
@@ -507,7 +507,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param color новый pressed-цвет; {@code null} сбрасывает к теме
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "pressedBackground", category = "Appearance", defaultValue = "", description = "Explicit pressed background color; empty means themed.")
+    @XamlProperty(value = "pressedBackground", category = "Appearance", defaultValue = "", description = "Explicit pressed background color; empty means themed.")
     @WikiMethod(order = 100, title = "<key:button.method.pressed_background.title>", summary = "<key:button.method.pressed_background.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     public Button pressedBackground(@WikiParameter(description = "<key:button.param.color>") ColorView color) {
@@ -551,7 +551,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param texture handle текстуры или {@code null} для сброса к теме
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "hoverTexture", displayName = "Hover Texture", category = "Assets", defaultValue = "", description = "Explicit hover background texture; empty means themed.")
+    @XamlProperty(value = "hoverTexture", displayName = "Hover Texture", category = "Assets", defaultValue = "", description = "Explicit hover background texture; empty means themed.")
     public Button hoverTexture(TextureHandle texture) {
         if (texture == null) return clearHoverTexture();
         hoverTexture().texture(texture);
@@ -574,7 +574,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param shader шейдер; {@code null} отключает overlay
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "hoverShader", category = "Appearance", defaultValue = "", description = "Ресурс шейдера поверх состояния наведения.")
+    @XamlProperty(value = "hoverShader", category = "Appearance", defaultValue = "", description = "Ресурс шейдера поверх состояния наведения.")
     public Button hoverShader(ShaderHandle shader) {
         if (Objects.equals(hoverShader, shader)) return this;
         hoverShader = shader;
@@ -667,7 +667,7 @@ public class Button extends SurfaceWidget<Button> {
      * @param texture handle текстуры или {@code null} для сброса к теме
      * @return эта кнопка для fluent-настройки
      */
-    @XmlAttribute(value = "pressedTexture", displayName = "Pressed Texture", category = "Assets", defaultValue = "", description = "Explicit pressed background texture; empty means themed.")
+    @XamlProperty(value = "pressedTexture", displayName = "Pressed Texture", category = "Assets", defaultValue = "", description = "Explicit pressed background texture; empty means themed.")
     public Button pressedTexture(TextureHandle texture) {
         if (texture == null) return clearPressedTexture();
         pressedTexture().texture(texture);
@@ -789,7 +789,7 @@ public class Button extends SurfaceWidget<Button> {
         return interactionTransitions;
     }
 
-    @XmlAttribute(value = "interactionTransitions", category = "Behavior", defaultValue = "false", description = "Enables built-in hover/press transition animation.")
+    @XamlProperty(value = "interactionTransitions", category = "Behavior", defaultValue = "false", description = "Enables built-in hover/press transition animation.")
     public Button interactionTransitions(boolean interactionTransitions) {
         if (this.interactionTransitions == interactionTransitions) return this;
         this.interactionTransitions = interactionTransitions;
@@ -824,7 +824,7 @@ public class Button extends SurfaceWidget<Button> {
     }
 
     @Override
-    @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can be interacted with.")
+    @XamlProperty(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can be interacted with.")
     public Button enabled(boolean enabled) {
         boolean changed = enabled() != enabled;
         super.enabled(enabled);

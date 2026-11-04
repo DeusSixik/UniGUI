@@ -14,9 +14,9 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlBindingContext;
-import dev.sixik.unigui.api.xml.XmlCommandRegistry;
-import dev.sixik.unigui.api.xml.XmlMutableObservableValue;
+import dev.sixik.unigui.xaml.bind.XamlBindingContext;
+import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
+import dev.sixik.unigui.xaml.bind.XamlMutableObservableValue;
 import dev.sixik.unigui.xaml.Xaml;
 import dev.sixik.unigui.xaml.load.LoadOptions;
 import dev.sixik.unigui.xaml.load.LoadedScreen;
@@ -128,17 +128,17 @@ public final class TestCommands {
     }
 
     private static void openXamlBindingExampleScreen() {
-        XmlBindingContext bindingContext = XmlBindingContext.empty();
-        XmlMutableObservableValue<String> status = bindingContext.mutable(
+        XamlBindingContext bindingContext = XamlBindingContext.empty();
+        XamlMutableObservableValue<String> status = bindingContext.mutable(
                 "demo.status", String.class, "Состояние: готово");
-        XmlMutableObservableValue<String> actionLabel = bindingContext.mutable(
+        XamlMutableObservableValue<String> actionLabel = bindingContext.mutable(
                 "demo.actionLabel", String.class, "Переключить состояние");
-        XmlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
+        XamlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
                 "demo.detailsVisible", Boolean.class, true);
-        XmlMutableObservableValue<Float> gamma = bindingContext.mutable(
+        XamlMutableObservableValue<Float> gamma = bindingContext.mutable(
                 "demo.gamma", Float.class, 0.25f);
 
-        XmlCommandRegistry commands = XmlCommandRegistry.empty()
+        XamlCommandRegistry commands = XamlCommandRegistry.empty()
                 .register("demo.toggle", (source, event) -> {
                     boolean nextVisible = !detailsVisible.get();
                     detailsVisible.set(nextVisible);

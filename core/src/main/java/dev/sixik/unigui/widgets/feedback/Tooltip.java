@@ -30,8 +30,8 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 
@@ -40,7 +40,7 @@ import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
-@XmlWidgetName("Tooltip")
+@XamlWidget("Tooltip")
 @AiDoc(summary = "Hover-activated informative tooltip box displaying text or RichText formatted content anchored to a widget.")
 @WikiPage(
         title = "Tooltip",
@@ -185,7 +185,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         return text;
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain tooltip text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Plain tooltip text.")
         @AiDoc(summary = "Sets the tooltip plain text.")
     @WikiMethod(summary = "<key:tooltip.method.textSet>")
     @WikiReturn("<key:tooltip.return.this>")
@@ -278,7 +278,7 @@ public class Tooltip extends Box implements OverlayHostAware {
         return maxWidth;
     }
 
-    @XmlAttribute(value = "maxWidth", category = "Layout", defaultValue = "220", description = "Maximum tooltip width in UI pixels.")
+    @XamlProperty(value = "maxWidth", category = "Layout", defaultValue = "220", description = "Maximum tooltip width in UI pixels.")
         @AiDoc(summary = "Sets the maximum tooltip wrap width.")
     @WikiMethod(summary = "<key:tooltip.method.maxWidthSet>")
     @WikiReturn("<key:tooltip.return.this>")

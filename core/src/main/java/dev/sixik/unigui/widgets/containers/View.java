@@ -12,8 +12,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.display.Label;
 
@@ -60,7 +60,7 @@ import dev.sixik.unigui.widgets.display.Label;
 @WikiLink(label = "Box", target = "page:box")
 @WikiLink(label = "VBox", target = "page:vbox")
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
-@XmlWidgetName("View")
+@XamlWidget("View")
 public class View extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.VIEW;
 
@@ -105,7 +105,7 @@ public class View extends Box {
      * @param title новый текст заголовка; {@code null} превращается в пустую строку
      * @return этот view для fluent-настройки
      */
-    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "View title text.")
+    @XamlProperty(value = "title", category = "Content", defaultValue = "", description = "View title text.")
     @WikiMethod(order = 10, title = "<key:view.method.title.title>", summary = "<key:view.method.title>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Content", sectionOrder = 10, order = 10, summary = "Sets text of header label.")

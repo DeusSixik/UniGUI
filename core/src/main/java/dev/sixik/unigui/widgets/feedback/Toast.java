@@ -19,8 +19,8 @@ import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.display.TextBlock;
@@ -59,7 +59,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         target = "page:overlay-layer",
         description = "<key:overlay.layer.summary>"
 )
-@XmlWidgetName("Toast")
+@XamlWidget("Toast")
 public final class Toast extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOAST;
 
@@ -108,7 +108,7 @@ public final class Toast extends Box implements OverlayHostAware {
         return message.text();
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Toast message text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Toast message text.")
         @AiDoc(summary = "Sets the toast message text.")
     @WikiMethod(summary = "<key:toast.method.textSet>")
     @WikiReturn("<key:toast.return.this>")
@@ -121,7 +121,7 @@ public final class Toast extends Box implements OverlayHostAware {
         return this;
     }
 
-    @XmlAttribute(value = "duration", category = "Behavior", defaultValue = "2.5", description = "Toast lifetime in seconds; 0 keeps it open.")
+    @XamlProperty(value = "duration", category = "Behavior", defaultValue = "2.5", description = "Toast lifetime in seconds; 0 keeps it open.")
         @AiDoc(summary = "Sets the toast lifetime in seconds before auto-dismissal (0 keeps it open indefinitely).")
     @WikiMethod(summary = "<key:toast.method.durationSet>")
     @WikiReturn("<key:toast.return.this>")
@@ -162,7 +162,7 @@ public final class Toast extends Box implements OverlayHostAware {
         return margin;
     }
 
-    @XmlAttribute(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
+    @XamlProperty(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
         @AiDoc(summary = "Sets the margin distance from host edges in UI pixels.")
     @WikiMethod(summary = "<key:toast.method.marginSet>")
     @WikiReturn("<key:toast.return.this>")

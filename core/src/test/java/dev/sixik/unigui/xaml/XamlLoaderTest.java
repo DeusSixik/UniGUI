@@ -13,12 +13,10 @@ import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.selection.SelectionMode;
 import dev.sixik.unigui.api.text.InlineContentSpan;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlBindingContext;
-import dev.sixik.unigui.api.xml.XmlBindingStatus;
-import dev.sixik.unigui.api.xml.XmlCommandRegistry;
-import dev.sixik.unigui.api.xml.XmlMutableObservableValue;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.bind.XamlBindingContext;
+import dev.sixik.unigui.xaml.bind.XamlBindingStatus;
+import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
+import dev.sixik.unigui.xaml.bind.XamlMutableObservableValue;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -275,7 +273,7 @@ final class XamlLoaderTest {
     void commandsFromTheLoadContext() {
         int[] clicks = {0};
         String[] seen = {""};
-        XmlCommandRegistry commands = XmlCommandRegistry.empty().register("video.apply", (source, event) -> {
+        XamlCommandRegistry commands = XamlCommandRegistry.empty().register("video.apply", (source, event) -> {
             clicks[0]++;
             seen[0] = source.id() + ":" + event.type().id();
         });
@@ -375,7 +373,7 @@ final class XamlLoaderTest {
         }
     }
 
-    @XmlWidgetName("AnnotatedBadge")
+    @XamlWidget("AnnotatedBadge")
     public static class AnnotatedBadge extends TextWidget {
         enum Tone {INFO, WARNING}
 
@@ -388,7 +386,7 @@ final class XamlLoaderTest {
             return importance;
         }
 
-        @XmlAttribute(value = "importance", category = "Behavior", defaultValue = "0")
+        @XamlProperty(value = "importance", category = "Behavior", defaultValue = "0")
         public AnnotatedBadge importance(float importance) {
             this.importance = importance;
             return this;
@@ -398,7 +396,7 @@ final class XamlLoaderTest {
             return active;
         }
 
-        @XmlAttribute(value = "active", category = "Behavior", defaultValue = "false")
+        @XamlProperty(value = "active", category = "Behavior", defaultValue = "false")
         public AnnotatedBadge active(boolean active) {
             this.active = active;
             return this;
@@ -408,7 +406,7 @@ final class XamlLoaderTest {
             return tone;
         }
 
-        @XmlAttribute(value = "tone", category = "Content", defaultValue = "info")
+        @XamlProperty(value = "tone", category = "Content", defaultValue = "info")
         public AnnotatedBadge tone(Tone tone) {
             this.tone = tone == null ? Tone.INFO : tone;
             return this;
@@ -418,7 +416,7 @@ final class XamlLoaderTest {
             return accent;
         }
 
-        @XmlAttribute(value = "accent", category = "Appearance", defaultValue = "#FFFFFFFF")
+        @XamlProperty(value = "accent", category = "Appearance", defaultValue = "#FFFFFFFF")
         public AnnotatedBadge accent(MutableColor accent) {
             this.accent.set(accent == null ? new MutableColor() : accent);
             return this;
@@ -466,7 +464,7 @@ final class XamlLoaderTest {
         assertTrue(near(made.importance(), 9.0f) && made.text().equals("Factory"), "explicit factories are honoured");
 
         assertThrows(IllegalArgumentException.class, () -> Schema.empty().defineAnnotated(Badge.class),
-                "@XmlWidgetName is required");
+                "@XamlWidget is required");
     }
 
     @Test
@@ -542,10 +540,10 @@ final class XamlLoaderTest {
 
     @Test
     void bindingExpressionsFollowTheirSources() {
-        XmlBindingContext context = XmlBindingContext.empty();
-        XmlMutableObservableValue<String> name = context.mutable("user.name", String.class, "Initial");
-        XmlMutableObservableValue<Boolean> shown = context.mutable("ui.showSettings", Boolean.class, true);
-        XmlMutableObservableValue<Float> gamma = context.mutable("settings.gamma", Float.class, 0.25f);
+        XamlBindingContext context = XamlBindingContext.empty();
+        XamlMutableObservableValue<String> name = context.mutable("user.name", String.class, "Initial");
+        XamlMutableObservableValue<Boolean> shown = context.mutable("ui.showSettings", Boolean.class, true);
+        XamlMutableObservableValue<Float> gamma = context.mutable("settings.gamma", Float.class, 0.25f);
 
         LoadedScreen<VBox> screen = Xaml.loadScreen("""
                 <VBox id="root" visible="{Binding ui.showSettings}">
@@ -573,19 +571,19 @@ final class XamlLoaderTest {
         assertEquals("Updated", label.text(), "closing the screen unsubscribes every binding");
         assertTrue(screen.bindingSession().closed());
 
-        XmlBindingContext other = XmlBindingContext.empty();
+        XamlBindingContext other = XamlBindingContext.empty();
         other.mutable("settings.gamma", Float.class, 0.5f);
         LoadedScreen<Label> mismatch = Xaml.loadScreen("<Label text=\"{Binding settings.gamma}\" />",
                 Label.class, LoadOptions.DEFAULT.bindingContext(other));
         assertEquals(1, mismatch.bindingSession().diagnostics().size());
-        assertEquals(XmlBindingStatus.State.ERROR, mismatch.bindingSession().diagnostics().get(0).state());
+        assertEquals(XamlBindingStatus.State.ERROR, mismatch.bindingSession().diagnostics().get(0).state());
         mismatch.close();
     }
 
     @Test
     void bindingModesAndErrors() {
-        XmlBindingContext context = XmlBindingContext.empty();
-        XmlMutableObservableValue<String> name = context.mutable("user.name", String.class, "first");
+        XamlBindingContext context = XamlBindingContext.empty();
+        XamlMutableObservableValue<String> name = context.mutable("user.name", String.class, "first");
         LoadOptions options = LoadOptions.DEFAULT.bindingContext(context);
 
         Label once = Xaml.load("<Label text=\"{Binding Path=user.name, Mode=OneTime}\" />", Label.class, options);
@@ -657,7 +655,7 @@ final class XamlLoaderTest {
         Label label = Xaml.load("<Label><Label.Text>From element</Label.Text></Label>", Label.class);
         assertEquals("From element", label.text());
 
-        XmlBindingContext context = XmlBindingContext.empty();
+        XamlBindingContext context = XamlBindingContext.empty();
         context.mutable("user.name", String.class, "bound");
         Label bound = Xaml.load("<Label><Label.Text>{Binding user.name}</Label.Text></Label>", Label.class,
                 LoadOptions.DEFAULT.bindingContext(context));

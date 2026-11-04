@@ -17,8 +17,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
@@ -69,7 +69,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
         code = "<key:wrap.panel.example.chips.code>", order = 10)
 @WikiLink(label = "LinearBox", target = "page:linear-box")
 @WikiLink(label = "FlexBox", target = "page:flex-box")
-@XmlWidgetName("WrapPanel")
+@XamlWidget("WrapPanel")
 public final class WrapPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WRAP_PANEL;
 
@@ -101,7 +101,7 @@ public final class WrapPanel extends PanelWidget {
      * @param orientation новая ориентация; {@code null} трактуется как {@link Orientation#HORIZONTAL}
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Main axis used before wrapping children.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Main axis used before wrapping children.")
     @WikiMethod(order = 20, title = "<key:wrap.panel.method.orientation.title>", summary = "<key:wrap.panel.method.orientation.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 20, summary = "Sets flow orientation (HORIZONTAL rows or VERTICAL columns).")
@@ -129,7 +129,7 @@ public final class WrapPanel extends PanelWidget {
      * @param spacing spacing в пикселях UI-пространства; невалидные значения заменяются на {@code 0}
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between children within one wrap line.")
+    @XamlProperty(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between children within one wrap line.")
     @WikiMethod(order = 30, title = "<key:wrap.panel.method.spacing.title>", summary = "<key:wrap.panel.method.spacing.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets spacing between items along flow line.")
@@ -157,7 +157,7 @@ public final class WrapPanel extends PanelWidget {
      * @param lineSpacing line spacing в пикселях UI-пространства; невалидные значения заменяются на {@code 0}
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "lineSpacing", category = "Layout", defaultValue = "0", description = "Gap between wrapped lines.")
+    @XamlProperty(value = "lineSpacing", category = "Layout", defaultValue = "0", description = "Gap between wrapped lines.")
     @WikiMethod(order = 40, title = "<key:wrap.panel.method.line_spacing.title>", summary = "<key:wrap.panel.method.line_spacing.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 40, summary = "Sets spacing between wrapped lines/columns.")

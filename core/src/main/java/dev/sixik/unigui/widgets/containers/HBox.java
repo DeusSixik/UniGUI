@@ -10,7 +10,7 @@ import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 /**
  * Горизонтальный shorthand для {@link LinearBox}.
@@ -57,7 +57,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 @WikiLink(label = "VBox", target = "page:vbox")
 @WikiLink(label = "LinearBox", target = "page:linear-box")
 @WikiLink(label = "PanelRowWidget", target = "page:panel-row-widget")
-@XmlWidgetName("HBox")
+@XamlWidget("HBox")
 public final class HBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.HBOX;
 

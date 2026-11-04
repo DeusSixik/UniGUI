@@ -12,8 +12,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.display.Label;
 
 /**
@@ -64,7 +64,7 @@ import dev.sixik.unigui.widgets.display.Label;
 @WikiLink(label = "PanelRowWidget", target = "page:panel-row-widget")
 @WikiLink(label = "VBox", target = "page:vbox")
 @WikiLink(label = "Box", target = "page:box")
-@XmlWidgetName("SettingRow")
+@XamlWidget("SettingRow")
 public class SettingRow extends PanelRowWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SETTING_ROW;
 
@@ -138,7 +138,7 @@ public class SettingRow extends PanelRowWidget {
      * @param labelText новый текст подписи
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "labelText", category = "Content", defaultValue = "", description = "Plain text shown in the setting label.")
+    @XamlProperty(value = "labelText", category = "Content", defaultValue = "", description = "Plain text shown in the setting label.")
     @WikiMethod(order = 20, title = "<key:setting.row.method.label_text.title>", summary = "<key:setting.row.method.label_text>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Components", sectionOrder = 10, order = 20, summary = "Sets plain text for setting label.")
@@ -194,14 +194,14 @@ public class SettingRow extends PanelRowWidget {
     }
 
     @Override
-    @XmlAttribute(value = "rowHeight", category = "Layout", defaultValue = "24", description = "Preferred row height or auto.")
+    @XamlProperty(value = "rowHeight", category = "Layout", defaultValue = "24", description = "Preferred row height or auto.")
     public SettingRow rowHeight(float rowHeight) {
         super.rowHeight(rowHeight);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "gap", category = "Layout", defaultValue = "8", description = "Gap between label and control groups.")
+    @XamlProperty(value = "gap", category = "Layout", defaultValue = "8", description = "Gap between label and control groups.")
     public SettingRow gap(float gap) {
         super.gap(gap);
         return this;
@@ -222,7 +222,7 @@ public class SettingRow extends PanelRowWidget {
      * @param controlWidth ширина control'а или {@link LayoutConstraints#AUTO}
      * @return эта строка для fluent-настройки
      */
-    @XmlAttribute(value = "controlWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right-side control group.")
+    @XamlProperty(value = "controlWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right-side control group.")
     @WikiMethod(order = 40, title = "<key:setting.row.method.control_width.title>", summary = "<key:setting.row.method.control_width>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Sizing", sectionOrder = 20, order = 40, summary = "Sets preferred width for right control group.")
@@ -242,28 +242,28 @@ public class SettingRow extends PanelRowWidget {
     }
 
     @Override
-    @XmlAttribute(value = "rightWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right widget group.")
+    @XamlProperty(value = "rightWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the right widget group.")
     public SettingRow rightWidth(float rightWidth) {
         super.rightWidth(rightWidth);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "leftWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the label group.")
+    @XamlProperty(value = "leftWidth", category = "Layout", defaultValue = "auto", description = "Preferred width of the label group.")
     public SettingRow leftWidth(float leftWidth) {
         super.leftWidth(leftWidth);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "leftGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the label group.")
+    @XamlProperty(value = "leftGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the label group.")
     public SettingRow leftGap(float leftGap) {
         super.leftGap(leftGap);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "rightGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the control group.")
+    @XamlProperty(value = "rightGap", category = "Layout", defaultValue = "8", description = "Gap between widgets in the control group.")
     public SettingRow rightGap(float rightGap) {
         super.rightGap(rightGap);
         return this;

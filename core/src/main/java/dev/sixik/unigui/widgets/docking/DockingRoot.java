@@ -41,8 +41,8 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
@@ -107,7 +107,7 @@ import dev.sixik.unigui.api.style.Style;
         target = "page:dock-theme",
         description = "<key:dock.theme.summary>"
 )
-@XmlWidgetName("DockingRoot")
+@XamlWidget("DockingRoot")
 public final class DockingRoot extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCKING_ROOT;
 
@@ -276,7 +276,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Sets whether floating dock windows may move outside root host bounds.")
     @WikiMethod(summary = "<key:docking.root.method.allowFloatingOutsideHostSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "allowFloatingOutsideHost", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows may move outside the root host bounds.")
+    @XamlProperty(value = "allowFloatingOutsideHost", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows may move outside the root host bounds.")
     public DockingRoot allowFloatingOutsideHost(
             @WikiParameter(description = "<key:docking.root.param.allowFloatingOutsideHost>")
             boolean allowFloatingOutsideHost
@@ -312,7 +312,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Enables or disables automatic tear-off of tabs into floating windows when dropped outside dock zones.")
     @WikiMethod(summary = "<key:docking.root.method.tearOffOnDragOutSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "tearOffOnDragOut", category = "Behavior", defaultValue = "true", description = "Whether dropping a dragged pane outside all zones tears it off into a floating window.")
+    @XamlProperty(value = "tearOffOnDragOut", category = "Behavior", defaultValue = "true", description = "Whether dropping a dragged pane outside all zones tears it off into a floating window.")
     public DockingRoot tearOffOnDragOut(
             @WikiParameter(description = "<key:docking.root.param.tearOffOnDragOut>")
             boolean tearOffOnDragOut
@@ -332,7 +332,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Locks or unlocks redocking capability for floating windows.")
     @WikiMethod(summary = "<key:docking.root.method.floatingWindowsRedockLockedSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "floatingWindowsRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows are prevented from redocking.")
+    @XamlProperty(value = "floatingWindowsRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows are prevented from redocking.")
     public DockingRoot floatingWindowsRedockLocked(
             @WikiParameter(description = "<key:docking.root.param.floatingWindowsRedockLocked>")
             boolean floatingWindowsRedockLocked
@@ -531,7 +531,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Sets the height of tab strips in pixels.")
     @WikiMethod(summary = "<key:docking.root.method.tabHeightSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "tabHeight", category = "Layout", defaultValue = "22", description = "Dock tab strip height in UI pixels.")
+    @XamlProperty(value = "tabHeight", category = "Layout", defaultValue = "22", description = "Dock tab strip height in UI pixels.")
     public DockingRoot tabHeight(
             @WikiParameter(description = "<key:docking.root.param.tabHeight>")
             float tabHeight
@@ -553,7 +553,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Sets the split handle thickness in pixels.")
     @WikiMethod(summary = "<key:docking.root.method.splitHandleThicknessSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "splitHandleThickness", category = "Layout", defaultValue = "5", description = "Dock split handle thickness in UI pixels.")
+    @XamlProperty(value = "splitHandleThickness", category = "Layout", defaultValue = "5", description = "Dock split handle thickness in UI pixels.")
     public DockingRoot splitHandleThickness(
             @WikiParameter(description = "<key:docking.root.param.splitThickness>")
             float splitHandleThickness
@@ -575,7 +575,7 @@ public final class DockingRoot extends Box {
     @AiDoc(summary = "Sets the visual rendering style of split handles (BLOCK or SEAM).")
     @WikiMethod(summary = "<key:docking.root.method.splitHandleStyleSet>")
     @WikiReturn("<key:docking.root.return.this>")
-    @XmlAttribute(value = "splitHandleStyle", category = "Appearance", defaultValue = "block", description = "Split handle visual style: block with a centre line or shared seam line.")
+    @XamlProperty(value = "splitHandleStyle", category = "Appearance", defaultValue = "block", description = "Split handle visual style: block with a centre line or shared seam line.")
     public DockingRoot splitHandleStyle(
             @WikiParameter(description = "<key:docking.root.param.splitHandleStyle>")
             SplitHandleStyle splitHandleStyle

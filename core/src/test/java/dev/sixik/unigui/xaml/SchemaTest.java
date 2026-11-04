@@ -3,7 +3,6 @@ package dev.sixik.unigui.xaml;
 import dev.sixik.unigui.api.layout.SizeValue;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -47,7 +46,7 @@ final class SchemaTest {
             return importance;
         }
 
-        @XmlAttribute(value = "importance", category = "Behavior", defaultValue = "0", description = "Sort priority.")
+        @XamlProperty(value = "importance", category = "Behavior", defaultValue = "0", description = "Sort priority.")
         public Badge importance(float importance) {
             this.importance = importance;
             return this;
@@ -57,13 +56,13 @@ final class SchemaTest {
             return active;
         }
 
-        @XmlAttribute(value = "active", category = "Behavior", defaultValue = "false")
+        @XamlProperty(value = "active", category = "Behavior", defaultValue = "false")
         public Badge active(boolean active) {
             this.active = active;
             return this;
         }
 
-        @XmlAttribute(value = "tone", category = "Content", defaultValue = "info")
+        @XamlProperty(value = "tone", category = "Content", defaultValue = "info")
         public Badge tone(Tone tone) {
             this.tone = tone == null ? Tone.INFO : tone;
             return this;
@@ -73,14 +72,14 @@ final class SchemaTest {
             return tone;
         }
 
-        @XmlAttribute(value = "accent", category = "Appearance", defaultValue = "#FFFFFFFF")
+        @XamlProperty(value = "accent", category = "Appearance", defaultValue = "#FFFFFFFF")
         public Badge accent(MutableColor accent) {
             this.accent.set(accent);
             return this;
         }
 
         /** Тип параметра не поддержан: атрибут должен быть молча пропущен, а не ронять сканер. */
-        @XmlAttribute("unsupported")
+        @XamlProperty("unsupported")
         public Badge unsupported(Object value) {
             return this;
         }
@@ -98,7 +97,7 @@ final class SchemaTest {
 
         /** Аннотация потомка перекрывает аннотацию предка. */
         @Override
-        @XmlAttribute(value = "importance", category = "Appearance", defaultValue = "99")
+        @XamlProperty(value = "importance", category = "Appearance", defaultValue = "99")
         public Badge importance(float importance) {
             return super.importance(importance * 2);
         }
@@ -315,7 +314,7 @@ final class SchemaTest {
                 () -> property(type, "onClick").apply(button, "missing", CONTEXT), "unknown command");
 
         AtomicInteger executed = new AtomicInteger();
-        var commands = dev.sixik.unigui.api.xml.XmlCommandRegistry.empty()
+        var commands = dev.sixik.unigui.xaml.bind.XamlCommandRegistry.empty()
                 .register("save", (source, event) -> executed.incrementAndGet());
         LoadContext context = new LoadContext(null, commands);
         property(type, "onClick").apply(button, "save", context);

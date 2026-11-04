@@ -2,7 +2,7 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -41,7 +41,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:canvas.widget.example.basic.title>",
         code = "<key:canvas.widget.example.basic.code>",
         order = 10)
-@XmlWidgetName("CanvasWidget")
+@XamlWidget("CanvasWidget")
 public final class CanvasWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CANVAS_WIDGET;
 

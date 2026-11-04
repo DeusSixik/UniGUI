@@ -2,7 +2,7 @@ package dev.sixik.unigui.xaml.load;
 
 import dev.sixik.unigui.api.core.UIScaleProvider;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlBindingSession;
+import dev.sixik.unigui.xaml.bind.XamlBindingSession;
 
 /**
  * Результат загрузки: корневой виджет, настройки масштаба экрана и сессия привязок.
@@ -20,12 +20,12 @@ public record LoadedScreen<T extends Widget>(
         T root,
         UIScaleProvider scaleProvider,
         boolean scaleWithMinecraftGui,
-        XmlBindingSession bindingSession) implements AutoCloseable {
+        XamlBindingSession bindingSession) implements AutoCloseable {
 
     public LoadedScreen {
         if (root == null) throw new IllegalArgumentException("screen root must not be null");
         scaleProvider = scaleProvider == null ? UIScaleProvider.IDENTITY : scaleProvider;
-        bindingSession = bindingSession == null ? new XmlBindingSession() : bindingSession;
+        bindingSession = bindingSession == null ? new XamlBindingSession() : bindingSession;
     }
 
     @Override

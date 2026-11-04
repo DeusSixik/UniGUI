@@ -5,8 +5,8 @@ import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.text.InlineContentResolverScope;
 import dev.sixik.unigui.api.text.InlineContentResolvers;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlBindingContext;
-import dev.sixik.unigui.api.xml.XmlBindingSession;
+import dev.sixik.unigui.xaml.bind.XamlBindingContext;
+import dev.sixik.unigui.xaml.bind.XamlBindingSession;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.xaml.SourceLocation;
@@ -132,9 +132,9 @@ public final class XamlLoader {
 
     /** Один прогон загрузки: всё изменяемое состояние живёт здесь. */
     private final class Run {
-        private final XmlBindingSession session = new XmlBindingSession();
-        private final XmlBindingContext bindings = options.bindingContext() == null
-                ? XmlBindingContext.empty() : options.bindingContext();
+        private final XamlBindingSession session = new XamlBindingSession();
+        private final XamlBindingContext bindings = options.bindingContext() == null
+                ? XamlBindingContext.empty() : options.bindingContext();
         private final LoadContext load = new LoadContext(options.textureResolver(), options.commands());
         private final Map<String, Widget> ids = new HashMap<>();
 

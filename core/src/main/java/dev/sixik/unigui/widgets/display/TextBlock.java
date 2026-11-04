@@ -2,8 +2,8 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
@@ -44,7 +44,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:text.block.example.basic.title>",
         code = "<key:text.block.example.basic.code>",
         order = 10)
-@XmlWidgetName("TextBlock")
+@XamlWidget("TextBlock")
 public final class TextBlock extends TextWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_BLOCK;
 
@@ -63,7 +63,7 @@ public final class TextBlock extends TextWidget {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the text block.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the text block.")
     public TextBlock text(String text) {
         super.text(text);
         return this;

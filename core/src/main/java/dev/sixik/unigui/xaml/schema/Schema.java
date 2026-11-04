@@ -1,7 +1,7 @@
 package dev.sixik.unigui.xaml.schema;
 
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -121,7 +121,7 @@ public final class Schema {
     }
 
     /**
-     * Определяет тип по аннотациям {@code @XmlWidgetName} и {@code @XmlAttribute} на классе виджета.
+     * Определяет тип по аннотациям {@code @XamlWidget} и {@code @XamlProperty} на классе виджета.
      *
      * <p>Класс должен иметь конструктор без аргументов; для остальных случаев используйте перегрузку с
      * фабрикой. Контейнеры ({@code PanelWidget}) получают слот {@code Children}, {@code ScrollView} — слот
@@ -138,16 +138,16 @@ public final class Schema {
     /**
      * Определяет аннотированный тип с явной фабрикой экземпляров.
      *
-     * @param type    класс виджета с {@code @XmlWidgetName}
+     * @param type    класс виджета с {@code @XamlWidget}
      * @param factory фабрика
      * @param <T>     тип виджета
      * @return этот реестр
-     * @throws IllegalArgumentException если на классе нет {@code @XmlWidgetName}
+     * @throws IllegalArgumentException если на классе нет {@code @XamlWidget}
      */
     public <T extends Widget> Schema defineAnnotated(Class<T> type, Supplier<T> factory) {
-        XmlWidgetName annotation = type.getAnnotation(XmlWidgetName.class);
+        XamlWidget annotation = type.getAnnotation(XamlWidget.class);
         if (annotation == null || annotation.value().isBlank()) {
-            throw new IllegalArgumentException("Missing @XmlWidgetName on " + type.getName());
+            throw new IllegalArgumentException("Missing @XamlWidget on " + type.getName());
         }
         String name = annotation.value().trim();
         return define(name, () -> {

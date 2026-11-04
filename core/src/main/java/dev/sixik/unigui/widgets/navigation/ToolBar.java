@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.editor.EditorCommand;
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -51,7 +51,7 @@ import java.util.Optional;
         target = "page:menu-bar",
         description = "<key:menu.bar.summary>"
 )
-@XmlWidgetName("ToolBar")
+@XamlWidget("ToolBar")
 public final class ToolBar extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BAR;
 

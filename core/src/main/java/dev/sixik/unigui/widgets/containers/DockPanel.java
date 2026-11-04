@@ -15,8 +15,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3DockAdapter;
 import dev.sixik.unigui.widgets.docking.DockArea;
 import dev.sixik.unigui.widgets.docking.DockingManager;
@@ -77,7 +77,7 @@ import java.util.Map;
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @WikiLink(label = "SplitPanel", target = "page:split-panel")
 @WikiLink(label = "Box", target = "page:box")
-@XmlWidgetName("DockPanel")
+@XamlWidget("DockPanel")
 public final class DockPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCK_PANEL;
 
@@ -144,7 +144,7 @@ public final class DockPanel extends PanelWidget {
      * @param lastChildFill {@code true}, чтобы последний ребёнок занимал остаток области
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "lastChildFill", category = "Layout", defaultValue = "true", description = "Whether the last child fills the remaining dock area.")
+    @XamlProperty(value = "lastChildFill", category = "Layout", defaultValue = "true", description = "Whether the last child fills the remaining dock area.")
     @WikiMethod(order = 30, title = "<key:dock.panel.method.last_child_fill.title>", summary = "<key:dock.panel.method.last_child_fill>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 10, order = 30, summary = "Controls whether the last child expands to occupy remaining space.")

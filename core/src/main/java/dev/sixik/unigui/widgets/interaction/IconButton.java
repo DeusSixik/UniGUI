@@ -8,7 +8,7 @@ import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 /** Icon-only toolbar button convenience wrapper. */
 @AiDoc(
@@ -35,7 +35,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
         order = 10
 )
 @WikiLink(label = "ToolButton", target = "page:tool-button")
-@XmlWidgetName("IconButton")
+@XamlWidget("IconButton")
 public final class IconButton extends ToolButton {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.ICON_BUTTON;
 

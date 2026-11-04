@@ -30,8 +30,8 @@ import dev.sixik.unigui.api.utils.reactive.SignalSubscription;
 import dev.sixik.unigui.api.utils.reactive.StringSignal;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 
@@ -74,7 +74,7 @@ import java.util.Objects;
 )
 @WikiLink(label = "TextField", target = "page:text-field")
 @WikiLink(label = "TextArea", target = "page:text-area")
-@XmlWidgetName("TextInput")
+@XamlWidget("TextInput")
 public class TextInput extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXT_INPUT;
 
@@ -192,7 +192,7 @@ public class TextInput extends Box {
         return editor.text();
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable text value.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable text value.")
     public TextInput text(String text) {
         editor.text(normalize(text));
         return this;
@@ -202,7 +202,7 @@ public class TextInput extends Box {
         return placeholder;
     }
 
-    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
+    @XamlProperty(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
     public TextInput placeholder(String placeholder) {
         String normalized = normalize(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;
@@ -225,7 +225,7 @@ public class TextInput extends Box {
         return editor.cursorIndex();
     }
 
-    @XmlAttribute(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
+    @XamlProperty(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
     public TextInput cursorIndex(int cursorIndex) {
         if (editor.cursorIndex(cursorIndex)) {
             invalidate(InvalidationFlags.VISUAL);
@@ -271,7 +271,7 @@ public class TextInput extends Box {
         return editor.maxLength();
     }
 
-    @XmlAttribute(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
+    @XamlProperty(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
     public TextInput maxLength(int maxLength) {
         if (editor.maxLength(maxLength)) {
             invalidate(InvalidationFlags.VISUAL);
@@ -339,7 +339,7 @@ public class TextInput extends Box {
         return visualOnlyTextChanges;
     }
 
-    @XmlAttribute(value = "visualOnlyTextChanges", category = "Behavior", defaultValue = "false", description = "Whether text changes invalidate visuals only instead of layout.")
+    @XamlProperty(value = "visualOnlyTextChanges", category = "Behavior", defaultValue = "false", description = "Whether text changes invalidate visuals only instead of layout.")
     public TextInput visualOnlyTextChanges(boolean visualOnlyTextChanges) {
         if (this.visualOnlyTextChanges == visualOnlyTextChanges) return this;
         this.visualOnlyTextChanges = visualOnlyTextChanges;
@@ -366,7 +366,7 @@ public class TextInput extends Box {
      * @param textPaddingLeft новый отступ, отрицательные клампятся к нулю
      * @return этот виджет для chained-настройки
      */
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public TextInput textPaddingLeft(float textPaddingLeft) {
         float normalized = Float.isFinite(textPaddingLeft) ? Math.max(0.0f, textPaddingLeft) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingLeft == normalized && explicitTextPadding) return this;
@@ -391,7 +391,7 @@ public class TextInput extends Box {
      * @param textPaddingRight новый отступ, отрицательные клампятся к нулю
      * @return этот виджет для chained-настройки
      */
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public TextInput textPaddingRight(float textPaddingRight) {
         float normalized = Float.isFinite(textPaddingRight) ? Math.max(0.0f, textPaddingRight) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingRight == normalized && explicitTextPadding) return this;
@@ -410,7 +410,7 @@ public class TextInput extends Box {
      * @param textPaddingX новый отступ с обеих сторон
      * @return этот виджет для chained-настройки
      */
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public TextInput textPaddingX(float textPaddingX) {
         float normalized = Float.isFinite(textPaddingX) ? Math.max(0.0f, textPaddingX) : DEFAULT_TEXT_PADDING_X;
         if (this.textPaddingLeft == normalized && this.textPaddingRight == normalized && explicitTextPadding) return this;

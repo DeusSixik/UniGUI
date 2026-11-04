@@ -11,8 +11,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.cleanroom.backend.CleanroomResourceListing;
 import dev.sixik.unigui.cleanroom.backend.CleanroomTextureHandle;
 import dev.sixik.unigui.cleanroom.backend.MinecraftFonts;
@@ -33,7 +33,7 @@ import java.util.Optional;
  * <p>1.12.2 has no resource-listing API, so the list is built by scanning the {@code assets/<namespace>/textures}
  * folders of the game jar, the mods and the active resource packs (see {@link CleanroomResourceListing}).</p>
  */
-@XmlWidgetName("MinecraftTexturePickerWidget")
+@XamlWidget("MinecraftTexturePickerWidget")
 public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<MinecraftTexturePickerWidget.TextureEntry> {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_TEXTURE_PICKER_WIDGET;
 
@@ -143,7 +143,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     @Override
-    @XmlAttribute(value = "query", category = "Behavior", defaultValue = "", description = "Initial search query used to filter textures.")
+    @XamlProperty(value = "query", category = "Behavior", defaultValue = "", description = "Initial search query used to filter textures.")
     public MinecraftTexturePickerWidget query(String query) {
         super.query(query);
         return this;
@@ -156,14 +156,14 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
     }
 
     @Override
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected texture index.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected texture index.")
     public MinecraftTexturePickerWidget selectIndex(int index) {
         super.selectIndex(index);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "selectedFilteredIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected index in the filtered texture list.")
+    @XamlProperty(value = "selectedFilteredIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected index in the filtered texture list.")
     public MinecraftTexturePickerWidget selectFilteredIndex(int filteredIndex) {
         super.selectFilteredIndex(filteredIndex);
         return this;

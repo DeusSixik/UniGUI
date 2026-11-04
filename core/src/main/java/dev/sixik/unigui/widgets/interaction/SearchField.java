@@ -26,8 +26,8 @@ import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -58,7 +58,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         order = 10
 )
 @WikiLink(label = "TextInput", target = "page:text-input")
-@XmlWidgetName("SearchField")
+@XamlWidget("SearchField")
 public class SearchField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.SEARCH_FIELD;
 
@@ -116,7 +116,7 @@ public class SearchField extends TextInput {
         return searchChangeDebounceSeconds;
     }
 
-    @XmlAttribute(value = "searchChangeDebounceSeconds", category = "Behavior", defaultValue = "0.25", description = "Delay before emitting search-change events.")
+    @XamlProperty(value = "searchChangeDebounceSeconds", category = "Behavior", defaultValue = "0.25", description = "Delay before emitting search-change events.")
     public SearchField searchChangeDebounceSeconds(float seconds) {
         float normalized = Float.isFinite(seconds) ? Math.max(0.0f, seconds) : 0.25f;
         this.searchChangeDebounceSeconds = normalized;
@@ -139,21 +139,21 @@ public class SearchField extends TextInput {
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public SearchField textPaddingX(float textPaddingX) {
         super.textPaddingX(textPaddingX);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public SearchField textPaddingLeft(float textPaddingLeft) {
         super.textPaddingLeft(textPaddingLeft);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public SearchField textPaddingRight(float textPaddingRight) {
         super.textPaddingRight(textPaddingRight);
         return this;

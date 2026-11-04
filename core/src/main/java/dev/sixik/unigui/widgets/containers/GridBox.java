@@ -17,8 +17,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
 
@@ -61,7 +61,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
         code = "<key:grid.box.example.basic.code>", order = 10)
 @WikiLink(label = "LayoutStyle", target = "page:layout-style")
 @WikiLink(label = "FlexBox", target = "page:flex-box")
-@XmlWidgetName("GridBox")
+@XamlWidget("GridBox")
 public final class GridBox extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRID_BOX;
 
@@ -84,7 +84,7 @@ public final class GridBox extends PanelWidget {
      * @param columns желаемое количество колонок; значения меньше {@code 1} приводятся к {@code 1}
      * @return эта сетка для fluent-настройки
      */
-    @XmlAttribute(value = "columns", category = "Layout", defaultValue = "1", description = "Number of grid columns.")
+    @XamlProperty(value = "columns", category = "Layout", defaultValue = "1", description = "Number of grid columns.")
     @WikiMethod(order = 10, title = "<key:grid.box.method.columns.title>", summary = "<key:grid.box.method.columns.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 10, order = 10, summary = "Sets fixed number of columns for grid arrangement.")
@@ -151,7 +151,7 @@ public final class GridBox extends PanelWidget {
      * @param horizontalSpacing расстояние между колонками в пикселях UI-пространства
      * @return эта сетка для fluent-настройки
      */
-    @XmlAttribute(value = "horizontalSpacing", category = "Layout", defaultValue = "0", description = "Horizontal gap between grid columns.")
+    @XamlProperty(value = "horizontalSpacing", category = "Layout", defaultValue = "0", description = "Horizontal gap between grid columns.")
     @WikiMethod(order = 30, title = "<key:grid.box.method.horizontal_spacing.title>", summary = "<key:grid.box.method.horizontal_spacing.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 10, order = 30, summary = "Sets horizontal gap between columns.")
@@ -177,7 +177,7 @@ public final class GridBox extends PanelWidget {
      * @param verticalSpacing расстояние между строками в пикселях UI-пространства
      * @return эта сетка для fluent-настройки
      */
-    @XmlAttribute(value = "verticalSpacing", category = "Layout", defaultValue = "0", description = "Vertical gap between grid rows.")
+    @XamlProperty(value = "verticalSpacing", category = "Layout", defaultValue = "0", description = "Vertical gap between grid rows.")
     @WikiMethod(order = 40, title = "<key:grid.box.method.vertical_spacing.title>", summary = "<key:grid.box.method.vertical_spacing.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 10, order = 40, summary = "Sets vertical gap between rows.")

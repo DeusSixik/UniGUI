@@ -1,9 +1,7 @@
 package dev.sixik.unigui.xaml.load;
 
-import dev.sixik.unigui.api.xml.XmlBindingContext;
-import dev.sixik.unigui.api.xml.XmlCommandRegistry;
-import dev.sixik.unigui.api.xml.XmlTextureResolver;
-import dev.sixik.unigui.api.xml.XmlWidgetOptions;
+import dev.sixik.unigui.xaml.bind.XamlBindingContext;
+import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
 
 /**
  * Настройки загрузки документа.
@@ -21,17 +19,17 @@ import dev.sixik.unigui.api.xml.XmlWidgetOptions;
 public record LoadOptions(
         boolean strictAttributes,
         int maxDepth,
-        XmlTextureResolver textureResolver,
-        XmlCommandRegistry commands,
-        XmlBindingContext bindingContext,
+        XamlTextureResolver textureResolver,
+        XamlCommandRegistry commands,
+        XamlBindingContext bindingContext,
         MarkupExtensionRegistry extensions) {
     /** Строгая загрузка, глубина 128, всё остальное по умолчанию. */
     public static final LoadOptions DEFAULT = new LoadOptions(true, 128, null, null, null, null);
 
     public LoadOptions {
         if (maxDepth < 0) throw new IllegalArgumentException("maxDepth must not be negative");
-        textureResolver = textureResolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : textureResolver;
-        commands = commands == null ? XmlWidgetOptions.DEFAULT_COMMANDS : commands;
+        textureResolver = textureResolver == null ? XamlTextureResolver.DEFAULT : textureResolver;
+        commands = commands == null ? XamlCommandRegistry.none() : commands;
         extensions = extensions == null ? MarkupExtensionRegistry.DEFAULT : extensions;
     }
 
@@ -53,15 +51,15 @@ public record LoadOptions(
         return new LoadOptions(strictAttributes, value, textureResolver, commands, bindingContext, extensions);
     }
 
-    public LoadOptions textureResolver(XmlTextureResolver value) {
+    public LoadOptions textureResolver(XamlTextureResolver value) {
         return new LoadOptions(strictAttributes, maxDepth, value, commands, bindingContext, extensions);
     }
 
-    public LoadOptions commands(XmlCommandRegistry value) {
+    public LoadOptions commands(XamlCommandRegistry value) {
         return new LoadOptions(strictAttributes, maxDepth, textureResolver, value, bindingContext, extensions);
     }
 
-    public LoadOptions bindingContext(XmlBindingContext value) {
+    public LoadOptions bindingContext(XamlBindingContext value) {
         return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, value, extensions);
     }
 

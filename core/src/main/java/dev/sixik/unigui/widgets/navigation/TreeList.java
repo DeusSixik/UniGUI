@@ -10,7 +10,7 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 
 @AiDoc(summary = "Specialized TreeView for hierarchical path navigation and directory listing.")
@@ -34,7 +34,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
         target = "page:tree-view",
         description = "<key:tree.view.summary>"
 )
-@XmlWidgetName("TreeList")
+@XamlWidget("TreeList")
 public class TreeList extends TreeView {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_LIST;
 

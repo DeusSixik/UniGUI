@@ -1,6 +1,6 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:tree.list.picker.example.basic.title>",
         code = "<key:tree.list.picker.example.basic.code>",
         order = 10)
-@XmlWidgetName("TreeListPicker")
+@XamlWidget("TreeListPicker")
 public final class TreeListPicker<T> extends ComboBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_LIST_PICKER;
 

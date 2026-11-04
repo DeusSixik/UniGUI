@@ -61,7 +61,7 @@ public final class SchemaContributions {
     /**
      * Регистрирует аннотированный виджет.
      *
-     * @param type класс с {@code @XmlWidgetName}
+     * @param type класс с {@code @XamlWidget}
      * @param <T>  тип виджета
      * @return закрывается, чтобы убрать расширение
      */
@@ -72,7 +72,7 @@ public final class SchemaContributions {
     /**
      * Регистрирует аннотированный виджет с явной фабрикой.
      *
-     * @param type    класс с {@code @XmlWidgetName}
+     * @param type    класс с {@code @XamlWidget}
      * @param factory фабрика
      * @param <T>     тип виджета
      * @return закрывается, чтобы убрать расширение

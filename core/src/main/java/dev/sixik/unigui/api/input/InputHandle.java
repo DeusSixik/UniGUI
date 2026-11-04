@@ -8,7 +8,6 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
-import dev.sixik.unigui.api.input.FocusDirection;
 import dev.sixik.unigui.api.widget.Widget;
 
 import java.util.Objects;

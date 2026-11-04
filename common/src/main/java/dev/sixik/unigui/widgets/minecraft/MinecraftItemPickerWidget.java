@@ -6,8 +6,8 @@ import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -29,7 +29,7 @@ import java.util.Optional;
 /**
  * Compact Minecraft item selector backed by the generic searchable grid picker.
  */
-@XmlWidgetName("MinecraftItemPickerWidget")
+@XamlWidget("MinecraftItemPickerWidget")
 public class MinecraftItemPickerWidget extends SearchableGridPickerWidget<MinecraftItemPickerWidget.ItemEntry> {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_ITEM_PICKER_WIDGET;
 
@@ -141,7 +141,7 @@ public class MinecraftItemPickerWidget extends SearchableGridPickerWidget<Minecr
     }
 
     @Override
-    @XmlAttribute(value = "query", category = "Behavior", defaultValue = "", description = "Initial search query used to filter items.")
+    @XamlProperty(value = "query", category = "Behavior", defaultValue = "", description = "Initial search query used to filter items.")
     public MinecraftItemPickerWidget query(String query) {
         super.query(query);
         return this;
@@ -154,14 +154,14 @@ public class MinecraftItemPickerWidget extends SearchableGridPickerWidget<Minecr
     }
 
     @Override
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected item index.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected item index.")
     public MinecraftItemPickerWidget selectIndex(int index) {
         super.selectIndex(index);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "selectedFilteredIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected index in the filtered item list.")
+    @XamlProperty(value = "selectedFilteredIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected index in the filtered item list.")
     public MinecraftItemPickerWidget selectFilteredIndex(int filteredIndex) {
         super.selectFilteredIndex(filteredIndex);
         return this;

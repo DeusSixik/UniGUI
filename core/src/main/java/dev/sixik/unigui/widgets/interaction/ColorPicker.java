@@ -16,8 +16,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -56,7 +56,7 @@ import java.util.List;
         title = "<key:color.picker.example.basic.title>",
         code = "<key:color.picker.example.basic.code>",
         order = 10)
-@XmlWidgetName("ColorPicker")
+@XamlWidget("ColorPicker")
 public final class ColorPicker extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COLOR_PICKER;
 
@@ -175,7 +175,7 @@ public final class ColorPicker extends LinearBox {
                 | channel(color.b());
     }
 
-    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Selected color parsed from XML color syntax.")
+    @XamlProperty(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Selected color parsed from XML color syntax.")
     @WikiMethod(
             title = "<key:color.picker.method.set_color.title>",
             summary = "<key:color.picker.method.set_color.summary>")
@@ -186,7 +186,7 @@ public final class ColorPicker extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "argb", category = "Appearance", defaultValue = "-1", description = "Selected color as packed ARGB integer.")
+    @XamlProperty(value = "argb", category = "Appearance", defaultValue = "-1", description = "Selected color as packed ARGB integer.")
     @WikiMethod(
             title = "<key:color.picker.method.set_argb.title>",
             summary = "<key:color.picker.method.set_argb.summary>")
@@ -218,7 +218,7 @@ public final class ColorPicker extends LinearBox {
         return type;
     }
 
-    @XmlAttribute(value = "type", category = "Behavior", defaultValue = "hsv", description = "Visible picker editing mode.")
+    @XamlProperty(value = "type", category = "Behavior", defaultValue = "hsv", description = "Visible picker editing mode.")
     @WikiMethod(
             title = "<key:color.picker.method.set_type.title>",
             summary = "<key:color.picker.method.set_type.summary>")

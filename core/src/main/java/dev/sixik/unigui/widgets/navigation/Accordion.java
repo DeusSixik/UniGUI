@@ -12,8 +12,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 
 import dev.sixik.unigui.api.event.EventSubscription;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -44,7 +44,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
         target = "page:expandable-panel",
         description = "<key:expandable.panel.summary>"
 )
-@XmlWidgetName("Accordion")
+@XamlWidget("Accordion")
 public class Accordion extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.ACCORDION;
 
@@ -67,7 +67,7 @@ public class Accordion extends LinearBox {
         return singleOpen;
     }
 
-    @XmlAttribute(value = "singleOpen", category = "Behavior", defaultValue = "true", description = "Whether opening one panel automatically collapses the others.")
+    @XamlProperty(value = "singleOpen", category = "Behavior", defaultValue = "true", description = "Whether opening one panel automatically collapses the others.")
         @AiDoc(summary = "Sets whether only a single panel may be expanded simultaneously.")
     @WikiMethod(summary = "<key:accordion.method.singleOpenSet>")
     @WikiReturn("<key:accordion.return.this>")

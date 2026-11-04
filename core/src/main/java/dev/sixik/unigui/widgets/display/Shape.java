@@ -6,8 +6,8 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -46,7 +46,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:shape.example.basic.title>",
         code = "<key:shape.example.basic.code>",
         order = 10)
-@XmlWidgetName("Shape")
+@XamlWidget("Shape")
 public class Shape extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.SHAPE;
 
@@ -89,7 +89,7 @@ public class Shape extends WidgetBase {
         return type;
     }
 
-    @XmlAttribute(value = "type", category = "Appearance", defaultValue = "rect", description = "Shape primitive type.")
+    @XamlProperty(value = "type", category = "Appearance", defaultValue = "rect", description = "Shape primitive type.")
     @WikiMethod(
             title = "<key:shape.method.type.title>",
             summary = "<key:shape.method.type.summary>")
@@ -105,7 +105,7 @@ public class Shape extends WidgetBase {
         return color;
     }
 
-    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Shape fill or stroke color parsed from XML color syntax.")
+    @XamlProperty(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Shape fill or stroke color parsed from XML color syntax.")
     @WikiMethod(
             title = "<key:shape.method.color.title>",
             summary = "<key:shape.method.color.summary>")
@@ -118,7 +118,7 @@ public class Shape extends WidgetBase {
         return stroke;
     }
 
-    @XmlAttribute(value = "stroke", category = "Appearance", defaultValue = "false", description = "Whether the shape is rendered as a stroke instead of a fill.")
+    @XamlProperty(value = "stroke", category = "Appearance", defaultValue = "false", description = "Whether the shape is rendered as a stroke instead of a fill.")
     @WikiMethod(
             title = "<key:shape.method.stroke.title>",
             summary = "<key:shape.method.stroke.summary>")
@@ -133,7 +133,7 @@ public class Shape extends WidgetBase {
         return strokeWidth;
     }
 
-    @XmlAttribute(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Stroke width in UI pixels.")
+    @XamlProperty(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Stroke width in UI pixels.")
     @WikiMethod(
             title = "<key:shape.method.stroke_width.title>",
             summary = "<key:shape.method.stroke_width.summary>")
@@ -149,7 +149,7 @@ public class Shape extends WidgetBase {
         return radius;
     }
 
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius for rounded rectangle rendering.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius for rounded rectangle rendering.")
     public Shape radius(float radius) {
         float normalized = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
         if (this.radius == normalized) return this;

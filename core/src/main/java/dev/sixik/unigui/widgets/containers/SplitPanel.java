@@ -17,8 +17,8 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3SplitAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
@@ -74,7 +74,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @WikiLink(label = "DockPanel", target = "page:dock-panel")
 @WikiLink(label = "HBox", target = "page:hbox")
-@XmlWidgetName("SplitPanel")
+@XamlWidget("SplitPanel")
 public class SplitPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPLIT_PANEL;
 
@@ -196,7 +196,7 @@ public class SplitPanel extends PanelWidget {
      * @param orientation новая ориентация; {@code null} трактуется как {@link Orientation#HORIZONTAL}
      * @return эта split-панель для fluent-настройки
      */
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Split axis; horizontal places slots left/right, vertical places top/bottom.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Split axis; horizontal places slots left/right, vertical places top/bottom.")
     @WikiMethod(order = 30, title = "<key:split.panel.method.orientation.title>", summary = "<key:split.panel.method.orientation>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets split orientation (HORIZONTAL or VERTICAL).")
@@ -247,7 +247,7 @@ public class SplitPanel extends PanelWidget {
      * @param splitRatio новая доля первого слота
      * @return эта split-панель для fluent-настройки
      */
-    @XmlAttribute(value = "splitRatio", category = "Layout", defaultValue = "0.5", description = "Fraction of available space assigned to the first slot.")
+    @XamlProperty(value = "splitRatio", category = "Layout", defaultValue = "0.5", description = "Fraction of available space assigned to the first slot.")
     public SplitPanel silentSplitRatio(float splitRatio) {
         return splitRatio(splitRatio);
     }
@@ -267,7 +267,7 @@ public class SplitPanel extends PanelWidget {
      * @param splitterThickness толщина в пикселях; минимум {@code 1}
      * @return эта split-панель для fluent-настройки
      */
-    @XmlAttribute(value = "splitterThickness", category = "Layout", defaultValue = "5", description = "Splitter thickness in UI pixels.")
+    @XamlProperty(value = "splitterThickness", category = "Layout", defaultValue = "5", description = "Splitter thickness in UI pixels.")
     public SplitPanel splitterThickness(float splitterThickness) {
         float normalized = Float.isFinite(splitterThickness) ? Math.max(1.0f, splitterThickness) : 5.0f;
         if (this.splitterThickness == normalized) return this;
@@ -291,7 +291,7 @@ public class SplitPanel extends PanelWidget {
      * @param minFirstSize минимальный размер; невалидные значения заменяются на {@code 0}
      * @return эта split-панель для fluent-настройки
      */
-    @XmlAttribute(value = "minFirstSize", category = "Layout", defaultValue = "32", description = "Minimum size of the first slot on the split axis.")
+    @XamlProperty(value = "minFirstSize", category = "Layout", defaultValue = "32", description = "Minimum size of the first slot on the split axis.")
     @WikiMethod(order = 50, title = "<key:split.panel.method.min_first_size.title>", summary = "<key:split.panel.method.min_first_size>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Constraints", sectionOrder = 30, order = 50, summary = "Sets minimum pixel size for first pane.")
@@ -316,7 +316,7 @@ public class SplitPanel extends PanelWidget {
      * @param minSecondSize минимальный размер; невалидные значения заменяются на {@code 0}
      * @return эта split-панель для fluent-настройки
      */
-    @XmlAttribute(value = "minSecondSize", category = "Layout", defaultValue = "32", description = "Minimum size of the second slot on the split axis.")
+    @XamlProperty(value = "minSecondSize", category = "Layout", defaultValue = "32", description = "Minimum size of the second slot on the split axis.")
     @WikiMethod(order = 60, title = "<key:split.panel.method.min_second_size.title>", summary = "<key:split.panel.method.min_second_size>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Constraints", sectionOrder = 30, order = 60, summary = "Sets minimum pixel size for second pane.")

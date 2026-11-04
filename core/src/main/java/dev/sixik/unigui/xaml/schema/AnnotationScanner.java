@@ -1,7 +1,7 @@
 package dev.sixik.unigui.xaml.schema;
 
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.xaml.XamlProperty;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -20,7 +20,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 
 /**
- * Находит {@link XmlAttribute}-setter-ы на классе виджета и превращает их в {@link PropertyInfo}.
+ * Находит {@link XamlProperty}-setter-ы на классе виджета и превращает их в {@link PropertyInfo}.
  *
  * <p>Отличия от прежнего reflection-кода: иерархия обходится через {@code getDeclaredMethods} (без
  * {@code getMethod} и {@code NoSuchMethodException} на каждый неаннотированный метод), а главное — разбор
@@ -96,7 +96,7 @@ final class AnnotationScanner {
                 continue;
             }
             if (parameters != 1 || !Modifier.isPublic(method.getModifiers())) continue;
-            XmlAttribute annotation = method.getAnnotation(XmlAttribute.class);
+            XamlProperty annotation = method.getAnnotation(XamlProperty.class);
             if (annotation == null || annotation.value().isBlank()) continue;
             ValueConverter<?> converter = Converters.forType(method.getParameterTypes()[0], supportsAutoFloat(annotation));
             if (converter == null) continue;
@@ -109,7 +109,7 @@ final class AnnotationScanner {
         @SuppressWarnings("unchecked")
         ValueConverter<V> converter = (ValueConverter<V>) candidate.converter;
         Method method = candidate.method;
-        XmlAttribute annotation = candidate.annotation;
+        XamlProperty annotation = candidate.annotation;
         Meta meta = Meta.of()
                 .displayName(annotation.displayName())
                 .withCategory(annotation.category())
@@ -175,7 +175,7 @@ final class AnnotationScanner {
         }
     }
 
-    private static boolean supportsAutoFloat(XmlAttribute annotation) {
+    private static boolean supportsAutoFloat(XamlProperty annotation) {
         return "auto".equalsIgnoreCase(annotation.defaultValue().trim())
                 || annotation.description().toLowerCase(Locale.ROOT).contains("or auto");
     }
@@ -193,7 +193,7 @@ final class AnnotationScanner {
         return type;
     }
 
-    private record Candidate(Method method, XmlAttribute annotation, ValueConverter<?> converter) {
+    private record Candidate(Method method, XamlProperty annotation, ValueConverter<?> converter) {
     }
 
     private record Declared(Map<String, Candidate> attributes, Map<String, Method> getters) {

@@ -15,8 +15,8 @@ import dev.sixik.unigui.api.style.*;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
@@ -45,7 +45,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
 )
 @WikiLink(label = "ToggleSwitch", target = "page:toggle-switch")
 @WikiLink(label = "RadioButton", target = "page:radio-button")
-@XmlWidgetName("Checkbox")
+@XamlWidget("Checkbox")
 public class Checkbox extends ToggleButton {
     /** Style type id для StylePack selector/binding. */
     public static final String STYLE_TYPE = StyleIds.Widget.CHECKBOX;
@@ -118,7 +118,7 @@ public class Checkbox extends ToggleButton {
         return this;
     }
 
-    @XmlAttribute(value = "state", category = "Behavior", defaultValue = "unchecked", description = "Initial checkbox state without emitting change events during XML load.")
+    @XamlProperty(value = "state", category = "Behavior", defaultValue = "unchecked", description = "Initial checkbox state without emitting change events during XML load.")
     public Checkbox silentState(CheckboxState state) {
         setState(state, false);
         return this;
@@ -136,7 +136,7 @@ public class Checkbox extends ToggleButton {
         return triState;
     }
 
-    @XmlAttribute(value = "triState", category = "Behavior", defaultValue = "false", description = "Allows cycling through checked, unchecked and indeterminate states.")
+    @XamlProperty(value = "triState", category = "Behavior", defaultValue = "false", description = "Allows cycling through checked, unchecked and indeterminate states.")
     public Checkbox triState(boolean triState) {
         this.triState = triState;
         return this;
@@ -146,7 +146,7 @@ public class Checkbox extends ToggleButton {
         return boxSize;
     }
 
-    @XmlAttribute(value = "boxSize", category = "Layout", defaultValue = "12", description = "Checkbox square size in UI pixels.")
+    @XamlProperty(value = "boxSize", category = "Layout", defaultValue = "12", description = "Checkbox square size in UI pixels.")
     public Checkbox boxSize(float boxSize) {
         float normalized = positiveOr(boxSize, BOX_SIZE);
         if (this.boxSize == normalized) return this;
@@ -160,7 +160,7 @@ public class Checkbox extends ToggleButton {
         return checkSize;
     }
 
-    @XmlAttribute(value = "checkSize", category = "Layout", defaultValue = "6", description = "Check mark size in UI pixels.")
+    @XamlProperty(value = "checkSize", category = "Layout", defaultValue = "6", description = "Check mark size in UI pixels.")
     public Checkbox checkSize(float checkSize) {
         float normalized = Math.min(positiveOr(checkSize, CHECK_SIZE), boxSize);
         if (this.checkSize == normalized) return this;
@@ -173,7 +173,7 @@ public class Checkbox extends ToggleButton {
         return textGap;
     }
 
-    @XmlAttribute(value = "textGap", category = "Layout", defaultValue = "4", description = "Gap between checkbox mark and label text.")
+    @XamlProperty(value = "textGap", category = "Layout", defaultValue = "4", description = "Gap between checkbox mark and label text.")
     public Checkbox textGap(float textGap) {
         float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
         if (this.textGap == normalized) return this;
@@ -186,7 +186,7 @@ public class Checkbox extends ToggleButton {
         return labelLeft;
     }
 
-    @XmlAttribute(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the checkbox mark.")
+    @XamlProperty(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the checkbox mark.")
     public Checkbox labelLeft(boolean labelLeft) {
         if (this.labelLeft == labelLeft) return this;
         this.labelLeft = labelLeft;
@@ -223,7 +223,7 @@ public class Checkbox extends ToggleButton {
     }
 
     @Override
-    @XmlAttribute(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
+    @XamlProperty(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
     public Checkbox silentChecked(boolean checked) {
         setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, false);
         return this;

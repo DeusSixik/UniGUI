@@ -32,8 +32,8 @@ import dev.sixik.unigui.api.style.TreeDisclosureStyle;
 import dev.sixik.unigui.api.style.TreeRowStyle;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -68,7 +68,7 @@ import java.util.function.Consumer;
         target = "page:tree-list",
         description = "<key:tree.list.summary>"
 )
-@XmlWidgetName("TreeView")
+@XamlWidget("TreeView")
 public class TreeView extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TREE_VIEW;
 
@@ -514,7 +514,7 @@ public class TreeView extends LinearBox {
         return rowTextHoverScrollSpeed;
     }
 
-    @XmlAttribute(value = "rowTextHoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Text marquee speed for overflowing hovered tree rows.")
+    @XamlProperty(value = "rowTextHoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Text marquee speed for overflowing hovered tree rows.")
     @AiDoc(summary = "Sets the text hover scrolling speed in pixels per second.")
     @WikiMethod(summary = "<key:tree.view.method.rowTextHoverScrollSpeedSet>")
     @WikiReturn("<key:tree.view.return.self>")
@@ -533,7 +533,7 @@ public class TreeView extends LinearBox {
         return rowTextHoverScrollSpeed();
     }
 
-    @XmlAttribute(value = "hoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Alias for rowTextHoverScrollSpeed.")
+    @XamlProperty(value = "hoverScrollSpeed", category = "Behavior", defaultValue = "24", description = "Alias for rowTextHoverScrollSpeed.")
     @AiDoc(summary = "Sets the text hover scrolling speed.")
     @WikiMethod(summary = "<key:tree.view.method.hoverScrollSpeedSet>")
     @WikiReturn("<key:tree.view.return.self>")

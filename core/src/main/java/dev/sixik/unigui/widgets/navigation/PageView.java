@@ -19,8 +19,8 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -57,7 +57,7 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
         target = "page:tab-control",
         description = "<key:tab.control.summary>"
 )
-@XmlWidgetName("PageView")
+@XamlWidget("PageView")
 public class PageView extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.PAGE_VIEW;
 
@@ -176,7 +176,7 @@ public class PageView extends PanelWidget {
     @AiDoc(summary = "Silently selects a page index without emitting selection change events.")
     @WikiMethod(summary = "<key:page.view.method.silentSelectedIndex>")
     @WikiReturn("<key:page.view.return.self>")
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected page index without emitting change events during XML load.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected page index without emitting change events during XML load.")
     public PageView silentSelectedIndex(@WikiParameter(name = "selectedIndex", description = "<key:page.view.param.selectedIndex>") int selectedIndex) {
         setSelectedIndex(selectedIndex, false);
         return this;

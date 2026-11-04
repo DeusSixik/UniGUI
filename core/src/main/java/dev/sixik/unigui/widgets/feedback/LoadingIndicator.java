@@ -22,8 +22,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
@@ -60,7 +60,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         target = "page:progress-bar",
         description = "<key:progress.bar.summary>"
 )
-@XmlWidgetName("LoadingIndicator")
+@XamlWidget("LoadingIndicator")
 public class LoadingIndicator extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LOADING_INDICATOR;
 
@@ -114,7 +114,7 @@ public class LoadingIndicator extends Box {
         return mode;
     }
 
-    @XmlAttribute(value = "mode", category = "Behavior", defaultValue = "spinner", description = "Indicator rendering mode.")
+    @XamlProperty(value = "mode", category = "Behavior", defaultValue = "spinner", description = "Indicator rendering mode.")
         @AiDoc(summary = "Sets the loading indicator display mode.")
     @WikiMethod(summary = "<key:loading.indicator.method.modeSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -136,7 +136,7 @@ public class LoadingIndicator extends Box {
         return running;
     }
 
-    @XmlAttribute(value = "running", category = "Behavior", defaultValue = "true", description = "Whether the indicator animation advances over time.")
+    @XamlProperty(value = "running", category = "Behavior", defaultValue = "true", description = "Whether the indicator animation advances over time.")
         @AiDoc(summary = "Starts or stops the animation.")
     @WikiMethod(summary = "<key:loading.indicator.method.runningSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -171,7 +171,7 @@ public class LoadingIndicator extends Box {
         return phase;
     }
 
-    @XmlAttribute(value = "phase", category = "Behavior", defaultValue = "0", description = "Initial animation phase in the 0..1 range.")
+    @XamlProperty(value = "phase", category = "Behavior", defaultValue = "0", description = "Initial animation phase in the 0..1 range.")
         @AiDoc(summary = "Manually sets the animation phase value.")
     @WikiMethod(summary = "<key:loading.indicator.method.phaseSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -194,7 +194,7 @@ public class LoadingIndicator extends Box {
         return speed;
     }
 
-    @XmlAttribute(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
+    @XamlProperty(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
         @AiDoc(summary = "Sets the animation speed multiplier.")
     @WikiMethod(summary = "<key:loading.indicator.method.speedSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -216,7 +216,7 @@ public class LoadingIndicator extends Box {
         return segments;
     }
 
-    @XmlAttribute(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
+    @XamlProperty(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
         @AiDoc(summary = "Sets the segment count for segmented styles.")
     @WikiMethod(summary = "<key:loading.indicator.method.segmentsSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -238,7 +238,7 @@ public class LoadingIndicator extends Box {
         return spinnerStyle;
     }
 
-    @XmlAttribute(value = "spinnerStyle", category = "Appearance", defaultValue = "default", description = "Visual style used when mode is spinner.")
+    @XamlProperty(value = "spinnerStyle", category = "Appearance", defaultValue = "default", description = "Visual style used when mode is spinner.")
         @AiDoc(summary = "Sets the spinner style preset.")
     @WikiMethod(summary = "<key:loading.indicator.method.spinnerStyleSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -261,7 +261,7 @@ public class LoadingIndicator extends Box {
         return dots;
     }
 
-    @XmlAttribute(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
+    @XamlProperty(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
         @AiDoc(summary = "Sets the total dot count for dotted styles.")
     @WikiMethod(summary = "<key:loading.indicator.method.dotsSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -283,7 +283,7 @@ public class LoadingIndicator extends Box {
         return activeDots;
     }
 
-    @XmlAttribute(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
+    @XamlProperty(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
         @AiDoc(summary = "Sets the active highlighted dot count.")
     @WikiMethod(summary = "<key:loading.indicator.method.activeDotsSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -305,7 +305,7 @@ public class LoadingIndicator extends Box {
         return arcs;
     }
 
-    @XmlAttribute(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
+    @XamlProperty(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
         @AiDoc(summary = "Sets the arc count for multi-arc styles.")
     @WikiMethod(summary = "<key:loading.indicator.method.arcsSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -327,7 +327,7 @@ public class LoadingIndicator extends Box {
         return thickness;
     }
 
-    @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
+    @XamlProperty(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
         @AiDoc(summary = "Sets the stroke thickness in UI pixels.")
     @WikiMethod(summary = "<key:loading.indicator.method.thicknessSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -349,7 +349,7 @@ public class LoadingIndicator extends Box {
         return radius;
     }
 
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
         @AiDoc(summary = "Sets an explicit indicator radius in UI pixels.")
     @WikiMethod(summary = "<key:loading.indicator.method.radiusSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -371,7 +371,7 @@ public class LoadingIndicator extends Box {
         return angle;
     }
 
-    @XmlAttribute(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
+    @XamlProperty(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
         @AiDoc(summary = "Sets the arc sweep angle in radians.")
     @WikiMethod(summary = "<key:loading.indicator.method.angleSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -404,7 +404,7 @@ public class LoadingIndicator extends Box {
         return effectivePreferredWidth();
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "24", description = "Intrinsic indicator width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "24", description = "Intrinsic indicator width before layout constraints are applied.")
         @AiDoc(summary = "Sets the preferred indicator width in UI pixels.")
     @WikiMethod(summary = "<key:loading.indicator.method.preferredWidthSet>")
     @WikiReturn("<key:loading.indicator.return.this>")
@@ -426,7 +426,7 @@ public class LoadingIndicator extends Box {
         return effectivePreferredHeight();
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "24", description = "Intrinsic indicator height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "24", description = "Intrinsic indicator height before layout constraints are applied.")
         @AiDoc(summary = "Sets the preferred indicator height in UI pixels.")
     @WikiMethod(summary = "<key:loading.indicator.method.preferredHeightSet>")
     @WikiReturn("<key:loading.indicator.return.this>")

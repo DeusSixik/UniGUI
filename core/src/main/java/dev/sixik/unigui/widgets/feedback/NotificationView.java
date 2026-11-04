@@ -20,8 +20,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.style.Style;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Iterator;
@@ -35,7 +35,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
  * <p>{@link Toast} owns the visual card/message/duration behavior. NotificationView
  * owns queueing, max-visible policy and host-relative stacking.</p>
  */
-@XmlWidgetName("NotificationView")
+@XamlWidget("NotificationView")
 @AiDoc(summary = "Floating notification stack host displaying timed toast messages aligned to configurable screen edges or corners.")
 @WikiPage(
         title = "NotificationView",
@@ -113,7 +113,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return pendingText;
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Pending notification text used by show().")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Pending notification text used by show().")
         @AiDoc(summary = "Queues a new notification with the given text.")
     @WikiMethod(summary = "<key:notification.view.method.textSet>")
     @WikiReturn("<key:notification.view.return.this>")
@@ -133,7 +133,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return defaultDurationSeconds;
     }
 
-    @XmlAttribute(value = "duration", category = "Behavior", defaultValue = "3.5", description = "Default lifetime for newly created toasts.")
+    @XamlProperty(value = "duration", category = "Behavior", defaultValue = "3.5", description = "Default lifetime for newly created toasts.")
         @AiDoc(summary = "Sets the display duration in seconds for new notifications.")
     @WikiMethod(summary = "<key:notification.view.method.durationSet>")
     @WikiReturn("<key:notification.view.return.this>")
@@ -152,7 +152,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return spacing;
     }
 
-    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "8", description = "Vertical gap between visible notification cards.")
+    @XamlProperty(value = "spacing", category = "Layout", defaultValue = "8", description = "Vertical gap between visible notification cards.")
         @AiDoc(summary = "Sets the vertical spacing between stacked notification cards.")
     @WikiMethod(summary = "<key:notification.view.method.spacingSet>")
     @WikiReturn("<key:notification.view.return.this>")
@@ -172,7 +172,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return margin;
     }
 
-    @XmlAttribute(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
+    @XamlProperty(value = "margin", category = "Layout", defaultValue = "10", description = "Distance from host edges in UI pixels.")
         @AiDoc(summary = "Sets the margin distance from screen edges.")
     @WikiMethod(summary = "<key:notification.view.method.marginSet>")
     @WikiReturn("<key:notification.view.return.this>")
@@ -192,7 +192,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return maxVisible;
     }
 
-    @XmlAttribute(value = "maxVisible", category = "Behavior", defaultValue = "3", description = "Maximum number of concurrently visible notification cards.")
+    @XamlProperty(value = "maxVisible", category = "Behavior", defaultValue = "3", description = "Maximum number of concurrently visible notification cards.")
         @AiDoc(summary = "Sets the maximum number of simultaneously visible notification cards.")
     @WikiMethod(summary = "<key:notification.view.method.maxVisibleSet>")
     @WikiReturn("<key:notification.view.return.this>")
@@ -213,7 +213,7 @@ public class NotificationView extends Box implements OverlayHostAware {
         return placement;
     }
 
-    @XmlAttribute(value = "placement", category = "Layout", defaultValue = "top_right", description = "Host-relative notification stack placement.")
+    @XamlProperty(value = "placement", category = "Layout", defaultValue = "top_right", description = "Host-relative notification stack placement.")
         @AiDoc(summary = "Sets the screen corner/edge placement.")
     @WikiMethod(summary = "<key:notification.view.method.placementSet>")
     @WikiReturn("<key:notification.view.return.this>")

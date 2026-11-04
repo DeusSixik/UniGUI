@@ -28,9 +28,9 @@ import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.xaml.XamlProperty;
 import dev.sixik.unigui.xaml.load.TextureResolution;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -71,7 +71,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:text.widget.example.basic.title>",
         code = "<key:text.widget.example.basic.code>",
         order = 10)
-@XmlWidgetName("TextWidget")
+@XamlWidget("TextWidget")
 public class TextWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_WIDGET;
 
@@ -127,7 +127,7 @@ public class TextWidget extends WidgetBase {
         return text;
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the widget.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Plain text content displayed by the widget.")
     @WikiMethod(
             title = "<key:text.widget.method.text.title>",
             summary = "<key:text.widget.method.text.summary>")
@@ -189,7 +189,7 @@ public class TextWidget extends WidgetBase {
      * @param expression строковое описание brush'а
      * @return этот widget для fluent-настройки
      */
-    @XmlAttribute(value = "textBrush", category = "Appearance", defaultValue = "none",
+    @XamlProperty(value = "textBrush", category = "Appearance", defaultValue = "none",
             description = "Text brush expression: solid(#RRGGBB) or linear-gradient(#RRGGBB, #RRGGBB, angle).")
     public TextWidget textBrushExpression(String expression) {
         return textBrush(TextBrush.parse(expression));
@@ -233,7 +233,7 @@ public class TextWidget extends WidgetBase {
         return color;
     }
 
-    @XmlAttribute(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Text color parsed from XML color syntax.")
+    @XamlProperty(value = "color", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Text color parsed from XML color syntax.")
     public TextWidget color(ColorView color) {
         if (color != null) this.color.set(color);
         return this;
@@ -243,7 +243,7 @@ public class TextWidget extends WidgetBase {
         return wrap;
     }
 
-    @XmlAttribute(value = "wrap", category = "Content", defaultValue = "true", description = "Whether text wraps within available width.")
+    @XamlProperty(value = "wrap", category = "Content", defaultValue = "true", description = "Whether text wraps within available width.")
     public TextWidget wrap(boolean wrap) {
         if (this.wrap == wrap) return this;
         this.wrap = wrap;
@@ -264,7 +264,7 @@ public class TextWidget extends WidgetBase {
         return overflowMode;
     }
 
-    @XmlAttribute(value = "overflowMode", category = "Content", defaultValue = "visible", description = "How text behaves when it exceeds its layout bounds.")
+    @XamlProperty(value = "overflowMode", category = "Content", defaultValue = "visible", description = "How text behaves when it exceeds its layout bounds.")
     public TextWidget overflowMode(TextOverflowMode overflowMode) {
         TextOverflowMode normalized = overflowMode == null ? TextOverflowMode.VISIBLE : overflowMode;
         if (this.overflowMode == normalized) return this;
@@ -290,7 +290,7 @@ public class TextWidget extends WidgetBase {
         return marqueeSpeed;
     }
 
-    @XmlAttribute(value = "marqueeSpeed", category = "Content", defaultValue = "24", description = "Marquee scroll speed in pixels per second.")
+    @XamlProperty(value = "marqueeSpeed", category = "Content", defaultValue = "24", description = "Marquee scroll speed in pixels per second.")
     public TextWidget marqueeSpeed(float marqueeSpeed) {
         float normalized = Float.isFinite(marqueeSpeed) ? Math.max(0.0f, marqueeSpeed) : 24.0f;
         if (this.marqueeSpeed == normalized) return this;
@@ -325,7 +325,7 @@ public class TextWidget extends WidgetBase {
         return marqueeGap;
     }
 
-    @XmlAttribute(value = "marqueeGap", category = "Content", defaultValue = "24", description = "Gap between repeated marquee text runs.")
+    @XamlProperty(value = "marqueeGap", category = "Content", defaultValue = "24", description = "Gap between repeated marquee text runs.")
     public TextWidget marqueeGap(float marqueeGap) {
         float normalized = Math.max(0.0f, marqueeGap);
         if (this.marqueeGap == normalized) return this;
@@ -338,7 +338,7 @@ public class TextWidget extends WidgetBase {
         return background;
     }
 
-    @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
+    @XamlProperty(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
     public TextWidget background(ColorView color) {
         background.set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
         backgroundVisible(true);
@@ -361,7 +361,7 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether background is rendered.")
+    @XamlProperty(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether background is rendered.")
     public TextWidget backgroundVisible(boolean backgroundVisible) {
         if (this.backgroundVisible == backgroundVisible) return this;
         this.backgroundVisible = backgroundVisible;
@@ -377,7 +377,7 @@ public class TextWidget extends WidgetBase {
         return boxVisualEnabled;
     }
 
-    @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether background/border visual rendering is enabled.")
+    @XamlProperty(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether background/border visual rendering is enabled.")
     public TextWidget boxVisualEnabled(boolean boxVisualEnabled) {
         if (this.boxVisualEnabled == boxVisualEnabled) return this;
         this.boxVisualEnabled = boxVisualEnabled;
@@ -389,7 +389,7 @@ public class TextWidget extends WidgetBase {
         return backgroundTexture;
     }
 
-    @XmlAttribute(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Background texture.")
+    @XamlProperty(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Background texture.")
     public TextWidget backgroundTexture(TextureHandle backgroundTexture) {
         if (this.backgroundTexture == backgroundTexture) return this;
         this.backgroundTexture = backgroundTexture;
@@ -400,32 +400,32 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width.")
+    @XamlProperty(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width.")
     public TextWidget backgroundTextureWidth(int width) {
         return backgroundTexture(TextureResolution.resize(backgroundTexture, width, null));
     }
 
-    @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height.")
+    @XamlProperty(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height.")
     public TextWidget backgroundTextureHeight(int height) {
         return backgroundTexture(TextureResolution.resize(backgroundTexture, null, height));
     }
 
-    @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode.")
+    @XamlProperty(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode.")
     public TextWidget backgroundTextureSampling(TextureFilter filter) {
         return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.sampling(filter)));
     }
 
-    @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture wrap mode.")
+    @XamlProperty(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture wrap mode.")
     public TextWidget backgroundTextureWrap(TextureWrap wrap) {
         return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.wrap(wrap)));
     }
 
-    @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether texture uses mipmaps.")
+    @XamlProperty(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether texture uses mipmaps.")
     public TextWidget backgroundTextureMipmaps(boolean mipmaps) {
         return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.mipmaps(mipmaps)));
     }
 
-    @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Premultiplied alpha flag.")
+    @XamlProperty(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Premultiplied alpha flag.")
     public TextWidget backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
         return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
@@ -434,7 +434,7 @@ public class TextWidget extends WidgetBase {
         return backgroundTextureTint;
     }
 
-    @XmlAttribute(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Background texture tint color.")
+    @XamlProperty(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Background texture tint color.")
     public TextWidget backgroundTextureTint(ColorView color) {
         if (color != null) backgroundTextureTint.set(color);
         return this;
@@ -454,7 +454,7 @@ public class TextWidget extends WidgetBase {
         return backgroundTextureSource;
     }
 
-    @XmlAttribute(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "UV source rectangle.")
+    @XamlProperty(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "UV source rectangle.")
     public TextWidget backgroundTextureSource(MutableRect source) {
         backgroundTextureSource.set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
         return this;
@@ -469,7 +469,7 @@ public class TextWidget extends WidgetBase {
         return backgroundTextureFit;
     }
 
-    @XmlAttribute(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
+    @XamlProperty(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
     public TextWidget backgroundTextureFit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (backgroundTextureFit == effectiveFit) return this;
@@ -482,7 +482,7 @@ public class TextWidget extends WidgetBase {
         return sliceBorders;
     }
 
-    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    @XamlProperty(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
     public TextWidget sliceBorders(SliceBorders borders) {
         SliceBorders effective = borders == null ? SliceBorders.ZERO : borders;
         if (sliceBorders.equals(effective)) return this;
@@ -503,7 +503,7 @@ public class TextWidget extends WidgetBase {
         return borderColor;
     }
 
-    @XmlAttribute(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
+    @XamlProperty(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
     public TextWidget border(ColorView color) {
         borderColor(color);
         borderVisible(true);
@@ -530,7 +530,7 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
+    @XamlProperty(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
     public TextWidget borderColor(ColorView color) {
         if (color != null) borderColor.set(color);
         return this;
@@ -546,7 +546,7 @@ public class TextWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
+    @XamlProperty(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
     public TextWidget borderVisible(boolean borderVisible) {
         if (this.borderVisible == borderVisible) return this;
         this.borderVisible = borderVisible;
@@ -562,7 +562,7 @@ public class TextWidget extends WidgetBase {
         return borderWidth;
     }
 
-    @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
+    @XamlProperty(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
     public TextWidget borderWidth(float borderWidth) {
         if (this.borderWidth == borderWidth) return this;
         this.borderWidth = borderWidth;
@@ -583,7 +583,7 @@ public class TextWidget extends WidgetBase {
         return radius;
     }
 
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
     public TextWidget radius(float radius) {
         if (this.radius == radius) return this;
         this.radius = radius;

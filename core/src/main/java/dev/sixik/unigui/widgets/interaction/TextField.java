@@ -11,8 +11,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.input.TextEditorModel;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 
@@ -48,7 +48,7 @@ import dev.sixik.unigui.api.style.StyleIds;
 )
 @WikiLink(label = "TextInput", target = "page:text-input")
 @WikiLink(label = "TextArea", target = "page:text-area")
-@XmlWidgetName("TextField")
+@XamlWidget("TextField")
 public class TextField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXT_FIELD;
 
@@ -69,21 +69,21 @@ public class TextField extends TextInput {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable text value.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable text value.")
     public TextField text(String text) {
         super.text(text);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
+    @XamlProperty(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
     public TextField placeholder(String placeholder) {
         super.placeholder(placeholder);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
+    @XamlProperty(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
     public TextField cursorIndex(int cursorIndex) {
         super.cursorIndex(cursorIndex);
         return this;
@@ -108,28 +108,28 @@ public class TextField extends TextInput {
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public TextField textPaddingX(float textPaddingX) {
         super.textPaddingX(textPaddingX);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public TextField textPaddingLeft(float textPaddingLeft) {
         super.textPaddingLeft(textPaddingLeft);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public TextField textPaddingRight(float textPaddingRight) {
         super.textPaddingRight(textPaddingRight);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
+    @XamlProperty(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
     public TextField maxLength(int maxLength) {
         super.maxLength(maxLength);
         return this;

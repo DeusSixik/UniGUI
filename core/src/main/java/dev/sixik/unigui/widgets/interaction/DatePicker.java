@@ -18,8 +18,8 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
@@ -46,7 +46,7 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 
-@XmlWidgetName("DatePicker")
+@XamlWidget("DatePicker")
 @AiDoc(
         summary = "Date selection control featuring an ISO date text field and an interactive calendar popup.",
         purpose = "Enables visual calendar picking and ISO string parsing for date values.",
@@ -156,7 +156,7 @@ public final class DatePicker extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "today", description = "Selected date in ISO-8601 YYYY-MM-DD format.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "today", description = "Selected date in ISO-8601 YYYY-MM-DD format.")
     @WikiMethod(
             title = "<key:date.picker.method.set_value_str.title>",
             summary = "<key:date.picker.method.set_value_str.summary>")

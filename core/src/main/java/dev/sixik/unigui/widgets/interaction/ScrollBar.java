@@ -24,8 +24,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -65,7 +65,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:scroll.bar.example.basic.title>",
         code = "<key:scroll.bar.example.basic.code>",
         order = 10)
-@XmlWidgetName("ScrollBar")
+@XamlWidget("ScrollBar")
 public class ScrollBar extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.SCROLL_BAR;
 
@@ -161,7 +161,7 @@ public class ScrollBar extends Box {
         return orientation;
     }
 
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Scrollbar axis.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Scrollbar axis.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_orientation.title>",
             summary = "<key:scroll.bar.method.set_orientation.summary>")
@@ -180,7 +180,7 @@ public class ScrollBar extends Box {
         return min;
     }
 
-    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum scroll value.")
+    @XamlProperty(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum scroll value.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_min.title>",
             summary = "<key:scroll.bar.method.set_min.summary>")
@@ -195,7 +195,7 @@ public class ScrollBar extends Box {
         return max;
     }
 
-    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "0", description = "Maximum scroll value.")
+    @XamlProperty(value = "max", category = "Behavior", defaultValue = "0", description = "Maximum scroll value.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_max.title>",
             summary = "<key:scroll.bar.method.set_max.summary>")
@@ -235,7 +235,7 @@ public class ScrollBar extends Box {
         return this;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Initial scroll value without emitting change events during XML load.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "0", description = "Initial scroll value without emitting change events during XML load.")
     @WikiMethod(
             title = "<key:scroll.bar.method.silent_value.title>",
             summary = "<key:scroll.bar.method.silent_value.summary>")
@@ -251,7 +251,7 @@ public class ScrollBar extends Box {
         return pageSize;
     }
 
-    @XmlAttribute(value = "pageSize", category = "Behavior", defaultValue = "1", description = "Visible page size used to calculate thumb length.")
+    @XamlProperty(value = "pageSize", category = "Behavior", defaultValue = "1", description = "Visible page size used to calculate thumb length.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_page_size.title>",
             summary = "<key:scroll.bar.method.set_page_size.summary>")
@@ -270,7 +270,7 @@ public class ScrollBar extends Box {
         return step;
     }
 
-    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "16", description = "Keyboard nudge increment.")
+    @XamlProperty(value = "step", category = "Behavior", defaultValue = "16", description = "Keyboard nudge increment.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_step.title>",
             summary = "<key:scroll.bar.method.set_step.summary>")
@@ -343,7 +343,7 @@ public class ScrollBar extends Box {
      * @param idleThickness толщина в пикселях; минимум {@code 1}
      * @return этот scrollbar для fluent-настройки
      */
-    @XmlAttribute(value = "idleThickness", category = "Appearance", defaultValue = "3", description = "Thumb thickness at rest in UI pixels.")
+    @XamlProperty(value = "idleThickness", category = "Appearance", defaultValue = "3", description = "Thumb thickness at rest in UI pixels.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_idle_thickness.title>",
             summary = "<key:scroll.bar.method.set_idle_thickness.summary>")
@@ -373,7 +373,7 @@ public class ScrollBar extends Box {
      * @param hoverThickness толщина в пикселях; минимум {@code 1}
      * @return этот scrollbar для fluent-настройки
      */
-    @XmlAttribute(value = "hoverThickness", category = "Appearance", defaultValue = "6", description = "Thumb thickness on hover and drag in UI pixels.")
+    @XamlProperty(value = "hoverThickness", category = "Appearance", defaultValue = "6", description = "Thumb thickness on hover and drag in UI pixels.")
     @WikiMethod(
             title = "<key:scroll.bar.method.set_hover_thickness.title>",
             summary = "<key:scroll.bar.method.set_hover_thickness.summary>")
@@ -409,7 +409,7 @@ public class ScrollBar extends Box {
         return preferredLength;
     }
 
-    @XmlAttribute(value = "preferredLength", category = "Layout", defaultValue = "120", description = "Intrinsic length along the scroll axis.")
+    @XamlProperty(value = "preferredLength", category = "Layout", defaultValue = "120", description = "Intrinsic length along the scroll axis.")
     public ScrollBar preferredLength(float preferredLength) {
         float normalized = positiveOr(preferredLength, DEFAULT_PREFERRED_LENGTH);
         if (this.preferredLength == normalized) return this;
@@ -422,7 +422,7 @@ public class ScrollBar extends Box {
         return preferredThickness;
     }
 
-    @XmlAttribute(value = "preferredThickness", category = "Layout", defaultValue = "6", description = "Intrinsic thickness across the scroll axis.")
+    @XamlProperty(value = "preferredThickness", category = "Layout", defaultValue = "6", description = "Intrinsic thickness across the scroll axis.")
     public ScrollBar preferredThickness(float preferredThickness) {
         float normalized = positiveOr(preferredThickness, DEFAULT_PREFERRED_THICKNESS);
         if (this.preferredThickness == normalized) return this;
