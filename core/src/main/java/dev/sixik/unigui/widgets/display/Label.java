@@ -15,7 +15,7 @@ import dev.sixik.unigui.api.render.TextureWrap;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
@@ -57,7 +57,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:label.example.basic.title>",
         code = "<key:label.example.basic.code>",
         order = 10)
-@XmlWidgetName("Label")
+@XamlWidget("Label")
 public final class Label extends TextWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LABEL;
 

@@ -13,8 +13,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 
 /** Compact toolbar-friendly button with optional icon, text and command metadata. */
@@ -43,7 +43,7 @@ import dev.sixik.unigui.api.widget.render.WidgetRole;
 )
 @WikiLink(label = "Button", target = "page:button")
 @WikiLink(label = "ToggleToolButton", target = "page:toggle-tool-button")
-@XmlWidgetName("ToolButton")
+@XamlWidget("ToolButton")
 public class ToolButton extends Button {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BUTTON;
 
@@ -69,7 +69,7 @@ public class ToolButton extends Button {
         return icon;
     }
 
-    @XmlAttribute(value = "icon", category = "Content", defaultValue = "", description = "Short icon glyph or icon resource id displayed by the tool button.")
+    @XamlProperty(value = "icon", category = "Content", defaultValue = "", description = "Short icon glyph or icon resource id displayed by the tool button.")
     public ToolButton icon(String icon) {
         String normalized = normalize(icon);
         if (this.icon.equals(normalized)) return this;
@@ -82,7 +82,7 @@ public class ToolButton extends Button {
         return label;
     }
 
-    @XmlAttribute(value = "label", category = "Content", defaultValue = "", description = "Text label for text or icon+text toolbar modes.")
+    @XamlProperty(value = "label", category = "Content", defaultValue = "", description = "Text label for text or icon+text toolbar modes.")
     public ToolButton label(String label) {
         String normalized = normalize(label);
         if (this.label.equals(normalized)) return this;
@@ -92,7 +92,7 @@ public class ToolButton extends Button {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Alias for the toolbar button label.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Alias for the toolbar button label.")
     public ToolButton text(String text) {
         return label(text);
     }
@@ -101,7 +101,7 @@ public class ToolButton extends Button {
         return tooltip;
     }
 
-    @XmlAttribute(value = "tooltip", category = "Content", defaultValue = "", description = "Tooltip text shown by hosts that materialize tooltips.")
+    @XamlProperty(value = "tooltip", category = "Content", defaultValue = "", description = "Tooltip text shown by hosts that materialize tooltips.")
     public ToolButton tooltip(String tooltip) {
         this.tooltip = normalize(tooltip);
         return this;
@@ -111,7 +111,7 @@ public class ToolButton extends Button {
         return commandId;
     }
 
-    @XmlAttribute(value = "command", category = "Behavior", defaultValue = "", description = "Command id executed by a command-aware toolbar host.")
+    @XamlProperty(value = "command", category = "Behavior", defaultValue = "", description = "Command id executed by a command-aware toolbar host.")
     public ToolButton commandId(String commandId) {
         this.commandId = normalize(commandId);
         return this;
@@ -121,7 +121,7 @@ public class ToolButton extends Button {
         return displayMode;
     }
 
-    @XmlAttribute(value = "displayMode", category = "Appearance", defaultValue = "icon_and_text", description = "Whether the toolbar button renders icon, text or both.")
+    @XamlProperty(value = "displayMode", category = "Appearance", defaultValue = "icon_and_text", description = "Whether the toolbar button renders icon, text or both.")
     public ToolButton displayMode(DisplayMode displayMode) {
         DisplayMode normalized = displayMode == null ? DisplayMode.ICON_AND_TEXT : displayMode;
         if (this.displayMode == normalized) return this;
@@ -134,7 +134,7 @@ public class ToolButton extends Button {
         return checked;
     }
 
-    @XmlAttribute(value = "checked", category = "State", defaultValue = "false", description = "Whether the tool button is rendered as active.")
+    @XamlProperty(value = "checked", category = "State", defaultValue = "false", description = "Whether the tool button is rendered as active.")
     public ToolButton checked(boolean checked) {
         if (this.checked == checked) return this;
         this.checked = checked;

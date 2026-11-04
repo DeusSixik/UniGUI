@@ -33,8 +33,8 @@ import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
@@ -97,7 +97,7 @@ import java.util.List;
         title = "<key:sparkline.example.basic.title>",
         code = "<key:sparkline.example.basic.code>",
         order = 10)
-@XmlWidgetName("Sparkline")
+@XamlWidget("Sparkline")
 public class Sparkline extends WidgetBase {
     /**
      * Style registry id used to resolve this widget's default sparkline style.
@@ -451,7 +451,7 @@ public class Sparkline extends WidgetBase {
      * @param fillVisible {@code true} — рисовать заливку
      * @return этот виджет
      */
-    @XmlAttribute(value = "fillVisible", category = "Appearance", defaultValue = "true", description = "Whether the sparkline area fill is rendered.")
+    @XamlProperty(value = "fillVisible", category = "Appearance", defaultValue = "true", description = "Whether the sparkline area fill is rendered.")
     @WikiMethod(title = "Show sparkline fill", summary = "Enables or disables the area fill beneath the line.", section = "Appearance", sectionOrder = 20, order = 80)
     @WikiReturn("This sparkline for fluent configuration.")
     public Sparkline fillVisible(@WikiParameter(name = "fillVisible", description = "True to render the fill; this explicit value overrides the style setting.") boolean fillVisible) {
@@ -461,7 +461,7 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "pointMode", category = "Appearance", defaultValue = "extrema", description = "Which sparkline points are rendered and hit-tested.")
+    @XamlProperty(value = "pointMode", category = "Appearance", defaultValue = "extrema", description = "Which sparkline points are rendered and hit-tested.")
     @AiDoc(summary = "Controls marker visibility and point hit-testing; null disables point rendering and interaction.", section = "Appearance", sectionOrder = 20, order = 10)
     @WikiMethod(title = "Set point mode", summary = "Selects which data points are rendered and interactive.", section = "Appearance", sectionOrder = 20, order = 90)
     @WikiReturn("This sparkline for fluent configuration.")
@@ -485,7 +485,7 @@ public class Sparkline extends WidgetBase {
         return pointMode;
     }
 
-    @XmlAttribute(value = "pointLabelsVisible", category = "Appearance", defaultValue = "false", description = "Whether point value labels are rendered.")
+    @XamlProperty(value = "pointLabelsVisible", category = "Appearance", defaultValue = "false", description = "Whether point value labels are rendered.")
     @WikiMethod(title = "Show point labels", summary = "Enables or disables numeric labels beside data points.", section = "Appearance", sectionOrder = 20, order = 110)
     @WikiReturn("This sparkline for fluent configuration.")
     public Sparkline pointLabelsVisible(@WikiParameter(name = "pointLabelsVisible", description = "True to render point value labels.") boolean pointLabelsVisible) {
@@ -495,7 +495,7 @@ public class Sparkline extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "pointLabelPlacement", category = "Appearance", defaultValue = "above", description = "Placement of point value labels.")
+    @XamlProperty(value = "pointLabelPlacement", category = "Appearance", defaultValue = "above", description = "Placement of point value labels.")
     @WikiMethod(title = "Set point label placement", summary = "Sets where point value labels are placed relative to markers.", section = "Appearance", sectionOrder = 20, order = 120)
     @WikiReturn("This sparkline for fluent configuration.")
     public Sparkline pointLabelPlacement(@WikiParameter(name = "pointLabelPlacement", description = "Placement mode; null resets to ABOVE.") PointLabelPlacement pointLabelPlacement) {
@@ -534,7 +534,7 @@ public class Sparkline extends WidgetBase {
         return preferredWidth;
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "140", description = "Intrinsic sparkline width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "140", description = "Intrinsic sparkline width before layout constraints are applied.")
     @WikiMethod(title = "Set preferred sparkline width", summary = "Sets the preferred width in UI pixels.", section = "Layout", sectionOrder = 40, order = 20)
     @WikiReturn("This sparkline for fluent configuration.")
     public Sparkline preferredWidth(@WikiParameter(name = "preferredWidth", description = "Preferred width in UI pixels; non-positive or non-finite values use the default.") float preferredWidth) {
@@ -551,7 +551,7 @@ public class Sparkline extends WidgetBase {
         return preferredHeight;
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "34", description = "Intrinsic sparkline height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "34", description = "Intrinsic sparkline height before layout constraints are applied.")
     @WikiMethod(title = "Set preferred sparkline height", summary = "Sets the preferred height in UI pixels.", section = "Layout", sectionOrder = 40, order = 40)
     @WikiReturn("This sparkline for fluent configuration.")
     public Sparkline preferredHeight(@WikiParameter(name = "preferredHeight", description = "Preferred height in UI pixels; non-positive or non-finite values use the default.") float preferredHeight) {

@@ -19,8 +19,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -56,7 +56,7 @@ import dev.sixik.unigui.api.style.StyleIds;
         target = "page:loading-indicator",
         description = "<key:loading.indicator.summary>"
 )
-@XmlWidgetName("ProgressBar")
+@XamlWidget("ProgressBar")
 public class ProgressBar extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.PROGRESS_BAR;
 
@@ -137,7 +137,7 @@ public class ProgressBar extends Box {
         return min;
     }
 
-    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum progress value.")
+    @XamlProperty(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum progress value.")
         @AiDoc(summary = "Sets the minimum progress value.")
     @WikiMethod(summary = "<key:progress.bar.method.minSet>")
     @WikiReturn("<key:progress.bar.return.this>")
@@ -155,7 +155,7 @@ public class ProgressBar extends Box {
         return max;
     }
 
-    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum progress value.")
+    @XamlProperty(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum progress value.")
         @AiDoc(summary = "Sets the maximum progress value.")
     @WikiMethod(summary = "<key:progress.bar.method.maxSet>")
     @WikiReturn("<key:progress.bar.return.this>")
@@ -194,7 +194,7 @@ public class ProgressBar extends Box {
         return value;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Current progress value clamped to min/max.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "0", description = "Current progress value clamped to min/max.")
         @AiDoc(summary = "Sets the current numeric progress value, clamped to [min, max].")
     @WikiMethod(summary = "<key:progress.bar.method.valueSet>")
     @WikiReturn("<key:progress.bar.return.this>")
@@ -224,7 +224,7 @@ public class ProgressBar extends Box {
         return indeterminate;
     }
 
-    @XmlAttribute(value = "indeterminate", category = "Behavior", defaultValue = "false", description = "Whether the progress bar shows an indeterminate animation.")
+    @XamlProperty(value = "indeterminate", category = "Behavior", defaultValue = "false", description = "Whether the progress bar shows an indeterminate animation.")
         @AiDoc(summary = "Enables or disables indeterminate continuous activity animation.")
     @WikiMethod(summary = "<key:progress.bar.method.indeterminateSet>")
     @WikiReturn("<key:progress.bar.return.this>")
@@ -246,7 +246,7 @@ public class ProgressBar extends Box {
         return indeterminateSpeed;
     }
 
-    @XmlAttribute(value = "indeterminateSpeed", category = "Behavior", defaultValue = "0.85", description = "Indeterminate animation speed multiplier.")
+    @XamlProperty(value = "indeterminateSpeed", category = "Behavior", defaultValue = "0.85", description = "Indeterminate animation speed multiplier.")
     public ProgressBar indeterminateSpeed(float indeterminateSpeed) {
         float normalized = Float.isFinite(indeterminateSpeed) ? Math.max(0.0f, indeterminateSpeed) : 0.85f;
         if (this.indeterminateSpeed == normalized) return this;
@@ -269,7 +269,7 @@ public class ProgressBar extends Box {
      * @param orientation ось или {@code null} (трактуется как горизонтальная)
      * @return эта полоса
      */
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Progress bar axis; vertical bars fill from bottom to top.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Progress bar axis; vertical bars fill from bottom to top.")
     public ProgressBar orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
@@ -298,7 +298,7 @@ public class ProgressBar extends Box {
         return preferredWidth;
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic progress bar width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic progress bar width before layout constraints are applied.")
     public ProgressBar preferredWidth(float preferredWidth) {
         float normalized = positiveOr(preferredWidth, DEFAULT_PREFERRED_WIDTH);
         if (this.preferredWidth == normalized) return this;
@@ -311,7 +311,7 @@ public class ProgressBar extends Box {
         return preferredHeight;
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "12", description = "Intrinsic progress bar height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "12", description = "Intrinsic progress bar height before layout constraints are applied.")
     public ProgressBar preferredHeight(float preferredHeight) {
         float normalized = positiveOr(preferredHeight, DEFAULT_PREFERRED_HEIGHT);
         if (this.preferredHeight == normalized) return this;

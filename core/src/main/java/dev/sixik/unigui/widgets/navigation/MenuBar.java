@@ -23,7 +23,7 @@ import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -62,7 +62,7 @@ import java.util.List;
         target = "page:menu-item",
         description = "<key:menu.item.summary>"
 )
-@XmlWidgetName("MenuBar")
+@XamlWidget("MenuBar")
 public final class MenuBar extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MENU_BAR;
 

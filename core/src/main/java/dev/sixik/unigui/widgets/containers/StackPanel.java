@@ -15,7 +15,7 @@ import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.SlotLayout;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
 
@@ -60,7 +60,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3StackAdapter;
         code = "<key:stack.panel.example.badge.code>", order = 10)
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
 @WikiLink(label = "Box", target = "page:box")
-@XmlWidgetName("StackPanel")
+@XamlWidget("StackPanel")
 public final class StackPanel extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.STACK_PANEL;
 

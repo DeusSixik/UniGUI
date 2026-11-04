@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -70,7 +70,7 @@ import dev.sixik.unigui.api.style.StyleIds;
         code = "<key:box.example.card.code>", order = 10)
 @WikiLink(label = "SurfaceWidget", target = "page:surface-widget")
 @WikiLink(label = "Border", target = "page:border")
-@XmlWidgetName("Box")
+@XamlWidget("Box")
 public class Box extends SurfaceWidget<Box> {
     /** Style type id для StylePack selector/binding. */
     public static final String STYLE_TYPE = StyleIds.Widget.BOX;

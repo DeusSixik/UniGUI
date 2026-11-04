@@ -19,8 +19,8 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Collections;
@@ -52,7 +52,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         target = "page:breadcrumb-item",
         description = "<key:breadcrumb.item.summary>"
 )
-@XmlWidgetName("Breadcrumb")
+@XamlWidget("Breadcrumb")
 public class Breadcrumb extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.BREADCRUMB;
 
@@ -80,7 +80,7 @@ public class Breadcrumb extends PanelWidget {
         return host;
     }
 
-    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "2", description = "Horizontal gap between breadcrumb items and separators.")
+    @XamlProperty(value = "spacing", category = "Layout", defaultValue = "2", description = "Horizontal gap between breadcrumb items and separators.")
         @AiDoc(summary = "Sets the horizontal spacing between items and separators.")
     @WikiMethod(summary = "<key:breadcrumb.method.spacing>")
     @WikiReturn("<key:breadcrumb.return.this>")
@@ -93,7 +93,7 @@ public class Breadcrumb extends PanelWidget {
         return this;
     }
 
-    @XmlAttribute(value = "lineSpacing", category = "Layout", defaultValue = "2", description = "Vertical gap between wrapped breadcrumb lines.")
+    @XamlProperty(value = "lineSpacing", category = "Layout", defaultValue = "2", description = "Vertical gap between wrapped breadcrumb lines.")
         @AiDoc(summary = "Sets the vertical line spacing when items wrap to multiple lines.")
     @WikiMethod(summary = "<key:breadcrumb.method.lineSpacing>")
     @WikiReturn("<key:breadcrumb.return.this>")
@@ -262,7 +262,7 @@ public class Breadcrumb extends PanelWidget {
         return separator;
     }
 
-    @XmlAttribute(value = "separator", category = "Content", defaultValue = "\u203A", description = "Text shown between breadcrumb items.")
+    @XamlProperty(value = "separator", category = "Content", defaultValue = "\u203A", description = "Text shown between breadcrumb items.")
         @AiDoc(summary = "Sets the separator string displayed between breadcrumb items.")
     @WikiMethod(summary = "<key:breadcrumb.method.separatorSet>")
     @WikiReturn("<key:breadcrumb.return.this>")
@@ -319,7 +319,7 @@ public class Breadcrumb extends PanelWidget {
         return this;
     }
 
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected breadcrumb item index without emitting change events during XML load.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected breadcrumb item index without emitting change events during XML load.")
         @AiDoc(summary = "Selects the item at the specified index without firing event callbacks.")
     @WikiMethod(summary = "<key:breadcrumb.method.silentSelectedIndex>")
     @WikiReturn("<key:breadcrumb.return.this>")

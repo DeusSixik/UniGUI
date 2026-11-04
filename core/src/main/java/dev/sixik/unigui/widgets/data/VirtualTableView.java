@@ -55,8 +55,8 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.virtualization.FixedRowVirtualizer;
 import dev.sixik.unigui.api.virtualization.VirtualRange;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -90,7 +90,7 @@ import java.util.function.Consumer;
  * горизонтальную прокрутку, добавление и удаление строк и колонок,
  * а также визуальные стили через {@link StyleKeys}.</p>
  */
-@XmlWidgetName("VirtualTableView")
+@XamlWidget("VirtualTableView")
 @AiDoc(
         summary = "High-performance virtualized grid/table view widget supporting column resizing, reordering, sorting, cell editing and dynamic row/column insertion.",
         purpose = "Displays high-density tabular data with virtualized row recycling, customizable columns, and cell interactions.",
@@ -286,7 +286,7 @@ public class VirtualTableView extends WidgetBase {
         return virtualizer.itemCount();
     }
 
-    @XmlAttribute(value = "rowCount", category = "Data", defaultValue = "0",
+    @XamlProperty(value = "rowCount", category = "Data", defaultValue = "0",
             description = "Number of virtual rows exposed by the table.")
     @WikiMethod(
             title = "<key:virtual.table.view.method.row_count.title>",
@@ -533,7 +533,7 @@ public class VirtualTableView extends WidgetBase {
 
     public boolean columnResizeEnabled() { return columnResizeEnabled; }
 
-    @XmlAttribute(value = "columnResizeEnabled", category = "Behavior", defaultValue = "true",
+    @XamlProperty(value = "columnResizeEnabled", category = "Behavior", defaultValue = "true",
             description = "Whether table columns can be resized by pointer input.")
     @WikiMethod(
             title = "<key:virtual.table.view.method.column_resize_enabled.title>",
@@ -548,7 +548,7 @@ public class VirtualTableView extends WidgetBase {
 
     public float minColumnWidth() { return minColumnWidth; }
 
-    @XmlAttribute(value = "minColumnWidth", category = "Layout", defaultValue = "24",
+    @XamlProperty(value = "minColumnWidth", category = "Layout", defaultValue = "24",
             description = "Minimum width applied while resizing columns.")
     @WikiMethod(
             title = "<key:virtual.table.view.method.min_column_width.title>",
@@ -624,7 +624,7 @@ public class VirtualTableView extends WidgetBase {
 
     public boolean sortingEnabled() { return sortingEnabled; }
 
-    @XmlAttribute(value = "sortingEnabled", category = "Behavior", defaultValue = "true",
+    @XamlProperty(value = "sortingEnabled", category = "Behavior", defaultValue = "true",
             description = "Whether clicking column headers cycles through sort states.")
     public VirtualTableView sortingEnabled(boolean sortingEnabled) {
         this.sortingEnabled = sortingEnabled;
@@ -694,7 +694,7 @@ public class VirtualTableView extends WidgetBase {
 
     public boolean columnReorderEnabled() { return columnReorderEnabled; }
 
-    @XmlAttribute(value = "columnReorderEnabled", category = "Behavior", defaultValue = "true",
+    @XamlProperty(value = "columnReorderEnabled", category = "Behavior", defaultValue = "true",
             description = "Whether columns can be reordered by dragging their headers.")
     public VirtualTableView columnReorderEnabled(boolean enabled) {
         columnReorderEnabled = enabled;
@@ -712,7 +712,7 @@ public class VirtualTableView extends WidgetBase {
     public boolean editing()     { return editingRow >= 0 && editingColumn >= 0; }
     public String  editingText() { return editing() ? cellEditor.text() : ""; }
 
-    @XmlAttribute(value = "editable", category = "Behavior", defaultValue = "false",
+    @XamlProperty(value = "editable", category = "Behavior", defaultValue = "false",
             description = "Whether cells can enter inline edit mode.")
     public VirtualTableView editable(boolean editable) {
         if (this.editable == editable) return this;
@@ -794,7 +794,7 @@ public class VirtualTableView extends WidgetBase {
 
     public float rowHeight() { return virtualizer.itemExtent(); }
 
-    @XmlAttribute(value = "rowHeight", category = "Layout", defaultValue = "18",
+    @XamlProperty(value = "rowHeight", category = "Layout", defaultValue = "18",
             description = "Fixed body row height used by virtualization.")
     public VirtualTableView rowHeight(float rowHeight) {
         float prev = virtualizer.itemExtent();
@@ -807,7 +807,7 @@ public class VirtualTableView extends WidgetBase {
 
     public float headerHeight() { return headerHeight; }
 
-    @XmlAttribute(value = "headerHeight", category = "Layout", defaultValue = "18",
+    @XamlProperty(value = "headerHeight", category = "Layout", defaultValue = "18",
             description = "Header row height in UI pixels.")
     public VirtualTableView headerHeight(float headerHeight) {
         float normalized = Float.isFinite(headerHeight) ? Math.max(0.0f, headerHeight) : 18.0f;
@@ -820,7 +820,7 @@ public class VirtualTableView extends WidgetBase {
 
     public int overscan() { return virtualizer.overscan(); }
 
-    @XmlAttribute(value = "overscan", category = "Behavior", defaultValue = "1",
+    @XamlProperty(value = "overscan", category = "Behavior", defaultValue = "1",
             description = "Extra rows realized above and below the viewport.")
     public VirtualTableView overscan(int overscan) {
         int prev = virtualizer.overscan();
@@ -830,7 +830,7 @@ public class VirtualTableView extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16",
+    @XamlProperty(value = "scrollStep", category = "Behavior", defaultValue = "16",
             description = "UI pixels scrolled per wheel/page delta unit.")
     public VirtualTableView scrollStep(float scrollStep) {
         this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
@@ -840,7 +840,7 @@ public class VirtualTableView extends WidgetBase {
 
     public boolean consumeWheelAtScrollBounds() { return consumeWheelAtScrollBounds; }
 
-    @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true",
+    @XamlProperty(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true",
             description = "Whether wheel events are consumed at scroll range boundaries.")
     public VirtualTableView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
@@ -922,7 +922,7 @@ public class VirtualTableView extends WidgetBase {
 
     public SelectionMode selectionMode()  { return selection.mode(); }
 
-    @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single",
+    @XamlProperty(value = "selectionMode", category = "Behavior", defaultValue = "single",
             description = "Selection mode used by table rows.")
     public VirtualTableView selectionMode(SelectionMode mode) {
         List<Integer> old = selection.selectedIndices();

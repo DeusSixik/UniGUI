@@ -42,8 +42,8 @@ import dev.sixik.unigui.api.virtualization.VirtualRange;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -78,7 +78,7 @@ import java.util.function.IntFunction;
  *                 .put(StyleKeys.VIRTUAL_LIST_COLUMN_GAP, 8.0f));
  * }</pre>
  */
-@XmlWidgetName("VirtualListView")
+@XamlWidget("VirtualListView")
 @WikiPage(
         title = "VirtualListView",
         slug = "virtual-list-view",
@@ -216,7 +216,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 10,
             summary = "Switches virtual items between `LIST` and `GRID` presentation.")
-    @XmlAttribute(value = "viewMode", category = "Layout", defaultValue = "list", description = "Virtual item presentation mode: list or grid.")
+    @XamlProperty(value = "viewMode", category = "Layout", defaultValue = "list", description = "Virtual item presentation mode: list or grid.")
     public VirtualListView viewMode(ViewMode viewMode) {
         ViewMode normalized = viewMode == null ? ViewMode.LIST : viewMode;
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_VIEW_MODE,
@@ -236,7 +236,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 50,
             summary = "Sets preferred cell width used to calculate the responsive column count.")
-    @XmlAttribute(value = "gridCellWidth", category = "Layout", defaultValue = "96", description = "Preferred grid cell width used for responsive column auto-fit.")
+    @XamlProperty(value = "gridCellWidth", category = "Layout", defaultValue = "96", description = "Preferred grid cell width used for responsive column auto-fit.")
     public VirtualListView gridCellWidth(float width) {
         float normalized = Float.isFinite(width) ? Math.max(1.0f, width) : 96.0f;
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_CELL_WIDTH, normalized));
@@ -249,7 +249,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 60,
             summary = "Sets the fixed grid-row height in UI pixels.")
-    @XmlAttribute(value = "gridCellHeight", category = "Layout", defaultValue = "96", description = "Fixed height of a virtual grid row.")
+    @XamlProperty(value = "gridCellHeight", category = "Layout", defaultValue = "96", description = "Fixed height of a virtual grid row.")
     public VirtualListView gridCellHeight(float height) {
         float normalized = Float.isFinite(height) ? Math.max(1.0f, height) : 96.0f;
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_CELL_HEIGHT, normalized));
@@ -261,7 +261,7 @@ public class VirtualListView extends WidgetBase {
      */
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 70,
             summary = "Sets a fixed column count; `0` enables responsive fitting to the available width.")
-    @XmlAttribute(value = "gridColumns", category = "Layout", defaultValue = "0", description = "Fixed grid column count; zero fits columns to available width.")
+    @XamlProperty(value = "gridColumns", category = "Layout", defaultValue = "0", description = "Fixed grid column count; zero fits columns to available width.")
     public VirtualListView gridColumns(int columns) {
         int normalized = Math.max(0, columns);
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_GRID_COLUMNS, normalized));
@@ -285,7 +285,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 30,
             summary = "Sets the total number of model items; `0` keeps the view empty.")
-    @XmlAttribute(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual items exposed by the view.")
+    @XamlProperty(value = "itemCount", category = "Data", defaultValue = "0", description = "Number of virtual items exposed by the view.")
     public VirtualListView itemCount(int itemCount) {
         int normalizedCount = Math.max(0, itemCount);
         if (this.itemCount == normalizedCount) return this;
@@ -364,7 +364,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 80,
             summary = "Sets the fixed list-row height in UI pixels.")
-    @XmlAttribute(value = "itemHeight", category = "Layout", defaultValue = "18", description = "Fixed row height used by virtualization.")
+    @XamlProperty(value = "itemHeight", category = "Layout", defaultValue = "18", description = "Fixed row height used by virtualization.")
     public VirtualListView itemHeight(float itemHeight) {
         float normalized = Float.isFinite(itemHeight) ? Math.max(1.0f, itemHeight) : 18.0f;
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_ITEM_HEIGHT, normalized));
@@ -377,7 +377,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 90,
             summary = "Sets the number of extra rows realized before and after the visible viewport.")
-    @XmlAttribute(value = "overscan", category = "Behavior", defaultValue = "1", description = "Extra rows realized above and below the viewport.")
+    @XamlProperty(value = "overscan", category = "Behavior", defaultValue = "1", description = "Extra rows realized above and below the viewport.")
     public VirtualListView overscan(int overscan) {
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_OVERSCAN, Math.max(0, overscan)));
         return this;
@@ -414,7 +414,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Core Configuration & Builder Methods", sectionOrder = 10, order = 100,
             summary = "Limits offscreen widgets retained for the same index; `0` disables caching.")
-    @XmlAttribute(value = "offscreenCacheSize", category = "Behavior", defaultValue = "0", description = "Maximum number of recycled offscreen row widgets retained.")
+    @XamlProperty(value = "offscreenCacheSize", category = "Behavior", defaultValue = "0", description = "Maximum number of recycled offscreen row widgets retained.")
     public VirtualListView offscreenCacheSize(int offscreenCacheSize) {
         int normalized = Math.max(0, offscreenCacheSize);
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_OFFSCREEN_CACHE_SIZE, normalized));
@@ -429,7 +429,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Scrolling & Position", sectionOrder = 30, order = 50,
             summary = "Sets vertical scrolling in UI pixels per wheel/page delta unit.")
-    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
+    @XamlProperty(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public VirtualListView scrollStep(float scrollStep) {
         float normalized = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_SCROLL_STEP, normalized));
@@ -446,7 +446,7 @@ public class VirtualListView extends WidgetBase {
         return styleValue(StyleKeys.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, true);
     }
 
-    @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
+    @XamlProperty(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
     public VirtualListView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         style(value -> value.put(StyleKeys.VIRTUAL_LIST_CONSUME_WHEEL_AT_BOUNDS, consumeWheelAtScrollBounds));
         return this;
@@ -489,7 +489,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 10,
             summary = "Sets `SINGLE` or `MULTIPLE` selection mode.")
-    @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by list rows.")
+    @XamlProperty(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by list rows.")
     public VirtualListView selectionMode(SelectionMode mode) {
         List<Integer> oldSelection = selection.selectedIndices();
         selection.mode(mode);
@@ -522,7 +522,7 @@ public class VirtualListView extends WidgetBase {
 
     @AiDoc(section = "Selection & Navigation", sectionOrder = 20, order = 80,
             summary = "Sets the keyboard-navigation active index and scrolls it into view.")
-    @XmlAttribute(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
+    @XamlProperty(value = "activeIndex", category = "Behavior", defaultValue = "-1", description = "Initial keyboard/navigation active row index.")
     public VirtualListView activeIndex(int index) {
         if (index >= 0 && itemCount <= 0) {
             pendingActiveIndex = index;

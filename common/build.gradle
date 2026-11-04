@@ -222,14 +222,6 @@ tasks.register("textureBindingCacheSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.TextureBindingCacheSelfTest"
 }
 
-tasks.register("xmlWidgetSelfTest", JavaExec) {
-    group = "verification"
-    description = "Runs XML widget loader self-test assertions."
-    dependsOn tasks.named("testClasses")
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = "dev.sixik.unigui.tests.XmlWidgetSelfTest"
-}
-
 tasks.register("surfaceVisualSelfTest", JavaExec) {
     group = "verification"
     description = "Runs composable surface visual self-test assertions."
@@ -286,13 +278,13 @@ tasks.register("dragReorderSelfTest", JavaExec) {
     mainClass = "dev.sixik.unigui.tests.DragReorderSelfTest"
 }
 
-tasks.register("dumpXmlWidgetReference", JavaExec) {
+tasks.register("dumpXamlReference", JavaExec) {
     group = "documentation"
-    description = "Generates XML widget reference markdown from registry descriptors."
-    dependsOn tasks.named("testClasses")
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = "dev.sixik.unigui.tests.XmlWidgetReferenceDump"
-    args rootProject.file("XML_WIDGET_REFERENCE.md").absolutePath
+    description = "Generates the XAML widget reference markdown from the schema."
+    dependsOn tasks.named("classes")
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "dev.sixik.unigui.xaml.docs.ReferenceGenerator"
+    args rootProject.file("XAML_WIDGET_REFERENCE.md").absolutePath
 }
 
 def wikiOutputDirectory = providers.gradleProperty("wikiOutputDir")
@@ -356,7 +348,6 @@ tasks.named("test") {
     dependsOn tasks.named("widgetRenderCacheSelfTest")
     dependsOn tasks.named("textureManagementSelfTest")
     dependsOn tasks.named("textureBindingCacheSelfTest")
-    dependsOn tasks.named("xmlWidgetSelfTest")
     dependsOn tasks.named("holdButtonSelfTest")
     dependsOn tasks.named("animationInterpolationSelfTest")
     dependsOn tasks.named("storyboardSelfTest")

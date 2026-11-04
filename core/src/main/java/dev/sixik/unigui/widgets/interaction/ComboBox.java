@@ -22,8 +22,8 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.utils.reactive.*;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -64,7 +64,7 @@ import java.util.Objects;
         title = "<key:combo.box.example.basic.title>",
         code = "<key:combo.box.example.basic.code>",
         order = 10)
-@XmlWidgetName("ComboBox")
+@XamlWidget("ComboBox")
 public class ComboBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.COMBO_BOX;
 
@@ -194,7 +194,7 @@ public class ComboBox extends LinearBox {
      * @param color цвет подсветки; {@code null} делает подсветку прозрачной
      * @return этот ComboBox для fluent-настройки
      */
-    @XmlAttribute(value = "optionHoverBackground", category = "Appearance", defaultValue = "#3D4759EB", description = "Цвет строки при наведении.")
+    @XamlProperty(value = "optionHoverBackground", category = "Appearance", defaultValue = "#3D4759EB", description = "Цвет строки при наведении.")
     @WikiMethod(
             title = "<key:combo.box.method.hover_bg.title>",
             summary = "<key:combo.box.method.hover_bg.summary>")
@@ -211,7 +211,7 @@ public class ComboBox extends LinearBox {
      * @param texture текстура или {@code null}, чтобы убрать слой
      * @return этот ComboBox для fluent-настройки
      */
-    @XmlAttribute(value = "optionHoverTexture", category = "Assets", defaultValue = "", description = "Текстура строки при наведении.")
+    @XamlProperty(value = "optionHoverTexture", category = "Assets", defaultValue = "", description = "Текстура строки при наведении.")
     public ComboBox optionHoverTexture(TextureHandle texture) {
         optionHoverTexture = texture;
         syncOptionHoverAppearance();
@@ -224,7 +224,7 @@ public class ComboBox extends LinearBox {
      * @param shader шейдер или {@code null}, чтобы убрать слой
      * @return этот ComboBox для fluent-настройки
      */
-    @XmlAttribute(value = "optionHoverShader", category = "Assets", defaultValue = "", description = "Шейдер строки при наведении.")
+    @XamlProperty(value = "optionHoverShader", category = "Assets", defaultValue = "", description = "Шейдер строки при наведении.")
     public ComboBox optionHoverShader(ShaderHandle shader) {
         optionHoverShader = shader;
         syncOptionHoverAppearance();
@@ -258,7 +258,7 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "items", category = "Content", defaultValue = "", description = "Dropdown options separated by '|', ';' or line breaks.")
+    @XamlProperty(value = "items", category = "Content", defaultValue = "", description = "Dropdown options separated by '|', ';' or line breaks.")
     public ComboBox items(String items) {
         if (items == null || items.isBlank()) {
             return items(List.of());
@@ -371,7 +371,7 @@ public class ComboBox extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected option index without emitting change events during XML load.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected option index without emitting change events during XML load.")
     @WikiMethod(
             title = "<key:combo.box.method.silent_selected_index.title>",
             summary = "<key:combo.box.method.silent_selected_index.summary>")
@@ -408,7 +408,7 @@ public class ComboBox extends LinearBox {
         return opened(!opened);
     }
 
-    @XmlAttribute(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown list starts open.")
+    @XamlProperty(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown list starts open.")
     public ComboBox opened(boolean opened) {
         if (this.opened == opened) return this;
         this.opened = opened;
@@ -423,7 +423,7 @@ public class ComboBox extends LinearBox {
         return dropDownMode;
     }
 
-    @XmlAttribute(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown options are shown inline or in an overlay popup.")
+    @XamlProperty(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown options are shown inline or in an overlay popup.")
     public ComboBox dropDownMode(DropDownMode dropDownMode) {
         DropDownMode normalized = dropDownMode == null ? DropDownMode.INLINE : dropDownMode;
         if (this.dropDownMode == normalized) return this;
@@ -465,7 +465,7 @@ public class ComboBox extends LinearBox {
         return dropDownWidth;
     }
 
-    @XmlAttribute(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
+    @XamlProperty(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
     public ComboBox dropDownWidth(float width) {
         float normalized = Float.isFinite(width) ? Math.max(0.0f, width) : 0.0f;
         if (dropDownWidth == normalized && !dropDownMatchesWidgetWidth) return this;
@@ -480,7 +480,7 @@ public class ComboBox extends LinearBox {
         return dropDownMatchesWidgetWidth;
     }
 
-    @XmlAttribute(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the combo box width.")
+    @XamlProperty(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the combo box width.")
     public ComboBox dropDownMatchesWidgetWidth(boolean match) {
         if (dropDownMatchesWidgetWidth == match && (match || dropDownWidth <= 0.0f)) return this;
         dropDownMatchesWidgetWidth = match;
@@ -511,7 +511,7 @@ public class ComboBox extends LinearBox {
         return optionRowHeight;
     }
 
-    @XmlAttribute(value = "optionRowHeight", category = "Layout", defaultValue = "28", description = "Height of each option row in UI pixels.")
+    @XamlProperty(value = "optionRowHeight", category = "Layout", defaultValue = "28", description = "Height of each option row in UI pixels.")
     public ComboBox optionRowHeight(float height) {
         float normalized = Float.isFinite(height) && height > 0.0f ? height : OPTION_HEIGHT;
         if (optionRowHeight == normalized) return this;
@@ -529,7 +529,7 @@ public class ComboBox extends LinearBox {
         return maxVisibleOptions;
     }
 
-    @XmlAttribute(value = "maxVisibleOptions", category = "Layout", defaultValue = "6", description = "Maximum visible options before dropdown scrolling is used; 0 disables the cap.")
+    @XamlProperty(value = "maxVisibleOptions", category = "Layout", defaultValue = "6", description = "Maximum visible options before dropdown scrolling is used; 0 disables the cap.")
     public ComboBox maxVisibleOptions(int count) {
         int normalized = Math.max(0, count);
         if (maxVisibleOptions == normalized) return this;
@@ -547,7 +547,7 @@ public class ComboBox extends LinearBox {
         return placeholder;
     }
 
-    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "Select...", description = "Header text shown when no item is selected.")
+    @XamlProperty(value = "placeholder", category = "Content", defaultValue = "Select...", description = "Header text shown when no item is selected.")
     public ComboBox placeholder(String placeholder) {
         String normalized = normalize(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;

@@ -12,8 +12,8 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.TransformLayer;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 
@@ -63,7 +63,7 @@ import java.util.List;
         target = "page:panel-widget",
         description = "<key:panel.widget.summary>"
 )
-@XmlWidgetName("PostProcessingLayer")
+@XamlWidget("PostProcessingLayer")
 public class PostProcessingLayer extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.POST_PROCESSING_LAYER;
 
@@ -114,7 +114,7 @@ public class PostProcessingLayer extends PanelWidget {
      * @param effectId id эффекта, например {@code unigui:barrel_distortion}
      * @return этот слой для fluent-настройки
      */
-    @XmlAttribute(value = "effect", category = "Post Effect", defaultValue = "none",
+    @XamlProperty(value = "effect", category = "Post Effect", defaultValue = "none",
             description = "Registered UI post-effect id applied to this layer only.")
         @AiDoc(summary = "Configures a registered post-processing effect by its identifier string.")
     @WikiMethod(summary = "<key:post.processing.layer.method.effectSet>")
@@ -143,7 +143,7 @@ public class PostProcessingLayer extends PanelWidget {
      * @param effectScale scale target'а; некорректные значения заменяются на {@code 1.0}
      * @return этот слой для fluent-настройки
      */
-    @XmlAttribute(value = "effectScale", category = "Post Effect", defaultValue = "1.0",
+    @XamlProperty(value = "effectScale", category = "Post Effect", defaultValue = "1.0",
             description = "Offscreen target scale for the post-effect layer.")
         @AiDoc(summary = "Sets the offscreen render target scale factor relative to layer bounds.")
     @WikiMethod(summary = "<key:post.processing.layer.method.effectScaleSet>")

@@ -61,7 +61,7 @@ public final class StyleKeyRegistry {
             throw new IllegalArgumentException("Expected true or false.");
         }, value -> Boolean.toString(value));
         StyleValueCodec<SliceBorders> sliceBorders = StyleValueCodec.of(
-                dev.sixik.unigui.api.xml.XmlValueParsers.SLICE_BORDERS::parse,
+                value -> dev.sixik.unigui.xaml.schema.Converters.SLICE_BORDERS.convert(value, dev.sixik.unigui.xaml.schema.LoadContext.DEFAULT),
                 value -> value.left() + " " + value.top() + " " + value.right() + " " + value.bottom());
         StyleValueCodec<TextureHandle> texture = StyleValueCodec.of(value -> {
             String[] parts = value.trim().split("\\s+");
@@ -79,7 +79,7 @@ public final class StyleKeyRegistry {
         StyleValueCodec<BackgroundKind> backgroundKind = StyleValueCodec.enumCodec(BackgroundKind.class);
         StyleValueCodec<VirtualListViewMode> virtualListViewMode = StyleValueCodec.enumCodec(VirtualListViewMode.class);
         StyleValueCodec<EdgeInsets> edgeInsets = StyleValueCodec.of(
-                dev.sixik.unigui.api.xml.XmlValueParsers.INSETS::parse,
+                value -> dev.sixik.unigui.xaml.schema.Converters.INSETS.convert(value, dev.sixik.unigui.xaml.schema.LoadContext.DEFAULT),
                 value -> value.top() + " " + value.right() + " " + value.bottom() + " " + value.left());
         StyleValueCodec<TreeRowStyle> treeRowStyle = StyleValueCodec.enumCodec(TreeRowStyle.class);
         StyleValueCodec<TreeDisclosureStyle> treeDisclosureStyle = StyleValueCodec.enumCodec(TreeDisclosureStyle.class);

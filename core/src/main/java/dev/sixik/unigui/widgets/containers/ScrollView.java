@@ -24,8 +24,8 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -94,7 +94,7 @@ import java.util.List;
 @WikiLink(label = "Box", target = "page:box")
 @WikiLink(label = "VBox", target = "page:vbox")
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
-@XmlWidgetName("ScrollView")
+@XamlWidget("ScrollView")
 public class ScrollView extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
 
@@ -216,7 +216,7 @@ public class ScrollView extends WidgetBase {
         return contentWidth;
     }
 
-    @XmlAttribute(value = "contentWidth", category = "Layout", defaultValue = "0", description = "Explicit scroll content width; 0 uses measured width.")
+    @XamlProperty(value = "contentWidth", category = "Layout", defaultValue = "0", description = "Explicit scroll content width; 0 uses measured width.")
     public ScrollView contentWidth(float contentWidth) {
         return contentSize(contentWidth, contentHeight);
     }
@@ -230,7 +230,7 @@ public class ScrollView extends WidgetBase {
         return contentHeight;
     }
 
-    @XmlAttribute(value = "contentHeight", category = "Layout", defaultValue = "0", description = "Explicit scroll content height; 0 uses measured height.")
+    @XamlProperty(value = "contentHeight", category = "Layout", defaultValue = "0", description = "Explicit scroll content height; 0 uses measured height.")
     public ScrollView contentHeight(float contentHeight) {
         return contentSize(contentWidth, contentHeight);
     }
@@ -289,7 +289,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollStep количество UI-пикселей на единицу scroll delta; минимум {@code 1}
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
+    @XamlProperty(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     @WikiMethod(order = 40, title = "<key:scroll.view.method.scroll_step.title>", summary = "<key:scroll.view.method.scroll_step>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Behavior", sectionOrder = 30, order = 40, summary = "Sets scroll step multiplier in pixels per wheel unit.")
@@ -316,7 +316,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollingEnabled {@code true}, чтобы разрешить scrolling
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "scrollingEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel input and scrollbars can change scroll position.")
+    @XamlProperty(value = "scrollingEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel input and scrollbars can change scroll position.")
     public ScrollView scrollingEnabled(boolean scrollingEnabled) {
         if (this.scrollingEnabled == scrollingEnabled) return this;
         this.scrollingEnabled = scrollingEnabled;
@@ -369,7 +369,7 @@ public class ScrollView extends WidgetBase {
      * @param consumeWheelAtScrollBounds {@code true}, чтобы потреблять wheel на границах
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
+    @XamlProperty(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
     public ScrollView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
         this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
         return this;
@@ -393,7 +393,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollbarGap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "scrollbarGap", category = "Layout", defaultValue = "2", description = "Gap between viewport content and scrollbar tracks.")
+    @XamlProperty(value = "scrollbarGap", category = "Layout", defaultValue = "2", description = "Gap between viewport content and scrollbar tracks.")
     public ScrollView scrollbarGap(float scrollbarGap) {
         float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
         if (this.scrollbarGap == normalized) return this;
@@ -423,7 +423,7 @@ public class ScrollView extends WidgetBase {
      * @param scrollbarSize толщина полосы в пикселях UI-пространства; минимум {@code 1}
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "scrollbarSize", category = "Layout", defaultValue = "6", description = "Thickness of the horizontal/vertical scrollbar tracks.")
+    @XamlProperty(value = "scrollbarSize", category = "Layout", defaultValue = "6", description = "Thickness of the horizontal/vertical scrollbar tracks.")
     public ScrollView scrollbarSize(float scrollbarSize) {
         float normalized = Float.isFinite(scrollbarSize) ? Math.max(1.0f, scrollbarSize) : ScrollBar.DEFAULT_SIZE;
         if (this.scrollbarSize == normalized) return this;
@@ -544,7 +544,7 @@ public class ScrollView extends WidgetBase {
      * @param overlayScrollBars {@code true} для overlay-полос
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "overlayScrollBars", category = "Behavior", defaultValue = "true", description = "Whether scrollbars float above content without reserving layout space.")
+    @XamlProperty(value = "overlayScrollBars", category = "Behavior", defaultValue = "true", description = "Whether scrollbars float above content without reserving layout space.")
     @WikiMethod(order = 50, title = "<key:scroll.view.method.overlay_scrollbars.title>", summary = "<key:scroll.view.method.overlay_scrollbars>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 40, order = 50, summary = "Toggles overlay vs reserved scrollbar mode.")
@@ -570,7 +570,7 @@ public class ScrollView extends WidgetBase {
      * @param overlayInset inset в пикселях; отрицательные приводятся к {@code 0}
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "overlayInset", category = "Layout", defaultValue = "3", description = "Inset of overlay scrollbars from the viewport edge.")
+    @XamlProperty(value = "overlayInset", category = "Layout", defaultValue = "3", description = "Inset of overlay scrollbars from the viewport edge.")
     public ScrollView overlayInset(float overlayInset) {
         float normalized = Float.isFinite(overlayInset) ? Math.max(0.0f, overlayInset) : 3.0f;
         if (this.overlayInset == normalized) return this;
@@ -737,7 +737,7 @@ public class ScrollView extends WidgetBase {
      * @param tickCullingEnabled {@code true}, чтобы тикали только видимые виджеты
      * @return этот scroll view для fluent-настройки
      */
-    @XmlAttribute(value = "tickCulling", category = "Behavior", defaultValue = "true", description = "Whether widgets outside the visible viewport skip tick.")
+    @XamlProperty(value = "tickCulling", category = "Behavior", defaultValue = "true", description = "Whether widgets outside the visible viewport skip tick.")
     public ScrollView tickCullingEnabled(boolean tickCullingEnabled) {
         this.tickCullingEnabled = tickCullingEnabled;
         return this;

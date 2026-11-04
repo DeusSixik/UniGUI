@@ -1,13 +1,13 @@
 package dev.sixik.unigui.widgets.interaction;
 
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
-import dev.sixik.unigui.api.xml.XmlWidgetDocument;
-import dev.sixik.unigui.api.xml.XmlWidgetDocumentResult;
-import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
-import dev.sixik.unigui.api.xml.XmlWidgetRegistry;
-import dev.sixik.unigui.api.xml.XmlWidgetSerializationOptions;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.xaml.UiDiagnostic;
+import dev.sixik.unigui.xaml.Xaml;
+import dev.sixik.unigui.xaml.format.UiFormat;
+import dev.sixik.unigui.xaml.format.XamlFormat;
+import dev.sixik.unigui.xaml.load.DocumentValidator;
+import dev.sixik.unigui.xaml.schema.Schema;
 
 import java.util.List;
 import dev.sixik.unigui.api.docs.AiDoc;
@@ -45,12 +45,12 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:xml.code.editor.example.basic.title>",
         code = "<key:xml.code.editor.example.basic.code>",
         order = 10)
-@XmlWidgetName("XmlCodeEditor")
+@XamlWidget("XmlCodeEditor")
 public class XmlCodeEditor extends CodeEditor {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.XML_CODE_EDITOR;
 
-    private XmlWidgetRegistry registry = XmlWidgetRegistry.builtIns();
-    private XmlWidgetDocumentResult lastResult;
+    private Schema schema = Xaml.defaultSchema();
+    private DocumentValidator.Result lastResult;
 
     public XmlCodeEditor() {
         languagePreset(CodeLanguagePreset.XAML);
@@ -64,7 +64,7 @@ public class XmlCodeEditor extends CodeEditor {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable XML source text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable XML source text.")
     public XmlCodeEditor text(String text) {
         super.text(text);
         return this;
@@ -82,19 +82,21 @@ public class XmlCodeEditor extends CodeEditor {
         return this;
     }
 
-    public XmlWidgetRegistry registry() {
-        return registry;
+    /** @return реестр типов, по которому проверяется документ */
+    public Schema schema() {
+        return schema;
     }
 
     @WikiMethod(
             title = "<key:xml.code.editor.method.registry.title>",
             summary = "<key:xml.code.editor.method.registry.summary>")
-    public XmlCodeEditor registry(XmlWidgetRegistry registry) {
-        this.registry = registry == null ? XmlWidgetRegistry.builtIns() : registry;
+    public XmlCodeEditor schema(Schema schema) {
+        this.schema = schema == null ? Xaml.defaultSchema() : schema;
         return this;
     }
 
-    public XmlWidgetDocumentResult lastResult() {
+    /** @return результат последней проверки или {@code null}, если она ещё не выполнялась */
+    public DocumentValidator.Result lastResult() {
         return lastResult;
     }
 
@@ -102,35 +104,23 @@ public class XmlCodeEditor extends CodeEditor {
             title = "<key:xml.code.editor.method.validate_xml.title>",
             summary = "<key:xml.code.editor.method.validate_xml.summary>")
     public boolean validateXml() {
-        try {
-            lastResult = XmlWidgetDocument.parseEditor(text(), registry);
-            xmlDiagnostics(lastResult.diagnostics());
-            return lastResult.valid();
-        } catch (XmlWidgetLoadException failure) {
-            lastResult = null;
-            xmlDiagnostics(failure.diagnostics());
-            return false;
-        }
+        lastResult = new DocumentValidator(schema).validate(text());
+        xmlDiagnostics(lastResult.diagnostics());
+        return lastResult.valid();
     }
 
     @WikiMethod(
             title = "<key:xml.code.editor.method.format_xml.title>",
             summary = "<key:xml.code.editor.method.format_xml.summary>")
     public boolean formatXml() {
-        try {
-            lastResult = XmlWidgetDocument.parseEditor(text(), registry);
-            xmlDiagnostics(lastResult.diagnostics());
-            String formatted = lastResult.document().toXmlString(XmlWidgetSerializationOptions.PRETTY.xmlDeclaration(false));
-            text(formatted);
-            return true;
-        } catch (XmlWidgetLoadException failure) {
-            lastResult = null;
-            xmlDiagnostics(failure.diagnostics());
-            return false;
-        }
+        lastResult = new DocumentValidator(schema).validate(text());
+        xmlDiagnostics(lastResult.diagnostics());
+        if (lastResult.document() == null) return false;
+        text(XamlFormat.INSTANCE.write(lastResult.document(), new UiFormat.WriteOptions(4, false, 100)));
+        return true;
     }
 
-    public XmlCodeEditor xmlDiagnostics(List<XmlWidgetDiagnostic> diagnostics) {
+    public XmlCodeEditor xmlDiagnostics(List<UiDiagnostic> diagnostics) {
         if (diagnostics == null || diagnostics.isEmpty()) {
             clearDiagnostics();
             return this;

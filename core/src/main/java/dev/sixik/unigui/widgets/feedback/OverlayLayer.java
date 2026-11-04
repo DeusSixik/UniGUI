@@ -27,7 +27,7 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
@@ -39,7 +39,7 @@ import java.util.Map;
 /**
  * Root-level overlay host that renders overlay children above a normal content widget.
  */
-@XmlWidgetName("OverlayLayer")
+@XamlWidget("OverlayLayer")
 @AiDoc(summary = "Top-level overlay host managing modal and non-modal popups, tooltips, context menus, and floating WindowWidget instances.")
 @WikiPage(
         title = "OverlayLayer",

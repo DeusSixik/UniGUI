@@ -1,8 +1,8 @@
 package dev.sixik.unigui.impl.xml.minecraft;
 
-import dev.sixik.unigui.api.xml.XmlWidgetRegistryContributions;
+import dev.sixik.unigui.xaml.schema.SchemaContributions;
 
-/** Installs Minecraft-specific XML widgets into Core's built-in registry. */
+/** Installs Minecraft-specific XAML widgets (namespace {@code mc}) into the shared schema. */
 public final class MinecraftXmlBuiltIns {
     private static AutoCloseable contribution;
 
@@ -11,8 +11,6 @@ public final class MinecraftXmlBuiltIns {
 
     public static synchronized void install() {
         if (contribution != null) return;
-        contribution = XmlWidgetRegistryContributions.register(registry -> {
-            registry.contribute(BuiltInMinecraftXml::register);
-        });
+        contribution = SchemaContributions.register(BuiltInMinecraftXml::register);
     }
 }

@@ -45,9 +45,9 @@ import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlTextureAttributes;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.load.TextureResolution;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -107,7 +107,7 @@ import java.util.function.Consumer;
         code = "<key:surface.widget.example.card.code>", order = 10)
 @WikiLink(label = "Box", target = "page:box")
 @WikiLink(label = "PanelWidget", target = "page:panel-widget")
-@XmlWidgetName("Surface")
+@XamlWidget("Surface")
 public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
     /**
      * Композируемая поверхность: фон, рамка и радиус.
@@ -252,7 +252,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return surface.background();
     }
 
-    @XmlAttribute(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
+    @XamlProperty(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
     @WikiMethod(order = 15, title = "<key:surface.widget.method.background.title>", summary = "<key:surface.widget.method.background.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 15, summary = "Sets background fill color and enables background visibility.")
@@ -293,7 +293,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param backgroundVisible {@code true}, чтобы renderer рисовал фон
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether the background is rendered.")
+    @XamlProperty(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether the background is rendered.")
     @WikiMethod(order = 10, title = "<key:surface.widget.method.background_visible.title>", summary = "<key:surface.widget.method.background_visible.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 10, summary = "Controls whether the surface background is rendered.")
@@ -334,7 +334,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param kind источник фона; {@code null} включает автовывод
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundKind", category = "Appearance", defaultValue = "", description = "Background source: none, color, texture or shader. Empty means automatic.")
+    @XamlProperty(value = "backgroundKind", category = "Appearance", defaultValue = "", description = "Background source: none, color, texture or shader. Empty means automatic.")
     public T backgroundKind(BackgroundKind kind) {
         surface.backgroundKind(kind);
         return self();
@@ -355,7 +355,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param shader handle шейдера или {@code null}
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundShader", category = "Appearance", defaultValue = "", description = "Shader resource id used as background when background kind is shader.")
+    @XamlProperty(value = "backgroundShader", category = "Appearance", defaultValue = "", description = "Shader resource id used as background when background kind is shader.")
     public T backgroundShader(ShaderHandle shader) {
         surface.backgroundShader(shader);
         return self();
@@ -428,40 +428,40 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param backgroundTexture handle текстуры или {@code null}
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
+    @XamlProperty(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     public T backgroundTexture(TextureHandle backgroundTexture) {
         surface.backgroundTexture(backgroundTexture);
         return self();
     }
 
-    @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
+    @XamlProperty(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
     public T backgroundTextureWidth(int width) {
-        return backgroundTexture(XmlTextureAttributes.resize(surface.backgroundTexture(), width, null));
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), width, null));
     }
 
-    @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
+    @XamlProperty(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
     public T backgroundTextureHeight(int height) {
-        return backgroundTexture(XmlTextureAttributes.resize(surface.backgroundTexture(), null, height));
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), null, height));
     }
 
-    @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    @XamlProperty(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
     public T backgroundTextureSampling(TextureFilter filter) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.sampling(filter)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.sampling(filter)));
     }
 
-    @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    @XamlProperty(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
     public T backgroundTextureWrap(TextureWrap wrap) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.wrap(wrap)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.wrap(wrap)));
     }
 
-    @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
+    @XamlProperty(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
     public T backgroundTextureMipmaps(boolean mipmaps) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.mipmaps(mipmaps)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.mipmaps(mipmaps)));
     }
 
-    @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
+    @XamlProperty(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
     public T backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.premultipliedAlpha(premultipliedAlpha)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     /**
@@ -473,7 +473,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return surface.backgroundTextureTint();
     }
 
-    @XmlAttribute(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the background texture.")
+    @XamlProperty(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the background texture.")
     public T backgroundTextureTint(ColorView color) {
         if (color != null) surface.backgroundTextureTint().set(color);
         return self();
@@ -512,7 +512,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return surface.backgroundTextureSource();
     }
 
-    @XmlAttribute(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
+    @XamlProperty(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
     public T backgroundTextureSource(MutableRect source) {
         surface.backgroundTextureSource().set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
         return self();
@@ -543,7 +543,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param fit режим вписывания; {@code null} трактуется как {@link ImageFit#STRETCH}
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
+    @XamlProperty(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
     public T backgroundTextureFit(ImageFit fit) {
         surface.backgroundTextureFit(fit);
         return self();
@@ -568,7 +568,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param borders рамки в пикселях текстуры; {@code null} сбрасывает к нулевым
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    @XamlProperty(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
     public T sliceBorders(SliceBorders borders) {
         surface.sliceBorders(borders);
         return self();
@@ -684,7 +684,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return surface.borderColor();
     }
 
-    @XmlAttribute(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
+    @XamlProperty(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
     @WikiMethod(order = 25, title = "<key:surface.widget.method.border.title>", summary = "<key:surface.widget.method.border.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 25, summary = "Sets border stroke color and enables border visibility.")
@@ -694,7 +694,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
         return self();
     }
 
-    @XmlAttribute(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
+    @XamlProperty(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
     @WikiMethod(order = 20, title = "<key:surface.widget.method.border_color.title>", summary = "<key:surface.widget.method.border_color.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 20, summary = "Sets border color and enables border visibility.")
@@ -736,7 +736,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param borderVisible {@code true}, чтобы renderer рисовал рамку
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
+    @XamlProperty(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
     @WikiMethod(order = 30, title = "<key:surface.widget.method.border_visible.title>", summary = "<key:surface.widget.method.border_visible.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 30, summary = "Controls whether the border stroke is rendered.")
@@ -769,7 +769,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param borderWidth толщина рамки в пикселях UI-пространства
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
+    @XamlProperty(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
     @WikiMethod(order = 40, title = "<key:surface.widget.method.border_width.title>", summary = "<key:surface.widget.method.border_width.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 40, summary = "Sets stroke thickness of the border.")
@@ -817,7 +817,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param radius радиус скругления в пикселях UI-пространства
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
     @WikiMethod(order = 50, title = "<key:surface.widget.method.radius.title>", summary = "<key:surface.widget.method.radius.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 50, summary = "Sets corner rounding radius in UI pixels.")
@@ -865,7 +865,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param boxVisualEnabled {@code true}, чтобы рисовать поверхность виджета
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether surface rendering is enabled.")
+    @XamlProperty(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether surface rendering is enabled.")
     @WikiMethod(order = 60, title = "<key:surface.widget.method.box_visual_enabled.title>", summary = "<key:surface.widget.method.box_visual_enabled.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 60, summary = "Enables or disables all surface visual rendering.")
@@ -908,7 +908,7 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
      * @param themeEnabled {@code true}, чтобы применять глобальную тему
      * @return этот виджет для fluent-настройки
      */
-    @XmlAttribute(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether global theme lookup can override visual values; local styles always apply.")
+    @XamlProperty(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether global theme lookup can override visual values; local styles always apply.")
     @WikiMethod(order = 70, title = "<key:surface.widget.method.theme_enabled.title>", summary = "<key:surface.widget.method.theme_enabled.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Appearance", sectionOrder = 10, order = 70, summary = "Controls whether global Theme styles override surface properties.")

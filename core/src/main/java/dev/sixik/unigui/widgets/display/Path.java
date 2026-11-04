@@ -7,8 +7,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.render.VectorPath;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.StyleKeys;
@@ -46,7 +46,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:path.widget.example.basic.title>",
         code = "<key:path.widget.example.basic.code>",
         order = 10)
-@XmlWidgetName("Path")
+@XamlWidget("Path")
 public final class Path extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.PATH;
 
@@ -81,7 +81,7 @@ public final class Path extends WidgetBase {
         return stroke;
     }
 
-    @XmlAttribute(value = "stroke", category = "Appearance", defaultValue = "true", description = "Whether the vector path is stroked instead of filled.")
+    @XamlProperty(value = "stroke", category = "Appearance", defaultValue = "true", description = "Whether the vector path is stroked instead of filled.")
     @WikiMethod(
             title = "<key:path.widget.method.stroke.title>",
             summary = "<key:path.widget.method.stroke.summary>")
@@ -96,7 +96,7 @@ public final class Path extends WidgetBase {
         return strokeWidth;
     }
 
-    @XmlAttribute(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Path stroke width in UI pixels.")
+    @XamlProperty(value = "strokeWidth", category = "Appearance", defaultValue = "1", description = "Path stroke width in UI pixels.")
     @WikiMethod(
             title = "<key:path.widget.method.stroke_width.title>",
             summary = "<key:path.widget.method.stroke_width.summary>")

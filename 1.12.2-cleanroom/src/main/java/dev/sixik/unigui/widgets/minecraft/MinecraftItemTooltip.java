@@ -3,7 +3,7 @@ package dev.sixik.unigui.widgets.minecraft;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.feedback.Tooltip;
 import net.minecraft.item.ItemStack;
@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * overlayLayer.addOverlay(new MinecraftItemTooltip(anchor, () -> currentStack));
  * }</pre>
  */
-@XmlWidgetName("MinecraftItemTooltip")
+@XamlWidget("MinecraftItemTooltip")
 public final class MinecraftItemTooltip extends Tooltip {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MINECRAFT_ITEM_TOOLTIP;
 

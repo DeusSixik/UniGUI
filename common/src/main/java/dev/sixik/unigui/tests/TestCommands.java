@@ -14,12 +14,12 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XMLWidget;
-import dev.sixik.unigui.api.xml.XmlBindingContext;
-import dev.sixik.unigui.api.xml.XmlCommandRegistry;
-import dev.sixik.unigui.api.xml.XmlMutableObservableValue;
-import dev.sixik.unigui.api.xml.XmlWidgetOptions;
-import dev.sixik.unigui.api.xml.XmlWidgetScreen;
+import dev.sixik.unigui.xaml.bind.XamlBindingContext;
+import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
+import dev.sixik.unigui.xaml.bind.XamlMutableObservableValue;
+import dev.sixik.unigui.xaml.Xaml;
+import dev.sixik.unigui.xaml.load.LoadOptions;
+import dev.sixik.unigui.xaml.load.LoadedScreen;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
@@ -128,17 +128,17 @@ public final class TestCommands {
     }
 
     private static void openXamlBindingExampleScreen() {
-        XmlBindingContext bindingContext = XmlBindingContext.empty();
-        XmlMutableObservableValue<String> status = bindingContext.mutable(
+        XamlBindingContext bindingContext = XamlBindingContext.empty();
+        XamlMutableObservableValue<String> status = bindingContext.mutable(
                 "demo.status", String.class, "Состояние: готово");
-        XmlMutableObservableValue<String> actionLabel = bindingContext.mutable(
+        XamlMutableObservableValue<String> actionLabel = bindingContext.mutable(
                 "demo.actionLabel", String.class, "Переключить состояние");
-        XmlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
+        XamlMutableObservableValue<Boolean> detailsVisible = bindingContext.mutable(
                 "demo.detailsVisible", Boolean.class, true);
-        XmlMutableObservableValue<Float> gamma = bindingContext.mutable(
+        XamlMutableObservableValue<Float> gamma = bindingContext.mutable(
                 "demo.gamma", Float.class, 0.25f);
 
-        XmlCommandRegistry commands = XmlCommandRegistry.empty()
+        XamlCommandRegistry commands = XamlCommandRegistry.empty()
                 .register("demo.toggle", (source, event) -> {
                     boolean nextVisible = !detailsVisible.get();
                     detailsVisible.set(nextVisible);
@@ -147,7 +147,7 @@ public final class TestCommands {
                     status.set(nextVisible ? "Состояние: подробности включены" : "Состояние: подробности скрыты");
                 });
 
-        XmlWidgetScreen<VBox> xmlScreen = XMLWidget.createScreen("""
+        LoadedScreen<VBox> xmlScreen = Xaml.loadScreen("""
                 <VBox id="bindingDemo" spacing="8" width="420" height="220" padding="12">
                     <Label text="XAML data binding" />
                     <Label id="status" text="{Binding demo.status}" />
@@ -157,7 +157,7 @@ public final class TestCommands {
                     <Button id="toggle" text="{Binding demo.actionLabel}" onClick="demo.toggle" />
                     <Button id="test" text="{Binding demo.status}" />
                 </VBox>
-                """, VBox.class, XmlWidgetOptions.DEFAULT
+                """, VBox.class, LoadOptions.DEFAULT
                 .bindingContext(bindingContext)
                 .commands(commands));
 

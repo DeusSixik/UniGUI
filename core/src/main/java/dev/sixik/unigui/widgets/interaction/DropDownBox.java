@@ -16,8 +16,8 @@ import dev.sixik.unigui.api.render.DrawPoint;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import java.util.Objects;
 import dev.sixik.unigui.impl.layout.SlotLayout;
@@ -69,7 +69,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:drop.down.box.example.basic.title>",
         code = "<key:drop.down.box.example.basic.code>",
         order = 10)
-@XmlWidgetName("DropDownBox")
+@XamlWidget("DropDownBox")
 public class DropDownBox extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_DOWN_BOX;
 
@@ -192,7 +192,7 @@ public class DropDownBox extends LinearBox {
         return headerText;
     }
 
-    @XmlAttribute(value = "headerText", category = "Content", defaultValue = "Open...", description = "Header button text when the dropdown is closed.")
+    @XamlProperty(value = "headerText", category = "Content", defaultValue = "Open...", description = "Header button text when the dropdown is closed.")
     @WikiMethod(
             title = "<key:drop.down.box.method.set_header_text.title>",
             summary = "<key:drop.down.box.method.set_header_text.summary>")
@@ -254,7 +254,7 @@ public class DropDownBox extends LinearBox {
         return opened(!opened);
     }
 
-    @XmlAttribute(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown content starts open.")
+    @XamlProperty(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown content starts open.")
     public DropDownBox opened(boolean opened) {
         if (this.opened == opened) return this;
         this.opened = opened;
@@ -269,7 +269,7 @@ public class DropDownBox extends LinearBox {
         return dropDownMode;
     }
 
-    @XmlAttribute(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown content is shown inline or in an overlay popup.")
+    @XamlProperty(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown content is shown inline or in an overlay popup.")
     public DropDownBox dropDownMode(ComboBox.DropDownMode dropDownMode) {
         ComboBox.DropDownMode normalized = dropDownMode == null ? ComboBox.DropDownMode.INLINE : dropDownMode;
         if (this.dropDownMode == normalized) return this;
@@ -349,7 +349,7 @@ public class DropDownBox extends LinearBox {
         return dropDownWidth;
     }
 
-    @XmlAttribute(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
+    @XamlProperty(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
     @WikiMethod(
             title = "<key:drop.down.box.method.set_drop_down_width.title>",
             summary = "<key:drop.down.box.method.set_drop_down_width.summary>")
@@ -367,7 +367,7 @@ public class DropDownBox extends LinearBox {
         return dropDownMatchesWidgetWidth;
     }
 
-    @XmlAttribute(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the host widget width.")
+    @XamlProperty(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the host widget width.")
     public DropDownBox dropDownMatchesWidgetWidth(boolean match) {
         if (dropDownMatchesWidgetWidth == match && (match || dropDownWidth <= 0.0f)) return this;
         dropDownMatchesWidgetWidth = match;
@@ -401,7 +401,7 @@ public class DropDownBox extends LinearBox {
         return maxContentHeight;
     }
 
-    @XmlAttribute(value = "maxContentHeight", category = "Layout", defaultValue = "216", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
+    @XamlProperty(value = "maxContentHeight", category = "Layout", defaultValue = "216", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
     @WikiMethod(
             title = "<key:drop.down.box.method.set_max_content_height.title>",
             summary = "<key:drop.down.box.method.set_max_content_height.summary>")

@@ -66,10 +66,8 @@ import dev.sixik.unigui.api.widget.render.WidgetRender;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
-import dev.sixik.unigui.api.xml.XmlStyleAttributes;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -87,8 +85,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-@XmlLayoutAttributes
-@XmlStyleAttributes
 @AiDoc(
         summary = "Base implementation for UniGUI widgets and the bridge between widget state, layout, styles, rendering, input, and animation.",
         purpose = "Provides common fluent configuration and lifecycle behavior so concrete widgets can focus on their own content, measurement, and visual rendering.",
@@ -417,7 +413,7 @@ public abstract class WidgetBase implements Widget {
     private String styleId = "";
     private final LinkedHashSet<String> styleClasses = new LinkedHashSet<>();
     private MutableStyle inlineStyle;
-    private List<XmlWidgetDiagnostic> styleDiagnostics = List.of();
+    private List<UiDiagnostic> styleDiagnostics = List.of();
 
     /**
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
@@ -498,7 +494,7 @@ public abstract class WidgetBase implements Widget {
      * Задаёт runtime/editor id виджета.
      */
     @Override
-    @XmlAttribute(value = "id", category = "Common", description = "Runtime/debug/editor identifier for code-behind lookup.")
+    @XamlProperty(value = "id", category = "Common", description = "Runtime/debug/editor identifier for code-behind lookup.")
     @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 10,
             summary = "Assigns the runtime/editor identifier used by code-behind and lookup systems.")
     @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 10,
@@ -526,7 +522,7 @@ public abstract class WidgetBase implements Widget {
      * Задаёт явный id стиля виджета через XML-атрибут {@code style}.
      */
     @Override
-    @XmlAttribute(value = "style", category = "Common", description = "Explicit StylePack style id applied to this widget.")
+    @XamlProperty(value = "style", category = "Common", description = "Explicit StylePack style id applied to this widget.")
     @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 20,
             summary = "Selects the explicit `StylePack` style id for this widget.")
     @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 20,
@@ -556,7 +552,7 @@ public abstract class WidgetBase implements Widget {
      * Задаёт style classes через XML-атрибут {@code class}.
      */
     @Override
-    @XmlAttribute(value = "class", category = "Common", description = "Space-separated StylePack classes applied to this widget.")
+    @XamlProperty(value = "class", category = "Common", description = "Space-separated StylePack classes applied to this widget.")
     @AiDoc(section = "Identity & Style Selectors", sectionOrder = 10, order = 30,
             summary = "Replaces the widget's space-separated style-class set.")
     @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 40,
@@ -655,7 +651,7 @@ public abstract class WidgetBase implements Widget {
         StyleTextParseResult result = StyleTextParser.parseEditor(normalized);
         mutableInlineStyle().putAll(result.style());
         if (!result.diagnostics().isEmpty()) {
-            java.util.ArrayList<XmlWidgetDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
+            java.util.ArrayList<UiDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
             next.addAll(result.diagnostics());
             styleDiagnostics = List.copyOf(next);
         }
@@ -702,7 +698,7 @@ public abstract class WidgetBase implements Widget {
     @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 38,
             title = "<key:widget.base.method.style_diagnostics.title>", summary = "<key:widget.base.method.style_diagnostics.summary>")
     @WikiReturn("<key:widget.base.method.style_diagnostics.return>")
-    public List<XmlWidgetDiagnostic> styleDiagnostics() {
+    public List<UiDiagnostic> styleDiagnostics() {
         return styleDiagnostics;
     }
 
@@ -751,7 +747,7 @@ public abstract class WidgetBase implements Widget {
      * @param enabled {@code true}, чтобы анимировать последующие перемещения
      * @return этот виджет
      */
-    @XmlAttribute(value = "layoutTransitionsEnabled", category = "Animation", defaultValue = "false",
+    @XamlProperty(value = "layoutTransitionsEnabled", category = "Animation", defaultValue = "false",
             description = "Включает FLIP-переходы при перемещении виджета layout-системой.")
     @WikiMethod(section = "<key:widget.base.api.section.layout>", sectionOrder = 20, order = 45,
             title = "<key:widget.base.method.layout_transitions_enabled.title>", summary = "<key:widget.base.method.layout_transitions_enabled.summary>")
@@ -925,7 +921,7 @@ public abstract class WidgetBase implements Widget {
         return this;
     }
 
-    @XmlAttribute(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
+    @XamlProperty(value = "rotation", category = "Appearance", defaultValue = "0", description = "Rotation in degrees applied to the widget transform.")
     @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 40,
             summary = "Sets rotation in degrees immediately and stops active rotation animations.")
     @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 20,
@@ -959,7 +955,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает текущую прозрачность виджета.
      */
-    @XmlAttribute(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
+    @XamlProperty(value = "opacity", category = "Appearance", defaultValue = "1", description = "Widget opacity clamped between 0 and 1.")
     @AiDoc(section = "Transforms & Animation", sectionOrder = 40, order = 50,
             summary = "Sets opacity immediately after clamping it to the 0..1 range.")
     @WikiMethod(section = "<key:widget.base.api.section.animation>", sectionOrder = 40, order = 10,
@@ -1552,7 +1548,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или обновляет режим видимости виджета.
      */
-    @XmlAttribute(value = "visibility", category = "Behavior", defaultValue = "visible", description = "Visibility mode: visible, hidden or collapsed.")
+    @XamlProperty(value = "visibility", category = "Behavior", defaultValue = "visible", description = "Visibility mode: visible, hidden or collapsed.")
     @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 10,
             summary = "Sets `VISIBLE`, `HIDDEN`, or `COLLAPSED` and invalidates layout when the layout footprint changes.",
             criticalRules = "`HIDDEN` preserves layout space; `COLLAPSED` removes the widget from layout.")
@@ -1590,7 +1586,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт простую видимость виджета через режим {@code Visibility}.
      */
-    @XmlAttribute(value = "visible", category = "Behavior", defaultValue = "true", description = "Whether the widget is visible without collapsing layout space.")
+    @XamlProperty(value = "visible", category = "Behavior", defaultValue = "true", description = "Whether the widget is visible without collapsing layout space.")
     @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 20,
             summary = "Convenience toggle between `VISIBLE` and `HIDDEN`; it never selects `COLLAPSED`.")
     @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 20,
@@ -1614,7 +1610,7 @@ public abstract class WidgetBase implements Widget {
     /**
      * Возвращает или задаёт доступность виджета для пользовательского ввода.
      */
-    @XmlAttribute(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can receive user interaction.")
+    @XamlProperty(value = "enabled", category = "Behavior", defaultValue = "true", description = "Whether the widget can receive user interaction.")
     @AiDoc(section = "State & Interaction", sectionOrder = 30, order = 30,
             summary = "Enables or disables user interaction and exposes the disabled style state.")
     @WikiMethod(section = "<key:widget.base.api.section.state>", sectionOrder = 30, order = 30,

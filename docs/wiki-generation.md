@@ -152,7 +152,7 @@ wiki pages, and a type does not need `@WikiPage` to participate in the AI collec
 metadata supports a purpose, use cases, critical rules/gotchas, related APIs, and examples.
 Method-level `section`, `sectionOrder`, and `order` group and sort curated API entries.
 The generator writes Java signatures and return types from reflection, and uses
-`@XmlAttribute` descriptions/defaults where available. Only explicitly `@AiDoc`-annotated
+`@XamlProperty` descriptions/defaults where available. Only explicitly `@AiDoc`-annotated
 public methods are included, so prose stays reviewed rather than inferred from names.
 
 ```java

@@ -1,7 +1,7 @@
 package dev.sixik.unigui.tests;
 
 import dev.sixik.unigui.api.docs.AiDoc;
-import dev.sixik.unigui.api.xml.XmlAttribute;
+import dev.sixik.unigui.xaml.XamlProperty;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -161,8 +161,8 @@ public final class AiMarkdownGenerator {
 
     private static void appendMember(StringBuilder markdown, Executable member) {
         AiDoc doc = member.getAnnotation(AiDoc.class);
-        XmlAttribute xmlAttribute = member instanceof Method method
-                ? method.getAnnotation(XmlAttribute.class) : null;
+        XamlProperty xmlAttribute = member instanceof Method method
+                ? method.getAnnotation(XamlProperty.class) : null;
         String description = doc.summary().isBlank() && xmlAttribute != null
                 ? xmlAttribute.description() : doc.summary();
 

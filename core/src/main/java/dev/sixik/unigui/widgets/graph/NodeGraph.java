@@ -20,8 +20,8 @@ import dev.sixik.unigui.api.widget.RenderedBoundsMapper;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
@@ -66,7 +66,7 @@ import java.util.function.LongSupplier;
         target = "page:node-graph-connection",
         description = "<key:node.graph.connection.summary>"
 )
-@XmlWidgetName("NodeGraph")
+@XamlWidget("NodeGraph")
 public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, RenderedBoundsMapper {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.NODE_GRAPH;
 
@@ -291,7 +291,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return itemContentPadding;
     }
 
-    @XmlAttribute(value = "itemContentPadding", category = "Layout", defaultValue = "0", description = "Padding applied around item content during node layout.")
+    @XamlProperty(value = "itemContentPadding", category = "Layout", defaultValue = "0", description = "Padding applied around item content during node layout.")
     @AiDoc(summary = "Sets inner padding around item content widgets.")
     @WikiMethod(summary = "<key:node.graph.method.itemContentPaddingSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1572,7 +1572,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return preferredWidth;
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic node graph width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic node graph width before layout constraints are applied.")
     @AiDoc(summary = "Sets the preferred width of this graph.")
     @WikiMethod(summary = "<key:node.graph.method.preferredWidthSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1591,7 +1591,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return preferredHeight;
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "200", description = "Intrinsic node graph height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "200", description = "Intrinsic node graph height before layout constraints are applied.")
     @AiDoc(summary = "Sets the preferred height of this graph.")
     @WikiMethod(summary = "<key:node.graph.method.preferredHeightSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1632,7 +1632,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return selectionMode;
     }
 
-    @XmlAttribute(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by node graph items.")
+    @XamlProperty(value = "selectionMode", category = "Behavior", defaultValue = "single", description = "Selection mode used by node graph items.")
     @AiDoc(summary = "Sets selection mode.")
     @WikiMethod(summary = "<key:node.graph.method.selectionModeSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1686,7 +1686,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return gridSize;
     }
 
-    @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "24", description = "World-space spacing between rendered grid lines.")
+    @XamlProperty(value = "gridSize", category = "Appearance", defaultValue = "24", description = "World-space spacing between rendered grid lines.")
     @AiDoc(summary = "Sets the grid cell step size in pixels.")
     @WikiMethod(summary = "<key:node.graph.method.gridSizeSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1705,7 +1705,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return clippingEnabled;
     }
 
-    @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether graph content is clipped to widget bounds.")
+    @XamlProperty(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether graph content is clipped to widget bounds.")
     @AiDoc(summary = "Sets whether canvas rendering is clipped to widget bounds.")
     @WikiMethod(summary = "<key:node.graph.method.clippingEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1723,7 +1723,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return itemDraggingEnabled;
     }
 
-    @XmlAttribute(value = "itemDraggingEnabled", category = "Behavior", defaultValue = "true", description = "Whether node items can be moved by pointer dragging.")
+    @XamlProperty(value = "itemDraggingEnabled", category = "Behavior", defaultValue = "true", description = "Whether node items can be moved by pointer dragging.")
     @AiDoc(summary = "Sets whether item dragging is enabled.")
     @WikiMethod(summary = "<key:node.graph.method.itemDraggingEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1739,7 +1739,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return panningEnabled;
     }
 
-    @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer gestures can pan the graph viewport.")
+    @XamlProperty(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer gestures can pan the graph viewport.")
     @AiDoc(summary = "Sets whether canvas panning is enabled.")
     @WikiMethod(summary = "<key:node.graph.method.panningEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1755,7 +1755,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return zoomEnabled;
     }
 
-    @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures can zoom the graph viewport.")
+    @XamlProperty(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures can zoom the graph viewport.")
     @AiDoc(summary = "Sets whether canvas zooming is enabled.")
     @WikiMethod(summary = "<key:node.graph.method.zoomEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1771,7 +1771,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return scaleContentWithZoom;
     }
 
-    @XmlAttribute(value = "scaleContentWithZoom", category = "Behavior", defaultValue = "true", description = "Whether embedded item widgets scale with viewport zoom.")
+    @XamlProperty(value = "scaleContentWithZoom", category = "Behavior", defaultValue = "true", description = "Whether embedded item widgets scale with viewport zoom.")
     @AiDoc(summary = "Sets whether node item content widgets scale with zoom.")
     @WikiMethod(summary = "<key:node.graph.method.scaleContentWithZoomSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1820,7 +1820,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return lassoSelectionEnabled;
     }
 
-    @XmlAttribute(value = "lassoSelectionEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can create lasso item selections.")
+    @XamlProperty(value = "lassoSelectionEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can create lasso item selections.")
     @AiDoc(summary = "Sets whether rubber-band lasso selection is enabled.")
     @WikiMethod(summary = "<key:node.graph.method.lassoSelectionEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1836,7 +1836,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return resizeEnabled;
     }
 
-    @XmlAttribute(value = "resizeEnabled", category = "Behavior", defaultValue = "true", description = "Whether selected node items can be resized.")
+    @XamlProperty(value = "resizeEnabled", category = "Behavior", defaultValue = "true", description = "Whether selected node items can be resized.")
     @AiDoc(summary = "Sets whether interactive item resizing is enabled.")
     @WikiMethod(summary = "<key:node.graph.method.resizeEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1852,7 +1852,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return keyboardEditingEnabled;
     }
 
-    @XmlAttribute(value = "keyboardEditingEnabled", category = "Behavior", defaultValue = "true", description = "Whether keyboard shortcuts can edit node graph selections.")
+    @XamlProperty(value = "keyboardEditingEnabled", category = "Behavior", defaultValue = "true", description = "Whether keyboard shortcuts can edit node graph selections.")
     @AiDoc(summary = "Sets whether keyboard editing shortcuts are enabled.")
     @WikiMethod(summary = "<key:node.graph.method.keyboardEditingEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1868,7 +1868,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return consumeWheelWhileHovered;
     }
 
-    @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the graph is hovered.")
+    @XamlProperty(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the graph is hovered.")
     @AiDoc(summary = "Sets whether mouse wheel events are consumed when hovered.")
     @WikiMethod(summary = "<key:node.graph.method.consumeWheelWhileHoveredSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1884,7 +1884,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return wheelPanningEnabled;
     }
 
-    @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether non-zoom wheel gestures pan the graph viewport.")
+    @XamlProperty(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether non-zoom wheel gestures pan the graph viewport.")
     @AiDoc(summary = "Sets whether mouse wheel pans instead of zooming.")
     @WikiMethod(summary = "<key:node.graph.method.wheelPanningEnabledSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1900,7 +1900,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return wheelPanStep;
     }
 
-    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
+    @XamlProperty(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
     @AiDoc(summary = "Sets the pixel step distance per wheel tick.")
     @WikiMethod(summary = "<key:node.graph.method.wheelPanStepSet>")
     @WikiReturn("<key:node.graph.return.self>")
@@ -1916,7 +1916,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         return bringToFrontOnSelect;
     }
 
-    @XmlAttribute(value = "bringToFrontOnSelect", category = "Behavior", defaultValue = "true", description = "Whether selecting an item moves it above sibling nodes.")
+    @XamlProperty(value = "bringToFrontOnSelect", category = "Behavior", defaultValue = "true", description = "Whether selecting an item moves it above sibling nodes.")
     @AiDoc(summary = "Sets whether selecting an item moves it to the front.")
     @WikiMethod(summary = "<key:node.graph.method.bringToFrontOnSelectSet>")
     @WikiReturn("<key:node.graph.return.self>")

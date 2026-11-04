@@ -15,9 +15,9 @@ import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.render.TextureWrap;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlTextureAttributes;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.load.TextureResolution;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
@@ -57,7 +57,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:texture.widget.example.basic.title>",
         code = "<key:texture.widget.example.basic.code>",
         order = 10)
-@XmlWidgetName("TextureWidget")
+@XamlWidget("TextureWidget")
 public class TextureWidget extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.TEXTURE_WIDGET;
 
@@ -114,7 +114,7 @@ public class TextureWidget extends WidgetBase {
         return texture;
     }
 
-    @XmlAttribute(value = "texture", displayName = "Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
+    @XamlProperty(value = "texture", displayName = "Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
     @WikiMethod(
             title = "<key:texture.widget.method.texture.title>",
             summary = "<key:texture.widget.method.texture.summary>")
@@ -128,40 +128,40 @@ public class TextureWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "textureWidth", displayName = "Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
+    @XamlProperty(value = "textureWidth", displayName = "Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
     public TextureWidget textureWidth(int width) {
-        return texture(XmlTextureAttributes.resize(texture, width, null));
+        return texture(TextureResolution.resize(texture, width, null));
     }
 
-    @XmlAttribute(value = "textureHeight", displayName = "Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
+    @XamlProperty(value = "textureHeight", displayName = "Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
     public TextureWidget textureHeight(int height) {
-        return texture(XmlTextureAttributes.resize(texture, null, height));
+        return texture(TextureResolution.resize(texture, null, height));
     }
 
-    @XmlAttribute(value = "textureSampling", displayName = "Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    @XamlProperty(value = "textureSampling", displayName = "Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
     @WikiMethod(
             title = "<key:texture.widget.method.texture_sampling.title>",
             summary = "<key:texture.widget.method.texture_sampling.summary>")
     public TextureWidget textureSampling(TextureFilter filter) {
-        return texture(XmlTextureAttributes.options(texture, options -> options.sampling(filter)));
+        return texture(TextureResolution.options(texture, options -> options.sampling(filter)));
     }
 
-    @XmlAttribute(value = "textureWrap", displayName = "Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    @XamlProperty(value = "textureWrap", displayName = "Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
     @WikiMethod(
             title = "<key:texture.widget.method.texture_wrap.title>",
             summary = "<key:texture.widget.method.texture_wrap.summary>")
     public TextureWidget textureWrap(TextureWrap wrap) {
-        return texture(XmlTextureAttributes.options(texture, options -> options.wrap(wrap)));
+        return texture(TextureResolution.options(texture, options -> options.wrap(wrap)));
     }
 
-    @XmlAttribute(value = "textureMipmaps", displayName = "Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
+    @XamlProperty(value = "textureMipmaps", displayName = "Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
     public TextureWidget textureMipmaps(boolean mipmaps) {
-        return texture(XmlTextureAttributes.options(texture, options -> options.mipmaps(mipmaps)));
+        return texture(TextureResolution.options(texture, options -> options.mipmaps(mipmaps)));
     }
 
-    @XmlAttribute(value = "texturePremultipliedAlpha", displayName = "Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
+    @XamlProperty(value = "texturePremultipliedAlpha", displayName = "Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
     public TextureWidget texturePremultipliedAlpha(boolean premultipliedAlpha) {
-        return texture(XmlTextureAttributes.options(texture, options -> options.premultipliedAlpha(premultipliedAlpha)));
+        return texture(TextureResolution.options(texture, options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     public TextureWidget animateTexture(TextureHandle texture, float durationSeconds) {
@@ -191,7 +191,7 @@ public class TextureWidget extends WidgetBase {
         return tint;
     }
 
-    @XmlAttribute(value = "tint", displayName = "Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the texture.")
+    @XamlProperty(value = "tint", displayName = "Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the texture.")
     public TextureWidget tint(ColorView color) {
         if (color != null) tint.set(color);
         return this;
@@ -216,7 +216,7 @@ public class TextureWidget extends WidgetBase {
         return this;
     }
 
-    @XmlAttribute(value = "source", displayName = "Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
+    @XamlProperty(value = "source", displayName = "Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
     public TextureWidget source(RectView source) {
         this.source.set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
         return this;
@@ -226,7 +226,7 @@ public class TextureWidget extends WidgetBase {
         return fit;
     }
 
-    @XmlAttribute(value = "fit", displayName = "Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the texture.")
+    @XamlProperty(value = "fit", displayName = "Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the texture.")
     public TextureWidget fit(ImageFit fit) {
         ImageFit effectiveFit = fit == null ? ImageFit.STRETCH : fit;
         if (this.fit == effectiveFit) return this;
@@ -239,7 +239,7 @@ public class TextureWidget extends WidgetBase {
         return sliceBorders;
     }
 
-    @XmlAttribute(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    @XamlProperty(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
     public TextureWidget sliceBorders(SliceBorders borders) {
         SliceBorders effective = borders == null ? SliceBorders.ZERO : borders;
         if (sliceBorders.equals(effective)) return this;
@@ -260,7 +260,7 @@ public class TextureWidget extends WidgetBase {
         return radius;
     }
 
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius used while rendering the texture.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius used while rendering the texture.")
     public TextureWidget radius(float radius) {
         float effectiveRadius = Float.isFinite(radius) ? Math.max(0.0f, radius) : 0.0f;
         if (this.radius == effectiveRadius) return this;

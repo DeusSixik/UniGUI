@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 /**
  * Однократно построенный индекс runtime-виджетов по {@link Widget#id()}.
  *
- * <p>Registry использует те же id, что XML-разметка и {@code XMLWidget.getWidget(...)},
+ * <p>Registry использует те же id, что XML-разметка и {@code Xaml.get(...)},
  * но storyboard разрешает все цели один раз при создании player, а не обходит дерево на каждом tick.</p>
  */
 public final class NamedWidgetRegistry {

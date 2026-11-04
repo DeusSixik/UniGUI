@@ -16,7 +16,7 @@ import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 
-@XmlWidgetName("CachedSubtreeWidget")
+@XamlWidget("CachedSubtreeWidget")
 public final class CachedSubtreeWidget extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CACHED_SUBTREE_WIDGET;
 

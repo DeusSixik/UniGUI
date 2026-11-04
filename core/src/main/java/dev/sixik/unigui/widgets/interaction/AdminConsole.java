@@ -32,7 +32,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.ScrollView;
@@ -111,7 +111,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:admin.console.example.basic.title>",
         code = "<key:admin.console.example.basic.code>",
         order = 10)
-@XmlWidgetName("AdminConsole")
+@XamlWidget("AdminConsole")
 public class AdminConsole extends Box {
     protected static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     protected static final int DEFAULT_MAX_OUTPUT_LINES = 256;

@@ -18,8 +18,8 @@ import dev.sixik.unigui.api.layout.LayoutConstraints;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import java.util.Objects;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -48,7 +48,7 @@ import dev.sixik.unigui.widgets.interaction.ToggleButton;
         target = "page:accordion",
         description = "<key:accordion.summary>"
 )
-@XmlWidgetName("ExpandablePanel")
+@XamlWidget("ExpandablePanel")
 public class ExpandablePanel extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.EXPANDABLE_PANEL;
 
@@ -109,7 +109,7 @@ public class ExpandablePanel extends LinearBox {
         return title;
     }
 
-    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "Panel header title text.")
+    @XamlProperty(value = "title", category = "Content", defaultValue = "", description = "Panel header title text.")
         @AiDoc(summary = "Sets the plain text title.")
     @WikiMethod(summary = "<key:expandable.panel.method.titleSet>")
     @WikiReturn("<key:expandable.panel.return.this>")
@@ -167,7 +167,7 @@ public class ExpandablePanel extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "expanded", category = "Behavior", defaultValue = "true", description = "Initial expanded state without emitting change events during XML load.")
+    @XamlProperty(value = "expanded", category = "Behavior", defaultValue = "true", description = "Initial expanded state without emitting change events during XML load.")
         @AiDoc(summary = "Sets the expanded state without triggering event callbacks.")
     @WikiMethod(summary = "<key:expandable.panel.method.silentExpanded>")
     @WikiReturn("<key:expandable.panel.return.this>")

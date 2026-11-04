@@ -17,8 +17,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.utils.reactive.*;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.render.WidgetRole;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.core.Orientation;
@@ -49,7 +49,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
         title = "<key:slider.example.basic.title>",
         code = "<key:slider.example.basic.code>",
         order = 10)
-@XmlWidgetName("Slider")
+@XamlWidget("Slider")
 public class Slider extends Box {
     public static final String STYLE_TYPE = StyleIds.Widget.SLIDER;
 
@@ -133,7 +133,7 @@ public class Slider extends Box {
         return min;
     }
 
-    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum slider value.")
+    @XamlProperty(value = "min", category = "Behavior", defaultValue = "0", description = "Minimum slider value.")
     public Slider min(float min) {
         return range(min, max);
     }
@@ -145,7 +145,7 @@ public class Slider extends Box {
         return max;
     }
 
-    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum slider value.")
+    @XamlProperty(value = "max", category = "Behavior", defaultValue = "1", description = "Maximum slider value.")
     public Slider max(float max) {
         return range(min, max);
     }
@@ -174,7 +174,7 @@ public class Slider extends Box {
         return value;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Current slider value clamped to min/max.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "0", description = "Current slider value clamped to min/max.")
     public Slider value(float value) {
         setValue(value, true);
         return this;
@@ -187,7 +187,7 @@ public class Slider extends Box {
         return step;
     }
 
-    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "0", description = "Snap increment; 0 disables snapping.")
+    @XamlProperty(value = "step", category = "Behavior", defaultValue = "0", description = "Snap increment; 0 disables snapping.")
     public Slider step(float step) {
         this.step = Math.max(0.0f, step);
         return this;
@@ -215,7 +215,7 @@ public class Slider extends Box {
      * @param orientation ось или {@code null} (трактуется как горизонтальная)
      * @return этот слайдер
      */
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Slider axis; vertical sliders grow from bottom to top.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Slider axis; vertical sliders grow from bottom to top.")
     public Slider orientation(Orientation orientation) {
         Orientation normalized = orientation == null ? Orientation.HORIZONTAL : orientation;
         if (this.orientation == normalized) return this;
@@ -260,7 +260,7 @@ public class Slider extends Box {
         return preferredWidth;
     }
 
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic slider width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "120", description = "Intrinsic slider width before layout constraints are applied.")
     @WikiMethod(
             title = "<key:slider.method.set_preferred_width.title>",
             summary = "<key:slider.method.set_preferred_width.summary>")
@@ -279,7 +279,7 @@ public class Slider extends Box {
         return preferredHeight;
     }
 
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "18", description = "Intrinsic slider height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "18", description = "Intrinsic slider height before layout constraints are applied.")
     @WikiMethod(
             title = "<key:slider.method.set_preferred_height.title>",
             summary = "<key:slider.method.set_preferred_height.summary>")

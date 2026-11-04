@@ -5,8 +5,8 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -45,7 +45,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:separator.example.basic.title>",
         code = "<key:separator.example.basic.code>",
         order = 10)
-@XmlWidgetName("Separator")
+@XamlWidget("Separator")
 public final class Separator extends WidgetBase {
     public static final String STYLE_TYPE = StyleIds.Widget.SEPARATOR;
 
@@ -90,7 +90,7 @@ public final class Separator extends WidgetBase {
         return orientation;
     }
 
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Axis along which the separator is rendered.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "horizontal", description = "Axis along which the separator is rendered.")
     @WikiMethod(
             title = "<key:separator.method.orientation.title>",
             summary = "<key:separator.method.orientation.summary>")
@@ -106,7 +106,7 @@ public final class Separator extends WidgetBase {
         return thickness;
     }
 
-    @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "1", description = "Separator thickness in UI pixels.")
+    @XamlProperty(value = "thickness", category = "Appearance", defaultValue = "1", description = "Separator thickness in UI pixels.")
     @WikiMethod(
             title = "<key:separator.method.thickness.title>",
             summary = "<key:separator.method.thickness.summary>")

@@ -11,8 +11,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.event.Event;
 import dev.sixik.unigui.api.event.FocusLostEvent;
 import dev.sixik.unigui.api.event.TextInputEvent;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import java.time.Duration;
 import java.util.Locale;
@@ -41,7 +41,7 @@ import java.util.Locale;
         order = 10
 )
 @WikiLink(label = "TextField", target = "page:text-field")
-@XmlWidgetName("TimeSpanField")
+@XamlWidget("TimeSpanField")
 public final class TimeSpanField extends TextField {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TIME_SPAN_FIELD;
 
@@ -64,7 +64,7 @@ public final class TimeSpanField extends TextField {
         return this;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "00:00:00", description = "Time span value formatted as HH:MM:SS or colon-separated units.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "00:00:00", description = "Time span value formatted as HH:MM:SS or colon-separated units.")
     public TimeSpanField value(String value) {
         this.value = parse(value);
         super.text(format(this.value));
@@ -124,21 +124,21 @@ public final class TimeSpanField extends TextField {
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public TimeSpanField textPaddingX(float textPaddingX) {
         super.textPaddingX(textPaddingX);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public TimeSpanField textPaddingLeft(float textPaddingLeft) {
         super.textPaddingLeft(textPaddingLeft);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public TimeSpanField textPaddingRight(float textPaddingRight) {
         super.textPaddingRight(textPaddingRight);
         return this;

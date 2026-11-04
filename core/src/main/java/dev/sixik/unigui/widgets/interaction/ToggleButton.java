@@ -20,8 +20,8 @@ import dev.sixik.unigui.api.utils.reactive.BindingData;
 import dev.sixik.unigui.api.utils.reactive.BindingKeys;
 import dev.sixik.unigui.api.utils.reactive.BooleanSignal;
 import dev.sixik.unigui.api.utils.reactive.SignalSubscription;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 @AiDoc(
         summary = "Two-state push button maintaining an active checked boolean state.",
@@ -48,7 +48,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 )
 @WikiLink(label = "Button", target = "page:button")
 @WikiLink(label = "ToggleSwitch", target = "page:toggle-switch")
-@XmlWidgetName("ToggleButton")
+@XamlWidget("ToggleButton")
 public class ToggleButton extends Button {
     /** Style type id для StylePack selector/binding. */
     public static final String STYLE_TYPE = StyleIds.Widget.TOGGLE_BUTTON;
@@ -103,7 +103,7 @@ public class ToggleButton extends Button {
         return this;
     }
 
-    @XmlAttribute(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
+    @XamlProperty(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
     public ToggleButton silentChecked(boolean checked) {
         setChecked(checked, false);
         return this;

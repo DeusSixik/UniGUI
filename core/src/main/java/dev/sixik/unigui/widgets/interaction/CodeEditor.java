@@ -16,8 +16,8 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.VBox;
@@ -65,7 +65,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:code.editor.example.basic.title>",
         code = "<key:code.editor.example.basic.code>",
         order = 10)
-@XmlWidgetName("CodeEditor")
+@XamlWidget("CodeEditor")
 public class CodeEditor extends TextArea {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CODE_EDITOR;
 
@@ -140,21 +140,21 @@ public class CodeEditor extends TextArea {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable source text.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable source text.")
     public CodeEditor text(String text) {
         super.text(text);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "Code...", description = "Placeholder text shown while the editor is empty.")
+    @XamlProperty(value = "placeholder", category = "Content", defaultValue = "Code...", description = "Placeholder text shown while the editor is empty.")
     public CodeEditor placeholder(String placeholder) {
         super.placeholder(placeholder);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "fontSize", category = "Appearance", defaultValue = "10", description = "Default editor text size in UI pixels.")
+    @XamlProperty(value = "fontSize", category = "Appearance", defaultValue = "10", description = "Default editor text size in UI pixels.")
     public CodeEditor fontSize(float pixelSize) {
         super.fontSize(pixelSize);
         clearSyntaxCache();
@@ -169,14 +169,14 @@ public class CodeEditor extends TextArea {
     }
 
     @Override
-    @XmlAttribute(value = "lineHeight", category = "Appearance", defaultValue = "0", description = "Line height in UI pixels; 0 uses font metrics.")
+    @XamlProperty(value = "lineHeight", category = "Appearance", defaultValue = "0", description = "Line height in UI pixels; 0 uses font metrics.")
     public CodeEditor lineHeight(float lineHeight) {
         super.lineHeight(lineHeight);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "readOnly", category = "Behavior", defaultValue = "false", description = "When true, user input cannot mutate editor text.")
+    @XamlProperty(value = "readOnly", category = "Behavior", defaultValue = "false", description = "When true, user input cannot mutate editor text.")
     public CodeEditor readOnly(boolean readOnly) {
         super.readOnly(readOnly);
         return this;
@@ -194,7 +194,7 @@ public class CodeEditor extends TextArea {
         return dirty;
     }
 
-    @XmlAttribute(value = "dirty", category = "State", defaultValue = "false", description = "Whether editor contents differ from the last clean snapshot.")
+    @XamlProperty(value = "dirty", category = "State", defaultValue = "false", description = "Whether editor contents differ from the last clean snapshot.")
     public CodeEditor dirty(boolean dirty) {
         if (this.dirty == dirty) return this;
         this.dirty = dirty;
@@ -214,7 +214,7 @@ public class CodeEditor extends TextArea {
         return lineNumbersVisible;
     }
 
-    @XmlAttribute(value = "lineNumbers", category = "Appearance", defaultValue = "true", description = "Whether the line-number gutter is rendered.")
+    @XamlProperty(value = "lineNumbers", category = "Appearance", defaultValue = "true", description = "Whether the line-number gutter is rendered.")
     @WikiMethod(
             title = "<key:code.editor.method.line_numbers.title>",
             summary = "<key:code.editor.method.line_numbers.summary>")
@@ -229,7 +229,7 @@ public class CodeEditor extends TextArea {
         return languageId;
     }
 
-    @XmlAttribute(value = "languageId", category = "Behavior", defaultValue = "", description = "Stable language id used by tokenizer, validator and completion providers.")
+    @XamlProperty(value = "languageId", category = "Behavior", defaultValue = "", description = "Stable language id used by tokenizer, validator and completion providers.")
     public CodeEditor languageId(String languageId) {
         String normalized = languageId == null ? "" : languageId.trim();
         if (Objects.equals(this.languageId, normalized)) return this;
@@ -243,7 +243,7 @@ public class CodeEditor extends TextArea {
         return languagePreset;
     }
 
-    @XmlAttribute(value = "languagePreset", category = "Behavior", defaultValue = "NONE", description = "Built-in language preset used to install a default tokenizer.")
+    @XamlProperty(value = "languagePreset", category = "Behavior", defaultValue = "NONE", description = "Built-in language preset used to install a default tokenizer.")
     @WikiMethod(
             title = "<key:code.editor.method.language_preset.title>",
             summary = "<key:code.editor.method.language_preset.summary>")
@@ -271,7 +271,7 @@ public class CodeEditor extends TextArea {
         return tabSize;
     }
 
-    @XmlAttribute(value = "tabSize", category = "Behavior", defaultValue = "4", description = "Visual and insertion width used for indentation tabs.")
+    @XamlProperty(value = "tabSize", category = "Behavior", defaultValue = "4", description = "Visual and insertion width used for indentation tabs.")
     public CodeEditor tabSize(int tabSize) {
         int normalized = Math.max(1, Math.min(32, tabSize));
         if (this.tabSize == normalized) return this;
@@ -284,7 +284,7 @@ public class CodeEditor extends TextArea {
         return tabInputMode;
     }
 
-    @XmlAttribute(value = "tabInputMode", category = "Behavior", defaultValue = "INSERT_TAB", description = "How the Tab key inserts indentation.")
+    @XamlProperty(value = "tabInputMode", category = "Behavior", defaultValue = "INSERT_TAB", description = "How the Tab key inserts indentation.")
     public CodeEditor tabInputMode(TabInputMode tabInputMode) {
         TabInputMode normalized = tabInputMode == null ? TabInputMode.INSERT_TAB : tabInputMode;
         if (this.tabInputMode == normalized) return this;
@@ -296,7 +296,7 @@ public class CodeEditor extends TextArea {
         return tabStorageMode;
     }
 
-    @XmlAttribute(value = "tabStorageMode", category = "Behavior", defaultValue = "PRESERVE", description = "Optional storage conversion applied after Tab indentation.")
+    @XamlProperty(value = "tabStorageMode", category = "Behavior", defaultValue = "PRESERVE", description = "Optional storage conversion applied after Tab indentation.")
     public CodeEditor tabStorageMode(TabStorageMode tabStorageMode) {
         TabStorageMode normalized = tabStorageMode == null ? TabStorageMode.PRESERVE : tabStorageMode;
         if (this.tabStorageMode == normalized) return this;
@@ -391,7 +391,7 @@ public class CodeEditor extends TextArea {
         return maxVisibleCompletionItems;
     }
 
-    @XmlAttribute(value = "maxVisibleCompletionItems", category = "Behavior", defaultValue = "8", description = "Maximum completion rows shown in the popup.")
+    @XamlProperty(value = "maxVisibleCompletionItems", category = "Behavior", defaultValue = "8", description = "Maximum completion rows shown in the popup.")
     public CodeEditor maxVisibleCompletionItems(int maxVisibleCompletionItems) {
         int normalized = Math.max(1, maxVisibleCompletionItems);
         if (this.maxVisibleCompletionItems == normalized) return this;

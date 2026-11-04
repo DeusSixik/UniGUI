@@ -8,8 +8,8 @@ import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.utils.reactive.*;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 import java.util.Locale;
@@ -39,7 +39,7 @@ import java.util.Locale;
 )
 @WikiLink(label = "TextInput", target = "page:text-input")
 @WikiLink(label = "Slider", target = "page:slider")
-@XmlWidgetName("NumberField")
+@XamlWidget("NumberField")
 public class NumberField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.NUMBER_FIELD;
 
@@ -76,18 +76,18 @@ public class NumberField extends TextInput {
         return value;
     }
 
-    @XmlAttribute(value = "value", category = "Behavior", defaultValue = "0", description = "Numeric value clamped to min/max.")
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "0", description = "Numeric value clamped to min/max.")
     public NumberField value(double value) {
         setNumberValue(value, true);
         return this;
     }
 
-    @XmlAttribute(value = "min", category = "Behavior", defaultValue = "-Double.MAX_VALUE", description = "Minimum allowed numeric value.")
+    @XamlProperty(value = "min", category = "Behavior", defaultValue = "-Double.MAX_VALUE", description = "Minimum allowed numeric value.")
     public NumberField min(double min) {
         return range(min, max);
     }
 
-    @XmlAttribute(value = "max", category = "Behavior", defaultValue = "Double.MAX_VALUE", description = "Maximum allowed numeric value.")
+    @XamlProperty(value = "max", category = "Behavior", defaultValue = "Double.MAX_VALUE", description = "Maximum allowed numeric value.")
     public NumberField max(double max) {
         return range(min, max);
     }
@@ -112,28 +112,28 @@ public class NumberField extends TextInput {
         return this;
     }
 
-    @XmlAttribute(value = "step", category = "Behavior", defaultValue = "1", description = "Keyboard nudge increment.")
+    @XamlProperty(value = "step", category = "Behavior", defaultValue = "1", description = "Keyboard nudge increment.")
     public NumberField step(double step) {
         this.step = Math.max(0.0d, step);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public NumberField textPaddingX(float textPaddingX) {
         super.textPaddingX(textPaddingX);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public NumberField textPaddingLeft(float textPaddingLeft) {
         super.textPaddingLeft(textPaddingLeft);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public NumberField textPaddingRight(float textPaddingRight) {
         super.textPaddingRight(textPaddingRight);
         return this;

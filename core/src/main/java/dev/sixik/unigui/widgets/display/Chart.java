@@ -22,8 +22,8 @@ import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
 import java.util.ArrayList;
@@ -76,7 +76,7 @@ import java.util.List;
         title = "<key:chart.example.basic.title>",
         code = "<key:chart.example.basic.code>",
         order = 10)
-@XmlWidgetName("Chart")
+@XamlWidget("Chart")
 public final class Chart extends Sparkline {
     /**
      * Style registry id used to resolve this widget's default chart style.
@@ -262,7 +262,7 @@ public final class Chart extends Sparkline {
         layoutValid = false;
     }
 
-    @XmlAttribute(value = "type", category = "Appearance", defaultValue = "line", description = "Chart rendering type.")
+    @XamlProperty(value = "type", category = "Appearance", defaultValue = "line", description = "Chart rendering type.")
     @WikiMethod(
             title = "<key:chart.method.type.title>",
             summary = "<key:chart.method.type.summary>")
@@ -324,7 +324,7 @@ public final class Chart extends Sparkline {
         return labelColor.value();
     }
 
-    @XmlAttribute(value = "barValuesVisible", category = "Appearance", defaultValue = "true", description = "Whether bar value labels are rendered.")
+    @XamlProperty(value = "barValuesVisible", category = "Appearance", defaultValue = "true", description = "Whether bar value labels are rendered.")
     @AiDoc(summary = "Enables or hides numeric labels on bars; this affects only BAR mode.", section = "Appearance", sectionOrder = 20, order = 60)
     @WikiMethod(title = "Show bar values", summary = "Enables or hides numeric labels rendered on bars.", section = "Appearance", sectionOrder = 20, order = 60)
     @WikiReturn("This chart for fluent configuration.")
@@ -335,7 +335,7 @@ public final class Chart extends Sparkline {
         return this;
     }
 
-    @XmlAttribute(value = "barValuePlacement", category = "Appearance", defaultValue = "head", description = "Placement of bar value labels.")
+    @XamlProperty(value = "barValuePlacement", category = "Appearance", defaultValue = "head", description = "Placement of bar value labels.")
     @WikiMethod(title = "Place bar value labels", summary = "Selects where numeric labels appear relative to each bar.", section = "Appearance", sectionOrder = 20, order = 70)
     @WikiReturn("This chart for fluent configuration.")
     public Chart barValuePlacement(@WikiParameter(name = "barValuePlacement", description = "Placement mode; null resets to HEAD.") BarValuePlacement barValuePlacement) {
@@ -378,7 +378,7 @@ public final class Chart extends Sparkline {
     }
 
     @Override
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "220", description = "Intrinsic chart width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "220", description = "Intrinsic chart width before layout constraints are applied.")
     @WikiMethod(title = "Set preferred chart width", summary = "Sets the preferred chart width in UI pixels.", section = "Layout", sectionOrder = 40, order = 10)
     @WikiReturn("This chart for fluent configuration.")
     public Chart preferredWidth(@WikiParameter(name = "preferredWidth", description = "Preferred width in UI pixels; non-positive or non-finite values use the default.") float preferredWidth) {
@@ -387,7 +387,7 @@ public final class Chart extends Sparkline {
     }
 
     @Override
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "120", description = "Intrinsic chart height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "120", description = "Intrinsic chart height before layout constraints are applied.")
     @WikiMethod(title = "Set preferred chart height", summary = "Sets the preferred chart height in UI pixels.", section = "Layout", sectionOrder = 40, order = 20)
     @WikiReturn("This chart for fluent configuration.")
     public Chart preferredHeight(@WikiParameter(name = "preferredHeight", description = "Preferred height in UI pixels; non-positive or non-finite values use the default.") float preferredHeight) {

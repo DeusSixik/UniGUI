@@ -14,7 +14,7 @@ import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.layout.LayoutSize;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 
 /**
@@ -53,7 +53,7 @@ import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
         code = "<key:flex.box.example.advanced.code>", order = 10)
 @WikiLink(label = "LayoutStyle", target = "page:layout-style")
 @WikiLink(label = "LinearBox", target = "page:linear-box")
-@XmlWidgetName("FlexBox")
+@XamlWidget("FlexBox")
 public final class FlexBox extends PanelWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.FLEX_BOX;
 

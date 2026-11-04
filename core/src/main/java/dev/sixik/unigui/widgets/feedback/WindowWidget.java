@@ -51,8 +51,8 @@ import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 import java.util.Objects;
@@ -114,7 +114,7 @@ import dev.sixik.unigui.widgets.navigation.TreeView;
         target = "page:docking-root",
         description = "<key:docking.root.summary>"
 )
-@XmlWidgetName("WindowWidget")
+@XamlWidget("WindowWidget")
 public class WindowWidget extends Box implements OverlayHostAware {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WINDOW_WIDGET;
 
@@ -270,7 +270,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return title;
     }
 
-    @XmlAttribute(value = "title", category = "Content", defaultValue = "", description = "Window title text.")
+    @XamlProperty(value = "title", category = "Content", defaultValue = "", description = "Window title text.")
         @AiDoc(summary = "Sets the window plain-text title.")
     @WikiMethod(summary = "<key:window.widget.method.titleSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -346,7 +346,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /** Сворачивает или разворачивает содержимое окна, не закрывая само окно. */
-    @XmlAttribute(value = "collapsed", category = "Behavior", defaultValue = "false", description = "Показывать только заголовок окна.")
+    @XamlProperty(value = "collapsed", category = "Behavior", defaultValue = "false", description = "Показывать только заголовок окна.")
         @AiDoc(summary = "Sets whether the window is collapsed.")
     @WikiMethod(summary = "<key:window.widget.method.collapsedSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -385,7 +385,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
     }
 
     /** Включает или отключает кнопку сворачивания в title bar. */
-    @XmlAttribute(value = "collapseButtonVisible", category = "Behavior", defaultValue = "false", description = "Показывать кнопку сворачивания в заголовке.")
+    @XamlProperty(value = "collapseButtonVisible", category = "Behavior", defaultValue = "false", description = "Показывать кнопку сворачивания в заголовке.")
         @AiDoc(summary = "Sets the visibility of the header collapse button.")
     @WikiMethod(summary = "<key:window.widget.method.collapseButtonVisibleSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -421,7 +421,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return modal;
     }
 
-    @XmlAttribute(value = "modal", category = "Behavior", defaultValue = "false", description = "Whether the window blocks interaction outside itself while open.")
+    @XamlProperty(value = "modal", category = "Behavior", defaultValue = "false", description = "Whether the window blocks interaction outside itself while open.")
         @AiDoc(summary = "Configures modal behavior for this window.")
     @WikiMethod(summary = "<key:window.widget.method.modalSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -450,7 +450,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return fixedModal;
     }
 
-    @XmlAttribute(value = "fixedModal", category = "Behavior", defaultValue = "false", description = "Whether modal state disables dragging and resizing.")
+    @XamlProperty(value = "fixedModal", category = "Behavior", defaultValue = "false", description = "Whether modal state disables dragging and resizing.")
         @AiDoc(summary = "Configures whether this modal window has a fixed non-draggable position.")
     @WikiMethod(summary = "<key:window.widget.method.fixedModalSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -538,7 +538,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return dockRedockLocked;
     }
 
-    @XmlAttribute(value = "dockRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether docking/redocking actions are locked for this window.")
+    @XamlProperty(value = "dockRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether docking/redocking actions are locked for this window.")
         @AiDoc(summary = "Locks or unlocks redocking capability for this window.")
     @WikiMethod(summary = "<key:window.widget.method.dockRedockLockedSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -577,7 +577,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param dockPolicy новая политика; {@code null} означает {@link DockPolicy#FULL}
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockPolicy", category = "Behavior", defaultValue = "full", description = "Docking participation: full, guest_only or disabled.")
+    @XamlProperty(value = "dockPolicy", category = "Behavior", defaultValue = "full", description = "Docking participation: full, guest_only or disabled.")
         @AiDoc(summary = "Sets the docking integration policy.")
     @WikiMethod(summary = "<key:window.widget.method.dockPolicySet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -617,7 +617,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param dockable {@code true}, чтобы разрешить стыковку окна
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockable", category = "Behavior", defaultValue = "true", description = "Whether this window may be docked into a DockingRoot or another window.")
+    @XamlProperty(value = "dockable", category = "Behavior", defaultValue = "true", description = "Whether this window may be docked into a DockingRoot or another window.")
         @AiDoc(summary = "Enables or disables docking capability.")
     @WikiMethod(summary = "<key:window.widget.method.dockableSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -672,7 +672,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param dockPaneId id панели или пустая строка для авто-id
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockPaneId", category = "Behavior", defaultValue = "", description = "Pane id used when this window is docked into a DockingRoot.")
+    @XamlProperty(value = "dockPaneId", category = "Behavior", defaultValue = "", description = "Pane id used when this window is docked into a DockingRoot.")
         @AiDoc(summary = "Sets the pane ID representing this window when docked.")
     @WikiMethod(summary = "<key:window.widget.method.dockPaneIdSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -702,7 +702,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param dockKind роль панели; {@code null} нормализуется в {@code TOOL}
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockKind", category = "Behavior", defaultValue = "tool", description = "Dock pane kind used when this window is docked: tool or document.")
+    @XamlProperty(value = "dockKind", category = "Behavior", defaultValue = "tool", description = "Dock pane kind used when this window is docked: tool or document.")
         @AiDoc(summary = "Sets the docking classification kind.")
     @WikiMethod(summary = "<key:window.widget.method.dockKindSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -755,7 +755,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param dockingEnabled {@code true}, чтобы превратить окно в док-хост
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area right now.")
+    @XamlProperty(value = "dockingEnabled", category = "Behavior", defaultValue = "false", description = "Whether this window hosts an internal docking area right now.")
         @AiDoc(summary = "Enables or disables docking integration.")
     @WikiMethod(summary = "<key:window.widget.method.dockingEnabledSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1077,7 +1077,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return open(!open);
     }
 
-    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the window is visible.")
+    @XamlProperty(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the window is visible.")
         @AiDoc(summary = "Sets the open state of the window.")
     @WikiMethod(summary = "<key:window.widget.method.openState>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1117,7 +1117,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return draggable;
     }
 
-    @XmlAttribute(value = "draggable", category = "Behavior", defaultValue = "true", description = "Whether the window can be moved by dragging its header.")
+    @XamlProperty(value = "draggable", category = "Behavior", defaultValue = "true", description = "Whether the window can be moved by dragging its header.")
         @AiDoc(summary = "Enables or disables window dragging.")
     @WikiMethod(summary = "<key:window.widget.method.draggableSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1176,7 +1176,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return resizable;
     }
 
-    @XmlAttribute(value = "resizable", category = "Behavior", defaultValue = "true", description = "Whether the window can be resized by edge handles.")
+    @XamlProperty(value = "resizable", category = "Behavior", defaultValue = "true", description = "Whether the window can be resized by edge handles.")
         @AiDoc(summary = "Enables or disables border and grip resizing.")
     @WikiMethod(summary = "<key:window.widget.method.resizableSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1214,7 +1214,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return closeButtonVisible;
     }
 
-    @XmlAttribute(value = "closeButtonVisible", category = "Behavior", defaultValue = "true", description = "Whether the close button is shown in the header.")
+    @XamlProperty(value = "closeButtonVisible", category = "Behavior", defaultValue = "true", description = "Whether the close button is shown in the header.")
         @AiDoc(summary = "Sets the visibility of the close button.")
     @WikiMethod(summary = "<key:window.widget.method.closeButtonVisibleSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1243,7 +1243,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
-    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "false", description = "Whether outside pointer presses close the window.")
+    @XamlProperty(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "false", description = "Whether outside pointer presses close the window.")
         @AiDoc(summary = "Configures whether clicking outside closes the window.")
     @WikiMethod(summary = "<key:window.widget.method.closeOnOutsideClickSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1262,7 +1262,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return constrainToHost;
     }
 
-    @XmlAttribute(value = "constrainToHost", category = "Layout", defaultValue = "true", description = "Whether arrangement clamps the window inside the overlay host.")
+    @XamlProperty(value = "constrainToHost", category = "Layout", defaultValue = "true", description = "Whether arrangement clamps the window inside the overlay host.")
         @AiDoc(summary = "Configures host boundary clamping.")
     @WikiMethod(summary = "<key:window.widget.method.constrainToHostSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1315,7 +1315,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return headerHeight;
     }
 
-    @XmlAttribute(value = "headerHeight", category = "Layout", defaultValue = "22", description = "Window header height in UI pixels.")
+    @XamlProperty(value = "headerHeight", category = "Layout", defaultValue = "22", description = "Window header height in UI pixels.")
         @AiDoc(summary = "Sets the title bar header height in UI pixels.")
     @WikiMethod(summary = "<key:window.widget.method.headerHeightSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1355,7 +1355,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
         return padding;
     }
 
-    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "8", description = "Inner padding around window content.")
+    @XamlProperty(value = "padding", category = "Layout", defaultValue = "8", description = "Inner padding around window content.")
         @AiDoc(summary = "Sets the window content padding.")
     @WikiMethod(summary = "<key:window.widget.method.paddingSet>")
     @WikiReturn("<key:window.widget.return.this>")
@@ -1717,7 +1717,7 @@ public class WindowWidget extends Box implements OverlayHostAware {
      * @param visible {@code true}, чтобы показывать ручку
      * @return это окно для fluent-настройки
      */
-    @XmlAttribute(value = "resizeGripVisible", category = "Appearance", defaultValue = "true", description = "Whether the resize grip is drawn in the bottom-right corner.")
+    @XamlProperty(value = "resizeGripVisible", category = "Appearance", defaultValue = "true", description = "Whether the resize grip is drawn in the bottom-right corner.")
         @AiDoc(summary = "Sets whether the corner resize grip is visible.")
     @WikiMethod(summary = "<key:window.widget.method.resizeGripVisibleSet>")
     @WikiReturn("<key:window.widget.return.this>")

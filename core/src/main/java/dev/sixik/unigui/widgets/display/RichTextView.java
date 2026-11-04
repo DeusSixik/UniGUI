@@ -2,8 +2,8 @@ package dev.sixik.unigui.widgets.display;
 
 import dev.sixik.unigui.api.layout.Alignment;
 import dev.sixik.unigui.api.text.RichText;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiMethod;
@@ -44,7 +44,7 @@ import dev.sixik.unigui.api.docs.WikiSection;
         title = "<key:rich.text.view.example.basic.title>",
         code = "<key:rich.text.view.example.basic.code>",
         order = 10)
-@XmlWidgetName("RichTextView")
+@XamlWidget("RichTextView")
 public final class RichTextView extends TextWidget {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RICH_TEXT_VIEW;
 
@@ -64,7 +64,7 @@ public final class RichTextView extends TextWidget {
     }
 
     @Override
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Plain text fallback content displayed by the rich text view.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Plain text fallback content displayed by the rich text view.")
     public RichTextView text(String text) {
         super.text(text);
         return this;

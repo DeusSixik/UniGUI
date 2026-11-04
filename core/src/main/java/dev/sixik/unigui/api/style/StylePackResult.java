@@ -1,7 +1,7 @@
 package dev.sixik.unigui.api.style;
 
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
-import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
+import dev.sixik.unigui.xaml.UiDiagnostic;
+import dev.sixik.unigui.xaml.load.XamlLoadException;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,7 +16,7 @@ import java.util.Optional;
  * @param pack загруженный или частично загруженный style pack
  * @param diagnostics diagnostics, найденные при загрузке
  */
-public record StylePackResult(StylePack pack, List<XmlWidgetDiagnostic> diagnostics) {
+public record StylePackResult(StylePack pack, List<UiDiagnostic> diagnostics) {
     /** Нормализует отсутствующий pack и diagnostics. */
     public StylePackResult {
         pack = pack == null ? StylePack.create("style-pack") : pack;
@@ -40,7 +40,7 @@ public record StylePackResult(StylePack pack, List<XmlWidgetDiagnostic> diagnost
     /**
      * @return первый diagnostic или {@link Optional#empty()}
      */
-    public Optional<XmlWidgetDiagnostic> firstDiagnostic() {
+    public Optional<UiDiagnostic> firstDiagnostic() {
         return diagnostics.isEmpty() ? Optional.empty() : Optional.of(diagnostics.get(0));
     }
 
@@ -48,17 +48,17 @@ public record StylePackResult(StylePack pack, List<XmlWidgetDiagnostic> diagnost
      * @return только текстовые сообщения diagnostics
      */
     public List<String> diagnosticMessages() {
-        return diagnostics.stream().map(XmlWidgetDiagnostic::message).toList();
+        return diagnostics.stream().map(UiDiagnostic::message).toList();
     }
 
     /**
-     * Бросает {@link XmlWidgetLoadException}, если результат содержит diagnostics.
+     * Бросает {@link XamlLoadException}, если результат содержит diagnostics.
      *
      * @return этот результат, если diagnostics отсутствуют
      */
     public StylePackResult throwIfDiagnostics() {
         if (hasDiagnostics()) {
-            throw new XmlWidgetLoadException(diagnostics);
+            throw new XamlLoadException(diagnostics);
         }
         return this;
     }

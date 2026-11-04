@@ -25,8 +25,8 @@ import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -62,7 +62,7 @@ import dev.sixik.unigui.widgets.interaction.ToggleButton;
         target = "page:page-view",
         description = "<key:page.view.summary>"
 )
-@XmlWidgetName("TabControl")
+@XamlWidget("TabControl")
 public class TabControl extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TAB_CONTROL;
 
@@ -274,7 +274,7 @@ public class TabControl extends LinearBox {
     @AiDoc(summary = "Silently selects the tab at the given index without emitting events.")
     @WikiMethod(summary = "<key:tab.control.method.silentSelectTab>")
     @WikiReturn("<key:tab.control.return.self>")
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected tab index without emitting change events during XML load.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "-1", description = "Initial selected tab index without emitting change events during XML load.")
     public TabControl silentSelectTab(@WikiParameter(name = "index", description = "<key:tab.control.param.index>") int index) {
         setSelectedIndex(index, false);
         return this;

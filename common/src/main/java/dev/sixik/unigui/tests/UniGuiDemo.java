@@ -21,7 +21,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.xaml.Xaml;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
@@ -569,8 +569,8 @@ public final class UniGuiDemo {
 
 
     private static VBox overviewPage() {
-        VBox page = XMLWidget.createResource(XML_OVERVIEW_RESOURCE, VBox.class);
-        VBox quickFactoriesSlot = XMLWidget.getWidget(page, "quickFactoriesSlot", VBox.class);
+        VBox page = Xaml.loadResource(XML_OVERVIEW_RESOURCE, VBox.class);
+        VBox quickFactoriesSlot = Xaml.get(page, "quickFactoriesSlot", VBox.class);
         quickFactoriesSlot.addChild(factoryGallery());
         quickFactoriesSlot.applyQueuedMutations();
         return page;

@@ -9,8 +9,8 @@ import dev.sixik.unigui.api.docs.WikiPage;
 import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 
 /** Convenience alias for the default spinner-style loading indicator. */
@@ -35,7 +35,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
         target = "page:loading-indicator",
         description = "<key:loading.indicator.summary>"
 )
-@XmlWidgetName("Spinner")
+@XamlWidget("Spinner")
 public final class Spinner extends LoadingIndicator {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SPINNER;
 
@@ -63,7 +63,7 @@ public final class Spinner extends LoadingIndicator {
         return spinnerStyle();
     }
 
-    @XmlAttribute(value = "style", category = "Appearance", defaultValue = "default", description = "Spinner-specific visual style.")
+    @XamlProperty(value = "style", category = "Appearance", defaultValue = "default", description = "Spinner-specific visual style.")
         @AiDoc(summary = "Sets the spinner visual style preset.")
     @WikiMethod(summary = "<key:spinner.method.styleSet>")
     @WikiReturn("<key:spinner.return.this>")
@@ -76,7 +76,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
+    @XamlProperty(value = "speed", category = "Behavior", defaultValue = "1", description = "Animation speed multiplier.")
         @AiDoc(summary = "Sets the animation speed multiplier.")
     @WikiMethod(summary = "<key:spinner.method.speed>")
     @WikiReturn("<key:spinner.return.this>")
@@ -89,7 +89,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
+    @XamlProperty(value = "segments", category = "Appearance", defaultValue = "8", description = "Segment count for segmented spinner styles.")
         @AiDoc(summary = "Sets the segment count for segmented spinner styles.")
     @WikiMethod(summary = "<key:spinner.method.segments>")
     @WikiReturn("<key:spinner.return.this>")
@@ -102,7 +102,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
+    @XamlProperty(value = "dots", category = "Appearance", defaultValue = "8", description = "Dot count for dotted loading styles.")
         @AiDoc(summary = "Sets the dot count for dotted spinner styles.")
     @WikiMethod(summary = "<key:spinner.method.dots>")
     @WikiReturn("<key:spinner.return.this>")
@@ -115,7 +115,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
+    @XamlProperty(value = "activeDots", category = "Appearance", defaultValue = "4", description = "Number of highlighted dots in dotted styles.")
         @AiDoc(summary = "Sets the number of highlighted active dots in dotted styles.")
     @WikiMethod(summary = "<key:spinner.method.activeDots>")
     @WikiReturn("<key:spinner.return.this>")
@@ -128,7 +128,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
+    @XamlProperty(value = "arcs", category = "Appearance", defaultValue = "3", description = "Arc count for multi-arc spinner styles.")
         @AiDoc(summary = "Sets the arc count for multi-arc spinner styles.")
     @WikiMethod(summary = "<key:spinner.method.arcs>")
     @WikiReturn("<key:spinner.return.this>")
@@ -141,7 +141,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
+    @XamlProperty(value = "thickness", category = "Appearance", defaultValue = "3", description = "Stroke thickness in UI pixels.")
         @AiDoc(summary = "Sets the stroke thickness in UI pixels.")
     @WikiMethod(summary = "<key:spinner.method.thickness>")
     @WikiReturn("<key:spinner.return.this>")
@@ -154,7 +154,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Explicit indicator radius; 0 derives it from bounds.")
         @AiDoc(summary = "Sets an explicit indicator radius in UI pixels, or 0 to derive from bounds.")
     @WikiMethod(summary = "<key:spinner.method.radius>")
     @WikiReturn("<key:spinner.return.this>")
@@ -167,7 +167,7 @@ public final class Spinner extends LoadingIndicator {
     }
 
     @Override
-    @XmlAttribute(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
+    @XamlProperty(value = "angle", category = "Appearance", defaultValue = "4.555", description = "Arc sweep angle in radians for arc-based styles.")
         @AiDoc(summary = "Sets the arc sweep angle in radians for arc-based spinner styles.")
     @WikiMethod(summary = "<key:spinner.method.angle>")
     @WikiReturn("<key:spinner.return.this>")

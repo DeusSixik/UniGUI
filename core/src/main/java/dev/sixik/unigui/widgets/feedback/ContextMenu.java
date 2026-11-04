@@ -30,8 +30,8 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ import dev.sixik.unigui.widgets.display.Separator;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.WidgetStyles;
 
-@XmlWidgetName("ContextMenu")
+@XamlWidget("ContextMenu")
 @AiDoc(summary = "Hierarchical popup context menu supporting actions, submenus, separators, and keyboard navigation.")
 @WikiPage(
         title = "ContextMenu",
@@ -281,6 +281,18 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
+    /**
+     * Returns the menu entries (buttons and separators) in display order.
+     *
+     * <p>Unlike {@link #children()}, which exposes the internal items container, this is the content the menu was
+     * built from, so it can be written back to a document.</p>
+     *
+     * @return snapshot of the entries; changing it does not change the menu
+     */
+    public List<Widget> itemWidgets() {
+        return new java.util.ArrayList<>(itemsHost.children());
+    }
+
         @AiDoc(summary = "Returns the total number of menu items.")
     @WikiMethod(summary = "<key:context.menu.method.itemCount>")
     @WikiReturn("<key:context.menu.return.itemCount>")
@@ -308,7 +320,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return selectedItemIndex;
     }
 
-    @XmlAttribute(value = "selectedItem", category = "Behavior", defaultValue = "0", description = "Initially selected menu item index.")
+    @XamlProperty(value = "selectedItem", category = "Behavior", defaultValue = "0", description = "Initially selected menu item index.")
         @AiDoc(summary = "Selects the item at the specified index.")
     @WikiMethod(summary = "<key:context.menu.method.selectItem>")
     @WikiReturn("<key:context.menu.return.this>")
@@ -395,7 +407,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return open ? close() : openAt(x, y);
     }
 
-    @XmlAttribute(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the context menu is visible.")
+    @XamlProperty(value = "open", category = "Behavior", defaultValue = "false", description = "Whether the context menu is visible.")
         @AiDoc(summary = "Sets the open state.")
     @WikiMethod(summary = "<key:context.menu.method.openState>")
     @WikiReturn("<key:context.menu.return.this>")
@@ -432,7 +444,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return closeOnOutsideClick;
     }
 
-    @XmlAttribute(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the menu.")
+    @XamlProperty(value = "closeOnOutsideClick", category = "Behavior", defaultValue = "true", description = "Whether outside pointer presses close the menu.")
         @AiDoc(summary = "Sets whether clicking outside closes the menu.")
     @WikiMethod(summary = "<key:context.menu.method.closeOnOutsideClickSet>")
     @WikiReturn("<key:context.menu.return.this>")
@@ -469,7 +481,7 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return false;
     }
 
-    @XmlAttribute(value = "padding", category = "Layout", defaultValue = "3", description = "Inner padding around menu items.")
+    @XamlProperty(value = "padding", category = "Layout", defaultValue = "3", description = "Inner padding around menu items.")
         @AiDoc(summary = "Sets interior padding around the menu items.")
     @WikiMethod(summary = "<key:context.menu.method.padding>")
     @WikiReturn("<key:context.menu.return.this>")

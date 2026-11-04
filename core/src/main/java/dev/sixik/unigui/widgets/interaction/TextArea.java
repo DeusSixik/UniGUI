@@ -41,8 +41,8 @@ import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.WidgetStyles;
@@ -79,7 +79,7 @@ import java.util.Objects;
 )
 @WikiLink(label = "TextInput", target = "page:text-input")
 @WikiLink(label = "CodeEditor", target = "page:code-editor")
-@XmlWidgetName("TextArea")
+@XamlWidget("TextArea")
 public class TextArea extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TEXT_AREA;
 
@@ -157,7 +157,7 @@ public class TextArea extends Box {
         return editor.text();
     }
 
-    @XmlAttribute(value = "text", category = "Content", defaultValue = "", description = "Editable multiline text value.")
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Editable multiline text value.")
     public TextArea text(String text) {
         editor.text(normalizeEditableText(text));
         return this;
@@ -167,7 +167,7 @@ public class TextArea extends Box {
         return placeholder;
     }
 
-    @XmlAttribute(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
+    @XamlProperty(value = "placeholder", category = "Content", defaultValue = "", description = "Placeholder text shown while the value is empty.")
     public TextArea placeholder(String placeholder) {
         String normalized = normalizeEditableText(placeholder);
         if (Objects.equals(this.placeholder, normalized)) return this;
@@ -185,7 +185,7 @@ public class TextArea extends Box {
         return pixelSize;
     }
 
-    @XmlAttribute(value = "fontSize", category = "Appearance", defaultValue = "10", description = "Default text size in UI pixels.")
+    @XamlProperty(value = "fontSize", category = "Appearance", defaultValue = "10", description = "Default text size in UI pixels.")
     public TextArea fontSize(float pixelSize) {
         return font(font, pixelSize);
     }
@@ -210,7 +210,7 @@ public class TextArea extends Box {
                 : Math.max(12.0f, TextEngine.lineHeight(richText("Ag")) + 4.0f);
     }
 
-    @XmlAttribute(value = "lineHeight", category = "Appearance", defaultValue = "0", description = "Line height in UI pixels; 0 uses font metrics.")
+    @XamlProperty(value = "lineHeight", category = "Appearance", defaultValue = "0", description = "Line height in UI pixels; 0 uses font metrics.")
     public TextArea lineHeight(float lineHeight) {
         float normalized = Float.isFinite(lineHeight) ? Math.max(0.0f, lineHeight) : 0.0f;
         if (this.explicitLineHeight == normalized) return this;
@@ -224,7 +224,7 @@ public class TextArea extends Box {
         return visibleLines;
     }
 
-    @XmlAttribute(value = "visibleLines", category = "Layout", defaultValue = "6", description = "Preferred visible line count used during measurement.")
+    @XamlProperty(value = "visibleLines", category = "Layout", defaultValue = "6", description = "Preferred visible line count used during measurement.")
     public TextArea visibleLines(int visibleLines) {
         int normalized = Math.max(1, visibleLines);
         if (this.visibleLines == normalized) return this;
@@ -237,7 +237,7 @@ public class TextArea extends Box {
         return editor.cursorIndex();
     }
 
-    @XmlAttribute(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
+    @XamlProperty(value = "cursorIndex", category = "Behavior", defaultValue = "0", description = "Initial cursor position in the editable text.")
     public TextArea cursorIndex(int cursorIndex) {
         if (editor.cursorIndex(cursorIndex)) {
             resetDesiredCursorX();
@@ -287,7 +287,7 @@ public class TextArea extends Box {
         return editor.maxLength() == Integer.MAX_VALUE ? 0 : editor.maxLength();
     }
 
-    @XmlAttribute(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
+    @XamlProperty(value = "maxLength", category = "Behavior", defaultValue = "0", description = "Maximum editable character count; 0 means unlimited.")
     public TextArea maxLength(int maxLength) {
         int normalized = Math.max(0, maxLength);
         if (editor.maxLength(normalized == 0 ? Integer.MAX_VALUE : normalized)) {
@@ -301,7 +301,7 @@ public class TextArea extends Box {
         return readOnly;
     }
 
-    @XmlAttribute(value = "readOnly", category = "Behavior", defaultValue = "false", description = "When true, user input cannot mutate the text value.")
+    @XamlProperty(value = "readOnly", category = "Behavior", defaultValue = "false", description = "When true, user input cannot mutate the text value.")
     public TextArea readOnly(boolean readOnly) {
         if (this.readOnly == readOnly) return this;
         this.readOnly = readOnly;
@@ -325,12 +325,12 @@ public class TextArea extends Box {
         return verticalScrollPixels;
     }
 
-    @XmlAttribute(value = "scrollX", category = "Behavior", defaultValue = "0", description = "Initial horizontal scroll offset in UI pixels.")
+    @XamlProperty(value = "scrollX", category = "Behavior", defaultValue = "0", description = "Initial horizontal scroll offset in UI pixels.")
     public TextArea scrollX(float scrollX) {
         return scrollTo(scrollX, verticalScrollPixels);
     }
 
-    @XmlAttribute(value = "scrollY", category = "Behavior", defaultValue = "0", description = "Initial vertical scroll offset in UI pixels.")
+    @XamlProperty(value = "scrollY", category = "Behavior", defaultValue = "0", description = "Initial vertical scroll offset in UI pixels.")
     public TextArea scrollY(float scrollY) {
         return scrollTo(horizontalScrollPixels, scrollY);
     }
@@ -339,7 +339,7 @@ public class TextArea extends Box {
         return scrollStep;
     }
 
-    @XmlAttribute(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
+    @XamlProperty(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
     public TextArea scrollStep(float scrollStep) {
         this.scrollStep = Float.isFinite(scrollStep) ? Math.max(1.0f, scrollStep) : 16.0f;
         return this;
@@ -377,7 +377,7 @@ public class TextArea extends Box {
         return visualOnlyTextChanges;
     }
 
-    @XmlAttribute(value = "visualOnlyTextChanges", category = "Behavior", defaultValue = "false", description = "Whether text changes invalidate visuals only instead of layout.")
+    @XamlProperty(value = "visualOnlyTextChanges", category = "Behavior", defaultValue = "false", description = "Whether text changes invalidate visuals only instead of layout.")
     public TextArea visualOnlyTextChanges(boolean visualOnlyTextChanges) {
         if (this.visualOnlyTextChanges == visualOnlyTextChanges) return this;
         this.visualOnlyTextChanges = visualOnlyTextChanges;

@@ -24,8 +24,8 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 import java.util.List;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -62,7 +62,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         target = "page:page-view",
         description = "<key:page.view.summary>"
 )
-@XmlWidgetName("Carousel")
+@XamlWidget("Carousel")
 public class Carousel extends LinearBox {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.CAROUSEL;
 
@@ -156,7 +156,7 @@ public class Carousel extends LinearBox {
         return this;
     }
 
-    @XmlAttribute(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected carousel page without emitting change events during XML load.")
+    @XamlProperty(value = "selectedIndex", category = "Behavior", defaultValue = "0", description = "Initial selected carousel page without emitting change events during XML load.")
         @AiDoc(summary = "Switches to the specified slide index without triggering event callbacks.")
     @WikiMethod(summary = "<key:carousel.method.silentSelectedIndex>")
     @WikiReturn("<key:carousel.return.this>")

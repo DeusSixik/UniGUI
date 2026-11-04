@@ -20,8 +20,8 @@ import dev.sixik.unigui.api.render.TexturePlacement;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.viewport.ViewportPoint;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.widgets.world.AnchorWidget;
 import dev.sixik.unigui.widgets.world.WorldCanvas;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -101,7 +101,7 @@ import dev.sixik.unigui.widgets.interaction.Button;
         target = "page:map-marker-handle",
         description = "<key:map.marker.handle.summary>"
 )
-@XmlWidgetName("MapCanvas")
+@XamlWidget("MapCanvas")
 public class MapCanvas extends WorldCanvas {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MAP_CANVAS;
 
@@ -252,7 +252,7 @@ public class MapCanvas extends WorldCanvas {
      * Fluent override для скорости wheel-pan.
     */
     @Override
-    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
+    @XamlProperty(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
         @AiDoc(summary = "Sets the distance panned per mouse wheel click.")
     @WikiMethod(summary = "<key:map.canvas.method.wheelPanStep>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -268,7 +268,7 @@ public class MapCanvas extends WorldCanvas {
      * Fluent override для шага Ctrl+wheel zoom.
     */
     @Override
-    @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
+    @XamlProperty(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
         @AiDoc(summary = "Sets the zoom factor multiplier applied per mouse wheel step.")
     @WikiMethod(summary = "<key:map.canvas.method.zoomStep>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -296,7 +296,7 @@ public class MapCanvas extends WorldCanvas {
      * <p>Если texture не задана, карта рисует fallback-прямоугольник цветом
      * {@link #mapColor()}.</p>
      */
-    @XmlAttribute(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id rendered as the map surface.")
+    @XamlProperty(value = "texture", category = "Assets", defaultValue = "", description = "Texture resource id rendered as the map surface.")
         @AiDoc(summary = "Sets the map background texture handle.")
     @WikiMethod(summary = "<key:map.canvas.method.textureSet>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -475,7 +475,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает фон всего canvas за пределами поверхности карты.
      */
-    @XmlAttribute(value = "backgroundVisible", category = "Appearance", defaultValue = "true", description = "Whether the map canvas background is rendered behind the map surface.")
+    @XamlProperty(value = "backgroundVisible", category = "Appearance", defaultValue = "true", description = "Whether the map canvas background is rendered behind the map surface.")
         @AiDoc(summary = "Enables or disables outer canvas background rendering.")
     @WikiMethod(summary = "<key:map.canvas.method.backgroundVisibleSet>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -502,7 +502,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает рамку поверхности карты.
      */
-    @XmlAttribute(value = "mapBorderVisible", category = "Appearance", defaultValue = "true", description = "Whether the map surface border is rendered.")
+    @XamlProperty(value = "mapBorderVisible", category = "Appearance", defaultValue = "true", description = "Whether the map surface border is rendered.")
         @AiDoc(summary = "Enables or disables the border outline around the map perimeter.")
     @WikiMethod(summary = "<key:map.canvas.method.mapBorderVisibleSet>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -529,7 +529,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Включает/выключает встроенную grid-сетку.
      */
-    @XmlAttribute(value = "gridVisible", category = "Appearance", defaultValue = "true", description = "Whether the built-in map grid is rendered.")
+    @XamlProperty(value = "gridVisible", category = "Appearance", defaultValue = "true", description = "Whether the built-in map grid is rendered.")
         @AiDoc(summary = "Enables or disables coordinate grid lines across the map.")
     @WikiMethod(summary = "<key:map.canvas.method.gridVisibleSet>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -556,7 +556,7 @@ public class MapCanvas extends WorldCanvas {
     /**
      * Задает размер клетки grid в map-координатах.
      */
-    @XmlAttribute(value = "gridSize", category = "Appearance", defaultValue = "128", description = "Map-space size of one rendered grid cell.")
+    @XamlProperty(value = "gridSize", category = "Appearance", defaultValue = "128", description = "Map-space size of one rendered grid cell.")
         @AiDoc(summary = "Sets the cell spacing distance for the coordinate grid overlay.")
     @WikiMethod(summary = "<key:map.canvas.method.gridSizeSet>")
     @WikiReturn("<key:map.canvas.return.this>")
@@ -577,7 +577,7 @@ public class MapCanvas extends WorldCanvas {
      * <p>Если включено, pan не даст полностью увести карту за пределы виджета.
      * Если выключено, карту можно свободно двигать как бесконечный canvas.</p>
      */
-    @XmlAttribute(value = "clampToMapBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to the map surface bounds.")
+    @XamlProperty(value = "clampToMapBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to the map surface bounds.")
         @AiDoc(summary = "Clamps pan navigation within the map area bounds.")
     @WikiMethod(summary = "<key:map.canvas.method.clampToMapBounds>")
     @WikiReturn("<key:map.canvas.return.this>")

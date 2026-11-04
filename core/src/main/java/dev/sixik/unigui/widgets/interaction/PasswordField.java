@@ -9,8 +9,8 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.InvalidationFlags;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
 import dev.sixik.unigui.api.style.StyleIds;
 import dev.sixik.unigui.api.style.Style;
@@ -40,7 +40,7 @@ import dev.sixik.unigui.widgets.WidgetStyles;
         order = 10
 )
 @WikiLink(label = "TextInput", target = "page:text-input")
-@XmlWidgetName("PasswordField")
+@XamlWidget("PasswordField")
 public class PasswordField extends TextInput {
     public static final String STYLE_TYPE = StyleIds.Widget.PASSWORD_FIELD;
 
@@ -78,28 +78,28 @@ public class PasswordField extends TextInput {
         return this;
     }
 
-    @XmlAttribute(value = "mask", category = "Appearance", defaultValue = "\u2022", description = "Single character used to hide the password text.")
+    @XamlProperty(value = "mask", category = "Appearance", defaultValue = "\u2022", description = "Single character used to hide the password text.")
     public PasswordField mask(String mask) {
         if (mask == null || mask.isEmpty()) return mask('\u2022');
         return mask(mask.charAt(0));
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
     public PasswordField textPaddingX(float textPaddingX) {
         super.textPaddingX(textPaddingX);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
     public PasswordField textPaddingLeft(float textPaddingLeft) {
         super.textPaddingLeft(textPaddingLeft);
         return this;
     }
 
     @Override
-    @XmlAttribute(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
     public PasswordField textPaddingRight(float textPaddingRight) {
         super.textPaddingRight(textPaddingRight);
         return this;

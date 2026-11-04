@@ -12,8 +12,8 @@ import dev.sixik.unigui.api.docs.WikiSection;
 
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.world.AnchorWidget;
@@ -63,7 +63,7 @@ import dev.sixik.unigui.widgets.display.Label;
         target = "page:anchor-widget",
         description = "<key:anchor.widget.summary>"
 )
-@XmlWidgetName("MapMarker")
+@XamlWidget("MapMarker")
 public class MapMarker extends Box {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.MAP_MARKER;
 
@@ -152,7 +152,7 @@ public class MapMarker extends Box {
     /**
      * Быстро заменяет контент маркера на текстовый {@link Label}.
      */
-    @XmlAttribute(value = "label", category = "Content", defaultValue = "", description = "Plain text label displayed inside the marker.")
+    @XamlProperty(value = "label", category = "Content", defaultValue = "", description = "Plain text label displayed inside the marker.")
         @AiDoc(summary = "Replaces marker content with a plain text Label widget.")
     @WikiMethod(summary = "<key:map.marker.method.labelSet>")
     @WikiReturn("<key:map.marker.return.this>")
@@ -177,7 +177,7 @@ public class MapMarker extends Box {
     /**
      * Устанавливает выбранное состояние.
      */
-    @XmlAttribute(value = "selected", category = "Behavior", defaultValue = "false", description = "Initial selected visual state.")
+    @XamlProperty(value = "selected", category = "Behavior", defaultValue = "false", description = "Initial selected visual state.")
         @AiDoc(summary = "Sets the marker selected visual state.")
     @WikiMethod(summary = "<key:map.marker.method.selectedSet>")
     @WikiReturn("<key:map.marker.return.this>")
@@ -204,7 +204,7 @@ public class MapMarker extends Box {
     /**
      * Устанавливает подсветку.
      */
-    @XmlAttribute(value = "highlighted", category = "Behavior", defaultValue = "false", description = "Initial highlighted visual state.")
+    @XamlProperty(value = "highlighted", category = "Behavior", defaultValue = "false", description = "Initial highlighted visual state.")
         @AiDoc(summary = "Sets the marker highlighted visual state.")
     @WikiMethod(summary = "<key:map.marker.method.highlightedSet>")
     @WikiReturn("<key:map.marker.return.this>")

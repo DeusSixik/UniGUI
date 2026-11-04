@@ -1,7 +1,10 @@
 package dev.sixik.unigui.impl.xml;
 
-import dev.sixik.unigui.api.xml.XmlWidgetRegistry;
-import dev.sixik.unigui.api.xml.XmlWidgetRegistryContributions;
+import dev.sixik.unigui.xaml.UiName;
+import dev.sixik.unigui.xaml.Xaml;
+import dev.sixik.unigui.xaml.XamlNamespaces;
+import dev.sixik.unigui.xaml.schema.Schema;
+import dev.sixik.unigui.xaml.schema.SchemaContributions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -38,17 +41,17 @@ class BuiltInMinecraftXmlTest {
     }
 
     /**
-     * The widgets reach the XML loader only through the ServiceLoader file of this module; a typo in it would make
-     * every {@code <MinecraftItemPreviewWidget>} unknown without any error at build time.
+     * The widgets reach the XAML loader only through the ServiceLoader file of this module; a typo in it would make
+     * every {@code <mc:ItemPreview>} unknown without any error at build time.
      */
     @Test
     void contributorIsDiscoveredAndRegistersTheMinecraftWidgets() {
-        assertTrue(XmlWidgetRegistryContributions.contributors().stream()
+        assertTrue(SchemaContributions.contributors().stream()
                 .anyMatch(contributor -> contributor instanceof MinecraftXmlRegistryContributor));
-        XmlWidgetRegistry registry = XmlWidgetRegistry.builtIns();
-        for (String name : List.of("MinecraftItemPreviewWidget", "MinecraftBlockPreviewWidget",
-                "MinecraftEntityPreviewWidget", "MinecraftItemPickerWidget", "MinecraftTexturePickerWidget")) {
-            assertTrue(registry.contains(name), name + " is not registered");
+        assertTrue(SchemaContributions.loadFailures().isEmpty(), SchemaContributions.loadFailures().toString());
+        Schema schema = Xaml.defaultSchema();
+        for (String name : List.of("ItemPreview", "BlockPreview", "EntityPreview", "ItemPicker", "TexturePicker")) {
+            assertTrue(schema.type(new UiName(XamlNamespaces.MINECRAFT, name, XamlNamespaces.MINECRAFT_PREFIX)).isPresent(), name + " is not registered");
         }
     }
 }

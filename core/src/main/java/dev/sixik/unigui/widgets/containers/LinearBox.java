@@ -18,8 +18,8 @@ import dev.sixik.unigui.api.layout.LayoutStyle;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.layout.v3.LayoutV3FlexAdapter;
 import dev.sixik.unigui.widgets.core.Orientation;
 
@@ -79,7 +79,7 @@ import dev.sixik.unigui.widgets.core.Orientation;
 @WikiLink(label = "VBox", target = "page:vbox")
 @WikiLink(label = "HBox", target = "page:hbox")
 @WikiLink(label = "FlexBox", target = "page:flex-box")
-@XmlWidgetName("LinearBox")
+@XamlWidget("LinearBox")
 public class LinearBox extends SurfaceWidget<LinearBox> {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.LINEAR_BOX;
 
@@ -120,7 +120,7 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
      * @param orientation новое направление; {@code null} трактуется как {@link Orientation#VERTICAL}
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Main axis used to arrange children.")
+    @XamlProperty(value = "orientation", category = "Layout", defaultValue = "vertical", description = "Main axis used to arrange children.")
     @WikiMethod(order = 20, title = "<key:linear.box.method.orientation.title>", summary = "<key:linear.box.method.orientation.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 20, summary = "Sets orientation (HORIZONTAL or VERTICAL) and updates flex direction.")
@@ -148,7 +148,7 @@ public class LinearBox extends SurfaceWidget<LinearBox> {
      * @param spacing spacing в пикселях UI-пространства
      * @return этот контейнер для fluent-настройки
      */
-    @XmlAttribute(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between adjacent children on the main axis.")
+    @XamlProperty(value = "spacing", category = "Layout", defaultValue = "0", description = "Gap between adjacent children on the main axis.")
     @WikiMethod(order = 30, title = "<key:linear.box.method.spacing.title>", summary = "<key:linear.box.method.spacing.summary>")
     @WikiReturn("<key:widget.base.method.fluent.return>")
     @AiDoc(section = "Layout", sectionOrder = 20, order = 30, summary = "Sets uniform gap between adjacent children along main axis.")

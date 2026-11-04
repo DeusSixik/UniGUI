@@ -12,7 +12,7 @@ import dev.sixik.unigui.api.event.ButtonClickEvent;
 import dev.sixik.unigui.api.event.CheckedChangedEvent;
 import dev.sixik.unigui.api.event.EventListener;
 import dev.sixik.unigui.api.event.EventSubscription;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlWidget;
 
 /** Toolbar button that toggles its checked state when clicked. */
 @AiDoc(
@@ -40,7 +40,7 @@ import dev.sixik.unigui.api.xml.XmlWidgetName;
 )
 @WikiLink(label = "ToolButton", target = "page:tool-button")
 @WikiLink(label = "ToggleButton", target = "page:toggle-button")
-@XmlWidgetName("ToggleToolButton")
+@XamlWidget("ToggleToolButton")
 public final class ToggleToolButton extends ToolButton {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOGGLE_TOOL_BUTTON;
 

@@ -35,8 +35,8 @@ import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.viewport.Viewport2D;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlWidgetName;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -125,7 +125,7 @@ import java.util.List;
         target = "page:world-layer",
         description = "<key:world.layer.summary>"
 )
-@XmlWidgetName("WorldCanvas")
+@XamlWidget("WorldCanvas")
 public class WorldCanvas extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.WORLD_CANVAS;
 
@@ -343,7 +343,7 @@ public class WorldCanvas extends WidgetBase {
      * @param clampToWorldBounds {@code true}, чтобы зажимать pan/zoom по границам мира
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "clampToWorldBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to configured world bounds.")
+    @XamlProperty(value = "clampToWorldBounds", category = "Behavior", defaultValue = "false", description = "Whether pan/zoom is constrained to configured world bounds.")
         @AiDoc(summary = "Enables or disables clamping of camera pan within world boundaries.")
     @WikiMethod(summary = "<key:world.canvas.method.clampToWorldBounds>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -467,7 +467,7 @@ public class WorldCanvas extends WidgetBase {
      * @param clippingEnabled {@code true}, чтобы резать содержимое по bounds
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether world layers and anchors are clipped to canvas bounds.")
+    @XamlProperty(value = "clippingEnabled", category = "Behavior", defaultValue = "true", description = "Whether world layers and anchors are clipped to canvas bounds.")
         @AiDoc(summary = "Enables or disables clipping of rendering to widget layout bounds.")
     @WikiMethod(summary = "<key:world.canvas.method.clippingEnabledSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -499,7 +499,7 @@ public class WorldCanvas extends WidgetBase {
      * @param panningEnabled {@code true}, чтобы разрешить перетаскивание viewport'а
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can pan the viewport.")
+    @XamlProperty(value = "panningEnabled", category = "Behavior", defaultValue = "true", description = "Whether pointer drag can pan the viewport.")
         @AiDoc(summary = "Enables or disables pointer dragging to pan the viewport.")
     @WikiMethod(summary = "<key:world.canvas.method.panningEnabledSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -529,7 +529,7 @@ public class WorldCanvas extends WidgetBase {
      * @param zoomEnabled {@code true}, чтобы разрешить интерактивный zoom
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether Ctrl-wheel zoom gestures are enabled.")
+    @XamlProperty(value = "zoomEnabled", category = "Behavior", defaultValue = "true", description = "Whether Ctrl-wheel zoom gestures are enabled.")
         @AiDoc(summary = "Enables or disables mouse wheel zooming.")
     @WikiMethod(summary = "<key:world.canvas.method.zoomEnabledSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -561,7 +561,7 @@ public class WorldCanvas extends WidgetBase {
      * @param wheelPanningEnabled {@code true}, чтобы scroll двигал viewport
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures pan the viewport.")
+    @XamlProperty(value = "wheelPanningEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel gestures pan the viewport.")
         @AiDoc(summary = "Enables or disables mouse wheel scrolling to pan the camera.")
     @WikiMethod(summary = "<key:world.canvas.method.wheelPanningEnabledSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -594,7 +594,7 @@ public class WorldCanvas extends WidgetBase {
      * @param consumeWheelWhileHovered {@code true}, чтобы отменять scroll внутри canvas'а
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the canvas is hovered.")
+    @XamlProperty(value = "consumeWheelWhileHovered", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed while the canvas is hovered.")
         @AiDoc(summary = "Sets whether mouse wheel events are swallowed when hovered.")
     @WikiMethod(summary = "<key:world.canvas.method.consumeWheelWhileHoveredSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -624,7 +624,7 @@ public class WorldCanvas extends WidgetBase {
      * @param wheelPanStep шаг pan в screen-space пикселях, отрицательные/NaN значения нормализуются
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
+    @XamlProperty(value = "wheelPanStep", category = "Behavior", defaultValue = "32", description = "Viewport pan distance applied per wheel delta unit.")
         @AiDoc(summary = "Sets the distance panned per wheel scroll click.")
     @WikiMethod(summary = "<key:world.canvas.method.wheelPanStepSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -656,7 +656,7 @@ public class WorldCanvas extends WidgetBase {
      * @param zoomStep положительный множитель зума
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
+    @XamlProperty(value = "zoomStep", category = "Behavior", defaultValue = "1.1", description = "Multiplicative zoom factor applied per wheel delta unit.")
         @AiDoc(summary = "Sets the zoom multiplier applied per wheel tick.")
     @WikiMethod(summary = "<key:world.canvas.method.zoomStepSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -686,7 +686,7 @@ public class WorldCanvas extends WidgetBase {
      * @param panButton кнопка pan; {@code null} возвращает {@link PointerButton#PRIMARY}
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "panButton", category = "Behavior", defaultValue = "primary", description = "Pointer button that starts drag panning.")
+    @XamlProperty(value = "panButton", category = "Behavior", defaultValue = "primary", description = "Pointer button that starts drag panning.")
         @AiDoc(summary = "Sets the mouse pointer button used to drag and pan.")
     @WikiMethod(summary = "<key:world.canvas.method.panButtonSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -716,7 +716,7 @@ public class WorldCanvas extends WidgetBase {
      * @param preferredWidth preferred ширина; неположительные/NaN значения сбрасываются к default
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic canvas width before layout constraints are applied.")
+    @XamlProperty(value = "preferredWidth", category = "Layout", defaultValue = "320", description = "Intrinsic canvas width before layout constraints are applied.")
         @AiDoc(summary = "Sets the preferred layout width of the canvas.")
     @WikiMethod(summary = "<key:world.canvas.method.preferredWidthSet>")
     @WikiReturn("<key:world.canvas.return.this>")
@@ -749,7 +749,7 @@ public class WorldCanvas extends WidgetBase {
      * @param preferredHeight preferred высота; неположительные/NaN значения сбрасываются к default
      * @return этот canvas для fluent-настройки
      */
-    @XmlAttribute(value = "preferredHeight", category = "Layout", defaultValue = "240", description = "Intrinsic canvas height before layout constraints are applied.")
+    @XamlProperty(value = "preferredHeight", category = "Layout", defaultValue = "240", description = "Intrinsic canvas height before layout constraints are applied.")
         @AiDoc(summary = "Sets the preferred layout height of the canvas.")
     @WikiMethod(summary = "<key:world.canvas.method.preferredHeightSet>")
     @WikiReturn("<key:world.canvas.return.this>")
