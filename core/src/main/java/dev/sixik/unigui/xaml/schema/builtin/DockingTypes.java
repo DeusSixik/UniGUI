@@ -21,6 +21,9 @@ final class DockingTypes {
             return type("DockingRoot", DockingRoot.class, DockingRoot::new)
                     .describe("Docking Root", "Containers", "IDE-style docking workspace host.")
                     .content(documents)
+                    // Документы и панели инструментов различаются служебным состоянием, которое через прямых
+                    // детей не выразить: лучше честная диагностика, чем неверное дерево.
+                    .withoutChildExport()
                     .slot(SlotInfo.many("Documents", documents,
                             "Child widgets added as document panes. Child id is used as pane id/title when present."))
                     .slot(SlotInfo.many("ToolPanes", toolPanes,

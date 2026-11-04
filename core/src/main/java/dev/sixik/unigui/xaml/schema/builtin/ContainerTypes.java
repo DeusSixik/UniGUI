@@ -63,6 +63,9 @@ final class ContainerTypes {
                 .property("scrollbarTrackColor", Converters.COLOR, (widget, color) -> widget.scrollbarTrackColor().set(color))
                 .property("scrollbarThumbColor", Converters.COLOR, (widget, color) -> widget.scrollbarThumbColor().set(color))
                 .content(content)
+                .exportsChildren(widget -> Types.optional(widget.content()))
+                .reads("scrollbarTrackColor", ScrollView::scrollbarTrackColor)
+                .reads("scrollbarThumbColor", ScrollView::scrollbarThumbColor)
                 .slot(SlotInfo.single("Content", content, "Single scrollable content widget."))
                 .build();
     }

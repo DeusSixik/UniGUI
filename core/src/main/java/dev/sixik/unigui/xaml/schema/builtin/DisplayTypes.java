@@ -89,7 +89,9 @@ final class DisplayTypes {
                                 (widget, value) -> widget.targetOptions(renderTargetOptions(value)),
                                 Meta.category("Performance").displayName("Target Options").defaultValue("color")
                                         .kind(ValueKind.ENUM)
-                                        .description("Offscreen render target mode: color or colorDepth.")),
+                                        .description("Offscreen render target mode: color or colorDepth."))
+                        .reads("tint", CachedSubtreeWidget::tint)
+                        .exportsChildren(widget -> Types.optional(widget.content())),
                 content, "Single widget subtree rendered into the cache.").build();
     }
 

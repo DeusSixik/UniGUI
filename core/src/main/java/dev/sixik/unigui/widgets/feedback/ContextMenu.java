@@ -281,6 +281,18 @@ public final class ContextMenu extends Box implements OverlayHostAware {
         return this;
     }
 
+    /**
+     * Returns the menu entries (buttons and separators) in display order.
+     *
+     * <p>Unlike {@link #children()}, which exposes the internal items container, this is the content the menu was
+     * built from, so it can be written back to a document.</p>
+     *
+     * @return snapshot of the entries; changing it does not change the menu
+     */
+    public List<Widget> itemWidgets() {
+        return new java.util.ArrayList<>(itemsHost.children());
+    }
+
         @AiDoc(summary = "Returns the total number of menu items.")
     @WikiMethod(summary = "<key:context.menu.method.itemCount>")
     @WikiReturn("<key:context.menu.return.itemCount>")

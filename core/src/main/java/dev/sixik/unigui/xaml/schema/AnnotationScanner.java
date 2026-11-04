@@ -74,7 +74,11 @@ final class AnnotationScanner {
         List<PropertyInfo<Widget, ?>> result = new ArrayList<>(chosen.size());
         for (Map.Entry<String, Candidate> entry : chosen.entrySet()) {
             Candidate candidate = entry.getValue();
-            result.add(create(entry.getKey(), candidate, getters.get(candidate.method.getName())));
+            // Геттер ищется по имени метода-setter-а, а если такого нет — по имени атрибута: аннотация нередко висит
+            // на методе вроде silentExpanded(boolean), а читается свойство через expanded().
+            Method getter = getters.get(candidate.method.getName());
+            if (getter == null) getter = getters.get(entry.getKey());
+            result.add(create(entry.getKey(), candidate, getter));
         }
         return result;
     }
@@ -111,8 +115,9 @@ final class AnnotationScanner {
                 .withCategory(annotation.category())
                 .defaultValue(annotation.defaultValue())
                 .description(annotation.description());
-        return new PropertyInfo<>(name, converter, setter(method), getter(method, getter),
-                boxed(method.getParameterTypes()[0]), meta);
+        Function<Object, Object> special = ReadAccessors.find(method.getDeclaringClass(), name);
+        Function<Widget, Object> read = special != null ? special::apply : getter(method, getter);
+        return new PropertyInfo<>(name, converter, setter(method), read, boxed(method.getParameterTypes()[0]), meta);
     }
 
     private static <V> PropertySetter<Widget, V> setter(Method method) {

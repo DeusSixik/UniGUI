@@ -29,36 +29,64 @@ import java.util.concurrent.ConcurrentMap;
  */
 public final class Converters {
     public static final ValueConverter<String> STRING =
-            ValueConverter.of(String.class, ValueKind.STRING, value -> value == null ? "" : value);
+            ValueConverter.of(String.class, ValueKind.STRING, value -> value == null ? "" : value, Object::toString);
     public static final ValueConverter<Boolean> BOOLEAN =
-            ValueConverter.of(Boolean.class, ValueKind.BOOLEAN, Converters::parseBoolean);
+            ValueConverter.of(Boolean.class, ValueKind.BOOLEAN, Converters::parseBoolean, Object::toString);
     public static final ValueConverter<Integer> INT =
-            ValueConverter.of(Integer.class, ValueKind.NUMBER, value -> Integer.parseInt(required(value).trim()));
+            ValueConverter.of(Integer.class, ValueKind.NUMBER, value -> Integer.parseInt(required(value).trim()),
+                    Object::toString);
     public static final ValueConverter<Float> FLOAT =
-            ValueConverter.of(Float.class, ValueKind.NUMBER, value -> Float.parseFloat(required(value).trim()));
+            ValueConverter.of(Float.class, ValueKind.NUMBER, value -> Float.parseFloat(required(value).trim()),
+                    value -> number(((Number) value).floatValue()));
     public static final ValueConverter<Float> FLOAT_OR_AUTO =
-            ValueConverter.of(Float.class, ValueKind.NUMBER, Converters::parseFloatOrAuto);
+            ValueConverter.of(Float.class, ValueKind.NUMBER, Converters::parseFloatOrAuto,
+                    value -> Float.isNaN(((Number) value).floatValue()) ? "auto" : number(((Number) value).floatValue()));
     public static final ValueConverter<Double> DOUBLE =
-            ValueConverter.of(Double.class, ValueKind.NUMBER, value -> Double.parseDouble(required(value).trim()));
+            ValueConverter.of(Double.class, ValueKind.NUMBER, value -> Double.parseDouble(required(value).trim()),
+                    value -> {
+                        double number = ((Number) value).doubleValue();
+                        return number == Math.rint(number) && Math.abs(number) < 1e15
+                                ? Long.toString((long) number) : Double.toString(number);
+                    });
     public static final ValueConverter<MutableColor> COLOR =
-            ValueConverter.of(MutableColor.class, ValueKind.COLOR, value -> MutableColor.fromHex(required(value).trim()));
+            ValueConverter.of(MutableColor.class, ValueKind.COLOR, value -> MutableColor.fromHex(required(value).trim()),
+                    value -> hex((ColorView) value));
     public static final ValueConverter<MutableRect> RECT =
-            ValueConverter.of(MutableRect.class, ValueKind.STRING, Converters::parseRect);
+            ValueConverter.of(MutableRect.class, ValueKind.STRING, Converters::parseRect, value -> {
+                RectView rect = (RectView) value;
+                return number(rect.x()) + " " + number(rect.y()) + " " + number(rect.width()) + " " + number(rect.height());
+            });
     public static final ValueConverter<TextureHandle> TEXTURE =
-            ValueConverter.withContext(TextureHandle.class, ValueKind.RESOURCE_ID, Converters::parseTexture);
+            ValueConverter.withContext(TextureHandle.class, ValueKind.RESOURCE_ID, Converters::parseTexture,
+                    value -> ((TextureHandle) value).id());
     public static final ValueConverter<ShaderHandle> SHADER =
-            ValueConverter.of(ShaderHandle.class, ValueKind.RESOURCE_ID, value -> ShaderHandle.resource(required(value).trim()));
+            ValueConverter.of(ShaderHandle.class, ValueKind.RESOURCE_ID,
+                    value -> ShaderHandle.resource(required(value).trim()), value -> ((ShaderHandle) value).id());
     public static final ValueConverter<SizeValue> SIZE =
-            ValueConverter.of(SizeValue.class, ValueKind.SIZE_VALUE, Converters::parseSize);
+            ValueConverter.of(SizeValue.class, ValueKind.SIZE_VALUE, Converters::parseSize,
+                    value -> formatSize((SizeValue) value));
     public static final ValueConverter<EdgeInsets> INSETS =
-            ValueConverter.of(EdgeInsets.class, ValueKind.INSETS, Converters::parseInsets);
+            ValueConverter.of(EdgeInsets.class, ValueKind.INSETS, Converters::parseInsets, value -> {
+                EdgeInsets insets = (EdgeInsets) value;
+                if (insets.top() == insets.right() && insets.top() == insets.bottom() && insets.top() == insets.left()) {
+                    return number(insets.top());
+                }
+                return number(insets.top()) + " " + number(insets.right()) + " "
+                        + number(insets.bottom()) + " " + number(insets.left());
+            });
     public static final ValueConverter<SliceBorders> SLICE_BORDERS =
-            ValueConverter.of(SliceBorders.class, ValueKind.INSETS, Converters::parseSliceBorders);
+            ValueConverter.of(SliceBorders.class, ValueKind.INSETS, Converters::parseSliceBorders, value -> {
+                SliceBorders borders = (SliceBorders) value;
+                return number(borders.left()) + " " + number(borders.top()) + " "
+                        + number(borders.right()) + " " + number(borders.bottom());
+            });
     public static final ValueConverter<AutoMargins> AUTO_MARGINS =
-            ValueConverter.of(AutoMargins.class, ValueKind.STRING, Converters::parseAutoMargins);
+            ValueConverter.of(AutoMargins.class, ValueKind.STRING, Converters::parseAutoMargins,
+                    value -> formatAutoMargins((AutoMargins) value));
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static final ValueConverter<List<GridTrack>> GRID_TRACKS =
-            ValueConverter.of((Class) List.class, ValueKind.STRING, Converters::parseGridTracks);
+            ValueConverter.of((Class) List.class, ValueKind.STRING, Converters::parseGridTracks,
+                    value -> formatGridTracks((List<GridTrack>) value));
 
     private static final ConcurrentMap<Class<?>, ValueConverter<?>> ENUMS = new ConcurrentHashMap<>();
 
@@ -76,7 +104,8 @@ public final class Converters {
     public static <E extends Enum<E>> ValueConverter<E> enumOf(Class<E> type) {
         return (ValueConverter<E>) ENUMS.computeIfAbsent(type, key -> {
             E[] constants = type.getEnumConstants();
-            return ValueConverter.of(type, ValueKind.ENUM, value -> parseEnum(type, constants, value));
+            return ValueConverter.of(type, ValueKind.ENUM, value -> parseEnum(type, constants, value),
+                    value -> ((Enum<?>) value).name().toLowerCase(Locale.ROOT).replace('_', '-'));
         });
     }
 
@@ -106,6 +135,67 @@ public final class Converters {
     }
 
     // ------------------------------------------------------------------ parsing
+
+    // ------------------------------------------------------------------ запись значений
+
+    /** Самое короткое представление, которое {@code Float.parseFloat} разберёт в то же число. */
+    static String number(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) return Float.toString(value);
+        if (value == Math.rint(value) && Math.abs(value) < 1.0e7f) return Long.toString((long) value);
+        return Float.toString(value);
+    }
+
+    private static String hex(ColorView color) {
+        return "#" + channel(color.r()) + channel(color.g()) + channel(color.b()) + channel(color.a());
+    }
+
+    private static String channel(float value) {
+        int channel = Math.max(0, Math.min(255, Math.round(value * 255.0f)));
+        String text = Integer.toHexString(channel).toUpperCase(Locale.ROOT);
+        return text.length() == 1 ? "0" + text : text;
+    }
+
+    private static String formatSize(SizeValue size) {
+        if (size.isAuto()) return "auto";
+        if (size.isContent()) return "content";
+        if (size.isMinContent()) return "min-content";
+        if (size.isMaxContent()) return "max-content";
+        if (size.isFitContent()) return "fit-content(" + number(size.value()) + "px)";
+        return size.isPercent() ? number(size.value()) + "%" : number(size.value());
+    }
+
+    private static String formatAutoMargins(AutoMargins margins) {
+        if (margins.equals(AutoMargins.NONE)) return "none";
+        if (margins.equals(AutoMargins.ALL)) return "all";
+        if (margins.equals(AutoMargins.HORIZONTAL)) return "horizontal";
+        if (margins.equals(AutoMargins.VERTICAL)) return "vertical";
+        StringBuilder builder = new StringBuilder();
+        if (margins.left()) builder.append("left ");
+        if (margins.top()) builder.append("top ");
+        if (margins.right()) builder.append("right ");
+        if (margins.bottom()) builder.append("bottom ");
+        return builder.toString().trim();
+    }
+
+    private static String formatGridTracks(List<GridTrack> tracks) {
+        StringBuilder builder = new StringBuilder();
+        for (GridTrack track : tracks) {
+            if (track == null) continue;
+            if (builder.length() > 0) builder.append(' ');
+            builder.append(formatTrack(track));
+        }
+        return builder.toString();
+    }
+
+    private static String formatTrack(GridTrack track) {
+        if (track instanceof GridTrack.Fixed fixed) return number(fixed.pixels());
+        if (track instanceof GridTrack.Percent percent) return number(percent.percent()) + "%";
+        if (track instanceof GridTrack.Flex flex) return number(flex.weight()) + "fr";
+        if (track instanceof GridTrack.MinMax minmax) {
+            return "minmax(" + formatTrack(minmax.min()) + ", " + formatTrack(minmax.max()) + ")";
+        }
+        return "auto";
+    }
 
     private static boolean parseBoolean(String value) {
         String normalized = required(value).trim().toLowerCase(Locale.ROOT);

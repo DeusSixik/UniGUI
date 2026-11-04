@@ -2,6 +2,7 @@ package dev.sixik.unigui.xaml.schema;
 
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.xaml.UiName;
 
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -32,9 +34,13 @@ public final class TypeInfo<T extends Widget> {
     private final Map<String, PropertyInfo<? super T, ?>> properties;
     private final Map<String, Integer> order;
     private final ChildSink<T> content;
+    private final Function<? super T, List<Widget>> childSource;
+    private final boolean childrenNotExportable;
     private final Map<String, SlotInfo<T>> slots;
 
     private TypeInfo(Builder<T> builder, Map<String, PropertyInfo<? super T, ?>> properties) {
+        this.childSource = builder.childSource;
+        this.childrenNotExportable = builder.childrenNotExportable;
         Map<String, Integer> positions = new java.util.HashMap<>(properties.size() * 2);
         for (String propertyName : properties.keySet()) positions.put(propertyName, positions.size());
         this.order = positions;
@@ -131,6 +137,29 @@ public final class TypeInfo<T extends Widget> {
         return content != null;
     }
 
+    /**
+     * Показывает, умеет ли схема перечислить логических детей виджета. Без этого нельзя сохранить дерево:
+     * {@code children()} у вкладок, окон и всплывающих слоёв отдаёт их внутренние части, а не содержимое.
+     *
+     * @return {@code true} для контейнеров и типов с явным источником детей
+     */
+    public boolean canExportChildren() {
+        if (childrenNotExportable) return false;
+        return content == null || childSource != null || PanelWidget.class.isAssignableFrom(javaType);
+    }
+
+    /**
+     * Перечисляет детей, которые документ должен записать внутри элемента.
+     *
+     * @param widget виджет этого типа
+     * @return дети в порядке документа; пусто, если тип не принимает детей
+     */
+    public List<Widget> exportChildren(T widget) {
+        if (childSource != null) return childSource.apply(widget);
+        if (content == null) return List.of();
+        return widget.children();
+    }
+
     /** @return все слоты типа */
     public Collection<SlotInfo<T>> slots() {
         return slots.values();
@@ -188,6 +217,9 @@ public final class TypeInfo<T extends Widget> {
         private final Map<String, PropertyInfo<? super T, ?>> manual = new LinkedHashMap<>();
         private final List<String> bindable = new ArrayList<>();
         private ChildSink<T> content;
+        private Function<? super T, List<Widget>> childSource;
+        private boolean childrenNotExportable;
+        private final Map<String, Function<? super T, ?>> getters = new LinkedHashMap<>();
         private final Map<String, SlotInfo<T>> slots = new LinkedHashMap<>();
 
         private Builder(UiName name, Class<T> javaType, Supplier<T> factory) {
@@ -282,6 +314,63 @@ public final class TypeInfo<T extends Widget> {
         }
 
         /**
+         * Добавляет свойство, которое можно и записать, и прочитать обратно.
+         *
+         * @param propertyName имя свойства
+         * @param converter    двусторонний конвертер
+         * @param setter       применение значения
+         * @param getter       чтение значения с виджета
+         * @param meta         метаданные для инспектора
+         * @param <V>          тип значения
+         * @return этот билдер
+         */
+        public <V> Builder<T> property(String propertyName, ValueConverter<V> converter,
+                                       BiConsumer<? super T, ? super V> setter,
+                                       Function<? super T, ?> getter, Meta meta) {
+            PropertyInfo<T, V> info = new PropertyInfo<>(propertyName, converter,
+                    (target, value, context) -> setter.accept(target, value), getter, null, meta);
+            manual.put(info.name(), info);
+            return this;
+        }
+
+        /**
+         * Задаёт, как прочитать с виджета уже объявленное свойство (аннотацией или таблицей общих свойств).
+         * Нужно там, где одноимённого геттера нет и значение берётся из другого места.
+         *
+         * @param propertyName имя существующего свойства
+         * @param getter       чтение значения
+         * @return этот билдер
+         */
+        public Builder<T> reads(String propertyName, Function<? super T, ?> getter) {
+            getters.put(propertyName, getter);
+            return this;
+        }
+
+        /**
+         * Задаёт, как перечислить логических детей виджета, когда {@code children()} возвращает внутренние части
+         * (вкладки, окна, всплывающие слои).
+         *
+         * @param source источник детей
+         * @return этот билдер
+         */
+        public Builder<T> exportsChildren(Function<? super T, List<Widget>> source) {
+            this.childSource = source;
+            return this;
+        }
+
+        /**
+         * Объявляет, что детей этого типа нельзя восстановить с живого виджета (например, документы и панели
+         * инструментов docking различаются только служебным состоянием). Snapshot сообщит об этом диагностикой,
+         * а не запишет неверное дерево молча.
+         *
+         * @return этот билдер
+         */
+        public Builder<T> withoutChildExport() {
+            this.childrenNotExportable = true;
+            return this;
+        }
+
+        /**
          * Разрешает привязку {@code {Binding}} для свойства (оно должно быть добавлено любым способом).
          *
          * @param propertyNames имена свойств
@@ -344,7 +433,19 @@ public final class TypeInfo<T extends Widget> {
                 all.put(bindableName, (PropertyInfo<? super T, ?>) (PropertyInfo<?, ?>)
                         property.withBindingType(property.valueType()));
             }
+            for (Map.Entry<String, Function<? super T, ?>> entry : getters.entrySet()) {
+                PropertyInfo<? super T, ?> property = all.get(entry.getKey());
+                if (property == null) {
+                    throw new IllegalArgumentException("Unknown property '" + entry.getKey() + "' on " + name.local());
+                }
+                all.put(entry.getKey(), withGetter(property, entry.getValue()));
+            }
             return new TypeInfo<>(this, all);
+        }
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private PropertyInfo<? super T, ?> withGetter(PropertyInfo<? super T, ?> property, Function<? super T, ?> getter) {
+            return ((PropertyInfo) property).withGetter(getter);
         }
 
         /** Кладёт свойство; если такое имя уже есть, новое перекрывает старое, наследуя незаданные метаданные. */

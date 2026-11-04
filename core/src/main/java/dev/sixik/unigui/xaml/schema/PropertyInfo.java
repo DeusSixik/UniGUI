@@ -151,6 +151,39 @@ public final class PropertyInfo<T extends Widget, V> {
         return getter == null ? null : getter.apply(target);
     }
 
+    /**
+     * Показывает, можно ли записать значение этого свойства обратно в документ: нужен и геттер, и обратный
+     * конвертер.
+     *
+     * @return {@code true}, если {@link #readText} вернёт значение
+     */
+    public boolean writable() {
+        return getter != null && converter.canFormat();
+    }
+
+    /**
+     * Читает значение с виджета и записывает его текстом, который загрузчик разберёт обратно.
+     *
+     * @param target виджет
+     * @return текст или {@code null}, если свойство не читается, не записывается или значение отсутствует
+     */
+    public String readText(T target) {
+        if (!writable()) return null;
+        Object value = getter.apply(target);
+        return value == null ? null : converter.format(value);
+    }
+
+    /**
+     * Возвращает копию с другим геттером. Нужна, когда свойство объявлено аннотацией на виджете, а читать его
+     * приходится не одноимённым методом (например, ширину фоновой текстуры — из самой текстуры).
+     *
+     * @param newGetter новый геттер
+     * @return копия
+     */
+    PropertyInfo<T, V> withGetter(Function<? super T, ?> newGetter) {
+        return new PropertyInfo<>(name, converter, setter, newGetter, bindingType, declared);
+    }
+
     PropertyInfo<T, V> withBindingType(Class<?> type) {
         return new PropertyInfo<>(name, converter, setter, getter, type, declared);
     }

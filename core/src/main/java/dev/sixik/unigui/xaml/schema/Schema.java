@@ -235,6 +235,41 @@ public final class Schema {
     }
 
     /**
+     * Находит тип по классу существующего виджета: нужен, чтобы записать живое дерево обратно в документ.
+     *
+     * <p>Если для класса нет собственного типа, возвращается тип ближайшего зарегистрированного предка. Вызов
+     * строит схемы всех типов (один раз), поэтому в рантайме загрузки он не нужен.</p>
+     *
+     * @param widgetClass runtime-класс виджета
+     * @return тип или пусто, если нет ни самого класса, ни предков
+     */
+    public Optional<TypeInfo<?>> typeOf(Class<?> widgetClass) {
+        Map<Class<?>, TypeInfo<?>> index = classIndex();
+        for (Class<?> current = widgetClass; current != null; current = current.getSuperclass()) {
+            TypeInfo<?> found = index.get(current);
+            if (found != null) return Optional.of(found);
+        }
+        return Optional.empty();
+    }
+
+    private volatile Map<Class<?>, TypeInfo<?>> classIndex;
+    private volatile int classIndexSize = -1;
+
+    private Map<Class<?>, TypeInfo<?>> classIndex() {
+        Map<Class<?>, TypeInfo<?>> current = classIndex;
+        if (current != null && classIndexSize == entries.size()) return current;
+        synchronized (this) {
+            if (classIndex == null || classIndexSize != entries.size()) {
+                Map<Class<?>, TypeInfo<?>> built = new java.util.HashMap<>();
+                for (TypeInfo<?> type : types()) built.putIfAbsent(type.javaType(), type);
+                classIndex = built;
+                classIndexSize = entries.size();
+            }
+            return classIndex;
+        }
+    }
+
+    /**
      * Проверяет, известно ли имя, не строя схему типа.
      *
      * @param name имя с namespace

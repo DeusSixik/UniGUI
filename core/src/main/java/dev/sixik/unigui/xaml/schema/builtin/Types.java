@@ -43,6 +43,14 @@ final class Types {
     }
 
     /**
+     * Единственный дочерний виджет как список: пустой, если содержимого нет. Используется как источник детей для
+     * типов, у которых {@code children()} возвращает внутренние части, а содержимое лежит в {@code content()}.
+     */
+    static java.util.List<Widget> optional(Widget content) {
+        return content == null ? java.util.List.of() : java.util.List.of(content);
+    }
+
+    /**
      * Делает тип хостом одного содержимого: прямой ребёнок и слот {@code Content} идут через один и тот же
      * {@code sink}.
      */

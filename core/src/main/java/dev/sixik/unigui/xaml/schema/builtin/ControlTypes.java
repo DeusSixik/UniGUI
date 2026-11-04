@@ -73,7 +73,8 @@ final class ControlTypes {
                         "Combo-box picker for path-like tree values. Use the items attribute for simple XML lists.").build());
         schema.define("DatePicker", () -> type("DatePicker", DatePicker.class, DatePicker::new)
                 .describe("Date Picker", "Controls",
-                        "ISO-8601 date input with previous/next buttons and popup calendar.").build());
+                        "ISO-8601 date input with previous/next buttons and popup calendar.")
+                .reads("value", widget -> widget.value() == null ? null : widget.value().toString()).build());
         schema.define("ColorPicker", () -> type("ColorPicker", ColorPicker.class, ColorPicker::new)
                 .describe("Color Picker", "Controls",
                         "Color selection control with HSV and ARGB editing modes.").build());
@@ -140,7 +141,12 @@ final class ControlTypes {
                 .propertyWithContext("onClick", Converters.STRING, ControlTypes::bindClickCommand,
                         Meta.category("Behavior").kind(ValueKind.BINDING_OR_ACTION)
                                 .description("Named command/action id invoked when the button is clicked."))
-                .bindable("text");
+                .bindable("text")
+                .reads("textPaddingX", Button::textPaddingX)
+                .reads("textPaddingY", Button::textPaddingY)
+                // Состояния кнопки хранят TextureLayer; в документ идёт сама текстура.
+                .reads("hoverTexture", widget -> widget.hoverTexture() == null ? null : widget.hoverTexture().texture())
+                .reads("pressedTexture", widget -> widget.pressedTexture() == null ? null : widget.pressedTexture().texture());
     }
 
     private static void bindClickCommand(Button button, String commandName, LoadContext context) {
@@ -159,7 +165,10 @@ final class ControlTypes {
                 .property("checked", Converters.BOOLEAN, ToggleButton::silentChecked)
                 .property("checkedBackground", Converters.COLOR, (widget, color) -> widget.checkedBackground().set(color))
                 .property("uncheckedBackground", Converters.COLOR, (widget, color) -> widget.uncheckedBackground().set(color))
-                .bindable("checked");
+                .bindable("checked")
+                .reads("checked", ToggleButton::checked)
+                .reads("checkedBackground", ToggleButton::checkedBackground)
+                .reads("uncheckedBackground", ToggleButton::uncheckedBackground);
     }
 
     private static TypeInfo<Checkbox> checkbox() {
@@ -171,6 +180,8 @@ final class ControlTypes {
                 .property("checkSize", Converters.FLOAT, Checkbox::checkSize)
                 .property("textGap", Converters.FLOAT, Checkbox::textGap)
                 .property("labelLeft", Converters.BOOLEAN, Checkbox::labelLeft)
+                .reads("state", Checkbox::state)
+                .reads("checked", Checkbox::checked)
                 .build();
     }
 
@@ -181,7 +192,8 @@ final class ControlTypes {
                 .property("tooltip", Converters.STRING, ToolButton::tooltip)
                 .property("command", Converters.STRING, ToolButton::commandId)
                 .property("displayMode", Converters.enumOf(ToolButton.DisplayMode.class), ToolButton::displayMode)
-                .property("checked", Converters.BOOLEAN, ToolButton::checked);
+                .property("checked", Converters.BOOLEAN, ToolButton::checked)
+                .reads("checked", ToolButton::checked);
     }
 
     // ------------------------------------------------------------------ ввод
@@ -207,7 +219,8 @@ final class ControlTypes {
     private static TypeInfo<DropDownBox> dropDownBox() {
         ChildSink<DropDownBox> content = (widget, child) -> widget.content(child);
         return singleContent(type("DropDownBox", DropDownBox.class, DropDownBox::new)
-                        .describe("Drop Down Box", "Controls", "Dropdown host for arbitrary content widgets."),
+                        .describe("Drop Down Box", "Controls", "Dropdown host for arbitrary content widgets.")
+                        .exportsChildren(widget -> Types.optional(widget.content())),
                 content, "Single widget shown inside the dropdown content area.").build();
     }
 
@@ -225,6 +238,9 @@ final class ControlTypes {
                 .property("fillColor", Converters.COLOR, (widget, color) -> widget.fillColor().set(color))
                 .property("knobColor", Converters.COLOR, (widget, color) -> widget.knobColor().set(color))
                 .bindable("value")
+                .reads("trackColor", Slider::trackColor)
+                .reads("fillColor", Slider::fillColor)
+                .reads("knobColor", Slider::knobColor)
                 .build();
     }
 
@@ -240,6 +256,8 @@ final class ControlTypes {
                 .property("trackColor", Converters.COLOR, (widget, color) -> widget.trackColor().set(color))
                 .property("fillColor", Converters.COLOR, (widget, color) -> widget.fillColor().set(color))
                 .bindable("value")
+                .reads("trackColor", ProgressBar::trackColor)
+                .reads("fillColor", ProgressBar::fillColor)
                 .build();
     }
 
@@ -278,6 +296,7 @@ final class ControlTypes {
         return type("ContextMenu", ContextMenu.class, ContextMenu::new)
                 .describe("Context Menu", "Feedback", "Floating menu with button items and separators.")
                 .content(items)
+                .exportsChildren(ContextMenu::itemWidgets)
                 .slot(SlotInfo.many("Items", items,
                         "Menu item widgets. Button children become actions; Separator children become menu dividers."))
                 .build();
@@ -299,6 +318,7 @@ final class ControlTypes {
                 .property("modalScrimColor", Converters.COLOR, (widget, color) -> widget.modalScrimColor().set(color),
                         Meta.category("Appearance").defaultValue("#0000007A")
                                 .description("Color drawn behind the top modal window."))
+                .reads("modalScrimColor", OverlayLayer::modalScrimColor)
                 .content(ControlTypes::addOverlayLayerChild)
                 .slot(SlotInfo.single("Content", ControlTypes::setOverlayLayerContent,
                         "Single base content widget rendered below overlays."))
@@ -328,7 +348,8 @@ final class ControlTypes {
 
     private static TypeInfo<Popup> popup() {
         return singleContent(type("Popup", Popup.class, Popup::new)
-                        .describe("Popup", "Feedback", "Overlay popup host for arbitrary content; anchor is wired by code."),
+                        .describe("Popup", "Feedback", "Overlay popup host for arbitrary content; anchor is wired by code.")
+                        .exportsChildren(widget -> Types.optional(widget.content())),
                 ControlTypes::setPopupContent, "Single widget shown inside the popup.").build();
     }
 
@@ -348,7 +369,11 @@ final class ControlTypes {
                                         .description("Window position inside its overlay host on the X axis."))
                         .property("windowY", Converters.FLOAT, (widget, value) -> widget.position(widget.windowX(), value),
                                 Meta.category("Layout").defaultValue("28")
-                                        .description("Window position inside its overlay host on the Y axis.")),
+                                        .description("Window position inside its overlay host on the Y axis."))
+                        .reads("windowX", WindowWidget::windowX)
+                        .reads("windowY", WindowWidget::windowY)
+                        // В режиме docking содержимым окна служит его внутренний DockingRoot, а не сохраняемый виджет.
+                        .exportsChildren(widget -> widget.dockingEnabled() ? java.util.List.of() : Types.optional(widget.content())),
                 ControlTypes::setWindowContent, "Single widget shown inside the window body.").build();
     }
 

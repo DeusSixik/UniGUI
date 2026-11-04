@@ -58,6 +58,8 @@ final class NavigationTypes {
                         Meta.category("Behavior").defaultValue("-1")
                                 .description("Initial selected tab index without emitting change events during XML load."))
                 .content(tabs)
+                .exportsChildren(widget -> widget.tabs().stream().map(TabControl.Tab::content).toList())
+                .reads("selectedIndex", TabControl::selectedIndex)
                 .slot(SlotInfo.many("Tabs", tabs, "Tab content widgets; titles default to Tab 1, Tab 2 and so on."))
                 .build();
     }
@@ -74,6 +76,8 @@ final class NavigationTypes {
                         Meta.category("Behavior").defaultValue("0")
                                 .description("Initial selected page index without emitting change events during XML load."))
                 .content(pages)
+                .exportsChildren(PageView::pages)
+                .reads("selectedIndex", PageView::selectedIndex)
                 .slot(SlotInfo.many("Pages", pages, "Page content widgets shown one at a time."))
                 .build();
     }
@@ -86,6 +90,7 @@ final class NavigationTypes {
         return type("Accordion", Accordion.class, Accordion::new)
                 .describe("Accordion", "Navigation", "Vertical expandable panel group with optional single-open behavior.")
                 .content(panels)
+                .exportsChildren(widget -> new java.util.ArrayList<Widget>(widget.panels()))
                 .slot(SlotInfo.many("Panels", panels, "ExpandablePanel children managed by the accordion."))
                 .build();
     }
@@ -99,6 +104,7 @@ final class NavigationTypes {
         return type("ExpandablePanel", ExpandablePanel.class, ExpandablePanel::new)
                 .describe("Expandable Panel", "Navigation", "Collapsible titled panel with a content slot.")
                 .content(content)
+                .exportsChildren(widget -> widget.contentHost().children())
                 .slot(SlotInfo.many("Content", content, "Content widgets shown while the panel is expanded."))
                 .build();
     }
@@ -116,6 +122,8 @@ final class NavigationTypes {
                         Meta.category("Behavior").defaultValue("0")
                                 .description("Initial selected carousel page without emitting change events during XML load."))
                 .content(pages)
+                .exportsChildren(Carousel::pages)
+                .reads("selectedIndex", Carousel::selectedIndex)
                 .slot(SlotInfo.many("Pages", pages, "Carousel page widgets shown one at a time."))
                 .build();
     }
