@@ -187,6 +187,39 @@ public final class UiNode implements UiContent {
     }
 
     /**
+     * Возвращает позицию свойства среди всех свойств узла.
+     *
+     * @param owner владелец или {@code null}
+     * @param name  имя члена
+     * @return индекс или {@code -1}, если свойства нет
+     */
+    public int propertyIndex(UiName owner, UiName name) {
+        for (int i = 0; i < properties.size(); i++) {
+            if (properties.get(i).sameKey(owner, name)) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * Вставляет свойство на заданную позицию. Если свойство с таким ключом уже есть, оно заменяется на месте.
+     * Нужно для точного отката правок: удалённое свойство возвращается туда, где стояло.
+     *
+     * @param index    позиция; значение за пределами списка приводится к границе
+     * @param property свойство
+     * @return этот узел
+     */
+    public UiNode insert(int index, UiProperty property) {
+        if (property == null) throw new IllegalArgumentException("property must not be null");
+        int existing = propertyIndex(property.owner(), property.name());
+        if (existing >= 0) {
+            properties.set(existing, property);
+            return this;
+        }
+        properties.add(Math.max(0, Math.min(index, properties.size())), property);
+        return this;
+    }
+
+    /**
      * Задаёт обычный атрибут со строковым значением.
      *
      * @param name  имя
