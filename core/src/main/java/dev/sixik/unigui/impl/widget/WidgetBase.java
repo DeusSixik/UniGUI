@@ -653,7 +653,7 @@ public abstract class WidgetBase implements Widget {
             return styleId(normalized);
         }
         StyleTextParseResult result = StyleTextParser.parseEditor(normalized);
-        inlineStyle().putAll(result.style());
+        mutableInlineStyle().putAll(result.style());
         if (!result.diagnostics().isEmpty()) {
             java.util.ArrayList<XmlWidgetDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
             next.addAll(result.diagnostics());
@@ -674,7 +674,7 @@ public abstract class WidgetBase implements Widget {
     @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase style(@WikiParameter(name = "update", description = "<key:widget.base.method.style_consumer.parameter>") Consumer<MutableStyle> update) {
         if (update == null) return this;
-        update.accept(inlineStyle());
+        update.accept(mutableInlineStyle());
         invalidate(InvalidationFlags.VISUAL);
         return this;
     }
@@ -692,9 +692,6 @@ public abstract class WidgetBase implements Widget {
     @WikiReturn("<key:widget.base.method.fluent.return>")
     public WidgetBase styleClear() {
         if (inlineStyle == null && styleDiagnostics.isEmpty()) return this;
-        if (inlineStyle != null && localStyles.get(Theme.WILDCARD) == inlineStyle) {
-            localStyles.remove(Theme.WILDCARD);
-        }
         inlineStyle = null;
         styleDiagnostics = List.of();
         invalidate(InvalidationFlags.VISUAL);
@@ -709,12 +706,19 @@ public abstract class WidgetBase implements Widget {
         return styleDiagnostics;
     }
 
-    private MutableStyle inlineStyle() {
+    private MutableStyle mutableInlineStyle() {
         if (inlineStyle == null) {
             inlineStyle = new MutableStyle();
-            localStyles.put(Theme.WILDCARD, inlineStyle);
         }
         return inlineStyle;
+    }
+
+    /**
+     * Возвращает inline-стиль этого виджета. Он не каскадируется на потомков.
+     */
+    @Override
+    public Style inlineStyle() {
+        return inlineStyle == null ? Style.EMPTY : inlineStyle;
     }
 
     /**
@@ -1964,6 +1968,7 @@ public abstract class WidgetBase implements Widget {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(StyleKeys.RENDERER, null, value);
         }
+        value = inlineStyle().get(StyleKeys.RENDERER, null, value);
         WidgetRender resolved = WidgetRenderRegistry.global().resolve(role, value, null);
         cachedStyleRendererStyleVersion = styleVersion;
         cachedStyleRendererDefaultVersion = defaultVersion;
@@ -2012,6 +2017,8 @@ public abstract class WidgetBase implements Widget {
         for (Widget current : styleLookupChain()) {
             value = current.localStyle(type).get(key, state, value);
         }
+        // Inline-стиль применяется только к самому виджету и не каскадируется на потомков.
+        value = inlineStyle().get(key, state, value);
         return value;
     }
 
@@ -2464,6 +2471,7 @@ public abstract class WidgetBase implements Widget {
     private long currentRenderStyleVersion() {
         long version = uiContext == null ? 0L : uiContext.styleVersion();
         String type = styleType();
+        version = version * 31L + inlineStyle().version();
         Widget current = this;
         while (current != null) {
             version = version * 31L + System.identityHashCode(current);

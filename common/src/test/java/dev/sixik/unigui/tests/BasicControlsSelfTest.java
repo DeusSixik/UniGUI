@@ -1819,7 +1819,7 @@ public final class BasicControlsSelfTest {
         Button inlineStyled = new Button("Inline");
         inlineStyled.style("background: #7A1F1FFF; radius: 8; unknown: 1;");
         inlineStyled.style(style -> style.put(StyleKeys.BORDER_WIDTH, 2.0f));
-        Style inline = inlineStyled.localStyle(StyleIds.WILDCARD);
+        Style inline = inlineStyled.inlineStyle();
         ColorView inlineBackground = inline.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
         expect(inlineBackground != null && near(inlineBackground.r(), 0x7A / 255.0f)
                         && near(inlineBackground.g(), 0x1F / 255.0f)
@@ -1991,6 +1991,24 @@ public final class BasicControlsSelfTest {
         isolated.render(new DefaultRenderContext(isolatedDrawList));
         expect(hasFillColor(isolatedDrawList, 0.2f, 0.2f, 0.2f, 1.0f), "Nearest style scope should provide local style inside boundary");
         expect(!hasFillColor(isolatedDrawList, 0.7f, 0.1f, 0.1f, 1.0f), "Nearest style scope should stop outer local style inheritance");
+
+        // Inline style (widget.style(...)) must stay local to the widget and never leak to descendants.
+        DefaultUIContext inlineContext = new DefaultUIContext();
+        Box inlineParent = new Box();
+        Button inlineChild = new Button("Child");
+        inlineParent.setUiContextInternal(inlineContext);
+        inlineParent.style(style -> style.put(StyleKeys.BACKGROUND_COLOR, MutableColor.rgba(0.9f, 0.3f, 0.6f, 1.0f)));
+        inlineParent.addChild(inlineChild);
+        inlineParent.applyQueuedMutations();
+        inlineChild.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 18.0f));
+
+        DrawList inlineChildDrawList = new DrawList();
+        inlineChild.render(new DefaultRenderContext(inlineChildDrawList));
+        expect(!hasFillColor(inlineChildDrawList, 0.9f, 0.3f, 0.6f, 1.0f),
+                "Parent inline style must not leak to descendants");
+        expect(inlineParent.inlineStyle().get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null) != null
+                        && inlineChild.inlineStyle() == Style.EMPTY,
+                "Inline style should be stored on the owner widget only");
     }
 
     private void testKeyboardFocusTraversal() {
