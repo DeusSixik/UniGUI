@@ -69,7 +69,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.xml.XmlAttribute;
 import dev.sixik.unigui.api.xml.XmlLayoutAttributes;
 import dev.sixik.unigui.api.xml.XmlStyleAttributes;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 import dev.sixik.unigui.impl.event.FastEventEmitter;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.api.style.StyleAnimationIds;
@@ -417,7 +417,7 @@ public abstract class WidgetBase implements Widget {
     private String styleId = "";
     private final LinkedHashSet<String> styleClasses = new LinkedHashSet<>();
     private MutableStyle inlineStyle;
-    private List<XmlWidgetDiagnostic> styleDiagnostics = List.of();
+    private List<UiDiagnostic> styleDiagnostics = List.of();
 
     /**
      * Создаёт экземпляр {@code WidgetBase} и подготавливает начальное состояние виджета.
@@ -655,7 +655,7 @@ public abstract class WidgetBase implements Widget {
         StyleTextParseResult result = StyleTextParser.parseEditor(normalized);
         mutableInlineStyle().putAll(result.style());
         if (!result.diagnostics().isEmpty()) {
-            java.util.ArrayList<XmlWidgetDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
+            java.util.ArrayList<UiDiagnostic> next = new java.util.ArrayList<>(styleDiagnostics);
             next.addAll(result.diagnostics());
             styleDiagnostics = List.copyOf(next);
         }
@@ -702,7 +702,7 @@ public abstract class WidgetBase implements Widget {
     @WikiMethod(section = "<key:widget.base.api.section.identity>", sectionOrder = 10, order = 38,
             title = "<key:widget.base.method.style_diagnostics.title>", summary = "<key:widget.base.method.style_diagnostics.summary>")
     @WikiReturn("<key:widget.base.method.style_diagnostics.return>")
-    public List<XmlWidgetDiagnostic> styleDiagnostics() {
+    public List<UiDiagnostic> styleDiagnostics() {
         return styleDiagnostics;
     }
 

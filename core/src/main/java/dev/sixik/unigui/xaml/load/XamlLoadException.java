@@ -1,6 +1,7 @@
 package dev.sixik.unigui.xaml.load;
 
 import dev.sixik.unigui.xaml.SourceLocation;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 
 import java.util.List;
 
@@ -11,43 +12,7 @@ import java.util.List;
  * Сообщение исключения уже содержит {@code (line L, column C)}.</p>
  */
 public final class XamlLoadException extends RuntimeException {
-    private final List<Diagnostic> diagnostics;
-
-    /**
-     * Одна диагностика.
-     *
-     * @param message  описание проблемы без позиции
-     * @param location позиция или {@link SourceLocation#UNKNOWN}
-     */
-    public record Diagnostic(String message, SourceLocation location) {
-        public Diagnostic {
-            location = location == null ? SourceLocation.UNKNOWN : location;
-        }
-
-        /**
-         * Показывает, известна ли позиция.
-         *
-         * @return {@code true}, если есть строка и колонка
-         */
-        public boolean hasLocation() {
-            return location.known();
-        }
-
-        /** @return номер строки или {@code -1} */
-        public int line() {
-            return location.line();
-        }
-
-        /** @return номер колонки или {@code -1} */
-        public int column() {
-            return location.column();
-        }
-
-        @Override
-        public String toString() {
-            return hasLocation() ? message + " (line " + line() + ", column " + column() + ")" : message;
-        }
-    }
+    private final List<UiDiagnostic> diagnostics;
 
     /**
      * Создаёт ошибку с одной диагностикой.
@@ -57,7 +22,7 @@ public final class XamlLoadException extends RuntimeException {
      * @param cause    исходная причина или {@code null}
      */
     public XamlLoadException(String message, SourceLocation location, Throwable cause) {
-        this(List.of(new Diagnostic(message, location)), cause);
+        this(List.of(new UiDiagnostic(message, location)), cause);
     }
 
     /**
@@ -69,9 +34,28 @@ public final class XamlLoadException extends RuntimeException {
         this(message, SourceLocation.UNKNOWN, null);
     }
 
-    private XamlLoadException(List<Diagnostic> diagnostics, Throwable cause) {
-        super(diagnostics.get(0).toString(), cause);
+    /**
+     * Создаёт ошибку из нескольких диагностик (например, при разборе файла стилей, где проблем может быть много).
+     *
+     * @param diagnostics диагностики; не должен быть пустым
+     */
+    public XamlLoadException(List<UiDiagnostic> diagnostics) {
+        this(diagnostics, null);
+    }
+
+    private XamlLoadException(List<UiDiagnostic> diagnostics, Throwable cause) {
+        super(describe(diagnostics), cause);
         this.diagnostics = List.copyOf(diagnostics);
+    }
+
+    private static String describe(List<UiDiagnostic> diagnostics) {
+        if (diagnostics == null || diagnostics.isEmpty()) {
+            throw new IllegalArgumentException("an exception needs at least one diagnostic");
+        }
+        if (diagnostics.size() == 1) return diagnostics.get(0).toString();
+        StringBuilder builder = new StringBuilder(diagnostics.get(0).toString());
+        builder.append(" (+").append(diagnostics.size() - 1).append(" more)");
+        return builder.toString();
     }
 
     /**
@@ -79,7 +63,7 @@ public final class XamlLoadException extends RuntimeException {
      *
      * @return неизменяемый список, как минимум с одним элементом
      */
-    public List<Diagnostic> diagnostics() {
+    public List<UiDiagnostic> diagnostics() {
         return diagnostics;
     }
 }

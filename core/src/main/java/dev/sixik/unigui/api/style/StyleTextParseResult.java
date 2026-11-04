@@ -1,13 +1,13 @@
 package dev.sixik.unigui.api.style;
 
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 
 import java.util.List;
 
 /**
  * Результат разбора встроенного объявления стиля виджета.
  */
-public record StyleTextParseResult(MutableStyle style, List<XmlWidgetDiagnostic> diagnostics) {
+public record StyleTextParseResult(MutableStyle style, List<UiDiagnostic> diagnostics) {
     /**
      * Нормализует результат парсера: значения не бывают null и не изменяются извне.
      */

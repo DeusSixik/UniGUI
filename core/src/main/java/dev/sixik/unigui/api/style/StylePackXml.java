@@ -3,10 +3,11 @@ package dev.sixik.unigui.api.style;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.Easing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
-import dev.sixik.unigui.api.xml.XmlWidgetDocument;
-import dev.sixik.unigui.api.xml.XmlWidgetElement;
-import dev.sixik.unigui.api.xml.XmlWidgetLoadException;
+import dev.sixik.unigui.xaml.UiDiagnostic;
+import dev.sixik.unigui.xaml.UiNode;
+import dev.sixik.unigui.xaml.UiParseException;
+import dev.sixik.unigui.xaml.format.XamlFormat;
+import dev.sixik.unigui.xaml.load.XamlLoadException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -67,27 +68,26 @@ public final class StylePackXml {
      */
     public static StylePackResult parseEditor(String xml, StyleKeyRegistry registry) {
         StyleKeyRegistry effectiveRegistry = registry == null ? StyleKeyRegistry.builtIns() : registry;
-        XmlWidgetDocument document;
+        UiNode root;
         try {
-            document = XmlWidgetDocument.parse(xml);
-        } catch (XmlWidgetLoadException exception) {
+            root = parseDocument(xml);
+        } catch (XamlLoadException exception) {
             return new StylePackResult(StylePack.create("style-pack"), exception.diagnostics());
         }
 
-        XmlWidgetElement root = document.root();
-        List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
-        if (!root.name().equals("StylePack")) {
-            diagnostics.add(diagnostic(root, "Expected root element <StylePack>, got <" + root.name() + ">."));
+        List<UiDiagnostic> diagnostics = new ArrayList<>();
+        if (!root.type().local().equals("StylePack")) {
+            diagnostics.add(diagnostic(root, "Expected root element <StylePack>, got <" + root.type().local() + ">."));
             return new StylePackResult(StylePack.create("style-pack"), diagnostics);
         }
 
-        StylePack pack = StylePack.create(root.attributeOrDefault("id", "style-pack"));
-        for (XmlWidgetElement child : root.elementChildren()) {
-            switch (child.name()) {
+        StylePack pack = StylePack.create(root.attributeText("id", "style-pack"));
+        for (UiNode child : root.children()) {
+            switch (child.type().local()) {
                 case "Style" -> parseStyle(pack, child, effectiveRegistry, diagnostics);
                 case "Binding" -> parseBinding(pack, child, diagnostics);
                 case "Animation" -> parseAnimation(pack, child, diagnostics);
-                default -> diagnostics.add(diagnostic(child, "Unknown StylePack child <" + child.name() + ">."));
+                default -> diagnostics.add(diagnostic(child, "Unknown StylePack child <" + child.type().local() + ">."));
             }
         }
         return new StylePackResult(pack, diagnostics);
@@ -117,17 +117,16 @@ public final class StylePackXml {
      */
     public static Style parseStyle(String xml, StyleKeyRegistry registry) {
         StyleKeyRegistry effectiveRegistry = registry == null ? StyleKeyRegistry.builtIns() : registry;
-        XmlWidgetDocument document = XmlWidgetDocument.parse(xml);
-        XmlWidgetElement root = document.root();
-        List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
-        if (!root.name().equals("Style")) {
-            diagnostics.add(diagnostic(root, "Expected root element <Style>, got <" + root.name() + ">."));
-            throw new XmlWidgetLoadException(diagnostics);
+        UiNode root = parseDocument(xml);
+        List<UiDiagnostic> diagnostics = new ArrayList<>();
+        if (!root.type().local().equals("Style")) {
+            diagnostics.add(diagnostic(root, "Expected root element <Style>, got <" + root.type().local() + ">."));
+            throw new XamlLoadException(diagnostics);
         }
 
         Style style = parseStyleValues(root, effectiveRegistry, diagnostics, null);
         if (!diagnostics.isEmpty()) {
-            throw new XmlWidgetLoadException(diagnostics);
+            throw new XamlLoadException(diagnostics);
         }
         return style;
     }
@@ -164,10 +163,10 @@ public final class StylePackXml {
     }
 
     private static void parseStyle(StylePack pack,
-                                   XmlWidgetElement element,
+                                   UiNode element,
                                    StyleKeyRegistry registry,
-                                   List<XmlWidgetDiagnostic> diagnostics) {
-        String id = element.attributeOrDefault("id", "").trim();
+                                   List<UiDiagnostic> diagnostics) {
+        String id = element.attributeText("id", "").trim();
         if (id.isEmpty()) {
             diagnostics.add(diagnostic(element, "Style requires non-empty id attribute."));
             return;
@@ -176,10 +175,10 @@ public final class StylePackXml {
         Map<String, String> events = new LinkedHashMap<>();
         MutableStyle style = parseStyleValues(element, registry, diagnostics, events);
 
-        String renderer = element.attributeOrDefault("renderer", "").trim();
-        String target = element.attributeOrDefault("target", "").trim();
-        String styleClass = element.attributeOrDefault("class", "").trim();
-        String widgetId = element.attributeOrDefault("widgetId", "").trim();
+        String renderer = element.attributeText("renderer", "").trim();
+        String target = element.attributeText("target", "").trim();
+        String styleClass = element.attributeText("class", "").trim();
+        String widgetId = element.attributeText("widgetId", "").trim();
         StyleDefinition definition = renderer.isEmpty()
                 ? StyleDefinition.of(id, style)
                 : StyleDefinition.custom(id, renderer, style);
@@ -194,13 +193,13 @@ public final class StylePackXml {
         }
     }
 
-    private static MutableStyle parseStyleValues(XmlWidgetElement element,
+    private static MutableStyle parseStyleValues(UiNode element,
                                                  StyleKeyRegistry registry,
-                                                 List<XmlWidgetDiagnostic> diagnostics,
+                                                 List<UiDiagnostic> diagnostics,
                                                  Map<String, String> events) {
         MutableStyle style = new MutableStyle();
-        for (XmlWidgetElement child : element.elementChildren()) {
-            switch (child.name()) {
+        for (UiNode child : element.children()) {
+            switch (child.type().local()) {
                 case "Setter" -> parseSetter(style, WidgetState.NORMAL, child, registry, diagnostics);
                 case "State" -> parseState(style, child, registry, diagnostics);
                 case "Event" -> {
@@ -208,15 +207,15 @@ public final class StylePackXml {
                         parseEvent(events, child, diagnostics);
                     }
                 }
-                default -> diagnostics.add(diagnostic(child, "Unknown Style child <" + child.name() + ">."));
+                default -> diagnostics.add(diagnostic(child, "Unknown Style child <" + child.type().local() + ">."));
             }
         }
         return style;
     }
 
-    private static void parseBinding(StylePack pack, XmlWidgetElement element, List<XmlWidgetDiagnostic> diagnostics) {
-        String target = element.attributeOrDefault("target", "").trim();
-        String style = element.attributeOrDefault("style", "").trim();
+    private static void parseBinding(StylePack pack, UiNode element, List<UiDiagnostic> diagnostics) {
+        String target = element.attributeText("target", "").trim();
+        String style = element.attributeText("style", "").trim();
         if (target.isEmpty()) {
             diagnostics.add(diagnostic(element, "Binding requires non-empty target attribute."));
         }
@@ -229,31 +228,31 @@ public final class StylePackXml {
     }
 
     private static void parseState(MutableStyle style,
-                                   XmlWidgetElement element,
+                                   UiNode element,
                                    StyleKeyRegistry registry,
-                                   List<XmlWidgetDiagnostic> diagnostics) {
-        String name = element.attributeOrDefault("name", "").trim();
+                                   List<UiDiagnostic> diagnostics) {
+        String name = element.attributeText("name", "").trim();
         WidgetState state = parseEnum(WidgetState.class, name);
         if (state == null) {
             diagnostics.add(diagnostic(element, "Unknown widget state '" + name + "'."));
             return;
         }
-        for (XmlWidgetElement child : element.elementChildren()) {
-            if (child.name().equals("Setter")) {
+        for (UiNode child : element.children()) {
+            if (child.type().local().equals("Setter")) {
                 parseSetter(style, state, child, registry, diagnostics);
             } else {
-                diagnostics.add(diagnostic(child, "Unknown State child <" + child.name() + ">."));
+                diagnostics.add(diagnostic(child, "Unknown State child <" + child.type().local() + ">."));
             }
         }
     }
 
     private static void parseSetter(MutableStyle style,
                                     WidgetState state,
-                                    XmlWidgetElement element,
+                                    UiNode element,
                                     StyleKeyRegistry registry,
-                                    List<XmlWidgetDiagnostic> diagnostics) {
-        String property = element.attributeOrDefault("property", "").trim();
-        String value = element.attributeOrDefault("value", "").trim();
+                                    List<UiDiagnostic> diagnostics) {
+        String property = element.attributeText("property", "").trim();
+        String value = element.attributeText("value", "").trim();
         if (property.isEmpty()) {
             diagnostics.add(diagnostic(element, "Setter requires non-empty property attribute."));
             return;
@@ -283,10 +282,10 @@ public final class StylePackXml {
     }
 
     private static void parseEvent(Map<String, String> events,
-                                   XmlWidgetElement element,
-                                   List<XmlWidgetDiagnostic> diagnostics) {
-        String name = element.attributeOrDefault("name", "").trim();
-        String animation = element.attributeOrDefault("animation", "").trim();
+                                   UiNode element,
+                                   List<UiDiagnostic> diagnostics) {
+        String name = element.attributeText("name", "").trim();
+        String animation = element.attributeText("animation", "").trim();
         if (name.isEmpty()) {
             diagnostics.add(diagnostic(element, "Event requires non-empty name attribute."));
         }
@@ -299,29 +298,29 @@ public final class StylePackXml {
     }
 
     private static void parseAnimation(StylePack pack,
-                                       XmlWidgetElement element,
-                                       List<XmlWidgetDiagnostic> diagnostics) {
-        String id = element.attributeOrDefault("id", "").trim();
+                                       UiNode element,
+                                       List<UiDiagnostic> diagnostics) {
+        String id = element.attributeText("id", "").trim();
         if (id.isEmpty()) {
             diagnostics.add(diagnostic(element, "Animation requires non-empty id attribute."));
             return;
         }
 
         List<StylePropertyTween> tweens = new ArrayList<>();
-        for (XmlWidgetElement child : element.elementChildren()) {
-            if (child.name().equals("Tween")) {
+        for (UiNode child : element.children()) {
+            if (child.type().local().equals("Tween")) {
                 StylePropertyTween tween = parseTween(child, diagnostics);
                 if (tween != null) tweens.add(tween);
             } else {
-                diagnostics.add(diagnostic(child, "Unknown Animation child <" + child.name() + ">."));
+                diagnostics.add(diagnostic(child, "Unknown Animation child <" + child.type().local() + ">."));
             }
         }
         pack.putAnimation(new StyleAnimationDefinition(id, tweens));
     }
 
-    private static StylePropertyTween parseTween(XmlWidgetElement element, List<XmlWidgetDiagnostic> diagnostics) {
-        String property = element.attributeOrDefault("property", "").trim();
-        String to = element.attributeOrDefault("to", "").trim();
+    private static StylePropertyTween parseTween(UiNode element, List<UiDiagnostic> diagnostics) {
+        String property = element.attributeText("property", "").trim();
+        String to = element.attributeText("to", "").trim();
         if (property.isEmpty()) {
             diagnostics.add(diagnostic(element, "Tween requires non-empty property attribute."));
             return null;
@@ -331,15 +330,15 @@ public final class StylePackXml {
             return null;
         }
 
-        String from = element.attributeOrDefault("from", StylePropertyTween.CURRENT).trim();
+        String from = element.attributeText("from", StylePropertyTween.CURRENT).trim();
         TransitionSpec transition = parseTransition(element, diagnostics);
         return new StylePropertyTween(property, from, to, transition);
     }
 
-    private static TransitionSpec parseTransition(XmlWidgetElement element, List<XmlWidgetDiagnostic> diagnostics) {
+    private static TransitionSpec parseTransition(UiNode element, List<UiDiagnostic> diagnostics) {
         float duration = TransitionSpec.DEFAULT.durationSeconds();
-        String durationText = element.attributeOrDefault("duration", "").trim();
-        String durationMsText = element.attributeOrDefault("durationMs", "").trim();
+        String durationText = element.attributeText("duration", "").trim();
+        String durationMsText = element.attributeText("durationMs", "").trim();
         try {
             if (!durationText.isEmpty()) {
                 duration = Float.parseFloat(durationText);
@@ -351,7 +350,7 @@ public final class StylePackXml {
         }
 
         Easing easing = TransitionSpec.DEFAULT.easing();
-        String easingText = element.attributeOrDefault("easing", "").trim();
+        String easingText = element.attributeText("easing", "").trim();
         if (!easingText.isEmpty()) {
             AnimationEasing parsed = parseEnum(AnimationEasing.class, easingText);
             if (parsed == null) {
@@ -362,7 +361,7 @@ public final class StylePackXml {
         }
 
         int repeat = 0;
-        String repeatText = element.attributeOrDefault("repeat", "").trim();
+        String repeatText = element.attributeText("repeat", "").trim();
         if (!repeatText.isEmpty()) {
             try {
                 repeat = Integer.parseInt(repeatText);
@@ -372,7 +371,7 @@ public final class StylePackXml {
         }
 
         TransitionSpec transition = repeat < 0 ? new TransitionSpec(duration, easing).repeatForever() : new TransitionSpec(duration, easing).repeat(repeat);
-        if (parseBoolean(element.attributeOrDefault("yoyo", "false"))) {
+        if (parseBoolean(element.attributeText("yoyo", "false"))) {
             transition = transition.yoyo();
         }
         return transition;
@@ -494,8 +493,18 @@ public final class StylePackXml {
         return text.endsWith(".0") ? text.substring(0, text.length() - 2) : text;
     }
 
-    private static XmlWidgetDiagnostic diagnostic(XmlWidgetElement element, String message) {
-        return new XmlWidgetDiagnostic(message, element.line(), element.column());
+    /** Разбирает текст в дерево разметки; синтаксическая ошибка превращается в {@link XamlLoadException}. */
+    private static UiNode parseDocument(String xml) {
+        if (xml == null || xml.isBlank()) throw new XamlLoadException("Style XML must not be blank.");
+        try {
+            return XamlFormat.INSTANCE.read(xml).root();
+        } catch (UiParseException failure) {
+            throw new XamlLoadException("Cannot parse style XML: " + failure.reason(), failure.location(), failure);
+        }
+    }
+
+    private static UiDiagnostic diagnostic(UiNode element, String message) {
+        return new UiDiagnostic(message, element.location());
     }
 
     private static String escape(String value) {

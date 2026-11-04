@@ -724,7 +724,7 @@ final class XamlLoaderTest {
     private static void located(String xaml, String part, int minimumLine) {
         XamlLoadException failure = assertThrows(XamlLoadException.class, () -> Xaml.load(xaml));
         assertTrue(failure.getMessage().contains(part), failure.getMessage());
-        XamlLoadException.Diagnostic diagnostic = failure.diagnostics().get(0);
+        UiDiagnostic diagnostic = failure.diagnostics().get(0);
         assertTrue(diagnostic.hasLocation(), "diagnostic must carry a position: " + diagnostic);
         assertTrue(diagnostic.line() >= minimumLine && diagnostic.column() > 0, diagnostic.toString());
         assertTrue(failure.getMessage().contains("line") && failure.getMessage().contains("column"), failure.getMessage());

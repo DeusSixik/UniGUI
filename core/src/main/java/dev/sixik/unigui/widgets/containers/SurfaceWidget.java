@@ -46,7 +46,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.visual.BackgroundKind;
 import dev.sixik.unigui.api.widget.visual.Surface;
 import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlTextureAttributes;
+import dev.sixik.unigui.xaml.load.TextureResolution;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
 
@@ -436,32 +436,32 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
 
     @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
     public T backgroundTextureWidth(int width) {
-        return backgroundTexture(XmlTextureAttributes.resize(surface.backgroundTexture(), width, null));
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), width, null));
     }
 
     @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
     public T backgroundTextureHeight(int height) {
-        return backgroundTexture(XmlTextureAttributes.resize(surface.backgroundTexture(), null, height));
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), null, height));
     }
 
     @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
     public T backgroundTextureSampling(TextureFilter filter) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.sampling(filter)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.sampling(filter)));
     }
 
     @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
     public T backgroundTextureWrap(TextureWrap wrap) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.wrap(wrap)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.wrap(wrap)));
     }
 
     @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
     public T backgroundTextureMipmaps(boolean mipmaps) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.mipmaps(mipmaps)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.mipmaps(mipmaps)));
     }
 
     @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
     public T backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
-        return backgroundTexture(XmlTextureAttributes.options(surface.backgroundTexture(), options -> options.premultipliedAlpha(premultipliedAlpha)));
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     /**

@@ -1,7 +1,10 @@
 package dev.sixik.unigui.api.animation;
 
-import dev.sixik.unigui.api.xml.XmlWidgetDocument;
-import dev.sixik.unigui.api.xml.XmlWidgetElement;
+import dev.sixik.unigui.xaml.UiDocument;
+import dev.sixik.unigui.xaml.UiNode;
+import dev.sixik.unigui.xaml.UiParseException;
+import dev.sixik.unigui.xaml.format.XamlFormat;
+import dev.sixik.unigui.xaml.load.XamlLoadException;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Locale;
@@ -28,35 +31,39 @@ public final class StoryboardXml {
 
     /** Парсит storyboard из XML-строки. */
     public static Storyboard parse(String xml) {
-        return parse(XmlWidgetDocument.parse(xml));
+        try {
+            return parse(XamlFormat.INSTANCE.read(xml));
+        } catch (UiParseException failure) {
+            throw new XamlLoadException("Cannot parse storyboard XML: " + failure.reason(), failure.location(), failure);
+        }
     }
 
     /** Парсит storyboard из готовой document-модели. */
-    public static Storyboard parse(XmlWidgetDocument document) {
+    public static Storyboard parse(UiDocument document) {
         if (document == null) throw new IllegalArgumentException("XML storyboard document не должен быть null.");
-        XmlWidgetElement root = document.root();
-        if (!"Storyboard".equals(root.name())) {
+        UiNode root = document.root();
+        if (!"Storyboard".equals(root.type().local())) {
             throw error(root, "Корневым элементом должен быть <Storyboard>.");
         }
 
         ObjectArrayList<PropertyTrack<?>> tracks = new ObjectArrayList<>();
-        for (XmlWidgetElement child : root.elementChildren()) {
-            if (!"FloatTrack".equals(child.name())) {
-                throw error(child, "Неизвестный элемент storyboard: <" + child.name() + ">.");
+        for (UiNode child : root.children()) {
+            if (!"FloatTrack".equals(child.type().local())) {
+                throw error(child, "Неизвестный элемент storyboard: <" + child.type().local() + ">.");
             }
             tracks.add(parseFloatTrack(child));
         }
         return new Storyboard(tracks);
     }
 
-    private static PropertyTrack<Float> parseFloatTrack(XmlWidgetElement element) {
+    private static PropertyTrack<Float> parseFloatTrack(UiNode element) {
         String target = attribute(element, "target", "targetName");
         String property = attribute(element, "property", "propertyPath");
         ObjectArrayList<Keyframe<Float>> keyframes = new ObjectArrayList<>();
-        for (XmlWidgetElement child : element.elementChildren()) {
+        for (UiNode child : element.children()) {
             float time = number(child, "time");
             float value = number(child, "value");
-            switch (child.name()) {
+            switch (child.type().local()) {
                 case "Discrete" -> keyframes.add(new DiscreteKeyframe<>(time, value));
                 case "Spline" -> keyframes.add(new SplineKeyframe<>(time, value, easing(child)));
                 default -> throw error(child, "FloatTrack поддерживает только <Spline> и <Discrete>.");
@@ -64,7 +71,7 @@ public final class StoryboardXml {
         }
         if (keyframes.isEmpty()) throw error(element, "FloatTrack должен содержать keyframe'ы.");
 
-        String interpolation = element.attribute("interpolator").orElse("linear");
+        String interpolation = element.attributeText("interpolator").orElse("linear");
         FloatInterpolator interpolator = switch (normalize(interpolation)) {
             case "linear" -> FloatInterpolator.LINEAR;
             case "angle-shortest", "shortest-angle" -> AngleInterpolator.SHORTEST_PATH;
@@ -73,11 +80,11 @@ public final class StoryboardXml {
         return PropertyTrack.floats(target, property, keyframes, interpolator);
     }
 
-    private static Easing easing(XmlWidgetElement element) {
-        boolean hasBezier = element.attribute("x1").isPresent()
-                || element.attribute("y1").isPresent()
-                || element.attribute("x2").isPresent()
-                || element.attribute("y2").isPresent();
+    private static Easing easing(UiNode element) {
+        boolean hasBezier = element.attributeText("x1").isPresent()
+                || element.attributeText("y1").isPresent()
+                || element.attributeText("x2").isPresent()
+                || element.attributeText("y2").isPresent();
         if (hasBezier) {
             return Easing.cubicBezier(
                     number(element, "x1"),
@@ -86,7 +93,7 @@ public final class StoryboardXml {
                     number(element, "y2"));
         }
 
-        String value = element.attribute("easing").orElse("linear");
+        String value = element.attributeText("easing").orElse("linear");
         String enumName = normalize(value).replace('-', '_').toUpperCase(Locale.ROOT);
         try {
             return AnimationEasing.valueOf(enumName);
@@ -95,14 +102,14 @@ public final class StoryboardXml {
         }
     }
 
-    private static String attribute(XmlWidgetElement element, String primary, String alias) {
-        String value = element.attribute(primary).orElseGet(() -> element.attribute(alias).orElse(""));
+    private static String attribute(UiNode element, String primary, String alias) {
+        String value = element.attributeText(primary).orElseGet(() -> element.attributeText(alias).orElse(""));
         if (value.isBlank()) throw error(element, "Обязательный атрибут '" + primary + "' не задан.");
         return value.trim();
     }
 
-    private static float number(XmlWidgetElement element, String name) {
-        String value = element.attribute(name)
+    private static float number(UiNode element, String name) {
+        String value = element.attributeText(name)
                 .orElseThrow(() -> error(element, "Обязательный атрибут '" + name + "' не задан."));
         try {
             float parsed = Float.parseFloat(value.trim());
@@ -117,9 +124,9 @@ public final class StoryboardXml {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static IllegalArgumentException error(XmlWidgetElement element, String message) {
-        String location = element != null && element.hasLocation()
-                ? " (строка " + element.line() + ", колонка " + element.column() + ")"
+    private static IllegalArgumentException error(UiNode element, String message) {
+        String location = element != null && element.location().known()
+                ? " (строка " + element.location().line() + ", колонка " + element.location().column() + ")"
                 : "";
         return new IllegalArgumentException(message + location);
     }

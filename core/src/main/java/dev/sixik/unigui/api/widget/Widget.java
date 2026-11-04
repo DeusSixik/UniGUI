@@ -22,7 +22,7 @@ import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.RenderContext;
 import dev.sixik.unigui.api.style.Style;
 import dev.sixik.unigui.api.style.MutableStyle;
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -294,7 +294,7 @@ public interface Widget extends EventEmitter {
     /**
      * @return диагностика, собранная при разборе встроенных объявлений стиля
      */
-    default List<XmlWidgetDiagnostic> styleDiagnostics() {
+    default List<UiDiagnostic> styleDiagnostics() {
         return List.of();
     }
 

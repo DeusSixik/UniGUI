@@ -29,7 +29,7 @@ import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.xml.XmlAttribute;
-import dev.sixik.unigui.api.xml.XmlTextureAttributes;
+import dev.sixik.unigui.xaml.load.TextureResolution;
 import dev.sixik.unigui.api.xml.XmlWidgetName;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.impl.widget.WidgetBase;
@@ -402,32 +402,32 @@ public class TextWidget extends WidgetBase {
 
     @XmlAttribute(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width.")
     public TextWidget backgroundTextureWidth(int width) {
-        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, width, null));
+        return backgroundTexture(TextureResolution.resize(backgroundTexture, width, null));
     }
 
     @XmlAttribute(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height.")
     public TextWidget backgroundTextureHeight(int height) {
-        return backgroundTexture(XmlTextureAttributes.resize(backgroundTexture, null, height));
+        return backgroundTexture(TextureResolution.resize(backgroundTexture, null, height));
     }
 
     @XmlAttribute(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode.")
     public TextWidget backgroundTextureSampling(TextureFilter filter) {
-        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.sampling(filter)));
+        return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.sampling(filter)));
     }
 
     @XmlAttribute(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture wrap mode.")
     public TextWidget backgroundTextureWrap(TextureWrap wrap) {
-        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.wrap(wrap)));
+        return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.wrap(wrap)));
     }
 
     @XmlAttribute(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether texture uses mipmaps.")
     public TextWidget backgroundTextureMipmaps(boolean mipmaps) {
-        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.mipmaps(mipmaps)));
+        return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.mipmaps(mipmaps)));
     }
 
     @XmlAttribute(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Premultiplied alpha flag.")
     public TextWidget backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
-        return backgroundTexture(XmlTextureAttributes.options(backgroundTexture, options -> options.premultipliedAlpha(premultipliedAlpha)));
+        return backgroundTexture(TextureResolution.options(backgroundTexture, options -> options.premultipliedAlpha(premultipliedAlpha)));
     }
 
     public MutableColor backgroundTextureTint() {

@@ -138,6 +138,37 @@ public final class UiNode implements UiContent {
     }
 
     /**
+     * Возвращает значение обычного атрибута как исходный текст.
+     *
+     * <p>Удобно для форматов, где значения не бывают выражениями (стили, storyboard): если значение случайно
+     * записано как {@code {...}}, оно возвращается в той форме, в какой было написано, а не теряется.</p>
+     *
+     * @param name имя атрибута без префикса и владельца
+     * @return текст или пусто, если атрибута нет или он задан вложенными элементами
+     */
+    public Optional<String> attributeText(String name) {
+        for (UiProperty property : properties) {
+            if (property.owner() == null && property.name().namespace().isEmpty()
+                    && property.name().local().equals(name)) {
+                if (property.value() instanceof UiValue.Elements) return Optional.empty();
+                return Optional.of(dev.sixik.unigui.xaml.format.MarkupExtensions.write(property.value()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * То же, что {@link #attributeText(String)}, но с запасным значением.
+     *
+     * @param name     имя атрибута
+     * @param fallback значение, если атрибута нет
+     * @return текст атрибута или {@code fallback}
+     */
+    public String attributeText(String name, String fallback) {
+        return attributeText(name).orElse(fallback);
+    }
+
+    /**
      * Добавляет свойство или заменяет существующее с тем же ключом, сохраняя его место в порядке.
      *
      * @param property новое свойство

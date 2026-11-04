@@ -5,6 +5,8 @@ import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.xml.XmlTextureResolver;
 import dev.sixik.unigui.api.xml.XmlWidgetOptions;
 
+import java.util.function.UnaryOperator;
+
 /**
  * Резолвер текстур, действующий на время загрузки документа в текущем потоке.
  *
@@ -48,6 +50,45 @@ public final class TextureResolution {
         XmlTextureResolver effective = resolver == null ? XmlWidgetOptions.DEFAULT_TEXTURE_RESOLVER : resolver;
         return effective.resolve(id, Math.max(1, width), Math.max(1, height),
                 options == null ? TextureOptions.defaults() : options);
+    }
+
+    /**
+     * Перепривязывает текстуру к новым размерам тем же резолвером. Нужен setter-ам {@code textureWidth} и
+     * {@code textureHeight}.
+     *
+     * @param texture текущая текстура; {@code null} остаётся {@code null}
+     * @param width   новая ширина или {@code null}, чтобы оставить прежнюю
+     * @param height  новая высота или {@code null}, чтобы оставить прежнюю
+     * @return та же текстура, если размеры не изменились, иначе новый handle
+     * @throws IllegalArgumentException если размер не положительный
+     */
+    public static TextureHandle resize(TextureHandle texture, Integer width, Integer height) {
+        if (texture == null) return null;
+        int nextWidth = width == null ? texture.width() : positive(width, "width");
+        int nextHeight = height == null ? texture.height() : positive(height, "height");
+        if (texture.width() == nextWidth && texture.height() == nextHeight) return texture;
+        return resolve(texture.id(), nextWidth, nextHeight, texture.options());
+    }
+
+    /**
+     * Перепривязывает текстуру к изменённым параметрам выборки. Нужен setter-ам {@code textureSampling},
+     * {@code textureWrap} и подобным.
+     *
+     * @param texture  текущая текстура; {@code null} остаётся {@code null}
+     * @param mutation изменение параметров
+     * @return та же текстура, если параметры не изменились, иначе новый handle
+     */
+    public static TextureHandle options(TextureHandle texture, UnaryOperator<TextureOptions> mutation) {
+        if (texture == null) return null;
+        TextureOptions current = texture.options() == null ? TextureOptions.defaults() : texture.options();
+        TextureOptions next = mutation == null ? current : mutation.apply(current);
+        if (current.equals(next)) return texture;
+        return resolve(texture.id(), texture.width(), texture.height(), next);
+    }
+
+    private static int positive(int value, String name) {
+        if (value <= 0) throw new IllegalArgumentException("Expected positive texture " + name + ", got: " + value);
+        return value;
     }
 
     /** Область действия резолвера. */

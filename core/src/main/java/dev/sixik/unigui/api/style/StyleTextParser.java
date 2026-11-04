@@ -1,6 +1,6 @@
 package dev.sixik.unigui.api.style;
 
-import dev.sixik.unigui.api.xml.XmlWidgetDiagnostic;
+import dev.sixik.unigui.xaml.UiDiagnostic;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +23,7 @@ public final class StyleTextParser {
      */
     public static StyleTextParseResult parseEditor(String text) {
         MutableStyle style = new MutableStyle();
-        List<XmlWidgetDiagnostic> diagnostics = new ArrayList<>();
+        List<UiDiagnostic> diagnostics = new ArrayList<>();
         if (text == null || text.isBlank()) return new StyleTextParseResult(style, diagnostics);
 
         String[] declarations = text.split(";", -1);
@@ -32,7 +32,7 @@ public final class StyleTextParser {
             if (declaration.isEmpty()) continue;
             int separator = declaration.indexOf(':');
             if (separator <= 0) {
-                diagnostics.add(new XmlWidgetDiagnostic("Объявление встроенного стиля " + (i + 1)
+                diagnostics.add(new UiDiagnostic("Объявление встроенного стиля " + (i + 1)
                         + " должно иметь формат 'property: value'."));
                 continue;
             }
@@ -40,13 +40,13 @@ public final class StyleTextParser {
             String value = declaration.substring(separator + 1).trim();
             StylePropertyDescriptor<?> descriptor = BUILT_INS.descriptor(property).orElse(null);
             if (descriptor == null) {
-                diagnostics.add(new XmlWidgetDiagnostic("Неизвестное свойство встроенного стиля '" + property + "'."));
+                diagnostics.add(new UiDiagnostic("Неизвестное свойство встроенного стиля '" + property + "'."));
                 continue;
             }
             try {
                 put(style, descriptor, value);
             } catch (RuntimeException exception) {
-                diagnostics.add(new XmlWidgetDiagnostic("Недопустимое значение встроенного стиля для '" + property
+                diagnostics.add(new UiDiagnostic("Недопустимое значение встроенного стиля для '" + property
                         + "': " + exception.getMessage()));
             }
         }
