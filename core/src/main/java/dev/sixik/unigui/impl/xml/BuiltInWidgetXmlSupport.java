@@ -18,7 +18,7 @@ import dev.sixik.unigui.widgets.containers.SurfaceWidget;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 
-final class BuiltInWidgetXmlSupport {
+public final class BuiltInWidgetXmlSupport {
     private BuiltInWidgetXmlSupport() {
     }
 
@@ -46,7 +46,7 @@ final class BuiltInWidgetXmlSupport {
         return annotated(commonWidget(type), widgetType);
     }
 
-    static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type) {
+    public static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type) {
         WidgetXmlType<T> registered = annotated(type
                 .attribute("class", XmlValueParsers.STRING, (widget, value) -> {
                 }, commonAttribute("class"))
@@ -116,7 +116,7 @@ final class BuiltInWidgetXmlSupport {
                 .bindable("scaleY", Float.class);
     }
 
-    static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type, Class<?> widgetType) {
+    public static <T extends WidgetBase> WidgetXmlType<T> commonWidget(WidgetXmlType<T> type, Class<?> widgetType) {
         return annotated(commonWidget(type), widgetType);
     }
 

@@ -1,7 +1,11 @@
-package dev.sixik.unigui.impl.xml;
+package dev.sixik.unigui.impl.xml.minecraft;
 
 import dev.sixik.unigui.api.xml.XmlAttributeDescriptor;
 import dev.sixik.unigui.api.xml.XmlAttributeValueType;
+import dev.sixik.unigui.impl.xml.BuiltInWidgetXmlSupport;
+import dev.sixik.unigui.impl.xml.WidgetXmlRegistry;
+import dev.sixik.unigui.impl.xml.WidgetXmlType;
+import dev.sixik.unigui.impl.xml.XmlValueParsers;
 import dev.sixik.unigui.widgets.minecraft.MinecraftBlockPreviewWidget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftEntityPreviewWidget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemPickerWidget;

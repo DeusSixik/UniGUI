@@ -1,4 +1,4 @@
-package dev.sixik.unigui.impl.xml;
+package dev.sixik.unigui.impl.xml.minecraft;
 
 import dev.sixik.unigui.api.xml.XmlWidgetRegistryContributions;
 
