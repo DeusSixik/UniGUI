@@ -1268,26 +1268,36 @@ public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
             Style localStyle = current.localStyle(type);
             value = localStyle.get(key, state, value);
         }
+        // Inline-стиль применяется только к самому виджету и не каскадируется на потомков.
+        value = inlineStyle().get(key, state, value);
         return value;
     }
 
     private boolean hasLocalStyleValue(StyleKey<?> key, WidgetState state) {
         String type = styleType();
+        if (containsStyleValue(inlineStyle().values(), key, state)) return true;
         for (Widget current = this; current != null; current = current.parent()) {
-            java.util.Map<WidgetState, java.util.Map<StyleKey<?>, Object>> values = current.localStyle(type).values();
-            java.util.Map<StyleKey<?>, Object> stateValues = values.get(state);
-            if (stateValues != null && stateValues.containsKey(key)) return true;
-            if (state != WidgetState.NORMAL) {
-                java.util.Map<StyleKey<?>, Object> normalValues = values.get(WidgetState.NORMAL);
-                if (normalValues != null && normalValues.containsKey(key)) return true;
-            }
+            if (containsStyleValue(current.localStyle(type).values(), key, state)) return true;
             if (current != this && current.styleScope()) break;
         }
         return false;
     }
 
+    private static boolean containsStyleValue(
+            java.util.Map<WidgetState, java.util.Map<StyleKey<?>, Object>> values,
+            StyleKey<?> key,
+            WidgetState state) {
+        java.util.Map<StyleKey<?>, Object> stateValues = values.get(state);
+        if (stateValues != null && stateValues.containsKey(key)) return true;
+        if (state != WidgetState.NORMAL) {
+            java.util.Map<StyleKey<?>, Object> normalValues = values.get(WidgetState.NORMAL);
+            return normalValues != null && normalValues.containsKey(key);
+        }
+        return false;
+    }
+
     private long scopeStyleVersion() {
-        long version = 0L;
+        long version = inlineStyle().version();
         String type = styleType();
         for (Widget current : styleLookupChain()) {
             version += current.localStyle(type).version();

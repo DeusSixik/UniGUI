@@ -524,6 +524,19 @@ public interface Widget extends EventEmitter {
     }
 
     /**
+     * Возвращает inline-стиль самого виджета (то, что задано через {@code style(...)}).
+     *
+     * <p>В отличие от {@link #localStyle(String)}, inline-стиль <b>не каскадируется</b> на потомков:
+     * он применяется только к этому виджету и имеет наивысший приоритет среди стилевых слоёв.
+     * Чтобы изменить стиль потомков, используйте {@code localStyle(widgetType, style)}.</p>
+     *
+     * @return inline-стиль или {@link Style#EMPTY}
+     */
+    default Style inlineStyle() {
+        return Style.EMPTY;
+    }
+
+    /**
      * Возвращает агрегированные флаги инвалидации виджета и его потомков.
      *
      * @return bitmask текущего subtree
