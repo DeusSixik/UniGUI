@@ -18,6 +18,7 @@ public final class XamlBindingSession implements AutoCloseable {
     /**
      * Флаг завершённого lifecycle сессии.
      */
+    private final List<Runnable> cleanups = new ArrayList<>();
     private boolean closed;
 
     /**
@@ -60,6 +61,19 @@ public final class XamlBindingSession implements AutoCloseable {
      *
      * @return {@code true}, если подписки уже закрыты
      */
+    /**
+     * Регистрирует действие, которое выполнится при закрытии сессии (например, отписка от виджета).
+     *
+     * @param cleanup действие; если сессия уже закрыта, выполняется сразу
+     * @return эта сессия
+     */
+    public XamlBindingSession onClose(Runnable cleanup) {
+        if (cleanup == null) return this;
+        if (closed) cleanup.run();
+        else cleanups.add(cleanup);
+        return this;
+    }
+
     public boolean closed() {
         return closed;
     }
@@ -76,5 +90,7 @@ public final class XamlBindingSession implements AutoCloseable {
         for (XamlBinding<?> binding : List.copyOf(bindings)) {
             binding.close();
         }
+        for (Runnable cleanup : List.copyOf(cleanups)) cleanup.run();
+        cleanups.clear();
     }
 }

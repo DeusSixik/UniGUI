@@ -48,6 +48,18 @@ public final class XamlBindingContext {
     }
 
     /**
+     * Публикует список как источник данных для {@code items="{Binding path}"}.
+     *
+     * @param path путь
+     * @param list список; для живых обновлений используйте {@link XamlObservableList}
+     * @return этот контекст
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public XamlBindingContext list(String path, java.util.List<?> list) {
+        return value(path, XamlMutableObservableValue.of(path, (Class) java.util.List.class, list));
+    }
+
+    /**
      * Регистрирует готовый observable source.
      *
      * @param path  имя/path, по которому source будет доступен

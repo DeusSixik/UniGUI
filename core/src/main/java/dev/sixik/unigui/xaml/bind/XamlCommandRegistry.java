@@ -59,6 +59,18 @@ public final class XamlCommandRegistry {
      * @param command handler команды; не может быть {@code null}
      * @return этот registry для chained-регистрации
      */
+    public XamlCommandRegistry register(String name, XamlParameterCommand command) {
+        return register(name, (XamlCommand) command);
+    }
+
+    /**
+     * Регистрирует command handler по имени.
+     *
+     * @param name    имя команды, на которое ссылается разметка
+     * @param command handler команды
+     * @return этот registry
+     * @see #register(String, XamlParameterCommand)
+     */
     public XamlCommandRegistry register(String name, XamlCommand command) {
         if (!mutable) {
             throw new UnsupportedOperationException("Default XML command registry is immutable.");

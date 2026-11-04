@@ -27,6 +27,7 @@ public final class PropertyInfo<T extends Widget, V> {
     private final ValueKind kind;
     /** Метаданные ровно в том виде, в каком их задали; нужны, чтобы отличить явное значение от выведенного. */
     private final Meta declared;
+    private final ChangeNotifier<? super T> notifier;
 
     PropertyInfo(String name,
                  ValueConverter<V> converter,
@@ -34,6 +35,16 @@ public final class PropertyInfo<T extends Widget, V> {
                  Function<? super T, ?> getter,
                  Class<?> bindingType,
                  Meta meta) {
+        this(name, converter, setter, getter, bindingType, meta, null);
+    }
+
+    PropertyInfo(String name,
+                 ValueConverter<V> converter,
+                 PropertySetter<? super T, ? super V> setter,
+                 Function<? super T, ?> getter,
+                 Class<?> bindingType,
+                 Meta meta,
+                 ChangeNotifier<? super T> notifier) {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("property name must not be blank");
         if (converter == null || setter == null) {
             throw new IllegalArgumentException("property '" + name + "' needs a converter and a setter");
@@ -44,6 +55,7 @@ public final class PropertyInfo<T extends Widget, V> {
         this.converter = converter;
         this.setter = setter;
         this.getter = getter;
+        this.notifier = notifier;
         this.bindingType = bindingType;
         this.displayName = firstNonBlank(resolved.displayName(), displayNameFor(this.name));
         this.category = firstNonBlank(resolved.category(), categoryFor(this.name));
@@ -181,11 +193,31 @@ public final class PropertyInfo<T extends Widget, V> {
      * @return копия
      */
     PropertyInfo<T, V> withGetter(Function<? super T, ?> newGetter) {
-        return new PropertyInfo<>(name, converter, setter, newGetter, bindingType, declared);
+        return new PropertyInfo<>(name, converter, setter, newGetter, bindingType, declared, notifier);
+    }
+
+    PropertyInfo<T, V> withNotifier(ChangeNotifier<? super T> newNotifier) {
+        return new PropertyInfo<>(name, converter, setter, getter, bindingType, declared, newNotifier);
+    }
+
+    /** @return {@code true}, если виджет сообщает о правках пользователя и свойство можно привязать в обе стороны */
+    public boolean observable() {
+        return notifier != null;
+    }
+
+    /**
+     * Подписывается на правки пользователя.
+     *
+     * @param target   виджет
+     * @param onChange получает новое значение
+     * @return подписка или {@code null}, если свойство не наблюдаемо
+     */
+    public dev.sixik.unigui.api.event.EventSubscription observe(T target, java.util.function.Consumer<Object> onChange) {
+        return notifier == null ? null : notifier.subscribe(target, onChange);
     }
 
     PropertyInfo<T, V> withBindingType(Class<?> type) {
-        return new PropertyInfo<>(name, converter, setter, getter, type, declared);
+        return new PropertyInfo<>(name, converter, setter, getter, type, declared, notifier);
     }
 
     /**
@@ -209,7 +241,9 @@ public final class PropertyInfo<T extends Widget, V> {
         Function<? super T, ?> mergedGetter = getter != null ? getter : (Function<? super T, ?>) previous.getter;
         Class<?> mergedBinding = bindingType != null ? bindingType
                 : previous.bindingType == converter.type() ? previous.bindingType : null;
-        return new PropertyInfo<>(name, converter, setter, mergedGetter, mergedBinding, merged);
+        ChangeNotifier<? super T> mergedNotifier = notifier != null ? notifier
+                : (ChangeNotifier<? super T>) previous.notifier;
+        return new PropertyInfo<>(name, converter, setter, mergedGetter, mergedBinding, merged, mergedNotifier);
     }
 
     // ------------------------------------------------------------------ вывод метаданных из имени

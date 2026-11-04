@@ -12,6 +12,9 @@ import dev.sixik.unigui.xaml.XamlNamespaces;
 import dev.sixik.unigui.xaml.format.UiFormat;
 import dev.sixik.unigui.xaml.format.XamlFormat;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
+import dev.sixik.unigui.xaml.logic.GraphCompiler;
+import dev.sixik.unigui.xaml.logic.GraphDefinition;
+import dev.sixik.unigui.xaml.logic.GraphProgram;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.Schema;
 
@@ -56,11 +59,14 @@ public final class ComponentDefinition {
     private final Contract contract;
     private final UiNode body;
     private final SourceLocation location;
+    private final GraphDefinition graph;
+    private GraphProgram program;
     private final List<java.util.function.Consumer<ComponentInstance>> behaviors =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private ComponentDefinition(String id, UiName tag, String description, Contract contract, UiNode body,
-                                SourceLocation location) {
+                                SourceLocation location, GraphDefinition graph) {
+        this.graph = graph;
         this.id = id;
         this.tag = tag;
         this.description = description;
@@ -145,6 +151,25 @@ public final class ComponentDefinition {
         for (var behavior : behaviors) behavior.accept(instance);
     }
 
+    /** @return граф поведения из {@code Component.Graph}; пустой, если его нет */
+    public GraphDefinition graph() {
+        return graph;
+    }
+
+    /**
+     * Компилирует граф и проверяет его по контракту и реестру {@link GraphFunctions}. Результат кэшируется до
+     * изменения реестра функций.
+     *
+     * @return программа
+     * @throws XamlLoadException если граф некорректен (сообщение содержит позицию в документе)
+     */
+    public synchronized GraphProgram program() {
+        if (program == null || program.stamp() != GraphCompiler.stamp()) {
+            program = GraphCompiler.compile(id, graph, contract);
+        }
+        return program;
+    }
+
     /** @return позиция корня в документе */
     public SourceLocation location() {
         return location;
@@ -175,6 +200,7 @@ public final class ComponentDefinition {
             String description = "";
             UiProperty contractProperty = null;
             UiProperty contentProperty = null;
+            UiProperty graphProperty = null;
             for (UiProperty property : root.properties()) {
                 if (property.owner() == null && property.form() != UiProperty.Form.ELEMENT
                         && !(property.value() instanceof UiValue.Elements)) {
@@ -201,8 +227,13 @@ public final class ComponentDefinition {
                         if (contentProperty != null) throw fail(property.location(), "Component.Content is set more than once.");
                         contentProperty = property;
                     }
+                    case "Graph" -> {
+                        if (graphProperty != null) throw fail(property.location(), "Component.Graph is set more than once.");
+                        graphProperty = property;
+                    }
                     default -> throw fail(property.location(), "Unknown property element 'Component."
-                            + property.name().local() + "'. Allowed: Component.Contract, Component.Content.");
+                            + property.name().local() + "'. Allowed: Component.Contract, Component.Content, "
+                            + "Component.Graph.");
                 }
             }
 
@@ -215,8 +246,10 @@ public final class ComponentDefinition {
 
             Contract contract = contractProperty == null ? Contract.empty() : readContract(contractProperty);
             UiNode body = readBody(root, contentProperty);
+            GraphDefinition graph = graphProperty == null
+                    ? GraphDefinition.empty() : GraphDefinition.read(graphProperty, this::fail);
             return new ComponentDefinition(id, UiName.of(Schema.UI_NAMESPACE, name), description, contract, body,
-                    root.location());
+                    root.location(), graph);
         }
 
         // -------------------------------------------------------------- контракт
@@ -227,6 +260,7 @@ public final class ComponentDefinition {
                 throw fail(property.location(), "Component.Contract must contain <Param> and <Event> elements.");
             }
             List<Contract.Param> params = new ArrayList<>();
+            List<Contract.Param> vars = new ArrayList<>();
             List<Contract.Event> events = new ArrayList<>();
             Set<String> names = new HashSet<>();
             Set<String> reserved = reservedNames();
@@ -242,16 +276,21 @@ public final class ComponentDefinition {
                     Contract.Param param = readParam(node);
                     checkName(param.name(), node, names, reserved, true);
                     params.add(param);
+                } else if (kind.equals("Var")) {
+                    // Переменная — внутреннее состояние графа: имя не должно совпасть со свойствами виджета.
+                    Contract.Param variable = readParam(node);
+                    checkName(variable.name(), node, names, Set.of(), true);
+                    vars.add(variable);
                 } else if (kind.equals("Event")) {
                     Contract.Event event = readEvent(node);
                     checkName(event.name(), node, names, reserved, false);
                     events.add(event);
                 } else {
-                    throw fail(node.location(), "Component.Contract can hold <Param> and <Event>, got <"
+                    throw fail(node.location(), "Component.Contract can hold <Param>, <Var> and <Event>, got <"
                             + node.type().qualified() + ">.");
                 }
             }
-            return new Contract(params, events);
+            return new Contract(params, vars, events);
         }
 
         private void checkName(String name, UiNode node, Set<String> names, Set<String> reserved, boolean param) {
@@ -335,7 +374,10 @@ public final class ComponentDefinition {
             List<Contract.Arg> args = new ArrayList<>();
             Set<String> seen = new HashSet<>();
             for (String part : text.split(",")) {
-                String[] pieces = part.trim().split(":");
+                String trimmed = part.trim();
+                int colon = trimmed.indexOf(':');
+                String[] pieces = colon < 0 ? new String[]{trimmed}
+                        : new String[]{trimmed.substring(0, colon), trimmed.substring(colon + 1)};
                 if (pieces.length != 2 || pieces[0].trim().isEmpty() || pieces[1].trim().isEmpty()) {
                     throw fail(attributes.locationOf("Args"), "Event '" + event + "' argument '" + part.trim()
                             + "' must look like name:type.");

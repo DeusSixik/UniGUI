@@ -111,7 +111,7 @@ final class DocumentValidatorTest {
                 """);
         assertTrue(has(result, 4, "Duplicate resource key 'Gap'"), result.diagnostics().toString());
         assertTrue(has(result, 5, "requires x:Key"), result.diagnostics().toString());
-        assertTrue(has(result, 6, "Widget resources are not supported yet"), result.diagnostics().toString());
+        assertTrue(has(result, 6, "Use <Style> for property sets"), result.diagnostics().toString());
         assertTrue(has(result, 9, "Resource 'Missing' was not found"), result.diagnostics().toString());
         assertTrue(has(result, 10, "Cannot parse/apply attribute 'color'"),
                 "a resource that is not a colour is flagged where it is used: " + result.diagnostics());

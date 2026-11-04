@@ -30,7 +30,9 @@ final class SchemaEquivalenceTest {
             "ToggleButton.focusRingVisible", "ToggleButton.hoverShader",
             "ProgressBar.orientation", "Slider.orientation",
             "ScrollView.overlayInset", "ScrollView.overlayScrollBars", "ScrollView.scrollbarSize",
-            "ScrollView.tickCulling");
+            "ScrollView.tickCulling",
+            // Список с шаблоном строки (этап шаблонов): данные приходят привязкой, строка описывается ItemTemplate.
+            "VirtualListView.items", "VirtualListView..ItemTemplate");
 
     private static final Map<String, Type> LEGACY = parse(Golden.read("registry-schema.txt"));
     private static final Map<String, Type> CURRENT = parse(SchemaDump.dump(Schema.builtIns()));

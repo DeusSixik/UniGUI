@@ -44,10 +44,15 @@ public final class Inspector {
      * @param valueText    значение в документе или {@code null}, если свойство не задано
      * @param bindable     {@code true}, если можно привязать к источнику данных
      * @param problem      почему текущее значение некорректно, или {@code null}
+     * @param options      допустимые значения для перечислений и логических свойств, иначе пустой список
      */
     public record PropertyView(String name, String displayName, String category, ValueKind kind,
                                String defaultValue, String description, String valueText, boolean bindable,
-                               String problem) {
+                               String problem, List<String> options) {
+        public PropertyView {
+            options = List.copyOf(options);
+        }
+
         /** @return {@code true}, если свойство явно задано в документе */
         public boolean set() {
             return valueText != null;
@@ -137,7 +142,7 @@ public final class Inspector {
             String text = current == null ? null : MarkupExtensions.write(current.value());
             properties.add(new PropertyView(info.name(), info.displayName(), info.category(), info.kind(),
                     info.defaultValue(), info.description(), text, info.bindable(),
-                    current == null ? null : problem(info, current)));
+                    current == null ? null : problem(info, current), options(info)));
         }
 
         List<SlotView> slots = new ArrayList<>();
@@ -167,6 +172,16 @@ public final class Inspector {
         }
         return new Inspection(node, true, type.name().local(), type.displayName(), type.category(),
                 type.description(), properties, slots, unknown);
+    }
+
+    /** Допустимые значения: константы перечисления в записи документа или {@code true}/{@code false}. */
+    private static List<String> options(PropertyInfo<?, ?> info) {
+        Class<?> type = info.valueType();
+        if (type == Boolean.class) return List.of("true", "false");
+        if (!type.isEnum()) return List.of();
+        List<String> options = new ArrayList<>();
+        for (Object constant : type.getEnumConstants()) options.add(info.converter().format(constant));
+        return options;
     }
 
     private static UiProperty attribute(UiNode node, String name) {

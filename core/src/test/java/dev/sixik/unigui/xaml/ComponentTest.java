@@ -108,7 +108,7 @@ final class ComponentTest {
         assertRejected("<Param Name=\"N\" Type=\"int\" Default=\"many\"/>", body, "not a valid int", 3);
         assertRejected("<Param Name=\"O\" Type=\"object\" Default=\"x\"/>", body, "cannot have a text Default", 3);
         assertRejected("<Param Name=\"A\" Type=\"string\" Extra=\"1\"/>", body, "Unknown attribute 'Extra'", 3);
-        assertRejected("<Thing/>", body, "can hold <Param> and <Event>", 3);
+        assertRejected("<Thing/>", body, "can hold <Param>, <Var> and <Event>", 3);
         assertRejected("", "", "has no body", 0);
         assertRejected("", "<VBox/><VBox/>", "exactly one root widget", 0);
     }

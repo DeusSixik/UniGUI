@@ -77,10 +77,16 @@ public final class Contract {
     }
 
     private final Map<String, Param> params = new LinkedHashMap<>();
+    private final Map<String, Param> vars = new LinkedHashMap<>();
     private final Map<String, Event> events = new LinkedHashMap<>();
 
     Contract(List<Param> params, List<Event> events) {
+        this(params, List.of(), events);
+    }
+
+    Contract(List<Param> params, List<Param> vars, List<Event> events) {
         for (Param param : params) this.params.put(param.name(), param);
+        for (Param variable : vars) this.vars.put(variable.name(), variable);
         for (Event event : events) this.events.put(event.name(), event);
     }
 
@@ -92,6 +98,24 @@ public final class Contract {
     /** @return параметры по порядку объявления */
     public List<Param> params() {
         return List.copyOf(params.values());
+    }
+
+    /**
+     * Переменные состояния графа: внутренние значения компонента, которые не видны снаружи и не являются свойствами
+     * тега (счётчик нажатий, признак «идёт загрузка»).
+     *
+     * @return переменные по порядку объявления
+     */
+    public List<Param> vars() {
+        return List.copyOf(vars.values());
+    }
+
+    /**
+     * @param name имя переменной
+     * @return переменная или пусто
+     */
+    public Optional<Param> var(String name) {
+        return Optional.ofNullable(vars.get(name));
     }
 
     /** @return события по порядку объявления */

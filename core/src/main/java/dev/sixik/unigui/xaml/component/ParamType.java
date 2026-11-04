@@ -4,6 +4,8 @@ import dev.sixik.unigui.xaml.schema.Converters;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.ValueConverter;
 import dev.sixik.unigui.xaml.schema.ValueKind;
+import dev.sixik.unigui.xaml.struct.StructType;
+import dev.sixik.unigui.xaml.struct.Structs;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -43,15 +45,37 @@ public final class ParamType {
     private final String name;
     private final ValueConverter<?> converter;
     private final Object defaultValue;
+    private final StructType structType;
 
-    private ParamType(String name, ValueConverter<?> converter, Object defaultValue) {
+    private ParamType(String name, ValueConverter<?> converter, Object defaultValue, StructType structType) {
         this.name = name;
         this.converter = converter;
         this.defaultValue = defaultValue;
+        this.structType = structType;
+    }
+
+    /**
+     * Тип параметра для структуры. Создаётся самой структурой; пользователи получают его через
+     * {@link StructType#paramType()} или {@link #parse(String)} с записью {@code struct:Имя}.
+     *
+     * @param struct структура
+     * @return тип
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static ParamType forStruct(StructType struct) {
+        ValueConverter converter = ValueConverter.of((Class) struct.valueClass(), ValueKind.STRING, text -> {
+            throw new IllegalArgumentException("A struct parameter cannot be set from text; pass it from Java or a graph");
+        });
+        return new ParamType("struct:" + struct.name(), converter, null, struct);
+    }
+
+    /** @return описание структуры для типов {@code struct:Имя}, иначе {@code null} */
+    public StructType structType() {
+        return structType;
     }
 
     private static ParamType register(String name, ValueConverter<?> converter, Object defaultValue) {
-        ParamType type = new ParamType(name, converter, defaultValue);
+        ParamType type = new ParamType(name, converter, defaultValue, null);
         BY_NAME.put(name, type);
         return type;
     }
@@ -65,6 +89,9 @@ public final class ParamType {
      * @throws IllegalArgumentException если имя неизвестно
      */
     public static ParamType parse(String name) {
+        if (name != null && name.trim().startsWith("struct:")) {
+            return Structs.require(name.trim().substring("struct:".length()).trim()).paramType();
+        }
         String key = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
         if (key.equals("boolean")) key = "bool";
         ParamType type = BY_NAME.get(key);
@@ -92,7 +119,7 @@ public final class ParamType {
 
     /** @return {@code true}, если значение можно задать текстом */
     public boolean textual() {
-        return this != OBJECT;
+        return this != OBJECT && structType == null;
     }
 
     /** @return значение, которое параметр имеет без явного {@code Default}; может быть {@code null} */
@@ -122,6 +149,9 @@ public final class ParamType {
         if (value == null) return null;
         Class<?> type = javaType();
         if (type.isInstance(value)) return value;
+        if (structType != null) {
+            throw new IllegalArgumentException("Expected " + name + " but got " + value.getClass().getSimpleName());
+        }
         if (value instanceof Number number) {
             if (type == Float.class) return number.floatValue();
             if (type == Double.class) return number.doubleValue();

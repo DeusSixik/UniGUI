@@ -233,6 +233,7 @@ public final class TypeInfo<T extends Widget> {
         private Function<? super T, List<Widget>> childSource;
         private boolean childrenNotExportable;
         private final Map<String, Function<? super T, ?>> getters = new LinkedHashMap<>();
+        private final Map<String, ChangeNotifier<? super T>> notifiers = new LinkedHashMap<>();
         private final Map<String, SlotInfo<T>> slots = new LinkedHashMap<>();
 
         private Builder(UiName name, Class<T> javaType, Supplier<T> factory) {
@@ -343,6 +344,19 @@ public final class TypeInfo<T extends Widget> {
             PropertyInfo<T, V> info = new PropertyInfo<>(propertyName, converter,
                     (target, value, context) -> setter.accept(target, value), getter, null, meta);
             manual.put(info.name(), info);
+            return this;
+        }
+
+        /**
+         * Сообщает, как узнать, что пользователь изменил значение свойства в виджете. Такое свойство можно
+         * привязать в обе стороны.
+         *
+         * @param propertyName имя существующего свойства
+         * @param notifier     подписка на правки
+         * @return этот билдер
+         */
+        public Builder<T> notifies(String propertyName, ChangeNotifier<? super T> notifier) {
+            notifiers.put(propertyName, notifier);
             return this;
         }
 
@@ -465,7 +479,20 @@ public final class TypeInfo<T extends Widget> {
                 }
                 all.put(entry.getKey(), withGetter(property, entry.getValue()));
             }
+            for (Map.Entry<String, ChangeNotifier<? super T>> entry : notifiers.entrySet()) {
+                PropertyInfo<? super T, ?> property = all.get(entry.getKey());
+                if (property == null) {
+                    throw new IllegalArgumentException("Unknown property '" + entry.getKey() + "' on " + name.local());
+                }
+                all.put(entry.getKey(), withNotifier(property, entry.getValue()));
+            }
             return new TypeInfo<>(this, all);
+        }
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private PropertyInfo<? super T, ?> withNotifier(PropertyInfo<? super T, ?> property,
+                                                        ChangeNotifier<? super T> notifier) {
+            return ((PropertyInfo) property).withNotifier(notifier);
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})

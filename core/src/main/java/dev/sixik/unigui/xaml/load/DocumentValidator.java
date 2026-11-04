@@ -205,10 +205,30 @@ public final class DocumentValidator {
         }
 
         private <T extends Widget> void checkAttribute(UiProperty property, TypeInfo<T> type, ResourceScope scope) {
+            if (property.owner() == null && property.name().namespace().isEmpty()
+                    && property.name().local().equals("Style")) {
+                String key = StyleDef.keyOf(property.value());
+                if (key == null || key.isEmpty()) {
+                    add(property.location(), "Style must be a style key or {StaticResource key}.");
+                    return;
+                }
+                try {
+                    scope.resolveStyle(key);
+                } catch (IllegalArgumentException failure) {
+                    add(property.location(), failure.getMessage());
+                }
+                return;
+            }
             PropertyInfo<? super T, ?> info = null;
             boolean qualifiedOk = property.owner() == null && property.name().namespace().isEmpty();
             if (property.owner() != null) {
                 qualifiedOk = schema.type(property.owner()).orElse(null) == type;
+                if (!qualifiedOk) {
+                    @SuppressWarnings("unchecked")
+                    PropertyInfo<? super T, ?> attached = (PropertyInfo<? super T, ?>)
+                            schema.attachedProperty(type, property.owner(), property.name().local()).orElse(null);
+                    info = attached;
+                }
             }
             if (qualifiedOk) info = type.property(property.name().local()).orElse(null);
             if (info == null) {
@@ -319,20 +339,43 @@ public final class DocumentValidator {
             for (UiProperty property : node.properties()) {
                 if (!isElementForm(property) || !property.name().local().equals("Resources")) continue;
                 Map<String, String> entries = new LinkedHashMap<>();
+                Map<String, StyleDef> styles = new LinkedHashMap<>();
                 if (property.value() instanceof UiValue.Elements elements) {
                     for (UiContent item : elements.content()) {
-                        if (item instanceof UiNode entry) resource(entry, entries);
+                        if (item instanceof UiNode entry) resource(entry, entries, styles);
                     }
                 }
-                return entries.isEmpty() ? parent : new ResourceScope(parent, entries);
+                return entries.isEmpty() && styles.isEmpty() ? parent : new ResourceScope(parent, entries, styles);
             }
             return parent;
         }
 
-        private void resource(UiNode entry, Map<String, String> entries) {
+        /** Ошибка разбора стиля вместе с позицией: проверка собирает все проблемы, а не останавливается на первой. */
+        private static final class StyleProblem extends RuntimeException {
+            private final SourceLocation at;
+
+            private StyleProblem(SourceLocation at, String message) {
+                super(message);
+                this.at = at;
+            }
+        }
+
+        private void resource(UiNode entry, Map<String, String> entries, Map<String, StyleDef> styles) {
+            if (entry.type().local().equals("Style") && (entry.type().namespace().isEmpty()
+                    || entry.type().namespace().equals(Schema.UI_NAMESPACE))) {
+                try {
+                    StyleDef style = StyleDef.read(entry, StyleProblem::new);
+                    if (styles.putIfAbsent(style.key(), style) != null) {
+                        add(entry.location(), "Duplicate resource key '" + style.key() + "'.");
+                    }
+                } catch (StyleProblem problem) {
+                    add(problem.at, problem.getMessage());
+                }
+                return;
+            }
             if (!XamlNamespaces.isLanguage(entry.type().namespace())) {
                 add(entry.location(), "Resources can only hold x: entries such as <x:String>, got '<"
-                        + entry.type().qualified() + ">'. Widget resources are not supported yet.");
+                        + entry.type().qualified() + ">'. Use <Style> for property sets and a component for reusable widgets.");
                 return;
             }
             String key = null;

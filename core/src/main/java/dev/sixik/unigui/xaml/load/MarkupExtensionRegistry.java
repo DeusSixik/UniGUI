@@ -35,6 +35,7 @@ public final class MarkupExtensionRegistry {
         registry.register("Binding", BuiltInExtensions.BINDING);
         registry.register("StaticResource", BuiltInExtensions.STATIC_RESOURCE);
         registry.register("Command", BuiltInExtensions.COMMAND);
+        registry.register("Item", BuiltInExtensions.ITEM_OUTSIDE_TEMPLATE);
         return registry;
     }
 
@@ -74,6 +75,33 @@ public final class MarkupExtensionRegistry {
      * @param name имя с разрешённым namespace
      * @return реализация, если расширение известно
      */
+    /**
+     * Копия реестра: нужна, чтобы на время одной загрузки добавить или заменить расширения, не меняя общий.
+     *
+     * @return независимая копия
+     */
+    public MarkupExtensionRegistry copy() {
+        MarkupExtensionRegistry copy = new MarkupExtensionRegistry();
+        copy.extensions.putAll(extensions);
+        return copy;
+    }
+
+    /**
+     * Заменяет расширение с таким именем или добавляет его; в отличие от {@link #register(String, MarkupExtension)}
+     * не считает повтор ошибкой.
+     *
+     * @param name      имя без namespace
+     * @param extension новая реализация
+     * @return этот реестр
+     */
+    public MarkupExtensionRegistry replace(String name, MarkupExtension extension) {
+        if (name == null || name.isBlank() || extension == null) {
+            throw new IllegalArgumentException("markup extension needs a name and an implementation");
+        }
+        extensions.put(key("", name), extension);
+        return this;
+    }
+
     public Optional<MarkupExtension> find(UiName name) {
         return Optional.ofNullable(extensions.get(key(name.namespace(), name.local())));
     }

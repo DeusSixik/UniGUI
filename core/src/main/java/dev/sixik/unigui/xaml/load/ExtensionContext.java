@@ -10,5 +10,10 @@ import dev.sixik.unigui.xaml.bind.XamlBindingSession;
  * @param bindings  источники данных для {@code {Binding}}
  * @param session   сессия, которой принадлежат созданные привязки (закрывается вместе с экраном)
  */
-public record ExtensionContext(ResourceScope resources, XamlBindingContext bindings, XamlBindingSession session) {
+public record ExtensionContext(ResourceScope resources, XamlBindingContext bindings, XamlBindingSession session,
+                               ExtensionHost host) {
+    /** Контекст без возможностей загрузчика (для тестов расширений). */
+    public ExtensionContext(ResourceScope resources, XamlBindingContext bindings, XamlBindingSession session) {
+        this(resources, bindings, session, null);
+    }
 }

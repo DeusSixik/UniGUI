@@ -1,5 +1,8 @@
 package dev.sixik.unigui.xaml.schema.builtin;
 
+import dev.sixik.unigui.api.event.CheckedChangedEvent;
+import dev.sixik.unigui.api.event.SliderValueChangedEvent;
+import dev.sixik.unigui.api.event.TextChangedEvent;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.display.Separator;
@@ -66,7 +69,8 @@ final class ControlTypes {
                         "Single radio option; group membership is currently wired by Java hosts.").build());
         schema.define("ComboBox", () -> type("ComboBox", ComboBox.class, ComboBox::new)
                 .describe("Combo Box", "Controls",
-                        "Selectable dropdown list. Use the items attribute for simple string options.").build());
+                        "Selectable dropdown list. Use the items attribute for simple string options.")
+                .reads("items", combo -> String.join("|", combo.items())).build());
         schema.define("DropDownBox", ControlTypes::dropDownBox);
         schema.define("TreeListPicker", () -> type("TreeListPicker", TreeListPicker.class, TreeListPicker::new)
                 .describe("Tree List Picker", "Controls",
@@ -102,9 +106,14 @@ final class ControlTypes {
                 .describe("Search Field", "Controls",
                         "Single-line search input with submit and debounced change events.")).build());
         schema.define("PasswordField", () -> textInput(type("PasswordField", PasswordField.class, PasswordField::new)
-                .describe("Password Field", "Controls", "Masked single-line password input.")).build());
+                .describe("Password Field", "Controls", "Masked single-line password input.")
+                .reads("mask", field -> String.valueOf(field.mask()))).build());
         schema.define("TimeSpanField", () -> textInput(type("TimeSpanField", TimeSpanField.class, TimeSpanField::new)
-                .describe("Time Span Field", "Controls", "HH:MM:SS duration input.")).build());
+                .describe("Time Span Field", "Controls", "HH:MM:SS duration input.")
+                .reads("value", field -> {
+                    long seconds = field.value().getSeconds();
+                    return String.format("%02d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+                })).build());
         schema.define("TextArea", () -> type("TextArea", TextArea.class, TextArea::new)
                 .describe("Text Area", "Controls", "Multiline editable text control.").build());
         schema.define("CodeEditor", () -> type("CodeEditor", CodeEditor.class, CodeEditor::new)
@@ -166,6 +175,8 @@ final class ControlTypes {
                 .property("checkedBackground", Converters.COLOR, (widget, color) -> widget.checkedBackground().set(color))
                 .property("uncheckedBackground", Converters.COLOR, (widget, color) -> widget.uncheckedBackground().set(color))
                 .bindable("checked")
+                .notifies("checked", (widget, onChange) ->
+                        widget.on(CheckedChangedEvent.TYPE, event -> onChange.accept(widget.checked())))
                 .reads("checked", ToggleButton::checked)
                 .reads("checkedBackground", ToggleButton::checkedBackground)
                 .reads("uncheckedBackground", ToggleButton::uncheckedBackground);
@@ -213,7 +224,9 @@ final class ControlTypes {
                 .property("cursorIndex", Converters.INT, TextInput::cursorIndex,
                         Meta.category("Behavior").defaultValue("0")
                                 .description("Initial cursor position in the editable text."))
-                .bindable("text");
+                .bindable("text")
+                .notifies("text", (widget, onChange) ->
+                        widget.on(TextChangedEvent.TYPE, event -> onChange.accept(widget.text())));
     }
 
     private static TypeInfo<DropDownBox> dropDownBox() {
@@ -238,6 +251,8 @@ final class ControlTypes {
                 .property("fillColor", Converters.COLOR, (widget, color) -> widget.fillColor().set(color))
                 .property("knobColor", Converters.COLOR, (widget, color) -> widget.knobColor().set(color))
                 .bindable("value")
+                .notifies("value", (widget, onChange) ->
+                        widget.on(SliderValueChangedEvent.TYPE, event -> onChange.accept(widget.value())))
                 .reads("trackColor", Slider::trackColor)
                 .reads("fillColor", Slider::fillColor)
                 .reads("knobColor", Slider::knobColor)
@@ -269,6 +284,7 @@ final class ControlTypes {
                 .property("open", Converters.BOOLEAN, ControlTypes::openToast,
                         Meta.category("Behavior").defaultValue("false")
                                 .description("Whether the toast starts visible after XML load."))
+                .reads("open", Toast::opened)
                 .build();
     }
 
@@ -278,6 +294,7 @@ final class ControlTypes {
                 .property("open", Converters.BOOLEAN, ControlTypes::openNotificationView,
                         Meta.category("Behavior").defaultValue("false")
                                 .description("Whether the pending notification text is shown after XML load."))
+                .reads("open", NotificationView::opened)
                 .build();
     }
 
@@ -296,6 +313,7 @@ final class ControlTypes {
         return type("ContextMenu", ContextMenu.class, ContextMenu::new)
                 .describe("Context Menu", "Feedback", "Floating menu with button items and separators.")
                 .content(items)
+                .reads("open", ContextMenu::opened)
                 .exportsChildren(ContextMenu::itemWidgets)
                 .slot(SlotInfo.many("Items", items,
                         "Menu item widgets. Button children become actions; Separator children become menu dividers."))
@@ -349,6 +367,7 @@ final class ControlTypes {
     private static TypeInfo<Popup> popup() {
         return singleContent(type("Popup", Popup.class, Popup::new)
                         .describe("Popup", "Feedback", "Overlay popup host for arbitrary content; anchor is wired by code.")
+                        .reads("open", Popup::opened)
                         .exportsChildren(widget -> Types.optional(widget.content())),
                 ControlTypes::setPopupContent, "Single widget shown inside the popup.").build();
     }
@@ -364,6 +383,7 @@ final class ControlTypes {
     private static TypeInfo<WindowWidget> windowWidget() {
         return singleContent(type("WindowWidget", WindowWidget.class, WindowWidget::new)
                         .describe("Window", "Feedback", "Floating draggable and resizable overlay window.")
+                        .reads("open", WindowWidget::opened)
                         .property("windowX", Converters.FLOAT, (widget, value) -> widget.position(value, widget.windowY()),
                                 Meta.category("Layout").defaultValue("32")
                                         .description("Window position inside its overlay host on the X axis."))

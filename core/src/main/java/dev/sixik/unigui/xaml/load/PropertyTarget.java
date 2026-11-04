@@ -43,4 +43,12 @@ public interface PropertyTarget {
      * @param value значение подходящего типа
      */
     void setValue(Object value);
+
+    /**
+     * Подписывается на правки пользователя в этом свойстве.
+     *
+     * @param onChange получает новое значение
+     * @return подписка или {@code null}, если свойство не сообщает об изменениях (двусторонняя привязка невозможна)
+     */
+    dev.sixik.unigui.api.event.EventSubscription observe(java.util.function.Consumer<Object> onChange);
 }

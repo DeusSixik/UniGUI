@@ -32,6 +32,7 @@ public final class ComponentInstance {
     private final Map<String, XamlMutableObservableValue<Object>> params = new LinkedHashMap<>();
     private final Map<String, List<Consumer<Args>>> handlers = new LinkedHashMap<>();
     private final List<Queued> queue = new ArrayList<>();
+    private final List<Consumer<Float>> tickers = new ArrayList<>();
     private boolean constructed;
     private boolean disposed;
 
@@ -199,6 +200,31 @@ public final class ComponentInstance {
         return queue.size();
     }
 
+    // ------------------------------------------------------------------ время
+
+    /**
+     * Подписывает действие на ход времени компонента: хост вызывает {@link #advance(float)} каждый кадр. Так
+     * работают задержки графа.
+     *
+     * @param ticker получает прошедшие секунды
+     * @return подписка
+     */
+    public EventSubscription onTick(Consumer<Float> ticker) {
+        if (ticker == null) throw new IllegalArgumentException("ticker must not be null");
+        tickers.add(ticker);
+        return () -> tickers.remove(ticker);
+    }
+
+    /**
+     * Сообщает компоненту, что прошло время. Хост делает это каждый кадр; в тестах вызывается вручную.
+     *
+     * @param seconds прошедшее время в секундах
+     */
+    public void advance(float seconds) {
+        if (disposed || seconds <= 0.0f) return;
+        for (Consumer<Float> ticker : List.copyOf(tickers)) ticker.accept(seconds);
+    }
+
     // ------------------------------------------------------------------ жизненный цикл
 
     void construct() {
@@ -214,6 +240,7 @@ public final class ComponentInstance {
         disposed = true;
         queue.clear();
         handlers.clear();
+        tickers.clear();
     }
 
     /** @return {@code true} после {@link #dispose()} */

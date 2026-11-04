@@ -17,6 +17,7 @@ import dev.sixik.unigui.xaml.load.MarkupExtension;
 import dev.sixik.unigui.xaml.load.MarkupExtensionRegistry;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.load.XamlLoader;
+import dev.sixik.unigui.xaml.logic.GraphRuntime;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.Schema;
 
@@ -132,6 +133,9 @@ public final class ComponentHost extends PanelWidget {
         addChild(loaded.root());
         applyQueuedMutations();
         definition.applyBehaviors(instance);
+        if (!definition.graph().isEmpty()) {
+            GraphRuntime.attach(instance, definition.program(), schema, context);
+        }
         instance.construct();
     }
 
@@ -202,9 +206,8 @@ public final class ComponentHost extends PanelWidget {
      */
     private XamlCommandRegistry commandsFor(XamlCommandRegistry outer) {
         XamlCommandRegistry registry = XamlCommandRegistry.empty();
-        for (String name : outer.names()) {
-            registry.register(name, (source, event) -> outer.execute(name, source, event));
-        }
+        // Оригинальные объекты, а не обёртки: иначе параметризованная команда перестала бы быть параметризованной.
+        for (String name : outer.names()) outer.command(name).ifPresent(command -> registry.register(name, command));
         for (Contract.Event event : definition.contract().events()) {
             if (event.direction() != Contract.Direction.OUT) continue;
             registry.register(RAISE_PREFIX + event.name(), (source, ignored) -> instance.emit(event.name(), argsFor(event)));
@@ -249,6 +252,7 @@ public final class ComponentHost extends PanelWidget {
     @Override
     public void tick(FrameContext frame) {
         instance.flush();
+        instance.advance(frame.deltaSeconds());
         super.tick(frame);
     }
 

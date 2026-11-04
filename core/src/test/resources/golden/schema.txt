@@ -5188,6 +5188,7 @@ VirtualListView category=Data children=false
   @id:STRING default= category=Common
   @itemCount:NUMBER default=0 category=Data
   @itemHeight:NUMBER default=18 category=Layout
+  @items:BINDING_OR_ACTION default= category=Data
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
   @left:SIZE_VALUE default=auto category=Layout
@@ -5224,6 +5225,7 @@ VirtualListView category=Data children=false
   @x:NUMBER default=0 category=Layout
   @y:NUMBER default=0 category=Layout
   @zIndex:NUMBER default=0 category=Layout
+  .ItemTemplate single=true
 VirtualTableView category=Data children=false
   @align:ENUM default=stretch category=Layout
   @alignContent:ENUM default=stretch category=Layout

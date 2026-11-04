@@ -333,6 +333,11 @@ public final class EditorSession {
 
     // ------------------------------------------------------------------ сохранение
 
+    /** @return {@code true}, если у сессии есть источник и он принимает запись */
+    public boolean canSave() {
+        return source != null && source.writable();
+    }
+
     /**
      * Записывает текст в источник.
      *

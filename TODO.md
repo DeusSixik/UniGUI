@@ -11,7 +11,7 @@
 - [ ] Support for rendering 3D elements inside UI
 - [ ] Better style pack & style API. It should allow building most things without writing custom render code for a widget
 - [x] Bring the XAML API out of its Legacy state: own parser, lazy schema, markup extensions (`{Binding}`, `{StaticResource}`, `{Command}`), `x:Name`, resources, diagnostics with source positions
-- [ ] Finish XAML action bindings: command parameters and TwoWay bindings
+- [x] Finish XAML action bindings: command parameters (`{Command name, Parameter=...}`) and TwoWay bindings (`Mode=TwoWay` for text, checked, slider value)
 
 # Serialization
 - [ ] Rework and extend widget serialization. Design it so that any serialization language can be plugged in: XAML (priority), Java, JS (KubeJS), ZS (CraftTweaker)
@@ -19,7 +19,9 @@
   - Todo: Java, JS (KubeJS) and ZS (CraftTweaker) formats
 
 # Asset Packs
-- [ ] Assets Pack mechanism: UI as serializable data packaged into a single archive containing assets, fonts, shaders, and the UI code itself (like Unity AssetBundle)
+- [x] Assets Pack mechanism: UI as serializable data packaged into a single archive containing assets, fonts, shaders, and the UI code itself (like Unity AssetBundle)
+  - Done in core: archive format (`pack.xaml` manifest, structs, components, screens, textures), safe reading with limits, deterministic writer, installation that can be undone, pack texture resolver
+  - Todo: export from the in-game editor
 
 # Tooling
 - [ ] In-game UI editor, in the spirit of the Unity / Unreal Engine editors (UMG Designer, UI Toolkit Builder), running directly inside Minecraft ***(Required (Assets Pack & XAML API))***

@@ -64,7 +64,7 @@ final class ComponentTypes {
                 .description(param.description().isEmpty()
                         ? "Component parameter of type " + param.type().name() + "."
                         : param.description());
-        if (param.type() == ParamType.OBJECT) meta = meta.kind(ValueKind.BINDING_OR_ACTION);
+        if (!param.type().textual()) meta = meta.kind(ValueKind.BINDING_OR_ACTION);
         builder.property(param.name(), converter,
                 (host, value) -> host.instance().set(param.name(), value),
                 host -> host.instance().get(param.name()), meta);
