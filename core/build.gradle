@@ -48,16 +48,20 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
 
-// XML/XAML behaviour tests load the real demo documents that ship with the common module.
+// XAML behaviour tests load the real demo documents that ship with the common module. They are copied rather than
+// added as a source directory, so that common's META-INF/services entries (which reference Minecraft-only classes)
+// never reach core's test classpath and core can declare its own test services.
+def demoDocuments = layout.buildDirectory.dir('generated/test-resources')
+def copyDemoDocuments = tasks.register('copyDemoDocuments', Copy) {
+    from rootProject.file('common/src/main/resources/assets/unigui/xml')
+    into demoDocuments.map { it.dir('assets/unigui/xml') }
+}
 sourceSets {
     test {
-        resources {
-            srcDir rootProject.file('common/src/main/resources')
-            // Only the documents: common's META-INF/services entries reference Minecraft-only classes.
-            include 'assets/unigui/xml/**'
-        }
+        resources.srcDir demoDocuments
     }
 }
+tasks.named('processTestResources') { dependsOn copyDemoDocuments }
 
 tasks.withType(JavaCompile).configureEach {
     options.release = 17

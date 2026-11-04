@@ -7,6 +7,7 @@ import dev.sixik.unigui.xaml.load.LoadedScreen;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.load.XamlLoader;
 import dev.sixik.unigui.xaml.schema.Schema;
+import dev.sixik.unigui.xaml.schema.SchemaContributions;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,20 +36,29 @@ import java.util.Set;
  */
 public final class Xaml {
     private static volatile Schema defaultSchema;
+    /** Версия {@link SchemaContributions}, на которой построен {@link #defaultSchema}. */
+    private static volatile long defaultSchemaVersion = Long.MIN_VALUE;
 
     private Xaml() {
     }
 
     /**
-     * Возвращает общий реестр встроенных типов. Типы в нём строятся лениво и потокобезопасно.
+     * Возвращает общий реестр: встроенные типы плюс расширения из {@link SchemaContributions}. Типы в нём
+     * строятся лениво и потокобезопасно; при регистрации или снятии расширения реестр пересобирается.
      *
      * @return общий реестр; не изменяйте его, создавайте свой через {@link Schema#builtIns()}
      */
     public static Schema defaultSchema() {
+        long version = SchemaContributions.version();
         Schema schema = defaultSchema;
-        if (schema != null) return schema;
+        if (schema != null && defaultSchemaVersion == version) return schema;
         synchronized (Xaml.class) {
-            if (defaultSchema == null) defaultSchema = Schema.builtIns();
+            if (defaultSchema == null || defaultSchemaVersion != version) {
+                Schema built = Schema.builtIns();
+                SchemaContributions.applyTo(built);
+                defaultSchema = built;
+                defaultSchemaVersion = version;
+            }
             return defaultSchema;
         }
     }

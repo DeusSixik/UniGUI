@@ -13,6 +13,11 @@ public final class XamlNamespaces {
     /** URI из WPF/Noesis; принимается как синоним {@link #LANGUAGE}. */
     public static final String LANGUAGE_WPF = "http://schemas.microsoft.com/winfx/2006/xaml";
 
+    /** Пространство имён виджетов Minecraft-бэкендов; в документах принято префиксом {@code mc}. */
+    public static final String MINECRAFT = "https://unigui.dev/minecraft";
+    /** Префикс по умолчанию для {@link #MINECRAFT}. */
+    public static final String MINECRAFT_PREFIX = "mc";
+
     private XamlNamespaces() {
     }
 
