@@ -11,7 +11,7 @@ import java.util.function.Function;
 /**
  * Редактор компонента: те же панели, что у {@link UiEditor} (иерархия тела, палитра, свойства, предпросмотр, текст,
  * проблемы), плюс панель контракта, где объявляются параметры, переменные и события и задаются примерные значения для
- * предпросмотра.
+ * предпросмотра, и панель графа поведения.
  *
  * <pre>{@code
  * XamlEditorDocument document = new XamlEditorDocument("card", "ProductCard",
@@ -29,6 +29,8 @@ public final class ComponentEditor {
     public static final String CODE_LAYOUT = UiEditor.CODE_LAYOUT;
     /** Идентификатор панели контракта. */
     public static final String CONTRACT = ContractPanel.ID;
+    /** Идентификатор панели графа поведения. */
+    public static final String GRAPH = GraphPanel.ID;
 
     private ComponentEditor() {
     }
@@ -57,18 +59,19 @@ public final class ComponentEditor {
         ComponentView view = new ComponentView();
         EditorShell.Builder builder = UiEditor.common(document, previewOptions, theme, view)
                 .panel(new ContractPanel(view))
+                .panel(new GraphPanel())
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
                         .left(0.24f, CONTRACT, UiEditor.HIERARCHY, UiEditor.PALETTE)
                         .right(0.28f, UiEditor.INSPECTOR)
                         .bottom(0.25f, UiEditor.DIAGNOSTICS)
-                        .center(UiEditor.VIEWPORT, UiEditor.CODE)
+                        .center(UiEditor.VIEWPORT, GRAPH, UiEditor.CODE)
                         .active(UiEditor.VIEWPORT)
                         .build())
                 .layout(EditorLayout.named(CODE_LAYOUT)
                         .left(0.24f, CONTRACT)
                         .right(0.28f, UiEditor.INSPECTOR)
                         .bottom(0.25f, UiEditor.DIAGNOSTICS)
-                        .center(UiEditor.CODE, UiEditor.VIEWPORT)
+                        .center(UiEditor.CODE, UiEditor.VIEWPORT, GRAPH)
                         .active(UiEditor.CODE)
                         .build());
         return UiEditor.finish(customize.apply(builder).build(), document);

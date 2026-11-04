@@ -43,6 +43,7 @@ class UiEditorScreenTest {
         Widget root = UiEditorScreen.createComponentScreen().root();
         DockingRoot dock = find(root, DockingRoot.class);
         assertNotNull(dock.findPane("contract"), "the component editor has a contract panel");
+        assertNotNull(dock.findPane("graph"), "the component editor has a graph panel");
         Widget preview = dock.findPane("viewport").content();
         applyAll(preview);
         ComponentHost host = find(preview, ComponentHost.class);

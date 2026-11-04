@@ -99,6 +99,56 @@ public final class GraphCompiler {
     }
 
     /**
+     * Пин ноды.
+     *
+     * @param id       имя пина
+     * @param input    {@code true} для входа, {@code false} для выхода
+     * @param type     тип данных ({@code string}, {@code int}…) или {@code exec} для пина потока
+     * @param required {@code true}, если без значения или провода нода не запустится
+     */
+    public record Pin(String id, boolean input, String type, boolean required) {
+        /** @return {@code true} для пина потока выполнения */
+        public boolean flow() {
+            return EXEC.equals(type);
+        }
+    }
+
+    /**
+     * Форма ноды: какие у неё пины и какие атрибуты, кроме значений пинов, она принимает.
+     *
+     * @param pins       пины в порядке показа
+     * @param attributes имена собственных атрибутов ({@code Name}, {@code Op}, {@code Count}…)
+     */
+    public record Shape(List<Pin> pins, Set<String> attributes) {
+        public Shape {
+            pins = List.copyOf(pins);
+            attributes = Set.copyOf(attributes);
+        }
+    }
+
+    /**
+     * Описывает форму ноды, не компилируя весь граф. Редактор по ней рисует пины, а палитра проверяет, что нода
+     * собирается. Форма зависит от атрибутов ноды (какой параметр, сколько выходов у {@code Flow.Sequence}) и от
+     * соседей по графу (пользовательские события).
+     *
+     * @param contract контракт компонента
+     * @param graph    граф, в котором стоит нода
+     * @param node     нода
+     * @return форма
+     * @throws XamlLoadException если нода неверна: неизвестный тип, ссылка на несуществующий параметр, плохой атрибут
+     */
+    public static Shape shape(Contract contract, GraphDefinition graph, GraphDefinition.Node node) {
+        GraphCompiler compiler = new GraphCompiler("shape", contract, false);
+        for (GraphDefinition.Node other : graph.nodes()) compiler.allNodes.put(other.id(), other);
+        compiler.allNodes.put(node.id(), node);
+        compiler.collectCustomEvents(graph);
+        Spec spec = compiler.specOf(node);
+        List<Pin> pins = new ArrayList<>();
+        for (Port port : spec.ports()) pins.add(new Pin(port.id(), port.input(), port.type(), port.required()));
+        return new Shape(pins, spec.attributes());
+    }
+
+    /**
      * Показание реестров, от которых зависит результат компиляции: функции и зарегистрированные компоненты.
      * Скомпилированная программа устаревает, когда оно меняется.
      *
