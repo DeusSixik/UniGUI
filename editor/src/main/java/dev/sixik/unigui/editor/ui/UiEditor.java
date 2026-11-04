@@ -72,9 +72,9 @@ public final class UiEditor {
                                     Function<EditorShell.Builder, EditorShell.Builder> customize) {
         EditorShell.Builder builder = common(document, previewOptions, theme, new ComponentView())
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
-                        .left(0.22f, HIERARCHY, PALETTE)
+                        .left(0.22f, HIERARCHY)
                         .right(0.28f, INSPECTOR)
-                        .bottom(0.25f, DIAGNOSTICS)
+                        .bottom(0.28f, PALETTE, DIAGNOSTICS)
                         .center(VIEWPORT, CODE)
                         .active(VIEWPORT)
                         .build())

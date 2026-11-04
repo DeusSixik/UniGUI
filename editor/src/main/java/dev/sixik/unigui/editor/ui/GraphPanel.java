@@ -19,6 +19,7 @@ import dev.sixik.unigui.widgets.graph.NodeGraphPort;
 import dev.sixik.unigui.widgets.graph.NodeGraphPortKind;
 import dev.sixik.unigui.widgets.graph.NodeGraphPortRef;
 import dev.sixik.unigui.widgets.graph.node.NodeBuilder;
+import dev.sixik.unigui.widgets.graph.node.NodeType;
 import dev.sixik.unigui.widgets.graph.node.ValueEditors;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextField;
@@ -62,13 +63,25 @@ final class GraphPanel extends SessionPanel {
     private static final int ERROR_LEVEL = 2;
 
     private final NodeGraph graph = new NodeGraph();
-    private final VBox palette = new VBox();
-    private final TextField search = new TextField();
+    /** Записи каталога по идентификаторам типов во встроенной палитре полотна. */
+    private final Map<String, NodeCatalog.Entry> typeEntries = new LinkedHashMap<>();
+    /** Запись, по которой палитра только что создала ноду; к событию добавления она превращается в правку. */
+    private final Map<String, NodeCatalog.Entry> spawned = new LinkedHashMap<>();
     private final Label problem = new Label("");
+    private static final String NO_RUNS = "No runs yet: send an event from the Contract panel or use the preview";
+
+    private final Label debugStatus = new Label(NO_RUNS);
+    private final ComponentView componentView;
+    private dev.sixik.unigui.xaml.logic.GraphTrace.Run shownRun;
+    private int stepIndex = -1;
     private boolean syncing;
     private boolean applying;
     /** Причина последней отклонённой правки: переживает перестройку полотна, которая откатывает жест. */
     private String rejection = "";
+
+    GraphPanel(ComponentView componentView) {
+        this.componentView = componentView;
+    }
 
     @Override
     public String id() {
@@ -94,7 +107,12 @@ final class GraphPanel extends SessionPanel {
         graph.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).heightPercent(100.0f));
         // Документ — источник истины: собственная история, палитра и копирование полотна с ним разошлись бы.
         graph.keyboardEditingEnabled(false);
-        graph.nodePaletteEnabled(false);
+        // Палитра нод — встроенная, как в Unreal: правая кнопка по пустому месту или протягивание провода в пустоту.
+        // Созданная ею нода превращается в правку документа по событию добавления.
+        graph.nodePaletteEnabled(true);
+        graph.onItemAdded(event -> {
+            if (!syncing) added(event.itemId());
+        });
         graph.snapToGrid(true);
         graph.focusable(true);
         graph.connectionPolicy(this::policy);
@@ -121,30 +139,17 @@ final class GraphPanel extends SessionPanel {
             }
         });
 
-        VBox side = new VBox();
-        side.spacing(4.0f);
-        side.layout(style -> style.width(170.0f).flexShrink(0.0f).heightPercent(100.0f));
-        search.id("graph.search");
-        search.placeholder("Search nodes");
-        search.onTextChanged(event -> refreshPalette());
-        palette.spacing(1.0f);
-        ScrollView scroll = new ScrollView(palette);
-        scroll.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
-        side.addChild(search);
-        side.addChild(scroll);
-        side.applyQueuedMutations();
-
         HBox body = new HBox();
-        body.spacing(4.0f);
         body.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
         body.addChild(graph);
-        body.addChild(side);
         body.applyQueuedMutations();
 
         problem.color(PROBLEM);
         problem.layout(style -> style.flexShrink(0.0f));
         root.addChild(body);
         root.addChild(problem);
+        root.addChild(debugBar());
+        componentView.subscribe(this::refreshDebug);
         root.applyQueuedMutations();
         return root;
     }
@@ -169,6 +174,75 @@ final class GraphPanel extends SessionPanel {
             }
             default -> { }
         }
+    }
+
+    // ------------------------------------------------------------------ отладка
+
+    private Widget debugBar() {
+        HBox bar = new HBox();
+        bar.spacing(4.0f);
+        bar.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
+        Button previous = new Button("◀ Step");
+        previous.id("graph.debug.prev");
+        previous.onClick(click -> step(-1));
+        Button next = new Button("Step ▶");
+        next.id("graph.debug.next");
+        next.onClick(click -> step(1));
+        Button clear = new Button("Clear");
+        clear.id("graph.debug.clear");
+        clear.onClick(click -> componentView.preview().ifPresent(preview -> preview.trace().clear()));
+        debugStatus.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        bar.addChild(previous);
+        bar.addChild(next);
+        bar.addChild(clear);
+        bar.addChild(debugStatus);
+        bar.applyQueuedMutations();
+        refreshDebug();
+        return bar;
+    }
+
+    private dev.sixik.unigui.xaml.logic.GraphTrace.Run lastRun() {
+        return componentView.preview().map(preview -> preview.trace().last()).orElse(null);
+    }
+
+    /** Новый запуск графа сбрасывает шаги; ошибка сразу показывается и выделяет ноду, на которой запуск упал. */
+    private void refreshDebug() {
+        var run = lastRun();
+        if (run == shownRun) return;
+        shownRun = run;
+        stepIndex = -1;
+        if (run == null) {
+            debugStatus.text(NO_RUNS);
+            return;
+        }
+        String summary = "Run from " + run.entry() + ": " + run.steps().size() + " steps";
+        if (!run.error().isEmpty()) {
+            debugStatus.text(summary + ", FAILED at " + run.failedNode() + ": " + run.error());
+            if (!run.failedNode().isEmpty() && graph.item(run.failedNode()) != null) graph.selectItem(run.failedNode());
+        } else {
+            debugStatus.text(summary + ". Use Step to walk through it");
+        }
+    }
+
+    /** Переходит на шаг записи вперёд или назад и выделяет его ноду на полотне. */
+    private void step(int delta) {
+        var run = lastRun();
+        if (run == null || run.steps().isEmpty()) return;
+        int index = Math.max(0, Math.min(run.steps().size() - 1, stepIndex + delta));
+        stepIndex = index;
+        var step = run.steps().get(index);
+        if (graph.item(step.nodeId()) != null) graph.selectItem(step.nodeId());
+        StringBuilder text = new StringBuilder().append(index + 1).append('/').append(run.steps().size()).append(' ')
+                .append(step.type()).append(' ').append(step.nodeId());
+        if (step.pure()) text.append(" (value)");
+        if (!step.outputs().isEmpty()) text.append(" -> ").append(step.outputs());
+        if (!step.continuations().isEmpty()) text.append(" then ").append(step.continuations());
+        debugStatus.text(text.toString());
+    }
+
+    /** @return текст строки отладки; нужен тестам */
+    String debugText() {
+        return debugStatus.text();
     }
 
     // ------------------------------------------------------------------ документ → полотно
@@ -197,7 +271,8 @@ final class GraphPanel extends SessionPanel {
         syncing = true;
         try {
             graph.clearItems();
-            refreshPalette();
+            typeEntries.clear();
+            graph.nodeTypes().clear(); // встроенные reroute-ноды в документе не хранятся
             UiNode root = root();
             if (root == null || !isComponent()) {
                 problem.text(root == null ? "" : "Not a component document");
@@ -210,6 +285,7 @@ final class GraphPanel extends SessionPanel {
             }
             GraphDefinition definition = GraphEdits.read(root);
             List<String> errors = new ArrayList<>();
+            registerTypes(contract, definition);
             for (GraphDefinition.Node node : definition.nodes()) {
                 graph.addItem(item(contract, definition, node, errors));
             }
@@ -306,39 +382,43 @@ final class GraphPanel extends SessionPanel {
 
     // ------------------------------------------------------------------ палитра
 
-    private void refreshPalette() {
-        palette.clearChildren();
-        Contract contract = isComponent() ? contract() : null;
-        if (contract != null) {
-            String query = search.text().trim().toLowerCase(Locale.ROOT);
-            String category = null;
-            for (NodeCatalog.Entry entry : NodeCatalog.entries(contract)) {
-                if (!query.isEmpty() && !entry.title().toLowerCase(Locale.ROOT).contains(query)
-                        && !entry.type().toLowerCase(Locale.ROOT).contains(query)) continue;
-                if (!entry.category().equals(category)) {
-                    category = entry.category();
-                    palette.addChild(new Label(category));
-                }
-                Button button = new Button("  " + entry.title());
-                button.id("graph.add." + entry.type() + (entry.attributes().containsKey("Name")
-                        ? "." + entry.attributes().get("Name") : ""));
-                button.onClick(click -> addNode(entry));
-                palette.addChild(button);
-            }
+    /** Наполняет встроенную палитру полотна записями каталога для текущего контракта. */
+    private void registerTypes(Contract contract, GraphDefinition definition) {
+        for (NodeCatalog.Entry entry : NodeCatalog.entries(contract)) {
+            String key = typeKey(entry);
+            typeEntries.put(key, entry);
+            graph.nodeTypes().register(NodeType.of(key, entry.title(), entry.category(), proposed -> {
+                // Идентификатор, который предлагает полотно («Math_Add-1»), не годится: в документе нужны только
+                // буквы, цифры и подчёркивания. Берём свободный идентификатор из документа.
+                UiNode current = root();
+                String itemId = current == null ? proposed.replace('-', '_') : GraphEdits.freshId(current, entry.type());
+                spawned.put(itemId, entry);
+                GraphDefinition.Node node = new GraphDefinition.Node(itemId, entry.type(), entry.attributes(), 0, 0,
+                        dev.sixik.unigui.xaml.SourceLocation.UNKNOWN);
+                return item(contract, definition, node, new ArrayList<>());
+            }));
         }
-        palette.applyQueuedMutations();
     }
 
-    private void addNode(NodeCatalog.Entry entry) {
+    /** Идентификатор типа в палитре без точек: из него NodeGraph строит идентификаторы нод, а точка разделяет ноду и пин. */
+    private static String typeKey(NodeCatalog.Entry entry) {
+        String name = entry.attributes().get("Name");
+        return entry.type().replace('.', '_') + (name == null ? "" : "_" + name);
+    }
+
+    /** Палитра создала ноду на полотне: записываем её в документ. */
+    private void added(String itemId) {
+        NodeCatalog.Entry entry = spawned.remove(itemId);
+        NodeGraphItem item = graph.item(itemId);
         UiNode root = root();
-        if (root == null) return;
-        int count = GraphEdits.read(root).nodes().size();
-        float x = 30.0f + (count % 6) * 40.0f;
-        float y = 30.0f + (count % 6) * 40.0f + (count / 6) * 20.0f;
-        String id = GraphEdits.freshId(root, entry.type());
-        if (commit(GraphEdits.addNode(root, id, entry.type(), entry.attributes(), x, y))) {
-            rebuild();
-            graph.selectItem(id);
+        if (entry == null || item == null || root == null) return;
+        if (!commit(GraphEdits.addNode(root, itemId, entry.type(), entry.attributes(), item.x(), item.y()))) {
+            syncing = true;
+            try {
+                graph.removeItem(item);
+            } finally {
+                syncing = false;
+            }
         }
     }
 

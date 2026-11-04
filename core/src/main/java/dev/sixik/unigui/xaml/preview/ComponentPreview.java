@@ -10,6 +10,7 @@ import dev.sixik.unigui.xaml.component.ComponentHost;
 import dev.sixik.unigui.xaml.component.Contract;
 import dev.sixik.unigui.xaml.edit.NodePath;
 import dev.sixik.unigui.xaml.load.LoadOptions;
+import dev.sixik.unigui.xaml.logic.GraphTrace;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.Schema;
 
@@ -41,6 +42,7 @@ public final class ComponentPreview implements AutoCloseable {
     private final LoadContext context;
     private final Map<String, Object> samples = new LinkedHashMap<>();
     private final List<String> events = new ArrayList<>();
+    private final GraphTrace trace = new GraphTrace();
     private ComponentHost host;
     private UiNode shownRoot;
     private java.util.function.Consumer<String> eventListener;
@@ -82,6 +84,8 @@ public final class ComponentPreview implements AutoCloseable {
                 created.put(node, widget);
                 createdInOrder.add(Map.entry(node, widget));
             });
+            trace.clear();
+            next.traceTo(trace);
             applySamples(next, definition.contract());
             subscribe(next, definition.contract());
             next.build(context);
@@ -186,6 +190,11 @@ public final class ComponentPreview implements AutoCloseable {
      */
     public void advance(float seconds) {
         if (host != null) host.instance().advance(seconds);
+    }
+
+    /** @return запись хода графа показанного экземпляра; очищается при каждой пересборке */
+    public GraphTrace trace() {
+        return trace;
     }
 
     /** @return журнал исходящих событий, старые записи первыми */

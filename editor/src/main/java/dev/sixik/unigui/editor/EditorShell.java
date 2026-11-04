@@ -72,6 +72,7 @@ public final class EditorShell {
 
         // Панелям нужен слой оверлея для меню и диалогов; они берут его из контекста при создании.
         if (context.service(OverlayLayer.class).isEmpty()) context.provide(OverlayLayer.class, overlay);
+        if (context.service(EditorTheme.class).isEmpty()) context.provide(EditorTheme.class, theme);
 
         for (EditorPanel panel : panels.values()) {
             Widget content = panel.create(context);

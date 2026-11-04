@@ -56,6 +56,15 @@ abstract class SessionPanel implements EditorPanel {
     protected void changed(EditorSession current, SessionChange change) {
     }
 
+    /** @return общее состояние наведения; создаётся при первом обращении */
+    protected final HoverState hover() {
+        return context.service(HoverState.class).orElseGet(() -> {
+            HoverState state = new HoverState();
+            context.provide(HoverState.class, state);
+            return state;
+        });
+    }
+
     /** @return контекст редактора */
     protected final EditorContext context() {
         return context;

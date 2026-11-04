@@ -156,6 +156,12 @@ final class CommonProperties {
         // --- Выравнивание
         layout(out, "align", Converters.enumOf(Alignment.class), (w, v) -> w.layout(s -> s.align(v, v)), null, "stretch",
                 "Legacy shorthand that applies the same alignment to both axes.");
+        layout(out, "horizontalAlignment", Converters.enumOf(Alignment.class),
+                (w, v) -> w.layout(s -> s.horizontalAlignment(v)), LayoutStyle::horizontalAlignment, "stretch",
+                "Horizontal anchor of the widget inside its slot (start, center, end, stretch); with a margin it acts as an anchor with offsets.");
+        layout(out, "verticalAlignment", Converters.enumOf(Alignment.class),
+                (w, v) -> w.layout(s -> s.verticalAlignment(v)), LayoutStyle::verticalAlignment, "stretch",
+                "Vertical anchor of the widget inside its slot (start, center, end, stretch).");
         layout(out, "alignItems", Converters.enumOf(Align.class), (w, v) -> w.layout(s -> s.alignItems(v)),
                 LayoutStyle::alignItems, "stretch", "Cross-axis alignment applied to child widgets.");
         layout(out, "alignSelf", Converters.enumOf(Align.class), (w, v) -> w.layout(s -> s.alignSelf(v)),

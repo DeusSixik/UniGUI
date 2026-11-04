@@ -68,7 +68,10 @@ final class SchemaEquivalenceTest {
         for (Map.Entry<String, Type> type : LEGACY.entrySet()) {
             Set<String> before = names(type.getValue().lines.keySet());
             for (String name : names(CURRENT.get(type.getKey()).lines.keySet())) {
-                if (!before.contains(name)) added.add(type.getKey() + "." + name.replaceFirst("^@", ""));
+                String bare = name.replaceFirst("^@", "");
+                // Якоря в слоте (редактор UI): общие свойства всех виджетов, добавленные осознанно и целиком.
+                if (bare.equals("horizontalAlignment") || bare.equals("verticalAlignment")) continue;
+                if (!before.contains(name)) added.add(type.getKey() + "." + bare);
             }
         }
         assertEquals(new TreeSet<>(NEWLY_EXPOSED), added,

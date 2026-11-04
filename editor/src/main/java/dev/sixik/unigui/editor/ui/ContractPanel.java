@@ -2,6 +2,7 @@ package dev.sixik.unigui.editor.ui;
 
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.editor.ContextMenus;
 import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.PanelSlot;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -130,13 +131,14 @@ final class ContractPanel extends SessionPanel {
         }));
         for (UiNode node : contractNodes(root, kind)) {
             String name = node.attributeText("Name", "");
-            HBox row = row();
-            row.addChild(nameLabel(name));
-            row.addChild(field(session, root, kind, name, "Type", node.attributeText("Type", ""), "type", 80.0f));
-            row.addChild(field(session, root, kind, name, "Default", node.attributeText("Default", ""), "default", 80.0f));
-            row.addChild(removeButton(session, root, kind, name));
-            row.applyQueuedMutations();
-            content.addChild(row);
+            VBox card = card(session, root, kind, name);
+            HBox fields = row();
+            fields.addChild(field(session, root, kind, name, "Type", node.attributeText("Type", ""), "type"));
+            fields.addChild(field(session, root, kind, name, "Default", node.attributeText("Default", ""), "default"));
+            fields.applyQueuedMutations();
+            card.addChild(fields);
+            card.applyQueuedMutations();
+            content.addChild(card);
         }
     }
 
@@ -145,17 +147,46 @@ final class ContractPanel extends SessionPanel {
                 structural(session, ContractEdits.addEvent(root, ContractEdits.freshName(root, "Event"), "Out", null, false))));
         for (UiNode node : contractNodes(root, "Event")) {
             String name = node.attributeText("Name", "");
-            HBox row = row();
-            row.addChild(nameLabel(name));
-            row.addChild(combo(session, root, "Event", name, "Direction", DIRECTIONS,
+            VBox card = card(session, root, "Event", name);
+            HBox options = row();
+            options.addChild(combo(session, root, "Event", name, "Direction", DIRECTIONS,
                     node.attributeText("Direction", "Out"), false));
-            row.addChild(field(session, root, "Event", name, "Args", node.attributeText("Args", ""), "args", 90.0f));
-            row.addChild(combo(session, root, "Event", name, "Coalesce", BOOLEANS,
+            options.addChild(combo(session, root, "Event", name, "Coalesce", BOOLEANS,
                     node.attributeText("Coalesce", "false"), true));
-            row.addChild(removeButton(session, root, "Event", name));
-            row.applyQueuedMutations();
-            content.addChild(row);
+            options.applyQueuedMutations();
+            card.addChild(options);
+            card.addChild(field(session, root, "Event", name, "Args", node.attributeText("Args", ""),
+                    "args: name:type, name:type"));
+            card.applyQueuedMutations();
+            content.addChild(card);
         }
+    }
+
+    /**
+     * Карточка записи контракта: имя и меню действий в первой строке, поля ниже. Всё тянется по ширине панели, поэтому
+     * при любой ширине подписи и поля остаются целиком видимыми.
+     */
+    private VBox card(EditorSession session, UiNode root, String kind, String name) {
+        VBox card = new VBox();
+        card.spacing(2.0f);
+        card.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
+        HBox head = row();
+        Label title = nameLabel(name);
+        head.addChild(title);
+        Button menu = ContextMenus.button(context(), () -> List.of(
+                ContextMenus.Entry.of("Delete", () -> structural(session, ContractEdits.remove(root, kind, name))),
+                ContextMenus.Entry.of("Clear default", !kind.equals("Event"),
+                        () -> commit(session, ContractEdits.setAttribute(root, kind, name, "Default", null))),
+                ContextMenus.Entry.of("Clear description",
+                        () -> commit(session, ContractEdits.setAttribute(root, kind, name, "Description", null)))));
+        menu.id("menu." + kind + "." + name);
+        head.addChild(menu);
+        head.applyQueuedMutations();
+        card.addChild(head);
+        // Правая кнопка по заголовку открывает то же меню.
+        ContextMenus.onSecondaryClick(head, context(), () -> List.of(
+                ContextMenus.Entry.of("Delete", () -> structural(session, ContractEdits.remove(root, kind, name)))));
+        return card;
     }
 
     private void previewSection(EditorSession session, UiNode root) {
@@ -168,7 +199,9 @@ final class ContractPanel extends SessionPanel {
             for (Contract.Param param : definition.contract().params()) {
                 if (!param.type().textual()) continue;
                 HBox row = row();
-                row.addChild(nameLabel(param.name()));
+                Label sampleName = new Label(param.name());
+                sampleName.layout(style -> style.width(70.0f).flexShrink(0.0f));
+                row.addChild(sampleName);
                 Object current = preview.get().host().orElseThrow().instance().get(param.name());
                 TextField sample = new TextField(current == null ? "" : String.valueOf(current));
                 sample.id("sample." + param.name());
@@ -236,21 +269,22 @@ final class ContractPanel extends SessionPanel {
     private static HBox row() {
         HBox row = new HBox();
         row.spacing(4.0f);
+        row.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
         return row;
     }
 
     private static Label nameLabel(String name) {
         Label label = new Label(name);
-        label.layout(style -> style.width(90.0f).flexShrink(0.0f));
+        label.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
         return label;
     }
 
     private TextField field(EditorSession session, UiNode root, String kind, String name, String attribute,
-                            String value, String placeholder, float width) {
+                            String value, String placeholder) {
         TextField field = new TextField(value);
         field.id(kind.toLowerCase() + "." + name + "." + attribute);
         field.placeholder(placeholder);
-        field.layout(style -> style.width(width).flexGrow(1.0f).flexShrink(1.0f));
+        field.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
         field.onTextChanged(event -> {
             if (!syncing) commit(session, ContractEdits.setAttribute(root, kind, name, attribute, field.text()));
         });
@@ -263,7 +297,7 @@ final class ContractPanel extends SessionPanel {
         combo.id(kind.toLowerCase() + "." + name + "." + attribute);
         combo.items(items);
         combo.silentSelectedIndex(Math.max(0, items.indexOf(value)));
-        combo.layout(style -> style.width(60.0f).flexShrink(0.0f));
+        combo.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
         combo.onSelectionChanged(event -> {
             int index = combo.selectedIndex();
             if (syncing || index < 0) return;
@@ -272,13 +306,6 @@ final class ContractPanel extends SessionPanel {
                     clearWhenFirst && index == 0 ? null : chosen));
         });
         return combo;
-    }
-
-    private Button removeButton(EditorSession session, UiNode root, String kind, String name) {
-        Button remove = new Button("×");
-        remove.id("remove." + kind + "." + name);
-        remove.onClick(click -> structural(session, ContractEdits.remove(root, kind, name)));
-        return remove;
     }
 
     // ------------------------------------------------------------------ правки

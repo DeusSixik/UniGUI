@@ -7,8 +7,15 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.PanelSlot;
 import dev.sixik.unigui.widgets.containers.StackPanel;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
+import dev.sixik.unigui.widgets.dnd.DropController;
 import dev.sixik.unigui.xaml.UiDocument;
 import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.edit.EditorSession;
@@ -17,6 +24,7 @@ import dev.sixik.unigui.xaml.load.LoadOptions;
 import dev.sixik.unigui.xaml.preview.ComponentPreview;
 import dev.sixik.unigui.xaml.preview.Preview;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -26,6 +34,7 @@ import java.util.Optional;
  */
 final class ViewportPanel extends SessionPanel {
     private static final MutableColor OUTLINE = MutableColor.rgba255(90, 160, 255, 255);
+    private static final MutableColor HOVER_OUTLINE = MutableColor.rgba255(170, 210, 255, 160);
     private static final MutableColor ERROR = MutableColor.rgba255(235, 100, 100, 255);
 
     /** Что именно показывает панель: экран или компонент. Различие скрыто за одним набором операций. */
@@ -71,34 +80,235 @@ final class ViewportPanel extends SessionPanel {
         return PanelSlot.CENTER;
     }
 
+    /** Форматы экрана: размер в «пикселях интерфейса», на котором вёрстка проверяется. */
+    private static final List<String> SCREENS = List.of("Free", "640x360", "854x480", "1280x720", "1920x1080", "2560x1440");
+    private static final List<String> ZOOMS = List.of("Fit", "50%", "100%", "200%");
+    private static final MutableColor FRAME_BORDER = MutableColor.rgba255(120, 130, 145, 255);
+    private static final MutableColor STAGE = MutableColor.rgba255(30, 31, 34, 255);
+
+    private final Box stage = new Box();
+    private final Box frame = new Box();
+    private final StackPanel frameContent = new StackPanel();
+    private final VBox frameColumn = new VBox();
+    private final Label info = new Label("");
+    private final Button play = new Button("Play");
+    private CanvasWidget outlineLayer;
+    private float screenWidth = 1280.0f;
+    private float screenHeight = 720.0f;
+    /** 0 — вписать в панель; иначе фиксированный масштаб. */
+    private float zoom;
+    private boolean playing;
+
     @Override
     protected Widget build(EditorContext context) {
-        StackPanel root = new StackPanel();
+        VBox root = new VBox();
         root.layout(style -> style.sizePercent(100.0f, 100.0f));
         holder.layout(style -> style.sizePercent(100.0f, 100.0f));
 
         CanvasWidget outline = new CanvasWidget();
+        outlineLayer = outline;
         outline.layout(style -> style.sizePercent(100.0f, 100.0f));
         // Слой выбора лежит над предпросмотром и принимает все щелчки: предпросмотр остаётся «чертежом», а выбор
-        // узла идёт по месту щелчка.
+        // узла идёт по месту щелчка. В режиме Play слой скрыт, и щелчки доходят до живого интерфейса.
         outline.focusable(true); // щелчок по предпросмотру даёт окну редактора фокус, и горячие клавиши работают
-        outline.on(PointerPressedEvent.TYPE, event -> pick(event.rootX(), event.rootY()));
+        outline.on(PointerPressedEvent.TYPE, event -> {
+            pick(event.rootX(), event.rootY());
+            beginMove(event.rootX(), event.rootY());
+        });
+        outline.on(dev.sixik.unigui.api.event.PointerReleasedEvent.TYPE, event -> endMove());
+        outline.on(dev.sixik.unigui.api.event.PointerMovedEvent.TYPE, event -> {
+            if (moving) moveTo(event.rootX(), event.rootY());
+            else hoverAt(event.rootX(), event.rootY());
+        });
+        outline.on(dev.sixik.unigui.api.event.PointerExitedEvent.TYPE, event -> hover().set(null));
         outline.onDraw(draw -> {
+            applyView();
+            if (screenWidth > 0.0f) {
+                RectView border = onScreen(frame.layoutBounds());
+                draw.addRect(border.x(), border.y(), border.width(), border.height(), FRAME_BORDER, 1.0f);
+            }
+            Widget hovered = hoveredWidget();
+            if (hovered != null && hovered != selectedWidget()) {
+                RectView box = onScreen(hovered.layoutBounds());
+                draw.addRect(box.x(), box.y(), box.width(), box.height(), HOVER_OUTLINE, 1.0f);
+            }
             Widget target = selectedWidget();
             if (target == null) return;
-            RectView bounds = target.layoutBounds();
+            RectView bounds = onScreen(target.layoutBounds());
             draw.addRect(bounds.x(), bounds.y(), bounds.width(), bounds.height(), OUTLINE, 2.0f);
         });
 
+        // Сюда бросают типы из палитры и узлы из иерархии: цель — самый глубокий узел под указателем.
+        DropController.attach(outline).accepts(DropActions.ACCEPTED).onDrop(event -> dropAt(event.payload(), event.rootX(), event.rootY()));
+
         status.color(ERROR);
         status.layout(style -> style.flexGrow(0.0f));
-        // Порядок важен для щелчков: самым верхним должен быть слой выбора, иначе пустая подпись статуса, лежащая
-        // на всю область, перехватывала бы их.
-        root.addChild(holder);
-        root.addChild(status);
-        root.addChild(outline);
+        status.visibility(Visibility.COLLAPSED);
+
+        // Рамка экрана фиксированного размера; предпросмотр лежит внутри неё и раскладывается по её размеру.
+        frame.backgroundVisible(true);
+        frame.background().set(MutableColor.rgba255(45, 46, 50, 255));
+        frameContent.layout(style -> style.sizePercent(100.0f, 100.0f));
+        frameContent.addChild(holder);
+        frameContent.addChild(status);
+        frameContent.applyQueuedMutations();
+        frame.addChild(frameContent);
+        frame.applyQueuedMutations();
+        stage.backgroundVisible(true);
+        stage.background().set(STAGE);
+        stage.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f)
+                .overflow(dev.sixik.unigui.api.layout.Overflow.HIDDEN));
+        StackPanel stageContent = new StackPanel();
+        stageContent.layout(style -> style.sizePercent(100.0f, 100.0f));
+        // Рамка лежит в строке flex: стек растягивает детей по своему размеру, а строка уважает фиксированную ширину.
+        HBox frameRow = new HBox();
+        frameRow.layout(style -> style.sizePercent(100.0f, 100.0f).alignItems(dev.sixik.unigui.api.layout.Align.START));
+        // Фиксированная высота держится в колонке (главная ось), фиксированная ширина — в строке: поперёк оси flex
+        // ребёнка ужимает до контейнера, вдоль оси размер сохраняется.
+        frameColumn.layout(style -> style.sizePercent(100.0f, 100.0f).flexShrink(0.0f));
+        frameColumn.addChild(frame);
+        frameColumn.applyQueuedMutations();
+        frameRow.addChild(frameColumn);
+        frameRow.applyQueuedMutations();
+        stageContent.addChild(frameRow);
+        // Порядок важен для щелчков: самым верхним должен быть слой выбора.
+        stageContent.addChild(outline);
+        stageContent.applyQueuedMutations();
+        stage.addChild(stageContent);
+        stage.applyQueuedMutations();
+        applyScreen();
+
+        root.addChild(toolbar());
+        root.addChild(stage);
         root.applyQueuedMutations();
         return root;
+    }
+
+    private Widget toolbar() {
+        HBox bar = new HBox();
+        bar.spacing(4.0f);
+        bar.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
+        ComboBox screens = new ComboBox();
+        screens.id("viewport.screen");
+        screens.items(SCREENS);
+        screens.silentSelectedIndex(SCREENS.indexOf("1280x720"));
+        screens.onSelectionChanged(event -> {
+            if (screens.selectedIndex() >= 0) screen(SCREENS.get(screens.selectedIndex()));
+        });
+        ComboBox zooms = new ComboBox();
+        zooms.id("viewport.zoom");
+        zooms.items(ZOOMS);
+        zooms.silentSelectedIndex(0);
+        zooms.onSelectionChanged(event -> {
+            int index = zooms.selectedIndex();
+            if (index >= 0) zoom(index == 0 ? 0.0f : Float.parseFloat(ZOOMS.get(index).replace("%", "")) / 100.0f);
+        });
+        play.id("viewport.play");
+        play.onClick(click -> playing(!playing));
+        info.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        bar.addChild(screens);
+        bar.addChild(zooms);
+        bar.addChild(play);
+        bar.addChild(info);
+        bar.applyQueuedMutations();
+        return bar;
+    }
+
+    /**
+     * Выбирает формат экрана.
+     *
+     * @param name {@code Free} или {@code ШxВ}
+     */
+    void screen(String name) {
+        if (name.equals("Free")) {
+            screenWidth = 0.0f;
+            screenHeight = 0.0f;
+        } else {
+            String[] parts = name.split("x");
+            screenWidth = Float.parseFloat(parts[0]);
+            screenHeight = Float.parseFloat(parts[1]);
+        }
+        applyScreen();
+    }
+
+    /**
+     * Задаёт масштаб предпросмотра.
+     *
+     * @param value {@code 0} — вписать в панель, иначе множитель
+     */
+    void zoom(float value) {
+        zoom = value;
+        applyView();
+    }
+
+    /**
+     * Включает режим запуска: интерфейс живёт (кнопки нажимаются, граф исполняется), выбор и рамки скрыты.
+     *
+     * @param value {@code true} — Play
+     */
+    void playing(boolean value) {
+        playing = value;
+        play.text(value ? "Stop" : "Play");
+        if (outlineLayer != null) outlineLayer.visibility(value ? Visibility.COLLAPSED : Visibility.VISIBLE);
+        hover().set(null);
+        info.text(value ? "Playing" : "");
+    }
+
+    /** @return {@code true} в режиме Play */
+    boolean playing() {
+        return playing;
+    }
+
+    private void applyScreen() {
+        if (screenWidth <= 0.0f) {
+            frame.layout(style -> style.sizePercent(100.0f, 100.0f).minSize(0.0f, 0.0f).flexShrink(1.0f));
+            frameContent.layout(style -> style.sizePercent(100.0f, 100.0f));
+            holder.layout(style -> style.sizePercent(100.0f, 100.0f));
+            frameColumn.layout(style -> style.sizePercent(100.0f, 100.0f).minWidth(0.0f).flexShrink(1.0f));
+        } else {
+            float w = screenWidth;
+            float h = screenHeight;
+            // Проценты внутри рамки считаются от размера содержимого, поэтому внутренним слоям размер задан явно.
+            frameColumn.layout(style -> style.width(w).minWidth(w).heightPercent(100.0f).flexShrink(0.0f)
+                    .flexGrow(0.0f));
+            frameContent.layout(style -> style.width(w).height(h));
+            holder.layout(style -> style.width(w).height(h));
+            frame.layout(style -> style.width(w).height(h).minSize(w, h).flexShrink(0.0f).flexGrow(0.0f)
+                    .alignSelf(dev.sixik.unigui.api.layout.Align.START));
+        }
+        applyView();
+    }
+
+    /** Ставит рамку экрана по центру панели с нужным масштабом; в режиме Free масштаб единичный. */
+    void applyView() {
+        if (screenWidth <= 0.0f) {
+            frame.transform().scale().set(1.0f, 1.0f);
+            frame.transform().position().set(0.0f, 0.0f);
+            if (!playing) info.text("Free");
+            return;
+        }
+        RectView area = stage.layoutBounds();
+        RectView at = frame.layoutBounds();
+        float z = zoom > 0.0f ? zoom
+                : Math.max(0.1f, Math.min(4.0f, Math.min((area.width() - 24.0f) / screenWidth,
+                (area.height() - 24.0f) / screenHeight)));
+        if (area.width() <= 0.0f) z = zoom > 0.0f ? zoom : 1.0f;
+        frame.transform().scale().set(z, z);
+        frame.transform().position().set(area.x() + (area.width() - screenWidth * z) / 2.0f - at.x(),
+                area.y() + (area.height() - screenHeight * z) / 2.0f - at.y());
+        if (!playing) info.text((int) screenWidth + "x" + (int) screenHeight + " @ " + Math.round(z * 100.0f) + "%");
+    }
+
+    /** Точка окна → точка в раскладке предпросмотра (с учётом масштаба и сдвига рамки). */
+    private dev.sixik.unigui.api.math.TransformGeometry.Point toLayout(float x, float y) {
+        return dev.sixik.unigui.api.math.TransformGeometry.inverseTransformPoint(x, y, frame.layoutBounds(),
+                frame.transform());
+    }
+
+    /** Прямоугольник раскладки → прямоугольник на экране окна. */
+    RectView onScreen(RectView bounds) {
+        return dev.sixik.unigui.api.math.TransformGeometry.transformedBounds(bounds, frame.layoutBounds(),
+                frame.transform());
     }
 
     @Override
@@ -118,11 +328,80 @@ final class ViewportPanel extends SessionPanel {
         }
     }
 
+    /** Бросок на предпросмотр: в узел под указателем, а если там пусто, в корень документа. */
+    void dropAt(dev.sixik.unigui.widgets.dnd.DragPayload payload, float x, float y) {
+        EditorSession session = session().orElse(null);
+        if (session == null || preview == null) return;
+        var at = toLayout(x, y);
+        UiNode target = preview.pick(session.document(), at.x(), at.y()).orElse(session.document().root());
+        DropActions.drop(session, payload, target);
+    }
+
+    // ------------------------------------------------------------------ свободное перемещение
+
+    private boolean moving;
+    private float moveX;
+    private float moveY;
+    private float carryX;
+    private float carryY;
+
+    /** Нажатие на выбранный виджет в StackPanel начинает перемещение: меняются только отступы, якорь остаётся. */
+    void beginMove(float x, float y) {
+        EditorSession session = session().orElse(null);
+        UiNode node = session == null ? null : session.selected().orElse(null);
+        moving = node != null && Anchors.supported(session, node);
+        if (!moving) return;
+        var at = toLayout(x, y);
+        moveX = at.x();
+        moveY = at.y();
+        carryX = 0.0f;
+        carryY = 0.0f;
+    }
+
+    /** Двигает выбранный виджет вслед за указателем; дробные остатки копятся, чтобы мелкие сдвиги не терялись. */
+    void moveTo(float x, float y) {
+        EditorSession session = session().orElse(null);
+        UiNode node = session == null ? null : session.selected().orElse(null);
+        if (node == null) {
+            moving = false;
+            return;
+        }
+        var at = toLayout(x, y);
+        carryX += at.x() - moveX;
+        carryY += at.y() - moveY;
+        moveX = at.x();
+        moveY = at.y();
+        float dx = Math.round(carryX);
+        float dy = Math.round(carryY);
+        if (dx == 0.0f && dy == 0.0f) return;
+        carryX -= dx;
+        carryY -= dy;
+        Anchors.move(session, node, dx, dy);
+    }
+
+    void endMove() {
+        moving = false;
+    }
+
+    private void hoverAt(float x, float y) {
+        EditorSession session = session().orElse(null);
+        if (session == null || preview == null) return;
+        var at = toLayout(x, y);
+        hover().set(preview.pick(session.document(), at.x(), at.y()).orElse(null));
+    }
+
+    /** @return виджет предпросмотра под наведённым узлом (из любой панели) или {@code null} */
+    Widget hoveredWidget() {
+        UiNode node = hover().node();
+        return preview == null || node == null ? null : preview.widgetOf(node).orElse(null);
+    }
+
     /** Выбирает узел под точкой щелчка. */
     void pick(float x, float y) {
         EditorSession session = session().orElse(null);
         if (session == null || preview == null) return;
-        preview.pick(session.document(), x, y).ifPresent(session::select);
+        var at = toLayout(x, y);
+        preview.pick(session.document(), at.x(), at.y()).ifPresent(session::select);
     }
 
     /** @return виджет предпросмотра, созданный из выбранного узла, или {@code null} */
@@ -153,6 +432,7 @@ final class ViewportPanel extends SessionPanel {
         if (wantsComponent) {
             ComponentPreview component = new ComponentPreview(session.schema(), previewOptions);
             component.onEvent(line -> componentView.changed());
+            component.trace().onChange(componentView::changed);
             preview = new Shown() {
                 @Override
                 public Preview.Result show(UiDocument document) {
@@ -234,6 +514,8 @@ final class ViewportPanel extends SessionPanel {
         ensurePreview(session);
         Preview.Result result = preview.show(session.document());
         status.text(result.shown() ? "" : "Preview: " + result.message());
+        // Пустая подпись лежала бы поверх предпросмотра и перехватывала щелчки в режиме Play.
+        status.visibility(result.shown() ? Visibility.COLLAPSED : Visibility.VISIBLE);
         Widget root = preview.root();
         if (root != shown) {
             holder.clearChildren();

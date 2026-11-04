@@ -84,6 +84,17 @@ class UiEditorLayoutTest {
         RectView viewport = dock.findPane("viewport").content().layoutBounds();
         assertTrue(viewport.width() > 300.0f && viewport.height() > 200.0f, "the preview area is usable: " + viewport);
 
+        // Ничто в панели контракта не вылезает за её границы: подписи и поля не обрезаются.
+        List<Widget> inContract = new ArrayList<>();
+        collect(dock.findPane("contract").content(), inContract);
+        for (Widget widget : inContract) {
+            RectView bounds = widget.layoutBounds();
+            if (bounds.width() <= 0.0f) continue;
+            assertTrue(bounds.x() >= contract.x() - 0.5f && bounds.x() + bounds.width() <= contract.x() + contract.width() + 0.5f,
+                    widget.getClass().getSimpleName() + " '" + widget.id() + "' leaves the contract panel: " + bounds
+                            + " in " + contract);
+        }
+
         List<Widget> everything = new ArrayList<>();
         collect(dock.findPane("viewport").content(), everything);
         for (String id : List.of("card", "title", "price", "buy")) {

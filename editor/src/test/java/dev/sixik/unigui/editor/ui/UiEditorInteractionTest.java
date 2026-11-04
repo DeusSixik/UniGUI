@@ -28,6 +28,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,13 +47,16 @@ final class UiEditorInteractionTest {
     private XamlEditorDocument document;
     private EditorShell shell;
     private InputHandle input;
+    private DefaultUIContext uiContext;
 
     @BeforeEach
     void setUp() {
         session = EditorSession.open(DocumentSource.memory("doc", "Doc", SOURCE));
         document = new XamlEditorDocument("doc", "Doc", session);
         shell = UiEditor.shell(document);
-        input = new InputHandle(shell.root(), new DefaultUIContext());
+        uiContext = new DefaultUIContext();
+        ((dev.sixik.unigui.impl.widget.WidgetBase) shell.root()).setUiContextInternal(uiContext); // как делает экран: виджеты знают контекст, захват указателя работает
+        input = new InputHandle(shell.root(), uiContext);
         layout();
     }
 
@@ -61,6 +65,8 @@ final class UiEditorInteractionTest {
         shell.root().measure(new LayoutContext(WIDTH, HEIGHT));
         shell.root().arrange(new MutableRect(0.0f, 0.0f, WIDTH, HEIGHT));
         applyAll(shell.root());
+        // Рамка экрана вписывается в панель при отрисовке; в тесте отрисовки нет, поэтому вписываем явно.
+        shell.panel(UiEditor.VIEWPORT).ifPresent(panel -> ((ViewportPanel) panel).applyView());
     }
 
     private static void applyAll(Widget widget) {
@@ -85,6 +91,14 @@ final class UiEditorInteractionTest {
 
     private void click(Widget widget) {
         RectView bounds = widget.layoutBounds();
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        Widget previewRoot = viewport.previewRoot();
+        for (Widget up = widget; up != null && previewRoot != null; up = up.parent()) {
+            if (up == previewRoot) {
+                bounds = viewport.onScreen(bounds); // виджет предпросмотра лежит под масштабом рамки
+                break;
+            }
+        }
         float x = bounds.x() + bounds.width() / 2.0f;
         float y = bounds.y() + bounds.height() / 2.0f;
         input.pointerMoved(x, y, 0);
@@ -125,7 +139,8 @@ final class UiEditorInteractionTest {
     @Test
     void clickingEmptySpaceOfAContainerSelectsTheContainer() {
         Widget preview = ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).previewRoot();
-        RectView bounds = preview.layoutBounds();
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        RectView bounds = viewport.onScreen(preview.layoutBounds());
         // правый нижний угол контейнера: ни метки, ни кнопки там нет
         float x = bounds.x() + bounds.width() - 2.0f;
         float y = bounds.y() + bounds.height() - 2.0f;
@@ -225,20 +240,203 @@ final class UiEditorInteractionTest {
         assertEquals(0, comboFor("Enabled").selectedIndex(), "undo restores the unset state");
     }
 
+    /** Строка свойства в инспекторе; группы раскрываются по одной, пока строка не окажется в видимой части окна. */
+    private Label visibleRowLabel(String name) {
+        Widget content = shell.dock().findPane(UiEditor.INSPECTOR).content();
+        List<dev.sixik.unigui.widgets.interaction.Button> headers = all(content,
+                dev.sixik.unigui.widgets.interaction.Button.class).stream()
+                .filter(button -> button.id().startsWith("inspector.group.")).toList();
+        headers.forEach(header -> header.click()); // свернуть всё
+        for (dev.sixik.unigui.widgets.interaction.Button header : headers) {
+            header.click();
+            layout();
+            for (HBox row : all(content, HBox.class)) {
+                List<Label> labels = all(row, Label.class);
+                if (labels.isEmpty() || !name.equals(labels.get(0).text())) continue;
+                RectView bounds = labels.get(0).layoutBounds();
+                if (bounds.height() > 0.0f && bounds.y() >= 0.0f && bounds.y() + bounds.height() < HEIGHT) {
+                    return labels.get(0);
+                }
+            }
+            header.click();
+        }
+        throw new AssertionError("row '" + name + "' never became visible");
+    }
+
     @Test
-    void theResetButtonReturnsAPropertyToItsDefault() {
+    void theRowContextMenuReturnsAPropertyToItsDefault() {
         session.select(node("title"));
         applyAll(shell.dock().findPane(UiEditor.INSPECTOR).content());
         comboFor("Enabled").selectedIndex(1);
         assertEquals("true", node("title").attributeText("enabled", ""));
 
-        for (HBox row : all(shell.dock().findPane(UiEditor.INSPECTOR).content(), HBox.class)) {
-            List<Label> labels = all(row, Label.class);
-            if (!labels.isEmpty() && "Enabled".equals(labels.get(0).text())) {
-                all(row, dev.sixik.unigui.widgets.interaction.Button.class).stream()
-                        .filter(button -> "×".equals(button.text())).findFirst().orElseThrow().click();
+        Label label = visibleRowLabel("Enabled");
+        RectView bounds = label.layoutBounds();
+        float x = bounds.x() + bounds.width() / 2.0f;
+        float y = bounds.y() + bounds.height() / 2.0f;
+        input.pointerMoved(x, y, 0);
+        input.pointerPressed(x, y, 0, PointerButton.SECONDARY);
+        input.pointerReleased(x, y, 0, PointerButton.SECONDARY);
+
+        for (dev.sixik.unigui.widgets.feedback.ContextMenu menu : all(shell.overlay(),
+                dev.sixik.unigui.widgets.feedback.ContextMenu.class)) {
+            for (Widget entry : menu.itemWidgets()) {
+                if (entry instanceof dev.sixik.unigui.widgets.interaction.Button button
+                        && button.text().startsWith("Clear")) button.click();
             }
         }
         assertTrue(node("title").attributeText("enabled").isEmpty(), "the attribute is gone");
+    }
+
+    @Test
+    void inspectorGroupsCollapseAndExpand() {
+        session.select(node("title"));
+        Widget content = shell.dock().findPane(UiEditor.INSPECTOR).content();
+        applyAll(content);
+        List<dev.sixik.unigui.widgets.interaction.Button> headers = all(content,
+                dev.sixik.unigui.widgets.interaction.Button.class).stream()
+                .filter(button -> button.id().startsWith("inspector.group.")).toList();
+        assertTrue(headers.size() >= 2, "the properties are split into groups");
+        dev.sixik.unigui.widgets.interaction.Button first = headers.get(0);
+        assertTrue(first.text().startsWith("▾"));
+        first.click();
+        assertTrue(first.text().startsWith("▸"), first.text());
+        first.click();
+        assertTrue(first.text().startsWith("▾"), first.text());
+    }
+
+    @Test
+    void hoveringARowInTheHierarchyHighlightsItsWidgetInThePreview() {
+        applyAll(shell.dock().findPane(UiEditor.HIERARCHY).content());
+        layout();
+        dev.sixik.unigui.widgets.interaction.Button row = all(shell.dock().findPane(UiEditor.HIERARCHY).content(),
+                dev.sixik.unigui.widgets.interaction.Button.class).stream()
+                .filter(button -> button.text().contains("#title")).findFirst().orElseThrow();
+        RectView bounds = row.layoutBounds();
+        input.pointerMoved(bounds.x() + bounds.width() / 2.0f, bounds.y() + bounds.height() / 2.0f, 0);
+
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        assertSame(find(viewport.previewRoot(), "title"), viewport.hoveredWidget());
+
+        input.pointerMoved(1.0f, 1.0f, 0);
+        assertNull(viewport.hoveredWidget(), "leaving the row clears the highlight");
+    }
+
+    // ------------------------------------------------------------------ перетаскивание
+
+    private void drag(Widget from, float toX, float toY) {
+        RectView start = from.layoutBounds();
+        float x = start.x() + start.width() / 2.0f;
+        float y = start.y() + start.height() / 2.0f;
+        input.pointerMoved(x, y, 0);
+        input.pointerPressed(x, y, 0, PointerButton.PRIMARY);
+        input.pointerMoved(x + 12.0f, y + 12.0f, 0);
+        input.pointerMoved((x + toX) / 2.0f, (y + toY) / 2.0f, 0);
+        input.pointerMoved(toX, toY, 0);
+        input.pointerReleased(toX, toY, 0, PointerButton.PRIMARY);
+    }
+
+    private dev.sixik.unigui.widgets.interaction.Button hierarchyRow(String text) {
+        applyAll(shell.dock().findPane(UiEditor.HIERARCHY).content());
+        return all(shell.dock().findPane(UiEditor.HIERARCHY).content(), dev.sixik.unigui.widgets.interaction.Button.class)
+                .stream().filter(button -> button.text().contains(text)).findFirst().orElseThrow();
+    }
+
+    private Widget paletteTile(String name) {
+        applyAll(shell.dock().findPane(UiEditor.PALETTE).content());
+        // Список длинный: поиск оставляет одну плитку в видимой части панели.
+        all(shell.dock().findPane(UiEditor.PALETTE).content(), dev.sixik.unigui.widgets.interaction.TextField.class)
+                .get(0).text(name);
+        applyAll(shell.dock().findPane(UiEditor.PALETTE).content());
+        layout();
+        return all(shell.dock().findPane(UiEditor.PALETTE).content(), dev.sixik.unigui.widgets.interaction.Button.class)
+                .stream().filter(button -> name.equals(button.text())).findFirst().orElseThrow();
+    }
+
+    @Test
+    void draggingATypeFromThePaletteOntoTheViewportAddsItToTheWidgetUnderThePointer() {
+        Widget tile = paletteTile("Slider");
+        Widget preview = ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).previewRoot();
+        RectView target = ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).onScreen(preview.layoutBounds());
+        drag(tile, target.x() + target.width() - 3.0f, target.y() + target.height() - 3.0f);
+        UiNode root = session.document().root();
+        assertEquals(3, root.children().size(), "the slider joined the container under the pointer");
+        assertEquals("Slider", root.children().get(2).type().local());
+    }
+
+    @Test
+    void draggingATypeOntoAHierarchyRowAddsItThere() {
+        Widget tile = paletteTile("Slider");
+        layout();
+        RectView row = hierarchyRow("#root").layoutBounds();
+        drag(tile, row.x() + row.width() / 2.0f, row.y() + row.height() / 2.0f);
+        assertEquals("Slider", session.document().root().children().get(2).type().local());
+    }
+
+    @Test
+    void draggingARowOntoAnotherReordersTheDocument() {
+        layout();
+        RectView target = hierarchyRow("#ok").layoutBounds();
+        drag(hierarchyRow("#title"), target.x() + target.width() / 2.0f, target.y() + target.height() / 2.0f);
+        UiNode root = session.document().root();
+        assertEquals(List.of("ok", "title"), root.children().stream().map(n -> n.attributeText("id", "")).toList(),
+                "the label moved after the button");
+    }
+
+    // ------------------------------------------------------------------ холст
+
+    @Test
+    void thePreviewIsLaidOutInsideAFixedScreenFrame() {
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        layout();
+        Widget root = viewport.previewRoot();
+        assertEquals(1280.0f, root.layoutBounds().width(), 0.5f, "the default screen is 1280x720");
+        assertEquals(720.0f, root.layoutBounds().height(), 0.5f);
+
+        viewport.screen("854x480");
+        layout();
+        assertEquals(854.0f, viewport.previewRoot().layoutBounds().width(), 0.5f);
+        viewport.screen("Free");
+        layout();
+        assertTrue(viewport.previewRoot().layoutBounds().width() < 854.0f, "Free fills the panel instead");
+    }
+
+    @Test
+    void clickingAZoomedPreviewStillSelectsTheWidgetUnderThePointer() {
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        layout();
+        viewport.zoom(0.5f);
+        viewport.applyView();
+
+        Widget ok = find(viewport.previewRoot(), "ok");
+        RectView onScreen = viewport.onScreen(ok.layoutBounds());
+        assertEquals(ok.layoutBounds().width() * 0.5f, onScreen.width(), 0.5f, "the widget is drawn at half size");
+
+        float x = onScreen.x() + onScreen.width() / 2.0f;
+        float y = onScreen.y() + onScreen.height() / 2.0f;
+        input.pointerMoved(x, y, 0);
+        input.pointerPressed(x, y, 0, PointerButton.PRIMARY);
+        input.pointerReleased(x, y, 0, PointerButton.PRIMARY);
+        assertSame(node("ok"), session.selected().orElseThrow());
+    }
+
+    @Test
+    void playModeLetsTheLiveInterfaceReceiveClicks() {
+        ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        layout();
+        boolean[] pressed = {false};
+        ((dev.sixik.unigui.widgets.interaction.Button) find(viewport.previewRoot(), "ok")).onClick(event -> pressed[0] = true);
+
+        viewport.playing(true);
+        viewport.applyView();
+        assertTrue(viewport.playing());
+        click(find(viewport.previewRoot(), "ok"));
+        assertTrue(pressed[0], "in Play mode the button gets the click");
+        assertTrue(session.selected().isEmpty(), "and nothing is selected");
+
+        viewport.playing(false);
+        pressed[0] = false;
+        click(find(viewport.previewRoot(), "ok"));
+        assertFalse(pressed[0], "back in design mode the click selects instead");
     }
 }

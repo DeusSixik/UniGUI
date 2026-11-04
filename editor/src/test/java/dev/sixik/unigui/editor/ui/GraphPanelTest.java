@@ -104,17 +104,36 @@ final class GraphPanelTest {
     }
 
     @Test
-    void thePaletteAddsANodeAndUndoRemovesIt() {
-        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
-        Button add = find(content, "graph.add.Math.Add");
-        assertNotNull(add, "the palette offers Math.Add");
-        add.click();
+    void theBuiltInPaletteAddsANodeToTheDocumentAndUndoRemovesIt() {
+        panel();
+        assertNotNull(graph().nodeTypes().get("Math_Add"), "the palette is filled from the catalog");
+        assertNotNull(graph().nodeTypes().get("Param_Set_Title"), "parameter nodes carry their name");
+        assertNull(graph().nodeTypes().get("reroute"), "reroute nodes are not part of the document");
+
+        NodeGraphItem created = graph().spawn("Math_Add", 100.0f, 100.0f);
+        assertNotNull(created);
         assertEquals(3, definition().nodes().size());
         assertEquals(3, graph().items().size());
+        GraphDefinition.Node node = definition().nodes().stream().filter(n -> n.id().equals(created.id())).findFirst().orElseThrow();
+        assertEquals("Math.Add", node.type());
+        assertEquals(100.0f, node.x());
 
+        // Провод к созданной ноде работает: её идентификатор не ломает запись «нода.пин».
+        graph().addConnection("c", ref(created.id(), "result"), ref("set", "value"));
+        assertEquals(2, definition().wires().size());
+
+        document.undo();
         document.undo();
         assertEquals(2, definition().nodes().size());
         assertEquals(2, graph().items().size(), "the canvas follows the undo");
+    }
+
+    @Test
+    void aParameterNodeFromThePaletteKeepsItsName() {
+        panel();
+        NodeGraphItem created = graph().spawn("Param_Get_Title", 10.0f, 10.0f);
+        GraphDefinition.Node node = definition().nodes().stream().filter(n -> n.id().equals(created.id())).findFirst().orElseThrow();
+        assertEquals("Title", node.attributes().get("Name"));
     }
 
     @Test
@@ -179,5 +198,48 @@ final class GraphPanelTest {
         assertEquals(2, broken.issueLevel());
         assertTrue(broken.ports().isEmpty());
         assertTrue(panel().problemText().contains("Title"), panel().problemText());
+    }
+
+    // ------------------------------------------------------------------ отладка
+
+    private void runRefresh() {
+        assertTrue(session.apply(GraphEdits.setAttribute(root(), "set", "value", "done")));
+        shell.dock().findPane(UiEditor.VIEWPORT).content();
+        dev.sixik.unigui.xaml.component.ComponentHost host =
+                (dev.sixik.unigui.xaml.component.ComponentHost) ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow())
+                        .previewRoot();
+        host.instance().send("Refresh", dev.sixik.unigui.xaml.component.Args.empty());
+        host.instance().flush();
+    }
+
+    @Test
+    void theDebugBarWalksThroughTheLastRunAndSelectsEachNode() {
+        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
+        assertTrue(panel().debugText().startsWith("No runs yet"), panel().debugText());
+
+        runRefresh();
+        assertTrue(panel().debugText().startsWith("Run from refresh: 2 steps"), panel().debugText());
+
+        find(content, "graph.debug.next").click();
+        assertTrue(panel().debugText().startsWith("1/2 Event.Refresh refresh"), panel().debugText());
+        assertEquals(java.util.List.of("refresh"), graph().selectedItemIds());
+
+        find(content, "graph.debug.next").click();
+        assertTrue(panel().debugText().startsWith("2/2 Param.Set set"), panel().debugText());
+        assertEquals(java.util.List.of("set"), graph().selectedItemIds());
+
+        find(content, "graph.debug.next").click();
+        assertTrue(panel().debugText().startsWith("2/2"), "stepping stops at the last step");
+
+        find(content, "graph.debug.prev").click();
+        assertTrue(panel().debugText().startsWith("1/2"), panel().debugText());
+    }
+
+    @Test
+    void clearingTheRecordResetsTheDebugBar() {
+        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
+        runRefresh();
+        find(content, "graph.debug.clear").click();
+        assertTrue(panel().debugText().startsWith("No runs yet"), panel().debugText());
     }
 }

@@ -114,6 +114,27 @@ final class UiEditorTest {
     }
 
     @Test
+    void hierarchyNodesCollapseAndExpand() {
+        HierarchyPanel panel = (HierarchyPanel) shell.panel(UiEditor.HIERARCHY).orElseThrow();
+        content(UiEditor.HIERARCHY);
+        assertEquals(3, buttonTexts(UiEditor.HIERARCHY).size());
+        panel.toggle(session.document().root());
+        assertEquals(1, buttonTexts(UiEditor.HIERARCHY).size(), "children of a collapsed node are hidden");
+        panel.toggle(session.document().root());
+        assertEquals(3, buttonTexts(UiEditor.HIERARCHY).size());
+    }
+
+    @Test
+    void selectingAHiddenNodeFromAnotherPanelExpandsTheWayToIt() {
+        HierarchyPanel panel = (HierarchyPanel) shell.panel(UiEditor.HIERARCHY).orElseThrow();
+        content(UiEditor.HIERARCHY);
+        panel.toggle(session.document().root());
+        assertEquals(1, buttonTexts(UiEditor.HIERARCHY).size());
+        session.select(node("ok"));
+        assertEquals(3, buttonTexts(UiEditor.HIERARCHY).size(), "a click in the viewport reveals the row");
+    }
+
+    @Test
     void hierarchyFollowsStructuralEdits() {
         session.select(node("root"));
         UiEdits.insert(session, session.schema().type("Slider").orElseThrow());
@@ -184,7 +205,7 @@ final class UiEditorTest {
     @Test
     void paletteAddsAWidgetIntoTheSelectedContainer() {
         session.select(node("root"));
-        button(UiEditor.PALETTE, "  Slider").click();
+        button(UiEditor.PALETTE, "Slider").click();
         UiNode root = session.document().root();
         assertEquals(3, root.children().size());
         assertEquals("Slider", root.children().get(2).type().local());
@@ -194,7 +215,7 @@ final class UiEditorTest {
     @Test
     void paletteFallsBackToTheNearestContainerWhenTheSelectionTakesNoChildren() {
         session.select(node("title"));
-        button(UiEditor.PALETTE, "  Slider").click();
+        button(UiEditor.PALETTE, "Slider").click();
         UiNode root = session.document().root();
         assertEquals(3, root.children().size(), "added next to the label, inside the VBox");
         assertEquals(0, node("title").children().size());
@@ -205,7 +226,7 @@ final class UiEditorTest {
         TextField search = all(content(UiEditor.PALETTE), TextField.class).get(0);
         search.text("slid");
         List<String> texts = buttonTexts(UiEditor.PALETTE);
-        assertEquals(List.of("  Slider"), texts);
+        assertEquals(List.of("List", "Slider"), texts, "the mode toggle and the one matching tile");
     }
 
     // ------------------------------------------------------------------ предпросмотр

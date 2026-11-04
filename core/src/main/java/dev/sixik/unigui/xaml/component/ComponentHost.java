@@ -18,6 +18,7 @@ import dev.sixik.unigui.xaml.load.MarkupExtensionRegistry;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.load.XamlLoader;
 import dev.sixik.unigui.xaml.logic.GraphRuntime;
+import dev.sixik.unigui.xaml.logic.GraphTrace;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.Schema;
 
@@ -46,6 +47,7 @@ public final class ComponentHost extends PanelWidget {
     private LoadedScreen<Widget> body;
     private String key = "";
     private LoadOptions.NodeObserver observer;
+    private GraphTrace trace;
 
     /**
      * Создаёт хост без тела.
@@ -91,6 +93,17 @@ public final class ComponentHost extends PanelWidget {
      */
     public ComponentHost observe(LoadOptions.NodeObserver value) {
         this.observer = value;
+        return this;
+    }
+
+    /**
+     * Включает запись хода графа. Вызывается до {@link #build}, чтобы в записи оказался и запуск от {@code Construct}.
+     *
+     * @param value запись или {@code null}
+     * @return этот хост
+     */
+    public ComponentHost traceTo(GraphTrace value) {
+        this.trace = value;
         return this;
     }
 
@@ -148,7 +161,8 @@ public final class ComponentHost extends PanelWidget {
         applyQueuedMutations();
         definition.applyBehaviors(instance);
         if (!definition.graph().isEmpty()) {
-            GraphRuntime.attach(instance, definition.program(), schema, context);
+            GraphRuntime runtime = GraphRuntime.attach(instance, definition.program(), schema, context);
+            if (trace != null) runtime.trace(trace);
         }
         instance.construct();
     }

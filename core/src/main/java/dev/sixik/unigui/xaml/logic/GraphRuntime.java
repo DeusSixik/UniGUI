@@ -58,6 +58,7 @@ public final class GraphRuntime {
     private Args eventArgs = Args.empty();
     private Object sender;
     private int depth;
+    private GraphTrace trace;
 
     private GraphRuntime(ComponentInstance instance, GraphProgram program, Schema schema, LoadContext loadContext) {
         this.instance = instance;
@@ -130,12 +131,28 @@ public final class GraphRuntime {
         Object previousSender = sender;
         eventArgs = args;
         sender = eventSender;
+        if (trace != null) trace.begin(nodeId);
+        String error = null;
         try {
             executor.fire(program.model(), nodeId);
+        } catch (RuntimeException failure) {
+            error = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+            throw failure;
         } finally {
             eventArgs = previousArgs;
             sender = previousSender;
+            if (trace != null) trace.end(error);
         }
+    }
+
+    /**
+     * Включает запись хода графа для отладчика.
+     *
+     * @param value запись или {@code null}, чтобы выключить
+     */
+    public void trace(GraphTrace value) {
+        this.trace = value;
+        executor.trace(value);
     }
 
     void callCustom(String name, Args args, Object eventSender) {

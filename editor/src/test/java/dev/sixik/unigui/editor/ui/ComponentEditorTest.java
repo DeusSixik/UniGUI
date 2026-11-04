@@ -85,6 +85,21 @@ final class ComponentEditorTest {
         return (Button) requireNonNull(contract(id), id);
     }
 
+    /** Открывает меню записи контракта кнопкой «⋯» и выбирает пункт. */
+    private void chooseFromMenu(String kind, String name, String item) {
+        button("menu." + kind + "." + name).click();
+        for (dev.sixik.unigui.widgets.feedback.ContextMenu menu : all(shell.overlay(),
+                dev.sixik.unigui.widgets.feedback.ContextMenu.class)) {
+            for (Widget entry : menu.itemWidgets()) {
+                if (entry instanceof Button button && button.text().startsWith(item)) {
+                    button.click();
+                    return;
+                }
+            }
+        }
+        throw new AssertionError("no menu item '" + item + "'");
+    }
+
     private static Widget requireNonNull(Widget widget, String id) {
         if (widget == null) throw new AssertionError("no widget '" + id + "' in the contract panel");
         return widget;
@@ -143,7 +158,7 @@ final class ComponentEditorTest {
         assertEquals("string", field("param.Title.Type").text());
         assertEquals("idle", field("param.Title.Default").text());
         assertEquals("id:string", field("event.Buy.Args").text());
-        assertNotNull(contract("remove.Event.Refresh"));
+        assertNotNull(contract("menu.Event.Refresh"));
     }
 
     @Test
@@ -178,7 +193,7 @@ final class ComponentEditorTest {
     void removingAReferencedParameterKeepsTheLastGoodPreviewAndReportsIt() {
         content(UiEditor.VIEWPORT);
         Widget before = viewport().previewRoot();
-        button("remove.Param.Title").click();
+        chooseFromMenu("Param", "Title", "Delete");
         assertSame(before, viewport().previewRoot(), "the preview keeps the last good instance");
         assertTrue(all(content(UiEditor.VIEWPORT), Label.class).stream()
                 .anyMatch(label -> label.text().startsWith("Preview:") && label.text().contains("Title")));

@@ -61,6 +61,40 @@ public class GraphExecutor {
     public static final int DEFAULT_MAX_STEPS = 10_000;
 
     private final Map<String, NodeBehavior> behaviors = new HashMap<>();
+    private Trace trace;
+
+    /**
+     * Наблюдатель за ходом исполнения: отладчик записывает по нему, какие ноды отработали и что они выдали.
+     */
+    public interface Trace {
+        /**
+         * Нода отработала.
+         *
+         * @param node          нода
+         * @param pure          {@code true}, если это вычисление чистой ноды по запросу данных
+         * @param outputs       значения, которые нода выдала на выходы данных
+         * @param continuations выходы потока, по которым исполнение пошло дальше
+         */
+        void step(GraphModel.Node node, boolean pure, Map<String, Object> outputs, List<String> continuations);
+
+        /**
+         * Нода завершилась ошибкой.
+         *
+         * @param node    нода
+         * @param failure причина
+         */
+        default void failed(GraphModel.Node node, RuntimeException failure) {
+        }
+    }
+
+    /**
+     * @param trace наблюдатель или {@code null}
+     * @return этот исполнитель
+     */
+    public GraphExecutor trace(Trace trace) {
+        this.trace = trace;
+        return this;
+    }
     private int maxSteps = DEFAULT_MAX_STEPS;
 
     /**
@@ -202,6 +236,7 @@ public class GraphExecutor {
                     ? new HashMap<>() : execOutputs.computeIfAbsent(node.id(), id -> new LinkedHashMap<>()));
             invoke(behavior, context, node);
             pureCache.clear();
+            if (trace != null) trace.step(node, false, new LinkedHashMap<>(context.outputs), List.copyOf(context.continuations));
             return context;
         }
 
@@ -227,6 +262,7 @@ public class GraphExecutor {
                     invoke(behavior, context, source);
                     cached = context.outputs;
                     pureCache.put(source.id(), cached);
+                    if (trace != null) trace.step(source, true, new LinkedHashMap<>(cached), List.of());
                 } finally {
                     evaluating.remove(source.id());
                 }
@@ -238,10 +274,13 @@ public class GraphExecutor {
             try {
                 behavior.run(context);
             } catch (GraphExecutionException failure) {
+                if (trace != null) trace.failed(node, failure);
                 throw failure;
             } catch (RuntimeException failure) {
-                throw new GraphExecutionException("Node '" + node.id() + "' (" + node.typeId() + ") failed: "
-                        + failure.getMessage(), failure);
+                GraphExecutionException wrapped = new GraphExecutionException("Node '" + node.id() + "' ("
+                        + node.typeId() + ") failed: " + failure.getMessage(), failure);
+                if (trace != null) trace.failed(node, wrapped);
+                throw wrapped;
             }
         }
 

@@ -34,10 +34,68 @@ final class UiEdits {
         return Optional.of(created);
     }
 
+    /**
+     * Добавляет новый узел в указанное место: в сам узел, если он принимает детей, иначе в ближайшего предка,
+     * который принимает.
+     *
+     * @param session сессия
+     * @param type    тип нового виджета
+     * @param target  узел, на который бросили или который выбран
+     * @return добавленный узел или пусто, если принять его некому
+     */
+    static Optional<UiNode> insertInto(EditorSession session, TypeInfo<?> type, UiNode target) {
+        UiNode container = container(session, target).orElse(null);
+        if (container == null) return Optional.empty();
+        UiNode created = new UiNode(type.name());
+        if (!session.apply(Edits.addChild(container, container.children().size(), created))) return Optional.empty();
+        session.select(created);
+        return Optional.of(created);
+    }
+
+    /**
+     * Переносит узел на строку иерархии: внутрь, если строка принимает детей, иначе следом за ней.
+     *
+     * @param session сессия
+     * @param node    переносимый узел
+     * @param row     узел, на который бросили
+     * @return {@code true}, если узел перенесён
+     */
+    static boolean moveOnto(EditorSession session, UiNode node, UiNode row) {
+        UiNode root = session.document().root();
+        if (node == root || node == row || isInside(node, row)) return false;
+        UiNode parent;
+        int index;
+        Optional<TypeInfo<?>> type = session.schema().type(row.type());
+        if (type.isPresent() && type.get().acceptsChildren() && !isComponentRoot(root, row)) {
+            parent = row;
+            index = row.children().size();
+        } else {
+            parent = Hierarchy.parentOf(session.document(), row).orElse(null);
+            if (parent == null) return false;
+            index = parent.children().indexOf(row) + 1;
+        }
+        Optional<UiNode> oldParent = Hierarchy.parentOf(session.document(), node);
+        if (oldParent.isPresent() && oldParent.get() == parent && parent.children().indexOf(node) < index) index--;
+        return session.apply(Edits.move(session.document(), node, parent, index));
+    }
+
+    /** @return {@code true}, если {@code inner} лежит внутри {@code outer} на любой глубине */
+    private static boolean isInside(UiNode outer, UiNode inner) {
+        for (UiNode child : outer.children()) {
+            if (child == inner || isInside(child, inner)) return true;
+        }
+        return false;
+    }
+
     /** Ближайший к выбору узел, принимающий детей: сам выбранный, затем его предки. */
     private static Optional<UiNode> container(EditorSession session) {
+        return container(session, session.selected().orElse(session.document().root()));
+    }
+
+    /** Ближайший к узлу принимающий детей: сам узел, затем его предки. */
+    private static Optional<UiNode> container(EditorSession session, UiNode start) {
         UiNode root = session.document().root();
-        UiNode node = session.selected().orElse(root);
+        UiNode node = start;
         if (isComponentRoot(root, node)) {
             // Корень компонента — не виджет: без тела новый узел станет телом, с телом вставка идёт в тело.
             if (node.children().isEmpty()) return Optional.of(node);
