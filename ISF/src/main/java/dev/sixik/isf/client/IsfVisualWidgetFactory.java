@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfVisualNode;
+import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
 import dev.sixik.unigui.api.layout.Align;
@@ -13,8 +14,12 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
@@ -28,6 +33,7 @@ import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -101,6 +107,7 @@ final class IsfVisualWidgetFactory {
             case "isf:loot_scroll", "loot_scroll" -> lootScroll(node);
             case "isf:entity_or_item", "entity_or_item" -> entityOrItem(node);
             case "isf:transfer_button", "transfer_button" -> transferButton(node);
+            case "isf:mark_button", "mark_button" -> markButton(node);
             default -> {
                 Label unsupported = new Label("Unknown visual widget: " + node.widget());
                 unsupported.color(MutableColor.fromHex("#FF6B6BFF"));
@@ -132,6 +139,45 @@ final class IsfVisualWidgetFactory {
                 value(node, "items"));
         transferButtons.add(button);
         return button;
+    }
+
+    private WidgetBase markButton(IsfVisualNode node) {
+        ToggleButton button = new ToggleButton();
+        button.themeEnabled(false);
+        button.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(1.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/mark.png"), 11, 11,
+                        TextureOptions.nearest()))
+                .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.CHECKED,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/mark_hovered.png"), 11, 11,
+                        TextureOptions.nearest())));
+        button.layout(style -> style.size(8,8));
+        ResourceLocation itemId = bookmarkItemId(node);
+        // Начальное состояние берём из уже собранных клеток закладок оверлея:
+        // если предмет там есть, кнопка рисуется в CHECKED (своя текстура).
+        button.silentChecked(IsfClient.OVERLAY.bookmarkCells.containsKey(itemId));
+        button.onCheckedChanged(event -> {
+            System.out.println(itemId);
+            // ToggleButton переключил checked до события, поэтому newValue —
+            // целевое состояние: true — добавить в закладки, false — убрать.
+            IsfNetwork.toggleBookmark(itemId, event.newValue());
+        });
+        return button;
+    }
+
+    /**
+     * Предмет, которым управляет mark-кнопка: свойство {@code item} узла, либо
+     * результат рецепта ({@code result}), если свойство не задано.
+     * Воздух и неизвестные id дают {@code null}.
+     */
+    private ResourceLocation bookmarkItemId(IsfVisualNode node) {
+        JsonElement raw = value(node, "item");
+        if (raw == null) raw = context.parameter("result");
+        ResourceLocation id = itemId(firstAlternative(raw));
+        if (id == null) return null;
+        Item item = BuiltInRegistries.ITEM.get(id);
+        return item == null || item == net.minecraft.world.item.Items.AIR ? null : id;
     }
 
     private WidgetBase itemWidget(IsfVisualNode node) {

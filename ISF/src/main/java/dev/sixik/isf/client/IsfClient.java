@@ -10,7 +10,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 
 /** Клиентские hooks и небольшой безопасный recipe browser overlay. */
 public final class IsfClient {
-    private static final IsfBrowserOverlay OVERLAY = new IsfBrowserOverlay();
+    public static final IsfBrowserOverlay OVERLAY = new IsfBrowserOverlay();
 
     private IsfClient() {
     }

@@ -15,9 +15,7 @@ import dev.sixik.unigui.api.event.PointerEnteredEvent;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.layout.*;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.ImageFit;
-import dev.sixik.unigui.api.render.SliceBorders;
-import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.widget.Widget;
@@ -90,7 +88,7 @@ final class IsfBrowserOverlay {
     private final List<IsfTransferButton> transferButtons = new ArrayList<>();
     private final List<Widget> pageVisuals = new ArrayList<>();
     private boolean recipeItemButtonsPopulated;
-    private final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
+    public final Map<ResourceLocation, Button> bookmarkCells = new LinkedHashMap<>();
     private final Map<ResourceLocation, MinecraftItemTooltip> bookmarkTooltips = new LinkedHashMap<>();
     private final Map<ResourceLocation, Button> itemCells = new LinkedHashMap<>();
     private String browserFilter = "";
@@ -140,7 +138,7 @@ final class IsfBrowserOverlay {
     private PendingRecipeQuery selectedQuery;
 
     private static final float RECIPE_GAP = 2.0f;
-    private static final float CATALYST_CELL = 20.0f;
+    private static final float CATALYST_CELL = 28.0f;
     private static final float TAB_CELL = 24.0f;
     /**
      * Высота строки вкладок: вкладка 20.
@@ -853,6 +851,7 @@ final class IsfBrowserOverlay {
                 .top(TAB_CELL - 3)
                 .alignSelf(Align.START)
         );
+        catalystColumn.spacing(2.0f);
         catalystColumn.themeEnabled(false);
         catalystColumn.boxVisualEnabled(true);
         catalystColumn.style(style -> style.put(StyleKeys.BACKGROUND_VISIBLE, true)
@@ -1552,8 +1551,7 @@ final class IsfBrowserOverlay {
                         .put(StyleKeys.BACKGROUND_KIND, BackgroundKind.TEXTURE)
                         .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
                         .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(3.0f))
-                        .put(StyleKeys.BACKGROUND_TEXTURE, tabTexture(false)));
-                tab.radius(2.0f);
+                        .put(StyleKeys.BACKGROUND_TEXTURE_GROUP, tabTexture(false)));
                 tab.layout(style -> style.size(TAB_CELL, TAB_CELL).flexNone());
                 ItemStack icon = tabIcon(typeId);
                 if (icon.isEmpty()) {
@@ -1563,7 +1561,7 @@ final class IsfBrowserOverlay {
                 } else {
                     IsfItemIconWidget iconWidget = new IsfItemIconWidget(icon);
                     iconWidget.enabled(false);
-                    iconWidget.layout(style -> style.size(16.0f, 16.0f).centerSelf().flexNone());
+                    iconWidget.layout(style -> style.size(15.0f, 15.0f).centerSelf().flexNone());
                     tab.addChild(iconWidget);
                     MinecraftItemTooltip tooltip = new MinecraftItemTooltip(tab, icon);
                     tabTooltips.add(tooltip);
@@ -1589,15 +1587,15 @@ final class IsfBrowserOverlay {
     private void syncTabTextures() {
         for (TypeTab tab : typeTabs) {
             boolean selected = tab.typeId().equals(selectedTypeId);
-            tab.button().style(style -> style.put(StyleKeys.BACKGROUND_TEXTURE, tabTexture(selected)));
+            tab.button().style(style -> style.put(StyleKeys.BACKGROUND_TEXTURE_GROUP, tabTexture(selected)));
         }
     }
 
-    private static MinecraftTextureHandle tabTexture(boolean selected) {
-        return new MinecraftTextureHandle(
-                ResourceLocation.tryBuild(IsfMod.MOD_ID,
-                        selected ? TAB_TEXTURE_SELECTED : TAB_TEXTURE_UNSELECTED),
-                34, 34, TextureOptions.nearest());
+    private static TextureGroup tabTexture(boolean selected) {
+        return new TextureGroup(List.of(
+                new TextureLayer( new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, selected ? TAB_TEXTURE_SELECTED : TAB_TEXTURE_UNSELECTED), 34, 34, TextureOptions.nearest())),
+                new TextureLayer(new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/dark_slot.png"),18,18)).inset(4.0f))
+        );
     }
 
     /**
