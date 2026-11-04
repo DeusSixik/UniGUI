@@ -152,7 +152,9 @@ final class BuiltInMinecraftXml {
         picker.textures(entries);
     }
 
-    /** An item id with the optional {@code @metadata} suffix of 1.12.2. */
+    /**
+     * An item id with the optional {@code @metadata} suffix of 1.12.2.
+     */
     record ItemSpec(ResourceLocation id, int metadata) {
     }
 
