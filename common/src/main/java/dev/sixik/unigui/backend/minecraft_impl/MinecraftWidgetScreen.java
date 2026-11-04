@@ -19,7 +19,7 @@ import dev.sixik.unigui.api.text.Fonts;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XmlWidgetScreen;
+import dev.sixik.unigui.xaml.load.LoadedScreen;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.input.CursorResolver;
 import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
@@ -50,7 +50,7 @@ public class MinecraftWidgetScreen extends Screen {
     private final Widget root;
     private final UIContext uiContext;
     /** XML-экран, владеющий binding-подписками, которые нужно закрыть при удалении Minecraft screen. */
-    private XmlWidgetScreen<? extends Widget> xmlScreenOwner;
+    private LoadedScreen<? extends Widget> xmlScreenOwner;
     private final DrawList drawList = new DrawList();
     private final DrawList scaledDrawList = new DrawList();
     private final DrawList debugOverlayDrawList = new DrawList();
@@ -95,11 +95,11 @@ public class MinecraftWidgetScreen extends Screen {
         this(title, root, new DefaultUIContext(new MinecraftClipboardService()));
     }
 
-    public MinecraftWidgetScreen(XmlWidgetScreen<? extends Widget> xmlScreen) {
+    public MinecraftWidgetScreen(LoadedScreen<? extends Widget> xmlScreen) {
         this(Component.empty(), xmlScreen);
     }
 
-    public MinecraftWidgetScreen(Component title, XmlWidgetScreen<? extends Widget> xmlScreen) {
+    public MinecraftWidgetScreen(Component title, LoadedScreen<? extends Widget> xmlScreen) {
         this(title, xmlScreenRoot(xmlScreen), xmlScreenContext(xmlScreen));
         applyXmlScreenConfig(xmlScreen);
         this.xmlScreenOwner = xmlScreen;
@@ -117,11 +117,11 @@ public class MinecraftWidgetScreen extends Screen {
         return this;
     }
 
-    private static Widget xmlScreenRoot(XmlWidgetScreen<? extends Widget> xmlScreen) {
+    private static Widget xmlScreenRoot(LoadedScreen<? extends Widget> xmlScreen) {
         return Objects.requireNonNull(xmlScreen, "xmlScreen").root();
     }
 
-    private static UIContext xmlScreenContext(XmlWidgetScreen<? extends Widget> xmlScreen) {
+    private static UIContext xmlScreenContext(LoadedScreen<? extends Widget> xmlScreen) {
         return new DefaultUIContext(new MinecraftClipboardService())
                 .scaleProvider(Objects.requireNonNull(xmlScreen, "xmlScreen").scaleProvider());
     }
@@ -232,7 +232,7 @@ public class MinecraftWidgetScreen extends Screen {
         return this;
     }
 
-    public MinecraftWidgetScreen applyXmlScreenConfig(XmlWidgetScreen<?> xmlScreen) {
+    public MinecraftWidgetScreen applyXmlScreenConfig(LoadedScreen<?> xmlScreen) {
         if (xmlScreen == null) return this;
         if (uiContext instanceof DefaultUIContext context) {
             context.scaleProvider(xmlScreen.scaleProvider());
