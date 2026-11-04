@@ -114,8 +114,9 @@ final class ProjectTest {
         project.createComponent("Card");
         project.createComponent("Other");
         project.createStruct("Product");
+        project.createStruct("Other");
         assertFalse(project.rename("components/card.xaml", "Other").isEmpty(), "the tag is taken");
-        assertFalse(project.rename("structs/product.xaml", "Item").isEmpty(), "structs are referenced by type names");
+        assertFalse(project.rename("structs/product.xaml", "Other").isEmpty(), "the struct name is taken");
         assertFalse(project.rename("components/card.xaml", "bad name").isEmpty());
         assertFalse(project.rename("components/missing.xaml", "X").isEmpty());
         assertTrue(project.has("components/card.xaml"));
@@ -149,5 +150,99 @@ final class ProjectTest {
         project.rename("screens/main.xaml", "home");
         project.delete("screens/home.xaml");
         assertEquals(3, calls[0]);
+    }
+
+    private void shopWithReferences() {
+        project.createStruct("Product");
+        project.createComponent("Card");
+        project.createScreen("main");
+        project.addResource("textures/icons/sword.png", new byte[]{1});
+        EditorSession card = project.session("components/card.xaml");
+        card.replaceText("""
+                <Component x:Name="Card" xmlns:x="https://unigui.dev/xaml">
+                  <Component.Contract>
+                    <Param Name="Item" Type="struct:Product"/>
+                    <Event Name="Buy" Direction="Out" Args="item:struct:Product"/>
+                  </Component.Contract>
+                  <Button id="icon" hoverTexture="icons/sword.png"/>
+                  <Component.Graph>
+                    <Node Id="make" Type="Struct.Make" Struct="Product"/>
+                  </Component.Graph>
+                </Component>""");
+        card.save();
+        EditorSession screen = project.session("screens/main.xaml");
+        screen.replaceText("<VBox><Card id=\"first\"/><Card id=\"second\"/></VBox>");
+        screen.save();
+    }
+
+    @Test
+    void usagesListEveryReferenceToAComponentAStructAndAResource() {
+        shopWithReferences();
+        List<Project.Usage> component = project.usages("components/card.xaml");
+        assertEquals(2, component.size(), component.toString());
+        assertTrue(component.stream().allMatch(use -> use.path().equals("screens/main.xaml")));
+
+        List<Project.Usage> struct = project.usages("structs/product.xaml");
+        assertTrue(struct.size() >= 3, "param type, event argument and the graph node: " + struct);
+        assertTrue(struct.stream().allMatch(use -> use.path().equals("components/card.xaml")));
+
+        List<Project.Usage> texture = project.usages("textures/icons/sword.png");
+        assertEquals(1, texture.size(), texture.toString());
+        assertEquals("components/card.xaml", texture.get(0).path());
+
+        assertEquals(List.of(), project.usages("screens/main.xaml"));
+    }
+
+    @Test
+    void deletingIsRefusedWhileSomethingUsesTheFile() {
+        shopWithReferences();
+        String reason = project.deleteIfUnused("components/card.xaml");
+        assertTrue(reason.contains("screens/main.xaml"), reason);
+        assertTrue(project.has("components/card.xaml"));
+        assertEquals("", project.deleteIfUnused("screens/main.xaml"));
+        assertEquals("", project.deleteIfUnused("components/card.xaml"), "unused once the screen is gone");
+    }
+
+    @Test
+    void renamingAStructUpdatesTypesAndNodesEverywhere() {
+        shopWithReferences();
+        assertEquals("", project.rename("structs/product.xaml", "Item"));
+        assertTrue(project.has("structs/item.xaml"));
+        String struct = project.text("structs/item.xaml").orElseThrow();
+        assertTrue(struct.contains("Name=\"Item\""), struct);
+        String card = project.text("components/card.xaml").orElseThrow();
+        assertTrue(card.contains("Type=\"struct:Item\"") && card.contains("Args=\"item:struct:Item\"")
+                && card.contains("Struct=\"Item\""), card);
+        assertFalse(card.contains("Product"), card);
+        assertEquals(List.of(), project.check());
+    }
+
+    @Test
+    void refreshingPicksUpExternalEditsAndKeepsUnsavedWork(@TempDir Path folder) throws IOException {
+        project.createScreen("main");
+        project.createComponent("Card");
+        project.save(folder);
+        project.install();
+
+        java.nio.file.Files.writeString(folder.resolve("screens/main.xaml"), "<VBox><Label text=\"outside\"/></VBox>");
+        java.nio.file.Files.writeString(folder.resolve("screens/new.xaml"), "<VBox/>");
+        java.nio.file.Files.delete(folder.resolve("components/card.xaml"));
+
+        Project.Refresh refresh = project.refreshFrom(folder);
+        assertEquals(List.of("screens/new.xaml"), refresh.added());
+        assertEquals(List.of("screens/main.xaml"), refresh.changed());
+        assertEquals(List.of("components/card.xaml"), refresh.removed());
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("outside"));
+        assertFalse(project.has("components/card.xaml"));
+        assertTrue(Components.find("shop/card").isEmpty(), "the installation follows the folder");
+
+        // Несохранённые правки не затираются внешним изменением.
+        EditorSession main = project.session("screens/main.xaml");
+        main.replaceText("<VBox><Label text=\"mine\"/></VBox>");
+        java.nio.file.Files.writeString(folder.resolve("screens/main.xaml"), "<VBox><Label text=\"theirs\"/></VBox>");
+        Project.Refresh conflict = project.refreshFrom(folder);
+        assertEquals(List.of("screens/main.xaml"), conflict.conflicts());
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("mine"));
+
     }
 }

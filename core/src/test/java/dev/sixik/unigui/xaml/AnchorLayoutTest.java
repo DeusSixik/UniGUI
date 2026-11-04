@@ -66,4 +66,17 @@ final class AnchorLayoutTest {
         assertEquals(380.0f, stretched.width(), 0.5f);
         assertEquals(280.0f, stretched.height(), 0.5f);
     }
+
+    @Test
+    void absoluteInsetsAnchorToTheNearEdgeOfAnyParent() {
+        Widget root = Xaml.load("<VBox id=\"root\"><Box id=\"box\" position=\"absolute\" right=\"8\" bottom=\"6\" "
+                + "width=\"60\" height=\"20\"/></VBox>");
+        apply(root);
+        root.measure(new LayoutContext(400, 300));
+        root.arrange(new MutableRect(0.0f, 0.0f, 400, 300));
+        apply(root);
+        RectView bounds = boxOf(root);
+        assertEquals(392.0f, bounds.x() + bounds.width(), 0.5f);
+        assertEquals(294.0f, bounds.y() + bounds.height(), 0.5f);
+    }
 }

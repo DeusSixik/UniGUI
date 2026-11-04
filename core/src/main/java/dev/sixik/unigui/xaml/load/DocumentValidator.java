@@ -444,6 +444,7 @@ public final class DocumentValidator {
                     if (styles.putIfAbsent(style.key(), style) != null) {
                         add(entry.location(), "Duplicate resource key '" + style.key() + "'.");
                     }
+                    checkSetters(style);
                 } catch (StyleProblem problem) {
                     add(problem.at, problem.getMessage());
                 }
@@ -466,6 +467,40 @@ public final class DocumentValidator {
                 add(entry.location(), "Resource entry <" + entry.type().qualified() + "> requires x:Key.");
             } else if (entries.putIfAbsent(key, entry.text().trim()) != null) {
                 add(entry.location(), "Duplicate resource key '" + key + "'.");
+            }
+        }
+
+        /** Сеттеры стиля должны называть существующее свойство и нести значение, которое оно принимает. */
+        private void checkSetters(StyleDef style) {
+            TypeInfo<?> target = style.targetType() == null ? null : schema.type(style.targetType()).orElse(null);
+            if (style.targetType() != null && target == null) {
+                add(style.location(), "Style '" + style.key() + "' targets unknown type '"
+                        + style.targetType().qualified() + "'.");
+                return;
+            }
+            for (StyleDef.Setter setter : style.setters()) {
+                PropertyInfo<?, ?> info = null;
+                if (target != null) {
+                    info = target.property(setter.name()).orElse(null);
+                } else {
+                    for (TypeInfo<?> type : schema.types()) {
+                        info = type.property(setter.name()).orElse(null);
+                        if (info != null) break;
+                    }
+                }
+                if (info == null) {
+                    add(setter.location(), "Style '" + style.key() + "' sets unknown property '" + setter.name() + "'"
+                            + (target == null ? "." : " of " + target.name().local() + "."));
+                    continue;
+                }
+                if (setter.value() instanceof UiValue.Literal literal) {
+                    try {
+                        info.convert(literal.text(), LoadContext.DEFAULT);
+                    } catch (RuntimeException failure) {
+                        add(setter.location(), "Style '" + style.key() + "': '" + literal.text()
+                                + "' is not valid for '" + setter.name() + "': " + failure.getMessage());
+                    }
+                }
             }
         }
 

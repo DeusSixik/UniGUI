@@ -311,6 +311,87 @@ public final class Project {
         return false;
     }
 
+    // ------------------------------------------------------------------ обновление с диска
+
+    /**
+     * Итог обновления с диска.
+     *
+     * @param added     файлы, которых в проекте не было
+     * @param changed   файлы, содержимое которых заменено
+     * @param removed   файлы, которых на диске больше нет
+     * @param conflicts документы с несохранёнными правками, которые на диске тоже изменились: они не тронуты
+     */
+    public record Refresh(List<String> added, List<String> changed, List<String> removed, List<String> conflicts) {
+        /** @return {@code true}, если проект изменился */
+        public boolean any() {
+            return !added.isEmpty() || !changed.isEmpty() || !removed.isEmpty();
+        }
+    }
+
+    /**
+     * Подтягивает изменения из папки проекта: так проект перечитывается, когда файлы правит внешний редактор или
+     * игра запущена с живой папкой. Документ с несохранёнными правками не перезаписывается, а попадает в
+     * {@link Refresh#conflicts()}. Если проект установлен в рантайм, установка обновляется.
+     *
+     * @param folder папка с раскладкой пака
+     * @return что изменилось
+     * @throws IOException если папка не читается
+     */
+    public Refresh refreshFrom(Path folder) throws IOException {
+        List<String> added = new ArrayList<>();
+        List<String> changedFiles = new ArrayList<>();
+        List<String> removed = new ArrayList<>();
+        List<String> conflicts = new ArrayList<>();
+        Path manifestFile = folder.resolve(PackManifest.FILE);
+        if (Files.isRegularFile(manifestFile)) {
+            PackManifest fresh = PackManifest.parse(Files.readString(manifestFile, StandardCharsets.UTF_8));
+            if (!fresh.equals(manifest)) {
+                manifest = fresh;
+                changedFiles.add(PackManifest.FILE);
+            }
+        }
+        java.util.Set<String> onDisk = new java.util.HashSet<>();
+        try (Stream<Path> walk = Files.walk(folder)) {
+            for (Path file : (Iterable<Path>) walk.filter(Files::isRegularFile)::iterator) {
+                String name = folder.relativize(file).toString().replace('\\', '/');
+                if (name.equals(PackManifest.FILE)) continue;
+                onDisk.add(name);
+                byte[] data = Files.readAllBytes(file);
+                byte[] known = files.get(name);
+                if (known == null) {
+                    files.put(name, data);
+                    added.add(name);
+                } else if (!java.util.Arrays.equals(known, data)) {
+                    EditorSession open = sessions.get(name);
+                    if (open != null && open.dirty()) {
+                        conflicts.add(name);
+                    } else {
+                        files.put(name, data);
+                        sessions.remove(name);
+                        changedFiles.add(name);
+                    }
+                }
+            }
+        }
+        for (String name : new ArrayList<>(files.keySet())) {
+            if (onDisk.contains(name)) continue;
+            EditorSession open = sessions.get(name);
+            if (open != null && open.dirty()) {
+                conflicts.add(name);
+                continue;
+            }
+            files.remove(name);
+            sessions.remove(name);
+            removed.add(name);
+        }
+        Refresh result = new Refresh(added, changedFiles, removed, conflicts);
+        if (result.any()) {
+            if (installation != null) install();
+            changed();
+        }
+        return result;
+    }
+
     // ------------------------------------------------------------------ создание, переименование, удаление
 
     /**
@@ -408,7 +489,7 @@ public final class Project {
         if (!files.containsKey(path)) return "No file '" + path + "'.";
         Entry entry = entry(path);
         if (!entry.kind().document()) return "Only documents can be renamed.";
-        if (entry.kind() == Kind.STRUCT) return "A struct cannot be renamed: field and parameter types refer to it.";
+        if (entry.kind() == Kind.STRUCT) return renameStruct(path, newName);
         if (!NAME.matcher(newName).matches()) return "'" + newName + "' is not a valid name.";
         String target = entry.kind().folder() + fileName(newName, entry.kind());
         if (!target.equals(path) && files.containsKey(target)) return "'" + target + "' already exists.";
@@ -429,6 +510,174 @@ public final class Project {
         structureDirty = true;
         changed();
         return "";
+    }
+
+    // ------------------------------------------------------------------ ссылки
+
+    /**
+     * Место, где файл используется другим документом.
+     *
+     * @param path  документ, который ссылается
+     * @param where что именно ссылается: тег, тип поля, нода графа, значение свойства
+     */
+    public record Usage(String path, String where) {
+    }
+
+    /**
+     * Находит все ссылки на файл из других документов: теги компонента, типы {@code struct:Имя} и ноды
+     * {@code Struct} структуры, идентификаторы ресурсов в значениях свойств.
+     *
+     * @param path путь файла
+     * @return ссылки; пустой список, если файл никому не нужен
+     */
+    public List<Usage> usages(String path) {
+        if (!files.containsKey(path)) return List.of();
+        Entry target = entry(path);
+        sync();
+        List<Usage> found = new ArrayList<>();
+        String key = switch (target.kind()) {
+            case COMPONENT -> tagOf(path);
+            case STRUCT -> structName(path);
+            case TEXTURE, OTHER -> resourceId(path);
+            default -> null;
+        };
+        if (key == null) return List.of();
+        for (Entry entry : entries()) {
+            if (!entry.kind().document() || entry.path().equals(path)) continue;
+            UiDocument document;
+            try {
+                document = XamlFormat.INSTANCE.read(text(entry.path()).orElse(""));
+            } catch (RuntimeException failure) {
+                continue;
+            }
+            scan(document.root(), target.kind(), key, entry.path(), found);
+        }
+        return found;
+    }
+
+    private static void scan(UiNode node, Kind kind, String key, String path, List<Usage> found) {
+        String label = node.type().local() + node.attributeText("id").map(id -> " #" + id)
+                .or(() -> node.attributeText("Id").map(id -> " #" + id)).orElse("");
+        if (kind == Kind.COMPONENT && node.type().local().equals(key)) found.add(new Usage(path, "<" + label.trim() + ">"));
+        for (var property : node.properties()) {
+            if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Literal literal && mentions(kind, key, literal.text())) {
+                if (kind != Kind.COMPONENT) found.add(new Usage(path, label + "." + property.name().local()));
+            } else if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Elements elements) {
+                for (var item : elements.content()) if (item instanceof UiNode nested) scan(nested, kind, key, path, found);
+            }
+        }
+        for (UiNode child : node.children()) scan(child, kind, key, path, found);
+    }
+
+    private static boolean mentions(Kind kind, String key, String text) {
+        if (kind == Kind.STRUCT) {
+            return text.matches("(?s).*(^|[\\s,:])struct:" + Pattern.quote(key) + "($|[\\s,]).*") || text.equals(key);
+        }
+        if (kind == Kind.TEXTURE || kind == Kind.OTHER) {
+            return text.equals(key) || text.matches("(?s).*[\\s,(\"']" + Pattern.quote(key) + "($|[\\s,)\"']).*");
+        }
+        return false;
+    }
+
+    private static String resourceId(String path) {
+        int slash = path.indexOf('/');
+        return slash < 0 ? path : path.substring(slash + 1);
+    }
+
+    private String structName(String path) {
+        try {
+            for (var property : XamlFormat.INSTANCE.read(text(path).orElse("")).root().properties()) {
+                if (property.name().local().equals("Name") && property.owner() == null
+                        && property.value() instanceof dev.sixik.unigui.xaml.UiValue.Literal literal) {
+                    return literal.text().trim();
+                }
+            }
+        } catch (RuntimeException failure) {
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Удаляет файл, только если на него никто не ссылается.
+     *
+     * @param path путь файла
+     * @return пустая строка при успехе или причина отказа со списком ссылок
+     */
+    public String deleteIfUnused(String path) {
+        if (!files.containsKey(path)) return "No file '" + path + "'.";
+        List<Usage> users = usages(path);
+        if (!users.isEmpty()) {
+            StringBuilder reason = new StringBuilder("'" + path + "' is used by ");
+            for (int i = 0; i < Math.min(5, users.size()); i++) {
+                if (i > 0) reason.append(", ");
+                reason.append(users.get(i).path()).append(' ').append(users.get(i).where());
+            }
+            if (users.size() > 5) reason.append(" and ").append(users.size() - 5).append(" more");
+            return reason.append('.').toString();
+        }
+        delete(path);
+        return "";
+    }
+
+    /** Переименовывает структуру: файл, {@code x:Name}, типы {@code struct:Имя} и атрибуты {@code Struct} нод. */
+    private String renameStruct(String path, String newName) {
+        sync();
+        String oldName = structName(path);
+        if (oldName == null) return "The struct document cannot be read.";
+        if (oldName.equals(newName)) return "";
+        for (Entry entry : entries(Kind.STRUCT)) {
+            if (!entry.path().equals(path) && newName.equals(structName(entry.path()))) {
+                return "The struct '" + newName + "' already exists.";
+            }
+        }
+        String target = Kind.STRUCT.folder() + fileName(newName, Kind.STRUCT);
+        if (!target.equals(path) && files.containsKey(target)) return "'" + target + "' already exists.";
+
+        for (Entry entry : entries()) {
+            if (!entry.kind().document()) continue;
+            UiDocument document;
+            try {
+                document = XamlFormat.INSTANCE.read(text(entry.path()).orElse(""));
+            } catch (RuntimeException failure) {
+                continue;
+            }
+            boolean[] changed = {false};
+            boolean self = entry.path().equals(path);
+            retype(document.root(), oldName, newName, self, changed);
+            if (changed[0]) files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
+            sessions.remove(entry.path());
+        }
+        byte[] data = files.remove(path);
+        sessions.remove(path);
+        files.put(target, data);
+        structureDirty = true;
+        changed();
+        return "";
+    }
+
+    private static void retype(UiNode node, String oldName, String newName, boolean declaration, boolean[] changed) {
+        for (var property : List.copyOf(node.properties())) {
+            if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Literal literal) {
+                String text = literal.text();
+                String next = text.replaceAll("(^|[\\s,:])struct:" + Pattern.quote(oldName) + "(?=$|[\\s,])",
+                        "$1struct:" + newName);
+                boolean isDeclaration = declaration && property.name().local().equals("Name") && property.owner() == null
+                        && node.type().local().equals("Struct") && text.trim().equals(oldName);
+                boolean isNodeRef = property.name().local().equals("Struct") && text.trim().equals(oldName);
+                if (isDeclaration || isNodeRef) next = newName;
+                if (!next.equals(text)) {
+                    node.set(new dev.sixik.unigui.xaml.UiProperty(property.name(), property.owner(),
+                            new dev.sixik.unigui.xaml.UiValue.Literal(next), property.form(), property.location()));
+                    changed[0] = true;
+                }
+            } else if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Elements elements) {
+                for (var item : elements.content()) {
+                    if (item instanceof UiNode nested) retype(nested, oldName, newName, declaration, changed);
+                }
+            }
+        }
+        for (UiNode child : node.children()) retype(child, oldName, newName, declaration, changed);
     }
 
     // ------------------------------------------------------------------ теги компонентов
@@ -493,6 +742,16 @@ public final class Project {
             }
         }
         for (UiNode child : node.children()) visit(child, oldTag, newTag, changed);
+    }
+
+    /**
+     * Ресурсы проекта для выбора в значениях свойств.
+     *
+     * @return каталог по папкам {@code textures/}, {@code fonts/}, {@code shaders/}
+     */
+    public dev.sixik.unigui.xaml.edit.ResourceCatalog resources() {
+        return folder -> files.keySet().stream().filter(path -> path.startsWith(folder))
+                .map(path -> path.substring(folder.length())).toList();
     }
 
     // ------------------------------------------------------------------ проверка и рантайм

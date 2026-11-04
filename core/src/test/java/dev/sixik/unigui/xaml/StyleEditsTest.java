@@ -52,6 +52,10 @@ final class StyleEditsTest {
     void duplicatesAndMissingStylesAreRefused() {
         assertTrue(add("Primary", "Button", null));
         assertFalse(add("Primary", "Button", null), "the key is taken");
+        assertFalse(session.apply(StyleEdits.setSetter(session.document(), root(), "Primary", "noSuchProperty", "1",
+                session.schema())), "an unknown property would make the document worse");
+        assertFalse(session.apply(StyleEdits.setSetter(session.document(), root(), "Primary", "opacity", "lots",
+                session.schema())), "a value the property cannot take is refused");
         assertFalse(session.apply(StyleEdits.removeStyle(session.document(), root(), "Missing", session.schema())));
         assertFalse(session.apply(StyleEdits.setSetter(session.document(), root(), "Missing", "text", "x", session.schema())));
     }
