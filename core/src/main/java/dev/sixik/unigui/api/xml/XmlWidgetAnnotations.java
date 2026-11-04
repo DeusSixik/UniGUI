@@ -219,10 +219,26 @@ public final class XmlWidgetAnnotations {
      */
     public static Optional<XmlAttributeDescriptor> commonAttributeDescriptor(String name) {
         if (name == null || name.isBlank()) return Optional.empty();
-        Map<String, XmlAttributeDescriptor> attributes = new LinkedHashMap<>();
-        registerStyleAttributeDescriptors(attributes);
-        registerLayoutAttributeDescriptors(attributes);
-        return Optional.ofNullable(attributes.get(name));
+        return Optional.ofNullable(CommonDescriptors.ALL.get(name));
+    }
+
+    /**
+     * Общие style/layout descriptor-ы, построенные один раз на JVM.
+     *
+     * <p>{@link XmlAttributeDescriptor} иммутабелен, поэтому один экземпляр безопасно
+     * делится между всеми типами виджетов. Раньше карта из ~55 descriptor-ов пересобиралась
+     * на каждый вызов {@link #commonAttributeDescriptor(String)}, а он вызывается по разу на
+     * каждый общий атрибут каждого типа, то есть реестр строился за O(типы × атрибуты²).</p>
+     */
+    private static final class CommonDescriptors {
+        static final Map<String, XmlAttributeDescriptor> ALL = build();
+
+        private static Map<String, XmlAttributeDescriptor> build() {
+            Map<String, XmlAttributeDescriptor> attributes = new LinkedHashMap<>();
+            registerStyleAttributeDescriptors(attributes);
+            registerLayoutAttributeDescriptors(attributes);
+            return java.util.Collections.unmodifiableMap(attributes);
+        }
     }
 
     private static XmlAttributeDescriptor descriptor(String name, XmlAttribute annotation, Class<?> parameterType) {

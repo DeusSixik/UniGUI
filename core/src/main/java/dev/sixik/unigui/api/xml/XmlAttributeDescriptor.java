@@ -260,10 +260,15 @@ public record XmlAttributeDescriptor(
         }
     }
 
+    /**
+     * Скомпилированный один раз шаблон {@code #RRGGBB} / {@code #RRGGBBAA}.
+     * Второй вариант прежнего кода ({@code #[0-9a-f]{8}}) целиком входил в первый, поэтому отдельный шаблон не нужен.
+     */
+    private static final java.util.regex.Pattern COLOR_LITERAL =
+            java.util.regex.Pattern.compile("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?");
+
     private static boolean looksLikeColor(String value) {
         if (value == null) return false;
-        String normalized = value.trim();
-        return normalized.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")
-                || normalized.matches("#[0-9a-fA-F]{8}");
+        return COLOR_LITERAL.matcher(value.trim()).matches();
     }
 }

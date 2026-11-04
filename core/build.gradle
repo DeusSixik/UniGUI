@@ -48,6 +48,17 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
 
+// XML/XAML behaviour tests load the real demo documents that ship with the common module.
+sourceSets {
+    test {
+        resources {
+            srcDir rootProject.file('common/src/main/resources')
+            // Only the documents: common's META-INF/services entries reference Minecraft-only classes.
+            include 'assets/unigui/xml/**'
+        }
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.release = 17
     options.compilerArgs << "-parameters"
