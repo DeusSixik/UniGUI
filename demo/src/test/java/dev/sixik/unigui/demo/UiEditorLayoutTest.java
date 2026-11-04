@@ -73,6 +73,28 @@ class UiEditorLayoutTest {
     }
 
     @Test
+    void theComponentEditorGivesTheContractAndThePreviewRealSpace() {
+        Widget root = UiEditorScreen.createComponentScreen().root();
+        layout(root);
+        DockingRoot dock = dock(root);
+        assertNotNull(dock);
+
+        RectView contract = dock.findPane("contract").content().layoutBounds();
+        assertTrue(contract.width() > 150.0f && contract.height() > 100.0f, "the contract panel is usable: " + contract);
+        RectView viewport = dock.findPane("viewport").content().layoutBounds();
+        assertTrue(viewport.width() > 300.0f && viewport.height() > 200.0f, "the preview area is usable: " + viewport);
+
+        List<Widget> everything = new ArrayList<>();
+        collect(dock.findPane("viewport").content(), everything);
+        for (String id : List.of("card", "title", "price", "buy")) {
+            Widget widget = everything.stream().filter(candidate -> id.equals(candidate.id())).findFirst().orElse(null);
+            assertNotNull(widget, "the card body has '" + id + "'");
+            assertTrue(widget.layoutBounds().width() > 0.0f && widget.layoutBounds().height() > 0.0f,
+                    id + " has a real size: " + widget.layoutBounds());
+        }
+    }
+
+    @Test
     void thePreviewWidgetsAreLaidOutWithPositiveSizes() {
         Widget root = UiEditorScreen.createScreen().root();
         layout(root);

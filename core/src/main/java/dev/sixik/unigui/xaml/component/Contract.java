@@ -140,12 +140,12 @@ public final class Contract {
     }
 
     /** @return имена параметров через запятую, для сообщений об ошибках */
-    String paramNames() {
+    public String paramNames() {
         return params.isEmpty() ? "none" : String.join(", ", params.keySet());
     }
 
     /** @return имена событий через запятую, для сообщений об ошибках */
-    String eventNames() {
+    public String eventNames() {
         return events.isEmpty() ? "none" : String.join(", ", events.keySet());
     }
 }

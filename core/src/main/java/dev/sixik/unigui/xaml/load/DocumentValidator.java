@@ -14,6 +14,9 @@ import dev.sixik.unigui.xaml.UiValue;
 import dev.sixik.unigui.xaml.XamlNamespaces;
 import dev.sixik.unigui.xaml.format.MarkupExtensions;
 import dev.sixik.unigui.xaml.format.XamlFormat;
+import dev.sixik.unigui.xaml.component.ComponentDefinition;
+import dev.sixik.unigui.xaml.component.Contract;
+import dev.sixik.unigui.xaml.logic.GraphCompiler;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.PropertyInfo;
 import dev.sixik.unigui.xaml.schema.Schema;
@@ -44,6 +47,8 @@ public final class DocumentValidator {
     private final Schema schema;
     private final MarkupExtensionRegistry extensions;
     private final boolean strictAttributes;
+    /** Контракт компонента, чьё тело проверяется; {@code null} вне документа компонента. */
+    private Contract contract;
 
     /**
      * Результат проверки.
@@ -118,11 +123,46 @@ public final class DocumentValidator {
      */
     public Result validate(UiDocument document) {
         if (document == null) throw new IllegalArgumentException("document must not be null");
-        Run run = new Run();
         UiNode root = document.root();
+        if (isComponentDocument(root)) return new Result(document, validateComponent(document));
+        Run run = new Run();
         if (run.isScreen(root)) run.screen(root);
         else run.node(root, ResourceScope.EMPTY);
         return new Result(document, run.problems);
+    }
+
+    private static boolean isComponentDocument(UiNode root) {
+        return root.type().local().equals("Component")
+                && (root.type().namespace().isEmpty() || root.type().namespace().equals(Schema.UI_NAMESPACE));
+    }
+
+    /**
+     * Проверяет документ компонента: контракт и структуру ({@link ComponentDefinition}), тело как обычное поддерево
+     * виджетов (где разрешены {@code {Param}} и {@code {Raise}}) и граф в мягком режиме, допускающем недособранность.
+     */
+    private List<UiDiagnostic> validateComponent(UiDocument document) {
+        List<UiDiagnostic> problems = new ArrayList<>();
+        ComponentDefinition definition;
+        try {
+            definition = ComponentDefinition.parse("component", document);
+        } catch (XamlLoadException failure) {
+            problems.addAll(failure.diagnostics());
+            return problems;
+        }
+        MarkupExtensionRegistry inside = extensions.copy()
+                .replace("Param", (context, use, target) -> { })
+                .replace("Raise", (context, use, target) -> { });
+        DocumentValidator body = new DocumentValidator(schema, inside, strictAttributes);
+        body.contract = definition.contract();
+        Run run = body.new Run();
+        run.node(definition.body(), ResourceScope.EMPTY);
+        problems.addAll(run.problems);
+        try {
+            GraphCompiler.check("component", definition.graph(), definition.contract());
+        } catch (XamlLoadException failure) {
+            problems.addAll(failure.diagnostics());
+        }
+        return problems;
     }
 
     private static boolean isElementForm(UiProperty property) {
@@ -253,7 +293,9 @@ public final class DocumentValidator {
                     return;
                 }
                 String name = extension.name().local();
-                if (name.equals("Binding") && !info.bindable()) {
+                if (contract != null && (name.equals("Param") || name.equals("Raise"))) {
+                    checkComponentUse(name, extension, info, property, where);
+                } else if (name.equals("Binding") && !info.bindable()) {
                     add(property.location(), where + "Attribute '" + property.displayName()
                             + "' does not support XML binding");
                 } else if (name.equals("StaticResource")) {
@@ -267,6 +309,40 @@ public final class DocumentValidator {
                         }
                     }
                 }
+            }
+        }
+
+        /** {@code {Param X}} и {@code {Raise X}} в теле компонента должны ссылаться на объявленное в контракте. */
+        private void checkComponentUse(String kind, UiValue.Extension use, PropertyInfo<?, ?> info,
+                                       UiProperty property, String where) {
+            if (use.positional().size() > 1 || !use.named().isEmpty()) {
+                add(property.location(), where + kind + " takes a single name, for example {" + kind + " Name}");
+                return;
+            }
+            if (!(use.argument("Name", 0) instanceof UiValue.Literal literal) || literal.text().isBlank()) {
+                add(property.location(), where + kind + " requires a name, for example {" + kind
+                        + (kind.equals("Param") ? " Title}" : " Buy}"));
+                return;
+            }
+            String name = literal.text().trim();
+            if (kind.equals("Param")) {
+                Contract.Param declared = contract.param(name).orElse(null);
+                if (declared == null) {
+                    add(property.location(), where + "the component has no parameter '" + name + "'. Declared: "
+                            + contract.paramNames() + ".");
+                } else if (!declared.type().fits(info.valueType())) {
+                    add(property.location(), where + "parameter '" + name + "' is " + declared.type().name()
+                            + " but '" + property.displayName() + "' expects " + info.valueType().getSimpleName() + ".");
+                }
+                return;
+            }
+            Contract.Event event = contract.event(name).orElse(null);
+            if (event == null) {
+                add(property.location(), where + "the component has no event '" + name + "'. Declared: "
+                        + contract.eventNames() + ".");
+            } else if (event.direction() != Contract.Direction.OUT) {
+                add(property.location(), where + "event '" + name
+                        + "' is incoming and cannot be raised from the component body.");
             }
         }
 

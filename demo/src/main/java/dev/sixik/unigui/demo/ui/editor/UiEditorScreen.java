@@ -9,6 +9,7 @@ import dev.sixik.unigui.demo.ui.unity.UnityEditorTheme;
 import dev.sixik.unigui.demo.ui.unity.UnityStyles;
 import dev.sixik.unigui.editor.EditorShell;
 import dev.sixik.unigui.editor.XamlEditorDocument;
+import dev.sixik.unigui.editor.ui.ComponentEditor;
 import dev.sixik.unigui.editor.ui.UiEditor;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.interaction.Button;
@@ -40,6 +41,28 @@ public final class UiEditorScreen {
             </VBox>
             """;
 
+    /** Компонент, который открывается в редакторе компонентов: карточка товара с контрактом и графом. */
+    public static final String COMPONENT_SAMPLE = """
+            <Component x:Name="ProductCard" xmlns:x="https://unigui.dev/xaml">
+              <Component.Contract>
+                <Param Name="Title" Type="string" Default="Iron Sword"/>
+                <Param Name="Price" Type="int" Default="25"/>
+                <Event Name="Buy" Direction="Out" Args="title:string"/>
+                <Event Name="Refresh" Direction="In"/>
+              </Component.Contract>
+              <VBox id="card" spacing="4" padding="8">
+                <Label id="title" text="{Param Title}"/>
+                <Label id="price" text="{Param Price}"/>
+                <Button id="buy" text="Buy" onClick="{Raise Buy}"/>
+              </VBox>
+              <Component.Graph>
+                <Node Id="refresh" Type="Event.Refresh" X="0" Y="0"/>
+                <Node Id="reset" Type="Param.Set" Name="Title" value="Refreshed" X="220" Y="0"/>
+                <Wire From="refresh.then" To="reset.exec"/>
+              </Component.Graph>
+            </Component>
+            """;
+
     private UiEditorScreen() {
     }
 
@@ -47,7 +70,16 @@ public final class UiEditorScreen {
         createScreen().openGui();
     }
 
+    /** @return экран редактора компонентов; из него можно перейти в редактор экрана и обратно */
+    public static UniScreen createComponentScreen() {
+        return screen("Component Editor Demo", true);
+    }
+
     public static UniScreen createScreen() {
+        return screen("UI Editor Demo", false);
+    }
+
+    private static UniScreen screen(String title, boolean component) {
         DefaultUIContext context = new DefaultUIContext();
         context.scaleProvider(new UnityLikeUIScaleProvider()
                 .referenceResolution(1920.0f, 1080.0f)
@@ -56,26 +88,54 @@ public final class UiEditorScreen {
                 .userScale(1.8f));
 
         UniScreen[] screen = new UniScreen[1];
-        Widget root = buildRoot(() -> {
+        Runnable close = () -> {
             if (screen[0] != null) screen[0].closeGui();
-        });
-        screen[0] = new UniScreen("UI Editor Demo", root, context)
+        };
+        Runnable swap = () -> {
+            close.run();
+            (component ? createScreen() : createComponentScreen()).openGui();
+        };
+        Widget root = component ? buildComponentRoot(close, swap) : buildRoot(close, swap);
+        screen[0] = new UniScreen(title, root, context)
                 .scaleWithGameGui(false)
                 .renderPolicy(UiRenderPolicy.vsync()).defaultFont(Fonts.defaultFace());
         return screen[0];
     }
 
-    private static Widget buildRoot(Runnable closeAction) {
+    private static Widget buildComponentRoot(Runnable closeAction, Runnable swapAction) {
+        String id = "demo/product_card.xaml";
+        XamlEditorDocument document = new XamlEditorDocument(id, "product_card.xaml",
+                EditorSession.open(DocumentSource.memory(id, "product_card.xaml", COMPONENT_SAMPLE)));
+        EditorShell shell = ComponentEditor.shell(document, LoadOptions.DEFAULT, new UnityEditorTheme(),
+                builder -> builder.menuBarTrailing(owner -> swapButton("Screen editor", swapAction))
+                        .menuBarTrailing(owner -> closeButton(closeAction)));
+        return shell.root();
+    }
+
+    private static Widget buildRoot(Runnable closeAction, Runnable swapAction) {
         String id = "demo/profile.xaml";
         XamlEditorDocument document = new XamlEditorDocument(id, "profile.xaml",
                 EditorSession.open(DocumentSource.memory(id, "profile.xaml", SAMPLE)));
         EditorShell shell = UiEditor.shell(document, LoadOptions.DEFAULT, new UnityEditorTheme(),
-                builder -> builder.menuBarTrailing(owner -> closeButton(closeAction)));
+                builder -> builder.menuBarTrailing(owner -> swapButton("Component editor", swapAction))
+                        .menuBarTrailing(owner -> closeButton(closeAction)));
         return shell.root();
     }
 
+    private static Button swapButton(String target, Runnable swapAction) {
+        Button swap = styledButton("⇄ " + target, 120.0f);
+        swap.onClick(event -> swapAction.run());
+        return swap;
+    }
+
     private static Button closeButton(Runnable closeAction) {
-        Button close = new Button("✕ Close Demo");
+        Button close = styledButton("✕ Close Demo", 90.0f);
+        close.onClick(event -> closeAction.run());
+        return close;
+    }
+
+    private static Button styledButton(String text, float width) {
+        Button close = new Button(text);
         close.themeEnabled(false);
         close.backgroundVisible(true);
         close.background().set(UnityStyles.BG_BUTTON);
@@ -85,8 +145,7 @@ public final class UiEditorScreen {
         close.focusRingVisible(false);
         close.focusable(false);
         close.textColor().set(UnityStyles.TEXT_BOLD);
-        close.layout(style -> style.size(90.0f, 18.0f));
-        close.onClick(event -> closeAction.run());
+        close.layout(style -> style.size(width, 18.0f));
         return close;
     }
 }

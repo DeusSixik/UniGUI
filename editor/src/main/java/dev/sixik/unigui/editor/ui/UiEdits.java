@@ -36,13 +36,25 @@ final class UiEdits {
 
     /** Ближайший к выбору узел, принимающий детей: сам выбранный, затем его предки. */
     private static Optional<UiNode> container(EditorSession session) {
-        UiNode node = session.selected().orElse(session.document().root());
+        UiNode root = session.document().root();
+        UiNode node = session.selected().orElse(root);
+        if (isComponentRoot(root, node)) {
+            // Корень компонента — не виджет: без тела новый узел станет телом, с телом вставка идёт в тело.
+            if (node.children().isEmpty()) return Optional.of(node);
+            node = node.children().get(0);
+        }
         while (node != null) {
+            if (isComponentRoot(root, node)) return Optional.empty(); // поднялись выше тела: принять некому
             Optional<TypeInfo<?>> type = session.schema().type(node.type());
             if (type.isPresent() && type.get().acceptsChildren()) return Optional.of(node);
             node = Hierarchy.parentOf(session.document(), node).orElse(null);
         }
         return Optional.empty();
+    }
+
+    /** @return {@code true}, если узел — корень документа компонента ({@code <Component>}) */
+    static boolean isComponentRoot(UiNode documentRoot, UiNode node) {
+        return node == documentRoot && node.type().local().equals("Component");
     }
 
     /**

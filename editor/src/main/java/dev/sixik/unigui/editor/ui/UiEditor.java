@@ -70,21 +70,7 @@ public final class UiEditor {
      */
     public static EditorShell shell(XamlEditorDocument document, LoadOptions previewOptions, EditorTheme theme,
                                     Function<EditorShell.Builder, EditorShell.Builder> customize) {
-        EditorShell.Builder builder = EditorShell.builder()
-                .theme(theme)
-                .title(document.title())
-                .menus("File", "Edit", "Window")
-                .standardCommands()
-                .command(editCommand("edit.delete", "Delete", "Delete", 10, UiEdits::deleteSelected))
-                .command(editCommand("edit.duplicate", "Duplicate", "Ctrl+D", 11, UiEdits::duplicateSelected))
-                .command(editCommand("edit.moveUp", "Move Up", "", 12, session -> UiEdits.moveSelected(session, -1)))
-                .command(editCommand("edit.moveDown", "Move Down", "", 13, session -> UiEdits.moveSelected(session, 1)))
-                .panel(new HierarchyPanel())
-                .panel(new PalettePanel())
-                .panel(new InspectorPanel())
-                .panel(new ViewportPanel(previewOptions))
-                .panel(new CodePanel())
-                .panel(new DiagnosticsPanel())
+        EditorShell.Builder builder = common(document, previewOptions, theme, new ComponentView())
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
                         .left(0.22f, HIERARCHY, PALETTE)
                         .right(0.28f, INSPECTOR)
@@ -98,7 +84,34 @@ public final class UiEditor {
                         .center(CODE, VIEWPORT)
                         .active(CODE)
                         .build());
-        EditorShell shell = customize.apply(builder).build();
+        return finish(customize.apply(builder).build(), document);
+    }
+
+    /**
+     * Каркас с общими для экрана и компонента панелями и командами; раскладки и дополнительные панели добавляет
+     * вызывающий.
+     */
+    static EditorShell.Builder common(XamlEditorDocument document, LoadOptions previewOptions, EditorTheme theme,
+                                      ComponentView componentView) {
+        return EditorShell.builder()
+                .theme(theme)
+                .title(document.title())
+                .menus("File", "Edit", "Window")
+                .standardCommands()
+                .command(editCommand("edit.delete", "Delete", "Delete", 10, UiEdits::deleteSelected))
+                .command(editCommand("edit.duplicate", "Duplicate", "Ctrl+D", 11, UiEdits::duplicateSelected))
+                .command(editCommand("edit.moveUp", "Move Up", "", 12, session -> UiEdits.moveSelected(session, -1)))
+                .command(editCommand("edit.moveDown", "Move Down", "", 13, session -> UiEdits.moveSelected(session, 1)))
+                .panel(new HierarchyPanel())
+                .panel(new PalettePanel())
+                .panel(new InspectorPanel())
+                .panel(new ViewportPanel(previewOptions, componentView))
+                .panel(new CodePanel())
+                .panel(new DiagnosticsPanel());
+    }
+
+    /** Завершает сборку: мост выбора и подключение документа. */
+    static EditorShell finish(EditorShell shell, XamlEditorDocument document) {
         installSelectionBridge(shell.context());
         shell.context().document(document);
         return shell;

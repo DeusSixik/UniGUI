@@ -45,6 +45,7 @@ public final class ComponentHost extends PanelWidget {
     private final ComponentInstance instance;
     private LoadedScreen<Widget> body;
     private String key = "";
+    private LoadOptions.NodeObserver observer;
 
     /**
      * Создаёт хост без тела.
@@ -78,6 +79,18 @@ public final class ComponentHost extends PanelWidget {
      */
     public ComponentHost key(String value) {
         this.key = value == null ? "" : value;
+        return this;
+    }
+
+    /**
+     * Подписывает наблюдателя на создание виджетов тела: предпросмотр редактора по нему сопоставляет узлы документа
+     * компонента с виджетами. Вызывается до {@link #build}.
+     *
+     * @param value наблюдатель или {@code null}
+     * @return этот хост
+     */
+    public ComponentHost observe(LoadOptions.NodeObserver value) {
+        this.observer = value;
         return this;
     }
 
@@ -120,7 +133,8 @@ public final class ComponentHost extends PanelWidget {
                     .textureResolver(context.textures())
                     .commands(commandsFor(context.commands()))
                     .extensions(extensions);
-            loaded = new XamlLoader(schema, options).loadScreen(UiDocument.of(definition.body()));
+            if (observer != null) options = options.nodeObserver(observer);
+            loaded =new XamlLoader(schema, options).loadScreen(UiDocument.of(definition.body()));
         } catch (XamlLoadException failure) {
             var location = failure.diagnostics().isEmpty()
                     ? definition.location() : failure.diagnostics().get(0).location();

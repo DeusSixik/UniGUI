@@ -9,28 +9,51 @@ import dev.sixik.unigui.editor.PanelSlot;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.xaml.UiDocument;
+import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.edit.EditorSession;
 import dev.sixik.unigui.xaml.edit.SessionChange;
 import dev.sixik.unigui.xaml.load.LoadOptions;
+import dev.sixik.unigui.xaml.preview.ComponentPreview;
 import dev.sixik.unigui.xaml.preview.Preview;
+
+import java.util.Optional;
 
 /**
  * Живой предпросмотр документа. Загрузку, «последнее удачное дерево» и соответствие узел↔виджет ведёт
- * {@link Preview} из ядра; панель только показывает его, рисует рамку вокруг выбранного узла и превращает щелчок
- * в выбор узла.
+ * {@link Preview} из ядра (для документа компонента — {@link ComponentPreview}); панель только показывает его,
+ * рисует рамку вокруг выбранного узла и превращает щелчок в выбор узла.
  */
 final class ViewportPanel extends SessionPanel {
     private static final MutableColor OUTLINE = MutableColor.rgba255(90, 160, 255, 255);
     private static final MutableColor ERROR = MutableColor.rgba255(235, 100, 100, 255);
 
+    /** Что именно показывает панель: экран или компонент. Различие скрыто за одним набором операций. */
+    private interface Shown extends AutoCloseable {
+        Preview.Result show(UiDocument document);
+
+        Widget root();
+
+        Optional<Widget> widgetOf(UiNode node);
+
+        Optional<UiNode> pick(UiDocument document, float x, float y);
+
+        boolean component();
+
+        @Override
+        void close();
+    }
+
     private final LoadOptions previewOptions;
+    private final ComponentView componentView;
     private final StackPanel holder = new StackPanel();
     private final Label status = new Label("");
-    private Preview preview;
+    private Shown preview;
     private Widget shown;
 
-    ViewportPanel(LoadOptions previewOptions) {
+    ViewportPanel(LoadOptions previewOptions, ComponentView componentView) {
         this.previewOptions = previewOptions;
+        this.componentView = componentView;
     }
 
     @Override
@@ -80,8 +103,7 @@ final class ViewportPanel extends SessionPanel {
 
     @Override
     protected void bound(EditorSession next) {
-        if (preview != null) preview.close();
-        preview = next == null ? null : new Preview(next.schema(), previewOptions);
+        closePreview();
         shown = null;
         holder.clearChildren();
         holder.applyQueuedMutations();
@@ -111,23 +133,114 @@ final class ViewportPanel extends SessionPanel {
 
     /** @return текущий корень предпросмотра или {@code null} */
     Widget previewRoot() {
-        return preview == null ? null : preview.root().orElse(null);
+        return preview == null ? null : preview.root();
+    }
+
+    private void closePreview() {
+        if (preview != null) preview.close();
+        preview = null;
+        componentView.preview(null);
+    }
+
+    /** Предпросмотр нужного вида для документа; прежний закрывается, если вид сменился. */
+    private void ensurePreview(EditorSession session) {
+        boolean wantsComponent = isComponent(session.document());
+        if (preview != null && preview.component() == wantsComponent) return;
+        closePreview();
+        shown = null;
+        holder.clearChildren();
+        holder.applyQueuedMutations();
+        if (wantsComponent) {
+            ComponentPreview component = new ComponentPreview(session.schema(), previewOptions);
+            component.onEvent(line -> componentView.changed());
+            preview = new Shown() {
+                @Override
+                public Preview.Result show(UiDocument document) {
+                    return component.show(document);
+                }
+
+                @Override
+                public Widget root() {
+                    return component.root().orElse(null);
+                }
+
+                @Override
+                public Optional<Widget> widgetOf(UiNode node) {
+                    return component.widgetOf(node);
+                }
+
+                @Override
+                public Optional<UiNode> pick(UiDocument document, float x, float y) {
+                    return component.pick(document, x, y);
+                }
+
+                @Override
+                public boolean component() {
+                    return true;
+                }
+
+                @Override
+                public void close() {
+                    component.close();
+                }
+            };
+            componentView.preview(component);
+        } else {
+            Preview screen = new Preview(session.schema(), previewOptions);
+            preview = new Shown() {
+                @Override
+                public Preview.Result show(UiDocument document) {
+                    return screen.show(document);
+                }
+
+                @Override
+                public Widget root() {
+                    return screen.root().orElse(null);
+                }
+
+                @Override
+                public Optional<Widget> widgetOf(UiNode node) {
+                    return screen.widgetOf(node);
+                }
+
+                @Override
+                public Optional<UiNode> pick(UiDocument document, float x, float y) {
+                    return screen.pick(document, x, y);
+                }
+
+                @Override
+                public boolean component() {
+                    return false;
+                }
+
+                @Override
+                public void close() {
+                    screen.close();
+                }
+            };
+        }
+    }
+
+    private static boolean isComponent(UiDocument document) {
+        return document.root().type().local().equals("Component");
     }
 
     private void reload() {
         EditorSession session = session().orElse(null);
-        if (session == null || preview == null) {
+        if (session == null) {
             status.text("");
             return;
         }
+        ensurePreview(session);
         Preview.Result result = preview.show(session.document());
         status.text(result.shown() ? "" : "Preview: " + result.message());
-        Widget root = preview.root().orElse(null);
+        Widget root = preview.root();
         if (root != shown) {
             holder.clearChildren();
             if (root != null) holder.addChild(root);
             holder.applyQueuedMutations();
             shown = root;
         }
+        componentView.changed();
     }
 }

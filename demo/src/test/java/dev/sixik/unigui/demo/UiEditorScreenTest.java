@@ -6,9 +6,12 @@ import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.interaction.Slider;
 import dev.sixik.unigui.xaml.Xaml;
+import dev.sixik.unigui.xaml.component.Args;
+import dev.sixik.unigui.xaml.component.ComponentHost;
 import dev.sixik.unigui.xaml.load.DocumentValidator;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,6 +32,26 @@ class UiEditorScreenTest {
         Widget preview = dock.findPane("viewport").content();
         applyAll(preview);
         assertTrue(contains(preview, Slider.class), "the live preview contains the sample slider");
+    }
+
+    @Test
+    void theComponentSampleIsValidAndItsGraphRunsInThePreview() {
+        DocumentValidator.Result result = new DocumentValidator(Xaml.defaultSchema())
+                .validate(UiEditorScreen.COMPONENT_SAMPLE);
+        assertTrue(result.valid(), result.diagnostics().toString());
+
+        Widget root = UiEditorScreen.createComponentScreen().root();
+        DockingRoot dock = find(root, DockingRoot.class);
+        assertNotNull(dock.findPane("contract"), "the component editor has a contract panel");
+        Widget preview = dock.findPane("viewport").content();
+        applyAll(preview);
+        ComponentHost host = find(preview, ComponentHost.class);
+        assertNotNull(host, "the live preview contains the component instance");
+        assertEquals("Iron Sword", host.instance().get("Title"));
+
+        host.instance().send("Refresh", Args.empty());
+        host.instance().flush();
+        assertEquals("Refreshed", host.instance().get("Title"), "the graph reacts to the incoming event");
     }
 
     private static void applyAll(Widget widget) {
