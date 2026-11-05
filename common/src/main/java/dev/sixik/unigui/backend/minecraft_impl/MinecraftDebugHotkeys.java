@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlaySettings;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
@@ -39,7 +40,7 @@ public final class MinecraftDebugHotkeys {
      *                действие выполняется один раз на нажатие, без auto-repeat
      * @return {@code true}, если нажатие поглощено хоткеем
      */
-    public static boolean handle(dev.sixik.unigui.api.core.UIContext context,
+    public static boolean handle(UIContext context,
                                  int keyCode, int modifiers, boolean pressed) {
         if (!pressed || context == null) return false;
         if (!(context instanceof DefaultUIContext target)) return false;

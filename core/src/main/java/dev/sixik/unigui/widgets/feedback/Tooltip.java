@@ -1,0 +1,557 @@
+package dev.sixik.unigui.widgets.feedback;
+
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.layout.PositionType;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.impl.layout.AbsoluteLayoutEngine;
+
+import java.util.List;
+import java.util.Objects;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.WidgetStyles;
+
+@XamlWidget("Tooltip")
+@AiDoc(summary = "Hover-activated informative tooltip box displaying text or RichText formatted content anchored to a widget.")
+@WikiPage(
+        title = "Tooltip",
+        slug = "tooltip",
+        category = "<key:feedback.category>",
+        summary = "<key:tooltip.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:tooltip.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tooltip.example.basic.title>",
+        code = "Tooltip tooltip = new Tooltip(button, \"Click to save progress\");"
+)
+@WikiLink(
+        label = "Popup",
+        target = "page:popup",
+        description = "<key:popup.summary>"
+)
+@WikiLink(
+        label = "OverlayLayer",
+        target = "page:overlay-layer",
+        description = "<key:overlay.layer.summary>"
+)
+public class Tooltip extends Box implements OverlayHostAware {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOLTIP;
+
+    private static final float HORIZONTAL_PADDING = 6.0f;
+    private static final float VERTICAL_PADDING = 4.0f;
+    private static final float DEFAULT_MAX_WIDTH = 220.0f;
+
+    private final MutableColor textColor = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private Widget anchor;
+    private String text = "";
+    private RichText richText = RichText.plain("");
+    private EventSubscription anchorEnteredSubscription;
+    private EventSubscription anchorExitedSubscription;
+    private EventSubscription anchorMovedSubscription;
+    private boolean followPointer;
+    private boolean pointerKnown;
+    /** Последняя позиция курсора над якорем в координатах корня окна; нулевой прямоугольник служит «якорем» размещения. */
+    private final MutableRect pointerAnchor = new MutableRect(0.0f, 0.0f, 0.0f, 0.0f);
+    private float offsetX = 8.0f;
+    private float offsetY = 10.0f;
+    private float maxWidth = DEFAULT_MAX_WIDTH;
+    private float lastAnchorX = Float.NaN;
+    private float lastAnchorY = Float.NaN;
+    private float lastAnchorWidth = Float.NaN;
+    private float lastAnchorHeight = Float.NaN;
+
+        @AiDoc(summary = "Constructs an empty Tooltip.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorDefault>")
+    public Tooltip() {
+        applyComponentStyleDefaults(WidgetStyles.Tooltip.DEFAULT);
+        enabled(false);
+        layout(style -> style
+                .position(PositionType.ABSOLUTE)
+                .maxWidthPercent(100.0f)
+                .overflow(Overflow.HIDDEN));
+        textColor.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    /**
+     * Возвращает стандартный стиль поверхности подсказки, уступающий стилям темы и экземпляра.
+     *
+     * @return стандартные значения оформления подсказки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Tooltip.DEFAULT;
+    }
+
+    /**
+     * Возвращает стабильный тип стиля для подсказки и её специализированных подклассов.
+     *
+     * @return тип {@link #STYLE_TYPE}
+     */
+    @Override
+    protected String styleType() {
+        return STYLE_TYPE;
+    }
+
+        @AiDoc(summary = "Constructs a Tooltip anchored to a widget with plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorAnchorText>")
+    public Tooltip(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor,
+            @WikiParameter(description = "<key:tooltip.param.text>")
+            String text
+    ) {
+        this();
+        anchor(anchor);
+        text(text);
+    }
+
+        @AiDoc(summary = "Constructs a Tooltip anchored to a widget with RichText.")
+    @WikiMethod(summary = "<key:tooltip.method.ctorAnchorRich>")
+    public Tooltip(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor,
+            @WikiParameter(description = "<key:tooltip.param.richText>")
+            RichText text
+    ) {
+        this();
+        anchor(anchor);
+        richText(text);
+    }
+
+        @AiDoc(summary = "Returns the anchor widget this tooltip observes.")
+    @WikiMethod(summary = "<key:tooltip.method.anchorGet>")
+    @WikiReturn("<key:tooltip.return.anchor>")
+    public Widget anchor() {
+        return anchor;
+    }
+
+        @AiDoc(summary = "Sets the anchor widget this tooltip observes.")
+    @WikiMethod(summary = "<key:tooltip.method.anchorSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip anchor(
+            @WikiParameter(description = "<key:tooltip.param.anchor>")
+            Widget anchor
+    ) {
+        if (this.anchor == anchor) return this;
+        unsubscribeFromAnchor();
+        this.anchor = anchor;
+        pointerKnown = false;
+        lastAnchorX = Float.NaN;
+        lastAnchorY = Float.NaN;
+        lastAnchorWidth = Float.NaN;
+        lastAnchorHeight = Float.NaN;
+        subscribeToAnchor();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+        @AiDoc(summary = "Returns the tooltip plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.textGet>")
+    @WikiReturn("<key:tooltip.return.text>")
+    public String text() {
+        return text;
+    }
+
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Plain tooltip text.")
+        @AiDoc(summary = "Sets the tooltip plain text.")
+    @WikiMethod(summary = "<key:tooltip.method.textSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip text(
+            @WikiParameter(description = "<key:tooltip.param.text>")
+            String text
+    ) {
+        String normalized = text == null ? "" : text;
+        RichText normalizedRichText = RichText.resolve(normalized);
+        if (Objects.equals(this.richText, normalizedRichText)) return this;
+        this.text = normalized;
+        this.richText = normalizedRichText;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+        @AiDoc(summary = "Returns the formatted RichText content.")
+    @WikiMethod(summary = "<key:tooltip.method.richTextGet>")
+    @WikiReturn("<key:tooltip.return.richText>")
+    public RichText richText() {
+        return richText;
+    }
+
+        @AiDoc(summary = "Sets the formatted RichText content.")
+    @WikiMethod(summary = "<key:tooltip.method.richTextSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip richText(
+            @WikiParameter(description = "<key:tooltip.param.richText>")
+            RichText richText
+    ) {
+        RichText normalized = richText == null ? RichText.plain("") : richText;
+        if (Objects.equals(this.richText, normalized)) return this;
+        this.richText = normalized;
+        this.text = normalized.plainText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+        @AiDoc(summary = "Sets cursor displacement offset in UI pixels.")
+    @WikiMethod(summary = "<key:tooltip.method.offset>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip offset(
+            @WikiParameter(description = "<key:tooltip.param.x>")
+            float x,
+            @WikiParameter(description = "<key:tooltip.param.y>")
+            float y
+    ) {
+        float normalizedX = Float.isFinite(x) ? x : 8.0f;
+        float normalizedY = Float.isFinite(y) ? y : 10.0f;
+        if (offsetX == normalizedX && offsetY == normalizedY) return this;
+        offsetX = normalizedX;
+        offsetY = normalizedY;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Включает или выключает размещение подсказки у курсора.
+     *
+     * <p>По умолчанию подсказка стоит под границами якоря и не зависит от мыши. В режиме следования она
+     * ставится относительно последней позиции курсора над якорем ({@link #offset(float, float)} задаёт сдвиг от
+     * курсора), как ванильная подсказка. Пока курсор над якорем не наблюдался, используются границы якоря. Позиция
+     * берётся из координат указателя, а не из границ виджета, поэтому не зависит от прокрутки и пересчёта layout.</p>
+     *
+     * @param followPointer {@code true} — размещать у курсора
+     * @return эта подсказка
+     */
+    public Tooltip followPointer(boolean followPointer) {
+        if (this.followPointer == followPointer) return this;
+        this.followPointer = followPointer;
+        lastAnchorX = Float.NaN;
+        lastAnchorY = Float.NaN;
+        lastAnchorWidth = Float.NaN;
+        lastAnchorHeight = Float.NaN;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если подсказка размещается у курсора, а не под якорем
+     */
+    public boolean followPointer() {
+        return followPointer;
+    }
+
+        @AiDoc(summary = "Returns the maximum tooltip wrap width.")
+    @WikiMethod(summary = "<key:tooltip.method.maxWidthGet>")
+    @WikiReturn("<key:tooltip.return.maxWidth>")
+    public float maxWidth() {
+        return maxWidth;
+    }
+
+    @XamlProperty(value = "maxWidth", category = "Layout", defaultValue = "220", description = "Maximum tooltip width in UI pixels.")
+        @AiDoc(summary = "Sets the maximum tooltip wrap width.")
+    @WikiMethod(summary = "<key:tooltip.method.maxWidthSet>")
+    @WikiReturn("<key:tooltip.return.this>")
+    public Tooltip maxWidth(
+            @WikiParameter(description = "<key:tooltip.param.maxWidth>")
+            float maxWidth
+    ) {
+        float normalized = Float.isFinite(maxWidth) ? Math.max(HORIZONTAL_PADDING * 2.0f + TextEngine.APPROX_CHAR_WIDTH, maxWidth) : DEFAULT_MAX_WIDTH;
+        if (this.maxWidth == normalized) return this;
+        this.maxWidth = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+        @AiDoc(summary = "Returns the mutable text foreground color.")
+    @WikiMethod(summary = "<key:tooltip.method.textColor>")
+    @WikiReturn("<key:tooltip.return.textColor>")
+    public MutableColor textColor() {
+        return textColor;
+    }
+
+        @AiDoc(summary = "Returns true if the tooltip is currently visible.")
+    @WikiMethod(summary = "<key:tooltip.method.showing>")
+    @WikiReturn("<key:tooltip.return.showing>")
+    public boolean showing() {
+        return visibility() == Visibility.VISIBLE && anchor != null && isAnchorHovered(anchor)
+                && isEffectivelyVisible(anchor) && !text.isEmpty();
+    }
+
+    private static boolean isAnchorHovered(Widget anchor) {
+        if (anchor == null || anchor.visibility() != Visibility.VISIBLE) return false;
+        if (anchor.hovered()) return true;
+        for (Widget child : anchor.children()) {
+            if (isAnchorHovered(child)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Якорь и все его предки должны быть VISIBLE. Без этого тултип зависает:
+     * при сворачивании якоря (фильтр поиска, скрытие панели) PointerExited
+     * не прилетает, флаг hovered остаётся, и тултип висит над пустым местом.
+     */
+    private static boolean isEffectivelyVisible(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current.visibility() != Visibility.VISIBLE) return false;
+            current = current.parent();
+        }
+        return true;
+    }
+
+    @Override
+    public void dispose() {
+        unsubscribeFromAnchor();
+        super.dispose();
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        if (text.isEmpty()) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+
+        float availableWidth = context == null ? maxWidth : Math.max(0.0f, context.availableWidth());
+        float widthLimit = availableWidth > 0.0f ? Math.min(maxWidth, availableWidth) : maxWidth;
+        float textWidthLimit = Math.max(TextEngine.APPROX_CHAR_WIDTH, widthLimit - HORIZONTAL_PADDING * 2.0f);
+        List<RichText> lines = wrappedLines(null, textWidthLimit);
+        float widestLine = 0.0f;
+        float textHeight = 0.0f;
+        for (RichText line : lines) {
+            widestLine = Math.max(widestLine, TextEngine.measureLineWidth(line));
+            textHeight += TextEngine.lineHeight(line);
+        }
+
+        float width = Math.min(widthLimit, widestLine + HORIZONTAL_PADDING * 2.0f);
+        float height = textHeight + VERTICAL_PADDING * 2.0f;
+        setDesiredSize(resolveDesiredSize(context, width, height));
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        arrangeInHost(bounds);
+    }
+
+    @Override
+        @AiDoc(summary = "Clamps and positions the tooltip relative to pointer within host bounds.")
+    @WikiMethod(summary = "<key:tooltip.method.arrangeInHost>")
+    public void arrangeInHost(
+            @WikiParameter(description = "<key:tooltip.param.bounds>")
+            RectView bounds
+    ) {
+        if (visibility() == Visibility.COLLAPSED || anchor == null) {
+            mutableLayoutBounds().set(bounds.x(), bounds.y(), 0.0f, 0.0f);
+            return;
+        }
+
+        float width = desiredSize().width();
+        float height = desiredSize().height();
+        mutableLayoutBounds().set(AbsoluteLayoutEngine.placeBelow(
+                bounds, placementAnchor(), width, height, offsetX, offsetY, true, true));
+        rememberAnchorBounds();
+    }
+
+    /**
+     * Следует за якорем без layout-прохода: скролл двигает якорь через
+     * {@code arrangeScrolledChildrenNow} с одним VISUAL-флагом, и layout не
+     * запускается — без этого tick позиция тултипа замирает на месте
+     * последнего layout, а текст уже принадлежит новому hovered-якорю.
+     */
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (anchor == null || visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) return;
+        if (!isEffectivelyVisible(anchor)) return;
+        RectView anchorBounds = placementAnchor();
+        if (anchorBounds == null) return;
+        if (Float.compare(anchorBounds.x(), lastAnchorX) == 0
+                && Float.compare(anchorBounds.y(), lastAnchorY) == 0
+                && Float.compare(anchorBounds.width(), lastAnchorWidth) == 0
+                && Float.compare(anchorBounds.height(), lastAnchorHeight) == 0) {
+            return;
+        }
+        RectView hostBounds = parent() == null ? null : parent().layoutBounds();
+        if (hostBounds == null) return;
+        float width = desiredSize().width();
+        float height = desiredSize().height();
+        mutableLayoutBounds().set(AbsoluteLayoutEngine.placeBelow(
+                hostBounds, anchorBounds, width, height, offsetX, offsetY, true, true));
+        rememberAnchorBounds();
+    }
+
+    /**
+     * Прямоугольник, относительно которого размещается подсказка: нулевой прямоугольник в точке курсора в режиме
+     * следования или границы якоря.
+     */
+    private RectView placementAnchor() {
+        if (followPointer && pointerKnown) return pointerAnchor;
+        return anchor == null ? null : anchor.layoutBounds();
+    }
+
+    private void rememberPointer(PointerEvent event) {
+        pointerAnchor.set(event.rootX(), event.rootY(), 0.0f, 0.0f);
+        pointerKnown = true;
+    }
+
+    private void rememberAnchorBounds() {
+        RectView anchorBounds = placementAnchor();
+        if (anchorBounds == null) {
+            lastAnchorX = Float.NaN;
+            lastAnchorY = Float.NaN;
+            lastAnchorWidth = Float.NaN;
+            lastAnchorHeight = Float.NaN;
+            return;
+        }
+        lastAnchorX = anchorBounds.x();
+        lastAnchorY = anchorBounds.y();
+        lastAnchorWidth = anchorBounds.width();
+        lastAnchorHeight = anchorBounds.height();
+    }
+
+    @Override
+    public void render(RenderContext context) {
+        if (!showing()) return;
+        super.render(context);
+    }
+
+    @Override
+    protected void renderContent(RenderContext context) {
+        applyTheme();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        if (renderCustomVisual(draw)) return;
+        float textX = layoutBounds().x() + HORIZONTAL_PADDING;
+        float textY = layoutBounds().y() + VERTICAL_PADDING;
+        float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
+        float textHeight = Math.max(0.0f, layoutBounds().height() - VERTICAL_PADDING * 2.0f);
+        List<RichText> lines = wrappedLines(draw.context(), textWidth);
+        draw.pushTextClip(textX, textY, textWidth, textHeight);
+        try {
+            float lineY = textY;
+            float limitY = textY + textHeight;
+            for (int i = 0; i < lines.size(); i++) {
+                float lineHeight = TextEngine.lineHeight(lines.get(i));
+                if (lineY >= limitY) break;
+                TextEngine.drawInline(draw,
+                        lines.get(i),
+                        textX,
+                        lineY,
+                        textWidth,
+                        lineHeight,
+                        Paint.fill(textColor));
+                lineY += lineHeight;
+            }
+        } finally {
+            draw.popClip();
+        }
+    }
+
+    /**
+     * Возвращает wrapped-строки тултипа для текущей ширины виджета.
+     *
+     * @param context render context для backend-зависимых замеров
+     * @return wrapped-строки rich text
+     */
+    public List<RichText> wrappedLines(RenderContext context) {
+        float textWidth = Math.max(0.0f, layoutBounds().width() - HORIZONTAL_PADDING * 2.0f);
+        return wrappedLines(context, textWidth);
+    }
+
+    /**
+     * Возвращает высоту одной wrapped-строки.
+     *
+     * @param line строка rich text
+     * @return высота строки
+     */
+    public float lineHeight(RichText line) {
+        return TextEngine.lineHeight(line);
+    }
+
+    /**
+     * Возвращает высоты wrapped-строк.
+     *
+     * @param lines строки rich text
+     * @return высоты строк в том же порядке
+     */
+    public float[] lineHeights(List<RichText> lines) {
+        if (lines == null || lines.isEmpty()) return new float[0];
+        float[] heights = new float[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            heights[i] = TextEngine.lineHeight(lines.get(i));
+        }
+        return heights;
+    }
+
+    private void subscribeToAnchor() {
+        if (anchor == null) return;
+        anchorEnteredSubscription = anchor.on(PointerEnteredEvent.TYPE, event -> {
+            rememberPointer(event);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        anchorMovedSubscription = anchor.on(PointerMovedEvent.TYPE, this::rememberPointer);
+        anchorExitedSubscription = anchor.on(PointerExitedEvent.TYPE,
+                event -> invalidate(InvalidationFlags.VISUAL));
+    }
+
+    private void unsubscribeFromAnchor() {
+        if (anchorEnteredSubscription != null) {
+            anchorEnteredSubscription.unsubscribe();
+            anchorEnteredSubscription = null;
+        }
+        if (anchorExitedSubscription != null) {
+            anchorExitedSubscription.unsubscribe();
+            anchorExitedSubscription = null;
+        }
+        if (anchorMovedSubscription != null) {
+            anchorMovedSubscription.unsubscribe();
+            anchorMovedSubscription = null;
+        }
+    }
+
+    private List<RichText> wrappedLines(RenderContext context, float textWidthLimit) {
+        List<RichText> lines = TextEngine.wrapLines(
+                context,
+                richText,
+                Math.max(TextEngine.APPROX_CHAR_WIDTH, textWidthLimit));
+        if (lines.isEmpty()) {
+            lines.add(RichText.plain(""));
+        }
+        return lines;
+    }
+}

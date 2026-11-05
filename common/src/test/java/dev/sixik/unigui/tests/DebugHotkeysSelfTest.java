@@ -21,11 +21,11 @@ public final class DebugHotkeysSelfTest {
 
         // Матчинг: только Ctrl+Shift + P/Equal/Minus/Keypad.
         expect(MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_P, CTRL_SHIFT), "ctrl+shift+P matches");
+        expect(!MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_P, GLFW.GLFW_MOD_CONTROL), "ctrl+P without shift ignored");
         expect(MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_EQUAL, CTRL_SHIFT), "ctrl+shift+Equal matches");
         expect(MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_KP_ADD, CTRL_SHIFT), "ctrl+shift+KP_ADD matches");
         expect(MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_MINUS, CTRL_SHIFT), "ctrl+shift+Minus matches");
         expect(MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_KP_SUBTRACT, CTRL_SHIFT), "ctrl+shift+KP_SUBTRACT matches");
-        expect(!MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_P, GLFW.GLFW_MOD_CONTROL), "ctrl+P without shift ignored");
         expect(!MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_P, GLFW.GLFW_MOD_SHIFT), "shift+P without ctrl ignored");
         expect(!MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_P, 0), "bare P ignored");
         expect(!MinecraftDebugHotkeys.matches(GLFW.GLFW_KEY_Q, CTRL_SHIFT), "ctrl+shift+Q ignored");

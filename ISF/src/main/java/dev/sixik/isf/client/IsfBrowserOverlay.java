@@ -38,6 +38,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -46,8 +48,7 @@ import java.util.*;
  * UniGUI screen-overlay с вертикально перелистываемой сеткой доступных предметов.
  */
 final class IsfBrowserOverlay {
-    private static final org.slf4j.Logger LOGGER =
-            org.slf4j.LoggerFactory.getLogger(IsfBrowserOverlay.class);
+    private static final Logger LOGGER = LogManager.getLogger(IsfBrowserOverlay.class);
     private static final float CELL = 18.0f;
     private static final float PANEL_PADDING = 4.0f;
 

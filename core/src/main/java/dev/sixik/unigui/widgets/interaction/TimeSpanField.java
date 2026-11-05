@@ -1,0 +1,146 @@
+package dev.sixik.unigui.widgets.interaction;
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.FocusLostEvent;
+import dev.sixik.unigui.api.event.TextInputEvent;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+
+import java.time.Duration;
+import java.util.Locale;
+
+@AiDoc(
+        summary = "Time duration input field formatting values into java.time.Duration.",
+        purpose = "Allows users to input durations using concise units like 1h 30m or 45s.",
+        useWhen = {"Specifying timeouts, delay times, cooldowns, task intervals."},
+        related = {"TextField", "TextInput"}
+)
+@WikiPage(
+        title = "<key:time.span.field.title>",
+        slug = "time-span-field",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:time.span.field.summary>",
+        order = 160
+)
+@WikiSection(
+        title = "<key:time.span.field.section.overview.title>",
+        markdown = "<key:time.span.field.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:time.span.field.example.basic.title>",
+        code = "<key:time.span.field.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "TextField", target = "page:text-field")
+@XamlWidget("TimeSpanField")
+public final class TimeSpanField extends TextField {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TIME_SPAN_FIELD;
+
+    private Duration value = Duration.ZERO;
+
+    public TimeSpanField() {
+        placeholder("HH:MM:SS");
+        text("00:00:00");
+    }
+
+    public Duration value() {
+        return value;
+    }
+
+    @WikiMethod(order = 10, title = "<key:time.span.field.method.value.title>", summary = "<key:time.span.field.method.value.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    public TimeSpanField value(@WikiParameter(description = "<key:time.span.field.param.duration>") Duration value) {
+        this.value = value == null ? Duration.ZERO : value;
+        super.text(format(this.value));
+        return this;
+    }
+
+    @XamlProperty(value = "value", category = "Behavior", defaultValue = "00:00:00", description = "Time span value formatted as HH:MM:SS or colon-separated units.")
+    public TimeSpanField value(String value) {
+        this.value = parse(value);
+        super.text(format(this.value));
+        return this;
+    }
+
+    @Override
+    public void handle(Event event) {
+        if (event instanceof TextInputEvent input && !isAllowed(input.codePoint())) {
+            event.cancel();
+            return;
+        }
+        super.handle(event);
+        if (event instanceof FocusLostEvent) {
+            syncFromText();
+        }
+    }
+
+    @Override
+    protected String sanitizeTextInput(String text) {
+        StringBuilder builder = new StringBuilder(text.length());
+        text.codePoints()
+                .filter(TimeSpanField::isAllowed)
+                .forEach(builder::appendCodePoint);
+        return builder.toString();
+    }
+
+    private void syncFromText() {
+        value = parse(text());
+        super.text(format(value));
+    }
+
+    private static Duration parse(String text) {
+        if (text == null || text.isBlank()) return Duration.ZERO;
+        String[] parts = text.trim().split(":");
+        try {
+            long seconds = 0L;
+            for (String part : parts) {
+                seconds = seconds * 60L + Long.parseLong(part.trim());
+            }
+            return Duration.ofSeconds(Math.max(0L, seconds));
+        } catch (NumberFormatException ignored) {
+            return Duration.ZERO;
+        }
+    }
+
+    private static String format(Duration duration) {
+        long seconds = Math.max(0L, duration == null ? 0L : duration.getSeconds());
+        long hours = seconds / 3600L;
+        long minutes = (seconds % 3600L) / 60L;
+        long secs = seconds % 60L;
+        return String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, secs);
+    }
+
+    private static boolean isAllowed(int codePoint) {
+        return (codePoint >= '0' && codePoint <= '9') || codePoint == ':';
+    }
+
+    @Override
+    @XamlProperty(value = "textPaddingX", category = "Layout", defaultValue = "12", description = "Symmetric inset between both edges and editable text.")
+    public TimeSpanField textPaddingX(float textPaddingX) {
+        super.textPaddingX(textPaddingX);
+        return this;
+    }
+
+    @Override
+    @XamlProperty(value = "textPaddingLeft", category = "Layout", defaultValue = "12", description = "Inset between the left edge and editable text.")
+    public TimeSpanField textPaddingLeft(float textPaddingLeft) {
+        super.textPaddingLeft(textPaddingLeft);
+        return this;
+    }
+
+    @Override
+    @XamlProperty(value = "textPaddingRight", category = "Layout", defaultValue = "12", description = "Inset between editable text and the right edge.")
+    public TimeSpanField textPaddingRight(float textPaddingRight) {
+        super.textPaddingRight(textPaddingRight);
+        return this;
+    }
+}

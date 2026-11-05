@@ -38,9 +38,25 @@ allprojects {
     }
 }
 
+// Architectury Loom copies one transformer agent to the root .gradle directory during IDE sync.
+// Stonecutter's versioned projects share that destination, so serialize only their sync tasks.
+gradle.projectsEvaluated {
+    def ideaSyncTasks = allprojects.collectMany { candidate ->
+        candidate.tasks.matching { task -> task.name == 'ideaSyncTask' }.toList()
+    }
+    ideaSyncTasks.eachWithIndex { task, index ->
+        if (index > 0) task.mustRunAfter(ideaSyncTasks[index - 1])
+    }
+}
+
 subprojects {
-    apply plugin: 'dev.architectury.loom'
-    apply plugin: 'architectury-plugin'
+    def minecraftIndependent = project.name in ['core', 'demo']
+    if (minecraftIndependent) {
+        apply plugin: 'java-library'
+    } else {
+        apply plugin: 'dev.architectury.loom'
+        apply plugin: 'architectury-plugin'
+    }
     apply plugin: 'maven-publish'
 
     ext.versionProject = versionProject
@@ -60,8 +76,10 @@ subprojects {
     }
 
     dependencies {
-        minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
-        mappings loom.officialMojangMappings()
+        if (!minecraftIndependent) {
+            minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
+            mappings loom.officialMojangMappings()
+        }
     }
 
     java {
@@ -70,7 +88,9 @@ subprojects {
         // If you remove this line, sources will not be generated.
         withSourcesJar()
 
-        def javaVersion = JavaVersion.toVersion(versionProperty('java_version') ?: '17')
+        def javaVersion = minecraftIndependent
+                ? JavaVersion.VERSION_17
+                : JavaVersion.toVersion(versionProperty('java_version') ?: '17')
 
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
@@ -82,21 +102,24 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.release = (versionProperty('java_version') ?: '17') as int
+        options.compilerArgs << "-parameters"
     }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
-        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
-    }
+    if (!minecraftIndependent) {
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
+            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+        }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
-        outputFile.set(layout.buildDirectory.file('loom-cache/log4j.xml'))
-    }
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
+            outputFile.set(layout.buildDirectory.file('loom-cache/log4j.xml'))
+        }
 
-    tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
-        dependsOn tasks.named('generateRemapClasspath')
-        remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
-        if (hasProperty('devLauncherConfig')) {
-            devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
+        tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
+            dependsOn tasks.named('generateRemapClasspath')
+            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+            if (hasProperty('devLauncherConfig')) {
+                devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
+            }
         }
     }
 

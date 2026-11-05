@@ -57,9 +57,7 @@ import dev.sixik.unigui.widgets.containers.WrapPanel;
 import dev.sixik.unigui.widgets.containers.FlexBox;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import dev.sixik.unigui.widgets.containers.LinearBox;
-import dev.sixik.unigui.widgets.containers.PanelWidget;
-import dev.sixik.unigui.widgets.interaction.ScrollBar;
+
 import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
 
 public final class LayoutV3SelfTest {

@@ -1,0 +1,144 @@
+plugins {
+    id 'java'
+    id 'com.cleanroommc.cleanroomgradle'
+    id 'me.champeau.jmh' version '0.7.2'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.cleanroommc.com' }
+}
+
+def rootProperties = new Properties()
+file('../gradle.properties').withInputStream { rootProperties.load(it) }
+def rootModVersion = rootProperties.getProperty('mod_version')
+if (!rootModVersion) {
+    throw new GradleException("mod_version is missing from ../gradle.properties")
+}
+def coreJar = file("../core/build/libs/${rootProperties.getProperty('archives_name')}-core-${rootProperties.getProperty('mod_version')}.jar")
+def demoJar = file("../demo/build/libs/${rootProperties.getProperty('archives_name')}-demo-${rootProperties.getProperty('mod_version')}.jar")
+def editorJar = file("../editor/build/libs/${rootProperties.getProperty('archives_name')}-editor-${rootProperties.getProperty('mod_version')}.jar")
+
+version = rootModVersion
+
+base {
+    archivesName = 'unigui-cleanroom-1.12.2'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+def generatedVersionDir = layout.buildDirectory.dir('generated/sources/version/java')
+sourceSets.main.java.srcDir(generatedVersionDir)
+sourceSets.main.java.srcDir('../.minecraft-legacy-backend-shared/src/main/java')
+
+tasks.register('generateVersionSource') {
+    def output = generatedVersionDir.map {
+        it.file('dev/sixik/unigui/cleanroom/UniGuiVersion.java')
+    }
+    outputs.file(output)
+    doLast {
+        def versionLiteral = rootModVersion.replace('\\', '\\\\').replace('"', '\\"')
+        def versionFile = output.get().asFile
+        versionFile.parentFile.mkdirs()
+        versionFile.text = """package dev.sixik.unigui.cleanroom;
+
+/** Build version generated from the repository root gradle.properties. */
+public final class UniGuiVersion {
+    public static final String MOD_VERSION = \"${versionLiteral}\";
+
+    private UniGuiVersion() {
+    }
+}
+"""
+    }
+}
+
+tasks.named('compileJava') {
+    dependsOn tasks.named('generateVersionSource')
+}
+
+dependencies {
+    implementation cleanroom.userdev('0.7.14-alpha')
+    implementation files(coreJar)
+    implementation files(editorJar)
+    implementation files(demoJar)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    jmh 'org.openjdk.jmh:jmh-core:1.37'
+    jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+cleanroom {
+    runs {
+        all {
+            configure {
+                systemProperty 'crl.dev.mixin', 'unigui.mixins.json'
+            }
+        }
+
+        client {
+            configure {
+                username = 'Developer'
+            }
+        }
+    }
+}
+
+// Foundation (Cleanroom's LaunchClassLoader) is parent-first. In dev the mod's build/classes
+// directory is also on the system classpath, so mod classes get loaded by the AppClassLoader
+// and end up with a different copy of net.minecraft.* than the one Mixin patches.
+// This makes Foundation load everything itself (same workaround as the official CleanroomModTemplate).
+tasks.withType(JavaExec).configureEach {
+    systemProperty 'foundation.loadsall', 'true'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes 'MixinConfigs': 'unigui.mixins.json'
+    }
+
+    from {
+        zipTree(coreJar)
+    }
+    from {
+        zipTree(editorJar)
+    }
+    from {
+        zipTree(demoJar)
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('processResources') {
+    filesMatching('mcmod.info') {
+        expand(mod_version: rootModVersion)
+    }
+
+    from(zipTree(demoJar)) {
+        include 'assets/unigui_testmod/**'
+        eachFile { details ->
+            details.path = details.path.replaceFirst('^assets/unigui_testmod/', 'assets/unigui/')
+        }
+        includeEmptyDirs = false
+    }
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+// ./gradlew jmh runs the benchmarks of src/jmh; the gc profiler prints B/op, which must stay about 0 on the hot paths.
+jmh {
+    // The runtime classpath carries Minecraft and its libraries: more than 65535 entries.
+    zip64 = true
+    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+    profilers = ['gc']
+    resultsFile = layout.buildDirectory.file('reports/jmh/results.txt')
+    jvmArgsAppend = ['-Djava.awt.headless=true']
+}

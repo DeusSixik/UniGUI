@@ -1,0 +1,475 @@
+package dev.sixik.unigui.widgets.interaction;
+
+import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.docs.*;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.*;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.CheckboxState;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.widgets.WidgetStyles;
+
+@AiDoc(
+        summary = "Square checkbox widget with two-state and tri-state (indeterminate) support.",
+        purpose = "Standard form input for binary or partial selection states with animated mark.",
+        useWhen = {"Form selections, terms acceptance, tree node partial selection."},
+        related = {"ToggleSwitch", "RadioButton", "ToggleButton"}
+)
+@WikiPage(
+        title = "<key:checkbox.title>",
+        slug = "checkbox",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:checkbox.summary>",
+        order = 80
+)
+@WikiSection(
+        title = "<key:checkbox.section.overview.title>",
+        markdown = "<key:checkbox.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:checkbox.example.basic.title>",
+        code = "<key:checkbox.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "ToggleSwitch", target = "page:toggle-switch")
+@WikiLink(label = "RadioButton", target = "page:radio-button")
+@XamlWidget("Checkbox")
+public class Checkbox extends ToggleButton {
+    /** Style type id для StylePack selector/binding. */
+    public static final String STYLE_TYPE = StyleIds.Widget.CHECKBOX;
+
+    /** Event id, которые имеет смысл показывать для checked-контролов. */
+    public static final class AnimationEvents {
+        public static final String ON_CLICK = StyleAnimationIds.Event.ON_CLICK;
+        public static final String ON_CHECKED_CHANGED = StyleAnimationIds.Event.ON_CHECKED_CHANGED;
+        public static final String ON_STATE_CHANGED = StyleAnimationIds.Event.ON_STATE_CHANGED;
+        public static final String ON_FOCUS = StyleAnimationIds.Event.ON_FOCUS;
+        public static final String ON_BLUR = StyleAnimationIds.Event.ON_BLUR;
+        public static final String ON_HOVER = StyleAnimationIds.Event.ON_HOVER;
+        public static final String ON_PRESS = StyleAnimationIds.Event.ON_PRESS;
+        public static final String ON_RELEASE = StyleAnimationIds.Event.ON_RELEASE;
+        public static final java.util.List<String> ALL = StyleAnimationIds.Event.CHECKED_CONTROL;
+
+        private AnimationEvents() {
+        }
+    }
+
+    private static final float BOX_SIZE = 12.0f;
+    private static final float CHECK_SIZE = 6.0f;
+    private static final float TEXT_GAP = 4.0f;
+    public static final float DEFAULT_CHECK_ANIMATION_SECONDS = 0.12f;
+
+    private static final Object CHECK_PROGRESS_ANIMATION_KEY = new Object();
+
+    private CheckboxState state = CheckboxState.UNCHECKED;
+    private boolean triState;
+    private boolean cyclingFromClick;
+    private float boxSize = BOX_SIZE;
+    private float checkSize = CHECK_SIZE;
+    private float textGap = TEXT_GAP;
+    private boolean labelLeft;
+    private float checkProgress;
+    private final MutableColor interpolatedBoxColor = new MutableColor();
+    private final MutableColor interpolatedBorderColor = new MutableColor();
+    private TransitionSpec checkAnimation = TransitionSpec.of(DEFAULT_CHECK_ANIMATION_SECONDS);
+
+    public Checkbox() {
+        this("");
+    }
+
+    public Checkbox(String text) {
+        super(text);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+    }
+
+    public Checkbox(RichText text) {
+        super(text);
+        applyComponentStyleDefaults(WidgetStyles.Surface.UNSURFACED);
+    }
+
+    /**
+     * Возвращает стандартный стиль флажка, индикатор которого рисуется самим элементом.
+     *
+     * @return стандартные значения без фоновой поверхности и рамки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Surface.UNSURFACED;
+    }
+
+    public CheckboxState state() {
+        return state;
+    }
+
+    public Checkbox state(CheckboxState state) {
+        setState(state, true);
+        return this;
+    }
+
+    @XamlProperty(value = "state", category = "Behavior", defaultValue = "unchecked", description = "Initial checkbox state without emitting change events during XML load.")
+    public Checkbox silentState(CheckboxState state) {
+        setState(state, false);
+        return this;
+    }
+
+    public boolean indeterminate() {
+        return state == CheckboxState.INDETERMINATE;
+    }
+
+    public Checkbox indeterminate(boolean indeterminate) {
+        return state(indeterminate ? CheckboxState.INDETERMINATE : CheckboxState.UNCHECKED);
+    }
+
+    public boolean triState() {
+        return triState;
+    }
+
+    @XamlProperty(value = "triState", category = "Behavior", defaultValue = "false", description = "Allows cycling through checked, unchecked and indeterminate states.")
+    public Checkbox triState(boolean triState) {
+        this.triState = triState;
+        return this;
+    }
+
+    public float boxSize() {
+        return boxSize;
+    }
+
+    @XamlProperty(value = "boxSize", category = "Layout", defaultValue = "12", description = "Checkbox square size in UI pixels.")
+    public Checkbox boxSize(float boxSize) {
+        float normalized = positiveOr(boxSize, BOX_SIZE);
+        if (this.boxSize == normalized) return this;
+        this.boxSize = normalized;
+        if (checkSize > normalized) checkSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float checkSize() {
+        return checkSize;
+    }
+
+    @XamlProperty(value = "checkSize", category = "Layout", defaultValue = "6", description = "Check mark size in UI pixels.")
+    public Checkbox checkSize(float checkSize) {
+        float normalized = Math.min(positiveOr(checkSize, CHECK_SIZE), boxSize);
+        if (this.checkSize == normalized) return this;
+        this.checkSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float textGap() {
+        return textGap;
+    }
+
+    @XamlProperty(value = "textGap", category = "Layout", defaultValue = "4", description = "Gap between checkbox mark and label text.")
+    public Checkbox textGap(float textGap) {
+        float normalized = Float.isFinite(textGap) ? Math.max(0.0f, textGap) : TEXT_GAP;
+        if (this.textGap == normalized) return this;
+        this.textGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean labelLeft() {
+        return labelLeft;
+    }
+
+    @XamlProperty(value = "labelLeft", category = "Layout", defaultValue = "false", description = "Whether label text is rendered before the checkbox mark.")
+    public Checkbox labelLeft(boolean labelLeft) {
+        if (this.labelLeft == labelLeft) return this;
+        this.labelLeft = labelLeft;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public float checkProgress() {
+        return checkProgress;
+    }
+
+    public TransitionSpec checkAnimation() {
+        return checkAnimation;
+    }
+
+    public Checkbox checkAnimation(float durationSeconds) {
+        return checkAnimation(TransitionSpec.of(durationSeconds));
+    }
+
+    public Checkbox checkAnimation(TransitionSpec checkAnimation) {
+        this.checkAnimation = checkAnimation == null ? TransitionSpec.DEFAULT : checkAnimation;
+        return this;
+    }
+
+    @Override
+    public boolean checked() {
+        return state == CheckboxState.CHECKED;
+    }
+
+    @Override
+    public Checkbox checked(boolean checked) {
+        setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, true);
+        return this;
+    }
+
+    @Override
+    @XamlProperty(value = "checked", category = "Behavior", defaultValue = "false", description = "Initial checked state without emitting change events during XML load.")
+    public Checkbox silentChecked(boolean checked) {
+        setState(checked ? CheckboxState.CHECKED : CheckboxState.UNCHECKED, false);
+        return this;
+    }
+
+    public EventSubscription onStateChanged(EventListener<? super CheckboxStateChangedEvent> listener) {
+        return on(CheckboxStateChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public ButtonClickEvent click() {
+        if (!triState) {
+            return super.click();
+        }
+        cyclingFromClick = true;
+        try {
+            return super.click();
+        } finally {
+            cyclingFromClick = false;
+        }
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+            setDesiredSize(0.0f, 0.0f);
+            return;
+        }
+        applyTheme();
+        RichText text = renderedRichText();
+        boolean hasText = text != null && !text.isEmpty();
+        float textWidth = hasText ? textGap + TextEngine.measureLineWidth(text) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(text) : 0.0f;
+        setDesiredSize(resolveDesiredSize(context, boxSize + textWidth, Math.max(boxSize, textHeight)));
+    }
+
+    @Override
+    public void handle(Event event) {
+        if (triState
+                && event instanceof KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)
+                && (key.keyCode() == KeyCodes.SPACE || key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER)) {
+            cycleState(true);
+            event.cancel();
+            return;
+        }
+        super.handle(event);
+    }
+
+    @Override
+    protected void renderContent(RenderContext context) {
+        applyTheme();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        RichText text = renderedRichText();
+        boolean hasText = text != null && !text.isEmpty();
+
+        float labelGap = hasText ? Math.max(0.0f, textGap) : 0.0f;
+        float textWidth = hasText ? TextEngine.measureLineWidth(draw.context(), text) : 0.0f;
+        float textHeight = hasText ? TextEngine.measureTextHeight(draw.context(), text) : 0.0f;
+        float labelWidth = hasText
+                ? Math.min(Math.max(0.0f, textWidth), Math.max(0.0f, width - boxSize - labelGap))
+                : 0.0f;
+        float indicatorX = labelLeft ? x + labelWidth + labelGap : x;
+        float indicatorY = y + Math.max(0.0f, height - boxSize) * 0.5f;
+
+        ColorView boxOff = styleValue(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.NORMAL,
+                MutableColor.rgba(0.0f, 0.0f, 0.0f, 0.0f));
+        ColorView boxOn = styleValue(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, boxOff);
+        ColorView borderOff = styleValue(StyleKeys.BORDER_COLOR, WidgetState.NORMAL, borderColor());
+        ColorView borderOn = styleValue(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, borderOff);
+        ColorView hoverBorder = styleValue(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, borderOff);
+        ColorView accentMark = styleValue(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, checkedBackground());
+        ColorView markColor = styleValue(StyleKeys.CHECKBOX_MARK_COLOR, WidgetState.CHECKED, accentMark);
+        CheckboxMarkShape markShape = styleValue(StyleKeys.CHECKBOX_MARK_SHAPE, WidgetState.NORMAL, CheckboxMarkShape.DOT);
+        Float styledRadius = styleValue(StyleKeys.RADIUS, WidgetState.NORMAL, 0.0f);
+        Float styledBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL, 1.0f);
+        float progress = clamp01(checkProgress());
+        interpolate(interpolatedBoxColor, boxOff, boxOn, progress);
+        ColorView indicatorBorder = hovered() && enabled()
+                ? hoverBorder
+                : interpolate(interpolatedBorderColor, borderOff, borderOn, progress);
+        float radius = styledRadius == null ? 0.0f : Math.max(0.0f, styledRadius);
+        float borderWidth = styledBorderWidth == null ? 1.0f : Math.max(0.0f, styledBorderWidth);
+        draw.roundedRectFilled(indicatorX, indicatorY, boxSize, boxSize, radius, interpolatedBoxColor);
+        if (borderWidth > 0.0f) {
+            draw.roundedRectStroke(indicatorX, indicatorY, boxSize, boxSize, radius,
+                    indicatorBorder, borderWidth);
+        }
+        if (progress > 0.0f && checkSize > 0.0f) {
+            if (indeterminate()) {
+                float dashWidth = checkSize * progress;
+                float dashHeight = Math.max(borderWidth, checkSize * 0.28f);
+                draw.rectFilled(indicatorX + (boxSize - dashWidth) * 0.5f,
+                        indicatorY + (boxSize - dashHeight) * 0.5f, dashWidth, dashHeight, markColor);
+            } else {
+                renderMark(draw, markShape, markColor, indicatorX, indicatorY, progress);
+            }
+        }
+
+        if (hasText) {
+            float contentX;
+            float contentWidth;
+            float drawY;
+            float drawHeight = Math.min(Math.max(0.0f, height), Math.max(0.0f, textHeight));
+            if (labelLeft) {
+                contentX = x;
+                contentWidth = labelWidth;
+                drawY = y + Math.max(0.0f, height - drawHeight) * 0.5f;
+            } else {
+                contentX = x + boxSize + textGap;
+                contentWidth = Math.max(0.0f, width - boxSize - textGap);
+                float indicatorCenterY = indicatorY + boxSize * 0.5f;
+                drawY = indicatorCenterY - drawHeight * 0.5f + 1.0f;
+            }
+            if (contentWidth > 0.0f && drawHeight > 0.0f) {
+                renderLabel(draw, text, contentX, y, contentWidth, height,
+                        contentX, drawY, contentWidth, drawHeight, textColor());
+            }
+        }
+        renderChildren(context);
+    }
+
+    /**
+     * Рисует метку включённого флажка; {@code progress} (0..1) масштабирует её от центра квадрата.
+     *
+     * <p>Точка и квадрат занимают {@code checkSize * progress}. Галочка и крестик рисуются отрезками в долях стороны
+     * квадрата {@code S = boxSize}, толщина линии {@code max(1.5, S * 0.14)}:</p>
+     * <pre>
+     *   CHECK: (0.24S, 0.52S) -> (0.43S, 0.72S) -> (0.77S, 0.30S)
+     *   CROSS: (0.30S, 0.30S) -> (0.70S, 0.70S)  и  (0.70S, 0.30S) -> (0.30S, 0.70S)
+     *   точка p масштабируется: center + (p - center) * progress
+     * </pre>
+     */
+    private void renderMark(DrawScope draw, CheckboxMarkShape shape, ColorView color,
+                            float indicatorX, float indicatorY, float progress) {
+        switch (shape) {
+            case SQUARE -> {
+                float size = checkSize * progress;
+                draw.rectFilled(indicatorX + (boxSize - size) * 0.5f, indicatorY + (boxSize - size) * 0.5f,
+                        size, size, color);
+            }
+            case CHECK -> {
+                Paint stroke = Paint.stroke(color, Math.max(1.5f, boxSize * 0.14f));
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.24f, 0.52f, 0.43f, 0.72f);
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.43f, 0.72f, 0.77f, 0.30f);
+            }
+            case CROSS -> {
+                Paint stroke = Paint.stroke(color, Math.max(1.5f, boxSize * 0.14f));
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.30f, 0.30f, 0.70f, 0.70f);
+                markLine(draw, stroke, indicatorX, indicatorY, progress, 0.70f, 0.30f, 0.30f, 0.70f);
+            }
+            default -> {
+                float size = checkSize * progress;
+                draw.circleFilled(indicatorX + (boxSize - size) * 0.5f, indicatorY + (boxSize - size) * 0.5f,
+                        size, size, color);
+            }
+        }
+    }
+
+    private void markLine(DrawScope draw, Paint paint, float indicatorX, float indicatorY, float progress,
+                          float x1, float y1, float x2, float y2) {
+        float s = boxSize;
+        draw.line(indicatorX + s * (0.5f + (x1 - 0.5f) * progress), indicatorY + s * (0.5f + (y1 - 0.5f) * progress),
+                indicatorX + s * (0.5f + (x2 - 0.5f) * progress), indicatorY + s * (0.5f + (y2 - 0.5f) * progress),
+                paint);
+    }
+
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.CHECKBOX;
+    }
+
+    private static ColorView interpolate(MutableColor target, ColorView from, ColorView to, float amount) {
+        float progress = clamp01(amount);
+        target.set(
+                from.r() + (to.r() - from.r()) * progress,
+                from.g() + (to.g() - from.g()) * progress,
+                from.b() + (to.b() - from.b()) * progress,
+                from.a() + (to.a() - from.a()) * progress);
+        return target;
+    }
+
+    private void setState(CheckboxState state, boolean emitChange) {
+        CheckboxState next = normalize(state);
+        if (cyclingFromClick && triState) {
+            next = nextState(this.state);
+        }
+        if (this.state == next) return;
+        CheckboxState oldState = this.state;
+        boolean oldChecked = checked();
+        this.state = next;
+        super.silentChecked(next == CheckboxState.CHECKED);
+        animateCheckProgress(next != CheckboxState.UNCHECKED);
+        invalidate(InvalidationFlags.VISUAL);
+        if (emitChange) {
+            emit(new CheckboxStateChangedEvent(this, oldState, next));
+            if (oldChecked != checked()) {
+                emit(new CheckedChangedEvent(this, oldChecked, checked()));
+            }
+        }
+    }
+
+    private void cycleState(boolean emitChange) {
+        setState(nextState(state), emitChange);
+    }
+
+    private void animateCheckProgress(boolean visible) {
+        animateParameter(
+                CHECK_PROGRESS_ANIMATION_KEY,
+                this::checkProgress,
+                this::setCheckProgress,
+                visible ? 1.0f : 0.0f,
+                checkAnimation);
+    }
+
+    private void setCheckProgress(float progress) {
+        float normalized = clamp01(progress);
+        if (this.checkProgress == normalized) return;
+        this.checkProgress = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private static CheckboxState nextState(CheckboxState state) {
+        return switch (normalize(state)) {
+            case UNCHECKED -> CheckboxState.CHECKED;
+            case CHECKED -> CheckboxState.INDETERMINATE;
+            case INDETERMINATE -> CheckboxState.UNCHECKED;
+        };
+    }
+
+    private static CheckboxState normalize(CheckboxState state) {
+        return state == null ? CheckboxState.UNCHECKED : state;
+    }
+
+    private static float positiveOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 0.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
+    }
+}

@@ -2,6 +2,8 @@ package dev.sixik.unigui.forge;
 
 import dev.sixik.unigui.backend.minecraft_impl.custom_renders.MinecraftRendererPlatformHook;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftUiRuntimeBackend;
 import dev.sixik.unigui.forge.custom_renders.ForgeMinecraftRendererPlatformHook;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.client.event.ScreenEvent;
@@ -18,6 +20,7 @@ public final class UniGuiForgeClient {
     }
 
     public static void init() {
+        UniGuiRuntime.install(new MinecraftUiRuntimeBackend());
         MinecraftRendererPlatformHook.set(new ForgeMinecraftRendererPlatformHook());
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mousePressed);
         MinecraftForge.EVENT_BUS.addListener(UniGuiForgeClient::mouseReleased);

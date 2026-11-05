@@ -1,0 +1,3 @@
+// Runs after the GTNH convention has configured the project: pin the version to the parent project version
+// instead of the (monorepo wide) git tag derived one.
+version = ext.uniguiVersion

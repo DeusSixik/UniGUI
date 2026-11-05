@@ -1,0 +1,2819 @@
+package dev.sixik.unigui.widgets.docking;
+
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.event.DockLayoutChangedEvent;
+import dev.sixik.unigui.api.event.DockLayoutRestoredEvent;
+import dev.sixik.unigui.api.event.DockDragEndedEvent;
+import dev.sixik.unigui.api.event.DockDragMovedEvent;
+import dev.sixik.unigui.api.event.DockDragStartedEvent;
+import dev.sixik.unigui.api.event.DockDropPreviewChangedEvent;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventListener;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.EventSubscription;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.event.PointerMovedEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.input.MouseCursor;
+import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.impl.text.TextEngine;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.DockPanel;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.feedback.WindowWidget;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.api.style.Style;
+
+/**
+ * Visual root host for the IDE-style docking system.
+ *
+ * <p>DockingRoot owns widget-facing state such as pane chrome, tab strips,
+ * split handles, drop previews, floating-window redock integration and input
+ * handling. Persistent tree mutation and restore operations are delegated to
+ * {@link DockingManager}.</p>
+ *
+ * <p>Use {@link DockPanel} for simple edge-based child layout. DockingRoot is
+ * the docking system root; DockPanel is only a layout container.</p>
+ */
+@AiDoc(summary = "Root visual widget for the IDE docking system hosting dock tree nodes, tab strips, split handles, drop previews, and tear-off floating window integrations."
+)
+@WikiPage(
+        title = "DockingRoot",
+        slug = "docking-root",
+        category = "<key:docking.widget.category>",
+        summary = "<key:docking.root.summary>"
+)
+@WikiSection(
+        title = "<key:wiki.section.overview.title>",
+        markdown = "<key:docking.root.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:docking.root.example.basic.title>",
+        code = "DockingRoot root = new DockingRoot();\n"
+                + "root.addDocument(\"code-1\", \"CodeEditor.java\", editorWidget);\n"
+                + "root.addToolPane(\"proj-1\", \"Project\", projectTreeWidget, DockArea.LEFT);"
+)
+@WikiLink(
+        label = "DockingManager",
+        target = "page:docking-manager",
+        description = "<key:docking.manager.summary>"
+)
+@WikiLink(
+        label = "DockPane",
+        target = "page:dock-pane",
+        description = "<key:dock.pane.summary>"
+)
+@WikiLink(
+        label = "DockTheme",
+        target = "page:dock-theme",
+        description = "<key:dock.theme.summary>"
+)
+@XamlWidget("DockingRoot")
+public final class DockingRoot extends Box {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DOCKING_ROOT;
+
+    private static final float DEFAULT_WIDTH = 320.0f;
+    private static final float DEFAULT_HEIGHT = 200.0f;
+    private static final float DEFAULT_TOOL_PANE_FRACTION = 0.28f;
+    private static final float OVERFLOW_BUTTON_WIDTH = 24.0f;
+    private static final float OVERFLOW_MENU_WIDTH = 168.0f;
+    private static final float OVERFLOW_MENU_ROW_HEIGHT = 20.0f;
+    private static final int OVERFLOW_MENU_MAX_VISIBLE_ROWS = 8;
+    /** Зазор между ячейками креста drop-зон. */
+    private static final float DROP_ZONE_GAP = 6.0f;
+
+    /** Визуальный стиль разделителя панелей. */
+    @AiDoc(summary = "Visual rendering style of split handles: BLOCK with solid background and center line, or SEAM with thin shared border.")
+    public enum SplitHandleStyle {
+        /** Блок с центральной линией. */
+        BLOCK,
+        /** Общая кромка панелей: тонкий шов без фонового блока. */
+        SEAM
+    }
+
+    private final DockingManager manager = new DockingManager(this);
+    private final DockDragController dragController = new DockDragController(this);
+    private final Set<Widget> registeredContents = Collections.newSetFromMap(new IdentityHashMap<>());
+    private WidgetRender paneRenderer;
+    private WidgetRender splitHandleRenderer;
+    private WidgetRender dropPreviewRenderer;
+    private SplitHandleStyle splitHandleStyle = SplitHandleStyle.BLOCK;
+    private WindowWidget lastFloatingWindow;
+    private final List<WindowWidget> floatingDockWindows = new ObjectArrayList<>();
+    private DockTheme theme;
+    private String hoveredPaneId = "";
+    private String pressedPaneId = "";
+    private String hoveredCloseId = "";
+    private String pressedCloseId = "";
+    private int pressedClosePointerId = -1;
+    private String openOverflowNodeId = "";
+    private int hoveredOverflowMenuIndex = -1;
+    private final Map<String, Integer> tabScrollOffsets = new HashMap<>();
+    private final Map<String, Integer> overflowMenuScrollOffsets = new HashMap<>();
+    private DockDropIntent floatingDropPreviewIntent = DockDropIntent.none();
+    /** Последний размер floating-окна по id панели: tear-off возвращает его, а не размер листа. */
+    private final Map<String, float[]> floatingWindowSizes = new HashMap<>();
+    private static final Map<WindowWidget, DockingRoot> FOREIGN_WINDOW_PREVIEW_TARGETS =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private float tabHeight = 22.0f;
+    private float splitHandleThickness = 5.0f;
+    private boolean hasArrangedBounds;
+    private boolean allowFloatingOutsideHost;
+    private boolean tearOffOnDragOut = true;
+    private boolean floatingWindowsRedockLocked;
+    private WindowWidget windowHost;
+
+    // Split-drag state
+    private String hoveredSplitNodeId = "";
+    private String pressedSplitNodeId = "";
+    private int splitDragPointerId = -1;
+    private float splitDragStartX;
+    private float splitDragStartY;
+    private float splitDragStartRatio;
+    private DockSplitOrientation splitDragOrientation;
+    private float splitDragAvailable;  // total track length (px) at drag start
+
+    @AiDoc(summary = "Constructs a new DockingRoot widget initialized with default theme and styling.")
+    @WikiMethod(summary = "<key:docking.root.method.ctor>")
+    public DockingRoot() {
+        applyComponentStyleDefaults(WidgetStyles.Tools.DOCKING_ROOT);
+        focusable(true);
+        DockTheme initial = DockTheme.defaultTheme();
+        this.tabHeight = initial.tabHeight();
+        this.splitHandleThickness = initial.splitThickness();
+        this.splitHandleStyle = initial.splitStyle();
+    }
+
+    /**
+     * Возвращает стандартный стиль поверхности корня стыковки панелей.
+     *
+     * @return общий стиль корня стыковки
+     */
+    @Override
+    protected Style defaultStyle() {
+        return WidgetStyles.Tools.DOCKING_ROOT;
+    }
+
+    @AiDoc(summary = "Returns the non-visual DockingManager coordinating this root.")
+    @WikiMethod(summary = "<key:docking.root.method.dockingManager>")
+    @WikiReturn("<key:docking.root.return.dockingManager>")
+    public DockingManager dockingManager() {
+        return manager;
+    }
+
+    @AiDoc(summary = "Convenience shortcut returning the DockingManager.")
+    @WikiMethod(summary = "<key:docking.root.method.manager>")
+    @WikiReturn("<key:docking.root.return.dockingManager>")
+    public DockingManager manager() {
+        return manager;
+    }
+
+    /**
+     * Окно-хост, внутрь которого встроен этот root, или {@code null} для
+     * обычных корневых docking area.
+     */
+    @AiDoc(summary = "Returns the parent WindowWidget hosting this docking root, or null if root is top-level.")
+    @WikiMethod(summary = "<key:docking.root.method.windowHostGet>")
+    @WikiReturn("<key:docking.root.return.windowHost>")
+    public WindowWidget windowHost() {
+        return windowHost;
+    }
+
+    /**
+     * Привязывает root к окну-хосту. Вызывается из {@link WindowWidget}
+     * при включении внутренней docking area.
+     */
+    @AiDoc(summary = "Binds this docking root to a host WindowWidget.")
+    @WikiMethod(summary = "<key:docking.root.method.windowHostSet>")
+    public void windowHost(
+            @WikiParameter(description = "<key:docking.root.param.windowHost>")
+            WindowWidget windowHost
+    ) {
+        this.windowHost = windowHost;
+    }
+
+    /**
+     * Принимает ли root dock drops прямо сейчас.
+     *
+     * <p>Корневые area принимают всегда. Root внутри окна принимает, пока политика
+     * окна ({@link WindowWidget#dockPolicy()}) разрешает приём: после запрета
+     * панели остаются на месте, но новые дропы блокируются.</p>
+     */
+    @AiDoc(summary = "Returns true if this docking root currently accepts drop operations based on window dock policy.")
+    @WikiMethod(summary = "<key:docking.root.method.acceptsDockDrops>")
+    @WikiReturn("<key:docking.root.return.acceptsDockDrops>")
+    public boolean acceptsDockDrops() {
+        return windowHost == null || windowHost.dockPolicy().acceptsDrops();
+    }
+
+    @AiDoc(summary = "Returns the root DockNode of the docking layout tree.")
+    @WikiMethod(summary = "<key:docking.root.method.rootNode>")
+    @WikiReturn("<key:docking.root.return.rootNode>")
+    public DockNode rootNode() {
+        return manager.rootNode();
+    }
+
+    @AiDoc(summary = "Returns the DockDragController managing tab and window dragging.")
+    @WikiMethod(summary = "<key:docking.root.method.dragController>")
+    @WikiReturn("<key:docking.root.return.dragController>")
+    public DockDragController dragController() {
+        return dragController;
+    }
+
+    @AiDoc(summary = "Returns the current drop preview intent.")
+    @WikiMethod(summary = "<key:docking.root.method.dockDropPreview>")
+    @WikiReturn("<key:docking.root.return.dockDropPreview>")
+    public DockDropIntent dockDropPreview() {
+        return dragController.previewIntent();
+    }
+
+    @AiDoc(summary = "Returns true if floating dock windows are allowed to move outside host bounds.")
+    @WikiMethod(summary = "<key:docking.root.method.allowFloatingOutsideHostGet>")
+    @WikiReturn("<key:docking.root.return.allowFloatingOutsideHost>")
+    public boolean allowFloatingOutsideHost() {
+        return allowFloatingOutsideHost;
+    }
+
+    @AiDoc(summary = "Sets whether floating dock windows may move outside root host bounds.")
+    @WikiMethod(summary = "<key:docking.root.method.allowFloatingOutsideHostSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "allowFloatingOutsideHost", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows may move outside the root host bounds.")
+    public DockingRoot allowFloatingOutsideHost(
+            @WikiParameter(description = "<key:docking.root.param.allowFloatingOutsideHost>")
+            boolean allowFloatingOutsideHost
+    ) {
+        if (this.allowFloatingOutsideHost == allowFloatingOutsideHost) return this;
+        this.allowFloatingOutsideHost = allowFloatingOutsideHost;
+        return this;
+    }
+
+    /**
+     * Возвращает, вырывается ли панель плавающим окном при дропе мимо зон.
+     *
+     * @return {@code true} для tear-off поведения (default)
+     */
+    @AiDoc(summary = "Returns whether dragging a tab out of the docking area tears it off into a floating window.")
+    @WikiMethod(summary = "<key:docking.root.method.tearOffOnDragOutGet>")
+    @WikiReturn("<key:docking.root.return.tearOffOnDragOut>")
+    public boolean tearOffOnDragOut() {
+        return tearOffOnDragOut;
+    }
+
+    /**
+     * Включает или выключает tear-off: дроп перетаскиваемой панели мимо всех
+     * зон превращает её в плавающее окно вместо snap-back на место.
+     *
+     * <p>Срабатывает только после реального драга (порог пройден) и только если
+     * отпустили вне исходного листа. Окно при создании клампится в хост, так
+     * что вынос за край даёт окно у края, а не потерю панели.</p>
+     *
+     * @param tearOffOnDragOut {@code true}, чтобы разрешить отрыв панелей
+     * @return этот root для fluent-настройки
+     */
+    @AiDoc(summary = "Enables or disables automatic tear-off of tabs into floating windows when dropped outside dock zones.")
+    @WikiMethod(summary = "<key:docking.root.method.tearOffOnDragOutSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "tearOffOnDragOut", category = "Behavior", defaultValue = "true", description = "Whether dropping a dragged pane outside all zones tears it off into a floating window.")
+    public DockingRoot tearOffOnDragOut(
+            @WikiParameter(description = "<key:docking.root.param.tearOffOnDragOut>")
+            boolean tearOffOnDragOut
+    ) {
+        if (this.tearOffOnDragOut == tearOffOnDragOut) return this;
+        this.tearOffOnDragOut = tearOffOnDragOut;
+        return this;
+    }
+
+    @AiDoc(summary = "Returns whether floating windows spawned from this root are prevented from redocking.")
+    @WikiMethod(summary = "<key:docking.root.method.floatingWindowsRedockLockedGet>")
+    @WikiReturn("<key:docking.root.return.floatingWindowsRedockLocked>")
+    public boolean floatingWindowsRedockLocked() {
+        return floatingWindowsRedockLocked;
+    }
+
+    @AiDoc(summary = "Locks or unlocks redocking capability for floating windows.")
+    @WikiMethod(summary = "<key:docking.root.method.floatingWindowsRedockLockedSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "floatingWindowsRedockLocked", category = "Behavior", defaultValue = "false", description = "Whether floating dock windows are prevented from redocking.")
+    public DockingRoot floatingWindowsRedockLocked(
+            @WikiParameter(description = "<key:docking.root.param.floatingWindowsRedockLocked>")
+            boolean floatingWindowsRedockLocked
+    ) {
+        this.floatingWindowsRedockLocked = floatingWindowsRedockLocked;
+        syncFloatingDockWindowRedockLocks();
+        return this;
+    }
+
+    @AiDoc(summary = "Returns true if a docking tab drag gesture is currently underway.")
+    @WikiMethod(summary = "<key:docking.root.method.dockDragging>")
+    @WikiReturn("<key:docking.root.return.dockDragging>")
+    public boolean dockDragging() {
+        return dragController.dragging();
+    }
+
+    @AiDoc(summary = "Returns the last WindowWidget created by a float or tear-off operation, or null.")
+    @WikiMethod(summary = "<key:docking.root.method.lastFloatingWindow>")
+    @WikiReturn("<key:docking.root.return.lastFloatingWindow>")
+    public WindowWidget lastFloatingWindow() {
+        return lastFloatingWindow;
+    }
+
+    @AiDoc(summary = "Adds a pane to the docking layout.")
+    @WikiMethod(summary = "<key:docking.root.method.addPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addPane(
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
+        manager.addPane(pane);
+        return this;
+    }
+
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area.")
+    @WikiMethod(summary = "<key:docking.root.method.splitPaneDefault>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
+        manager.splitPane(targetPaneId, area, pane);
+        return this;
+    }
+
+    @AiDoc(summary = "Splits the leaf containing targetPaneId along the specified area with a custom split ratio.")
+    @WikiMethod(summary = "<key:docking.root.method.splitPaneRatio>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane,
+            @WikiParameter(description = "<key:docking.root.param.splitRatio>")
+            float splitRatio
+    ) {
+        manager.splitPane(targetPaneId, area, pane, splitRatio);
+        return this;
+    }
+
+    @AiDoc(summary = "Adds a pane as a tab into the leaf containing targetPaneId.")
+    @WikiMethod(summary = "<key:docking.root.method.tabPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot tabPane(
+            @WikiParameter(description = "<key:docking.root.param.targetPaneId>")
+            String targetPaneId,
+            @WikiParameter(description = "<key:docking.root.param.pane>")
+            DockPane pane
+    ) {
+        manager.tabPane(targetPaneId, pane);
+        return this;
+    }
+
+    @AiDoc(summary = "Finds a DockPane by its unique identifier.")
+    @WikiMethod(summary = "<key:docking.root.method.findPane>")
+    @WikiReturn("<key:docking.root.return.foundPane>")
+    public DockPane findPane(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
+        return manager.findPane(paneId);
+    }
+
+    @AiDoc(summary = "Selects and brings into view the pane with the specified ID.")
+    @WikiMethod(summary = "<key:docking.root.method.selectPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot selectPane(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
+        manager.selectPane(paneId);
+        return this;
+    }
+
+    @AiDoc(summary = "Restores layout structure from snapshot.")
+    @WikiMethod(summary = "<key:docking.root.method.restoreLayout>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot restoreLayout(
+            @WikiParameter(description = "<key:docking.root.param.snapshot>")
+            DockLayoutSnapshot snapshot,
+            @WikiParameter(description = "<key:docking.root.param.paneRegistry>")
+            Map<String, DockPane> paneRegistry
+    ) {
+        manager.restore(snapshot, paneRegistry);
+        return this;
+    }
+
+    @AiDoc(summary = "Convenience method to add a DOCUMENT kind pane into the central editor workspace.")
+    @WikiMethod(summary = "<key:docking.root.method.addDocument>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addDocument(
+            @WikiParameter(description = "<key:docking.root.param.id>")
+            String id,
+            @WikiParameter(description = "<key:docking.root.param.title>")
+            String title,
+            @WikiParameter(description = "<key:docking.root.param.content>")
+            Widget content
+    ) {
+        DockPane pane = DockPane.document(id, title, content);
+        DockPane target = firstDocumentPane();
+        if (target == null) {
+            manager.addPane(pane);
+        } else {
+            manager.tabPane(target.id(), pane);
+        }
+        return this;
+    }
+
+    @AiDoc(summary = "Convenience method to add a TOOL kind utility pane docked to a perimeter area.")
+    @WikiMethod(summary = "<key:docking.root.method.addToolPane>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot addToolPane(
+            @WikiParameter(description = "<key:docking.root.param.id>")
+            String id,
+            @WikiParameter(description = "<key:docking.root.param.title>")
+            String title,
+            @WikiParameter(description = "<key:docking.root.param.content>")
+            Widget content,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area
+    ) {
+        DockPane pane = DockPane.tool(id, title, content);
+        DockArea dockArea = area == null ? DockArea.LEFT : area;
+        DockPane target = firstDocumentPane();
+        if (target == null) target = manager.selectedPane();
+        if (target == null) {
+            manager.addPane(pane);
+        } else if (dockArea == DockArea.CENTER || dockArea == DockArea.TAB) {
+            manager.tabPane(target.id(), pane);
+        } else {
+            manager.splitPane(target.id(), dockArea, pane, toolPaneSplitRatio(dockArea));
+        }
+        return this;
+    }
+
+    private static float toolPaneSplitRatio(DockArea area) {
+        return area != null && area.insertsBeforeTarget()
+                ? DEFAULT_TOOL_PANE_FRACTION
+                : 1.0f - DEFAULT_TOOL_PANE_FRACTION;
+    }
+
+    @AiDoc(summary = "Closes the currently active tab.")
+    @WikiMethod(summary = "<key:docking.root.method.closeActivePane>")
+    @WikiReturn("<key:docking.root.return.closed>")
+    public boolean closeActivePane() {
+        return manager.closeActivePane();
+    }
+
+    @AiDoc(summary = "Selects the next tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.root.method.selectNextTab>")
+    @WikiReturn("<key:docking.root.return.tabChanged>")
+    public boolean selectNextTab() {
+        return manager.selectNextTab();
+    }
+
+    @AiDoc(summary = "Selects the previous tab in the active leaf.")
+    @WikiMethod(summary = "<key:docking.root.method.selectPreviousTab>")
+    @WikiReturn("<key:docking.root.return.tabChanged>")
+    public boolean selectPreviousTab() {
+        return manager.selectPreviousTab();
+    }
+
+    @AiDoc(summary = "Returns the height of tab strips in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.tabHeightGet>")
+    @WikiReturn("<key:docking.root.return.tabHeight>")
+    public float tabHeight() {
+        return tabHeight;
+    }
+
+    @AiDoc(summary = "Sets the height of tab strips in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.tabHeightSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "tabHeight", category = "Layout", defaultValue = "22", description = "Dock tab strip height in UI pixels.")
+    public DockingRoot tabHeight(
+            @WikiParameter(description = "<key:docking.root.param.tabHeight>")
+            float tabHeight
+    ) {
+        float normalized = Float.isFinite(tabHeight) ? Math.max(14.0f, tabHeight) : 22.0f;
+        if (this.tabHeight == normalized) return this;
+        this.tabHeight = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Returns the split handle thickness in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleThicknessGet>")
+    @WikiReturn("<key:docking.root.return.splitThickness>")
+    public float splitHandleThickness() {
+        return splitHandleThickness;
+    }
+
+    @AiDoc(summary = "Sets the split handle thickness in pixels.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleThicknessSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "splitHandleThickness", category = "Layout", defaultValue = "5", description = "Dock split handle thickness in UI pixels.")
+    public DockingRoot splitHandleThickness(
+            @WikiParameter(description = "<key:docking.root.param.splitThickness>")
+            float splitHandleThickness
+    ) {
+        float normalized = Float.isFinite(splitHandleThickness) ? Math.max(1.0f, splitHandleThickness) : 5.0f;
+        if (this.splitHandleThickness == normalized) return this;
+        this.splitHandleThickness = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Returns the visual rendering style of split handles.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleStyleGet>")
+    @WikiReturn("<key:docking.root.return.splitHandleStyle>")
+    public SplitHandleStyle splitHandleStyle() {
+        return splitHandleStyle;
+    }
+
+    @AiDoc(summary = "Sets the visual rendering style of split handles (BLOCK or SEAM).")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleStyleSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    @XamlProperty(value = "splitHandleStyle", category = "Appearance", defaultValue = "block", description = "Split handle visual style: block with a centre line or shared seam line.")
+    public DockingRoot splitHandleStyle(
+            @WikiParameter(description = "<key:docking.root.param.splitHandleStyle>")
+            SplitHandleStyle splitHandleStyle
+    ) {
+        SplitHandleStyle normalized = splitHandleStyle == null ? SplitHandleStyle.BLOCK : splitHandleStyle;
+        if (this.splitHandleStyle == normalized) return this;
+        this.splitHandleStyle = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Эффективная тема root: собственная, а если не задана — глобальная {@link DockTheme#defaultTheme()}.
+     *
+     * @return тема, по которой рисуются вкладки, разделители и зоны дропа
+     */
+    @AiDoc(summary = "Returns the active DockTheme applied to this root.")
+    @WikiMethod(summary = "<key:docking.root.method.themeGet>")
+    @WikiReturn("<key:docking.root.return.theme>")
+    public DockTheme theme() {
+        DockTheme own = theme;
+        return own != null ? own : DockTheme.defaultTheme();
+    }
+
+    /**
+     * Назначает root собственную тему и подтягивает из неё высоту вкладок и разделителей.
+     *
+     * @param theme тема; {@code null} возвращает root на глобальную тему по умолчанию
+     * @return этот root для fluent-настройки
+     */
+    @AiDoc(summary = "Applies a custom DockTheme to this root.")
+    @WikiMethod(summary = "<key:docking.root.method.themeSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot theme(
+            @WikiParameter(description = "<key:docking.root.param.theme>")
+            DockTheme theme
+    ) {
+        this.theme = theme;
+        DockTheme effective = theme();
+        this.tabHeight = effective.tabHeight();
+        this.splitHandleThickness = effective.splitThickness();
+        this.splitHandleStyle = effective.splitStyle();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Returns custom pane renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.paneRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
+    public WidgetRender paneRenderer() {
+        return paneRenderer;
+    }
+
+    @AiDoc(summary = "Sets custom pane renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.paneRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot paneRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender paneRenderer
+    ) {
+        if (this.paneRenderer == paneRenderer) return this;
+        this.paneRenderer = paneRenderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Returns custom split handle renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
+    public WidgetRender splitHandleRenderer() {
+        return splitHandleRenderer;
+    }
+
+    @AiDoc(summary = "Sets custom split handle renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.splitHandleRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot splitHandleRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender splitHandleRenderer
+    ) {
+        if (this.splitHandleRenderer == splitHandleRenderer) return this;
+        this.splitHandleRenderer = splitHandleRenderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Returns custom drop preview renderer delegate, or null if default.")
+    @WikiMethod(summary = "<key:docking.root.method.dropPreviewRendererGet>")
+    @WikiReturn("<key:docking.root.return.renderer>")
+    public WidgetRender dropPreviewRenderer() {
+        return dropPreviewRenderer;
+    }
+
+    @AiDoc(summary = "Sets custom drop preview renderer delegate.")
+    @WikiMethod(summary = "<key:docking.root.method.dropPreviewRendererSet>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot dropPreviewRenderer(
+            @WikiParameter(description = "<key:docking.root.param.renderer>")
+            WidgetRender dropPreviewRenderer
+    ) {
+        if (this.dropPreviewRenderer == dropPreviewRenderer) return this;
+        this.dropPreviewRenderer = dropPreviewRenderer;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Resets all custom renderers to built-in docking defaults.")
+    @WikiMethod(summary = "<key:docking.root.method.useDefaultDockingRenderers>")
+    @WikiReturn("<key:docking.root.return.this>")
+    public DockingRoot useDefaultDockingRenderers() {
+        renderer(null);
+        paneRenderer = null;
+        splitHandleRenderer = null;
+        dropPreviewRenderer = null;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @AiDoc(summary = "Registers a listener called when docking layout structure changes.")
+    @WikiMethod(summary = "<key:docking.root.method.onLayoutChanged>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onLayoutChanged(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockLayoutChangedEvent> listener
+    ) {
+        return on(DockLayoutChangedEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called when layout is restored from snapshot.")
+    @WikiMethod(summary = "<key:docking.root.method.onLayoutRestored>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onLayoutRestored(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockLayoutRestoredEvent> listener
+    ) {
+        return on(DockLayoutRestoredEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called when a dock tab drag gesture starts.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragStarted>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragStarted(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragStartedEvent> listener
+    ) {
+        return on(DockDragStartedEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called on pointer movement during tab drag.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragMoved>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragMoved(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragMovedEvent> listener
+    ) {
+        return on(DockDragMovedEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called when a tab drag gesture ends.")
+    @WikiMethod(summary = "<key:docking.root.method.onDragEnded>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDragEnded(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDragEndedEvent> listener
+    ) {
+        return on(DockDragEndedEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called when the drop preview target intent updates.")
+    @WikiMethod(summary = "<key:docking.root.method.onDropPreviewChanged>")
+    @WikiReturn("<key:docking.root.return.subscription>")
+    public EventSubscription onDropPreviewChanged(
+            @WikiParameter(description = "<key:docking.root.param.listener>")
+            EventListener<? super DockDropPreviewChangedEvent> listener
+    ) {
+        return on(DockDropPreviewChangedEvent.TYPE, listener);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
+        }
+        syncPaneChildren();
+        applyQueuedMutations();
+        float width = finiteOr(context == null ? Float.NaN : context.availableWidth(), DEFAULT_WIDTH);
+        float height = finiteOr(context == null ? Float.NaN : context.availableHeight(), DEFAULT_HEIGHT);
+        measureSelectedContents(rootNode(), new LayoutContext(width, Math.max(0.0f, height - tabHeight)));
+        setDesiredSize(resolveDesiredSize(context, width, height));
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        mutableLayoutBounds().set(bounds);
+        hasArrangedBounds = bounds != null && bounds.width() > 0.0f && bounds.height() > 0.0f;
+        if (visibility() == Visibility.COLLAPSED) return;
+        syncPaneChildren();
+        applyQueuedMutations();
+        Set<Widget> arranged = Collections.newSetFromMap(new IdentityHashMap<>());
+        arrangeNode(rootNode(), bounds, arranged);
+        for (DockPane pane : manager.panes()) {
+            Widget content = pane.content();
+            if (!arranged.contains(content)) {
+                content.arrange(new MutableRect(bounds.x(), bounds.y(), 0.0f, 0.0f));
+            }
+        }
+    }
+
+    @Override
+    public void render(RenderContext context) {
+        if (visibility() != Visibility.VISIBLE) return;
+        syncPaneChildren();
+        applyQueuedMutations();
+        pushOpacity(context);
+        try {
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (!renderCustomVisual(draw)) {
+                renderDefaultRoot(draw);
+            }
+            renderSelectedContents(context, rootNode(), layoutBounds());
+            renderChrome(context);
+            renderOverflowMenu(context);
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        if (visibility() != Visibility.VISIBLE) return;
+        super.tick(frame);
+    }
+
+    @Override
+    public MouseCursor mouseCursorAt(float localX, float localY) {
+        if (!enabled() || visibility() != Visibility.VISIBLE) return MouseCursor.DEFAULT;
+        // Show resize cursor when hovering or dragging a split handle
+        if (!pressedSplitNodeId.isEmpty()) {
+            return splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                    ? MouseCursor.RESIZE_HORIZONTAL : MouseCursor.RESIZE_VERTICAL;
+        }
+        if (!hoveredSplitNodeId.isEmpty()) {
+            SplitNodeHit hit = splitHandleAt(rootNode(), layoutBounds(),
+                    layoutBounds().x() + localX, layoutBounds().y() + localY);
+            if (hit != null) {
+                return hit.orientation() == DockSplitOrientation.HORIZONTAL
+                        ? MouseCursor.RESIZE_HORIZONTAL : MouseCursor.RESIZE_VERTICAL;
+            }
+        }
+        return super.mouseCursorAt(localX, localY);
+    }
+
+    @Override
+    public void handle(Event event) {
+        if (visibility() != Visibility.VISIBLE || !enabled()) return;
+        if (handleOverflowMenuEventBeforeChildren(event)) return;
+        super.handle(event);
+        if (event.isCancelled()) return;
+
+        if (event instanceof KeyPressedEvent key && key.phase() == EventPhase.TARGET) {
+            if (handleDockShortcut(key)) {
+                event.cancel();
+            }
+            return;
+        }
+
+        // -- Split drag: move --------------------------------------------------
+        if (event instanceof PointerMovedEvent pointer && !pressedSplitNodeId.isEmpty()
+                && pointer.pointerId() == splitDragPointerId) {
+            DockNode node = findSplitNodeById(rootNode(), pressedSplitNodeId);
+            if (node != null) {
+                float newRatio = computeNewSplitRatio(
+                        pointer.rootX(), pointer.rootY());
+                node.splitRatio(newRatio);
+                invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+            event.cancel();
+            return;
+        }
+
+        // -- Split drag: end ---------------------------------------------------
+        if (event instanceof PointerReleasedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && !pressedSplitNodeId.isEmpty()
+                && pointer.pointerId() == splitDragPointerId) {
+            UIContext ctx = uiContext();
+            if (ctx != null) ctx.releasePointer(pointer.pointerId(), this);
+            pressedSplitNodeId = "";
+            splitDragPointerId = -1;
+            invalidate(InvalidationFlags.VISUAL);
+            event.cancel();
+            return;
+        }
+
+        // -- Tab close button: release fires the close ---------------------------
+        if (event instanceof PointerReleasedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && !pressedCloseId.isEmpty()
+                && pointer.pointerId() == pressedClosePointerId) {
+            String armedId = pressedCloseId;
+            pressedCloseId = "";
+            pressedClosePointerId = -1;
+            UIContext ctx = uiContext();
+            if (ctx != null) ctx.releasePointer(pointer.pointerId(), this);
+            TabHit hit = tabHitAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (hit != null && hit.onClose() && hit.pane().id().equals(armedId)) {
+                requestClosePane(hit.pane());
+            }
+            invalidate(InvalidationFlags.VISUAL);
+            event.cancel();
+            return;
+        }
+
+        // -- Tab middle click closes the tab ----------------------------------
+        if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() == EventPhase.TARGET
+                && pointer.button() == PointerButton.MIDDLE) {
+            DockPane pane = tabAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (pane != null && requestClosePane(pane)) {
+                event.cancel();
+                return;
+            }
+        }
+
+        // -- Tab drag: move ----------------------------------------------------
+        if (event instanceof PointerMovedEvent pointer && dragController.active()) {
+            if (dragController.move(pointer.pointerId(), pointer.rootX(), pointer.rootY())) {
+                event.cancel();
+            }
+            if (dragController.dragging()) {
+                reorderTabAtPointer(pointer);
+                tearOffTabAtPointer(pointer);
+            }
+            return;
+        }
+
+        if (event instanceof ScrollEvent scroll && scroll.phase() == EventPhase.TARGET) {
+            if (scrollTabsAt(scroll.rootX(), scroll.rootY(), scroll.deltaX(), scroll.deltaY())) {
+                event.cancel();
+            }
+            return;
+        }
+
+        // -- Hover: split handle & pane tab ------------------------------------
+        if (event instanceof PointerMovedEvent pointer && pointer.phase() == EventPhase.TARGET) {
+            SplitNodeHit splitHit = splitHandleAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            setHoveredSplitNode(splitHit == null ? "" : splitHit.node().id());
+            if (splitHit == null) {
+                TabHit tabHit = tabHitAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+                setHoveredPane(tabHit == null ? "" : tabHit.pane().id());
+                setHoveredClose(tabHit != null && tabHit.onClose() ? tabHit.pane().id() : "");
+            } else {
+                setHoveredPane("");
+                setHoveredClose("");
+            }
+        }
+
+        if (event instanceof PointerExitedEvent exited && exited.phase() == EventPhase.TARGET) {
+            setHoveredPane("");
+            setHoveredClose("");
+            setHoveredSplitNode("");
+        }
+
+        // -- Tab drag: end -----------------------------------------------------
+        if (event instanceof PointerReleasedEvent pointer
+                && pointer.button() == PointerButton.PRIMARY
+                && dragController.active()) {
+            int pointerId = pointer.pointerId();
+            if (dragController.end(pointerId, pointer.rootX(), pointer.rootY())) {
+                UIContext context = uiContext();
+                if (context != null) {
+                    context.releasePointer(pointerId, this);
+                }
+                setPressedPane("");
+                event.cancel();
+            }
+            return;
+        }
+
+        if (event instanceof PointerReleasedEvent pointer && pointer.button() == PointerButton.PRIMARY) {
+            setPressedPane("");
+        }
+
+        // -- Press: split handle or tab ----------------------------------------
+        if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() == EventPhase.TARGET
+                && pointer.button() == PointerButton.PRIMARY) {
+
+            // Split handle has priority over overflow button and tabs
+            SplitNodeHit splitHit = splitHandleAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (splitHit != null) {
+                pressedSplitNodeId = splitHit.node().id();
+                splitDragPointerId = pointer.pointerId();
+                splitDragStartX = pointer.rootX();
+                splitDragStartY = pointer.rootY();
+                splitDragStartRatio = splitHit.node().splitRatio();
+                splitDragOrientation = splitHit.orientation();
+                // Compute total track length for ratio math
+                RectView nb = splitHit.nodeBounds();
+                float thickness = Math.min(splitHandleThickness,
+                        Math.max(0.0f, splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                                ? nb.width() : nb.height()));
+                splitDragAvailable = Math.max(1.0f,
+                        (splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                                ? nb.width() : nb.height()) - thickness);
+                UIContext ctx = uiContext();
+                if (ctx != null) ctx.capturePointer(pointer.pointerId(), this);
+                openOverflowNodeId = "";
+                invalidate(InvalidationFlags.VISUAL);
+                event.cancel();
+                return;
+            }
+
+            LeafHit overflowButton = overflowButtonAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (overflowButton != null) {
+                openOverflowNodeId = overflowButton.node().id().equals(openOverflowNodeId) ? "" : overflowButton.node().id();
+                if (!openOverflowNodeId.isEmpty()) {
+                    revealOverflowMenuSelection(overflowButton.node());
+                }
+                invalidate(InvalidationFlags.VISUAL);
+                event.cancel();
+                return;
+            }
+            TabHit tabHit = tabHitAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (tabHit != null && tabHit.onClose()) {
+                // Крестик: нажатие только «взводит» кнопку, закрытие — на отпускание над ней же.
+                pressedCloseId = tabHit.pane().id();
+                pressedClosePointerId = pointer.pointerId();
+                openOverflowNodeId = "";
+                UIContext context = uiContext();
+                if (context != null) context.capturePointer(pointer.pointerId(), this);
+                invalidate(InvalidationFlags.VISUAL);
+                event.cancel();
+                return;
+            }
+            DockPane pane = tabHit == null ? null : tabHit.pane();
+            if (pane != null && windowHost != null && manager.paneCount() <= 1) {
+                // Единственная вкладка окна-хоста — это его заголовок: жест уходит окну, которое поедет целиком.
+                manager.selectPane(pane.id());
+                openOverflowNodeId = "";
+                return;
+            }
+            if (pane != null) {
+                manager.selectPane(pane.id());
+                openOverflowNodeId = "";
+                setPressedPane(pane.id());
+                if (dragController.begin(pane, pointer.pointerId(), pointer.rootX(), pointer.rootY())) {
+                    UIContext context = uiContext();
+                    if (context != null) {
+                        context.capturePointer(pointer.pointerId(), this);
+                    }
+                }
+                event.cancel();
+            } else if (!openOverflowNodeId.isEmpty()) {
+                closeOverflowMenu();
+            }
+        }
+    }
+
+    /**
+     * Прямоугольник вкладки панели в root-координатах.
+     *
+     * <p>Нужен тестам, подсказкам и туториалам, которым надо указать на конкретную вкладку, не зная
+     * внутренней раскладки полосы.</p>
+     *
+     * @param paneId id панели
+     * @return границы вкладки или {@code null}, если панели нет или вкладка прокручена за край полосы
+     */
+    @AiDoc(summary = "Returns the bounding rectangle of a tab in root coordinates, or null if invisible.")
+    @WikiMethod(summary = "<key:docking.root.method.tabBounds>")
+    @WikiReturn("<key:docking.root.return.tabBounds>")
+    public RectView tabBounds(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
+        DockTabLayout tab = tabLayoutOf(paneId);
+        return tab == null ? null : new MutableRect(tab.x(), tab.y(), tab.width(), tab.height());
+    }
+
+    /**
+     * Прямоугольник кнопки закрытия вкладки панели в root-координатах.
+     *
+     * @param paneId id панели
+     * @return границы кнопки или {@code null}, если панели нет, она не закрываемая или вкладка не видна
+     */
+    @AiDoc(summary = "Returns the bounding rectangle of a tab close button in root coordinates, or null if invisible/unclosable.")
+    @WikiMethod(summary = "<key:docking.root.method.tabCloseBounds>")
+    @WikiReturn("<key:docking.root.return.tabCloseBounds>")
+    public RectView tabCloseBounds(
+            @WikiParameter(description = "<key:docking.root.param.paneId>")
+            String paneId
+    ) {
+        DockTabLayout tab = tabLayoutOf(paneId);
+        if (tab == null || !tab.pane().closable()) return null;
+        return DockChrome.closeRect(tab, theme(), new MutableRect());
+    }
+
+    private DockTabLayout tabLayoutOf(String paneId) {
+        LeafHit leaf = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (leaf == null) return null;
+        for (DockTabLayout tab : tabLayouts(leaf.node(), leaf.bounds())) {
+            if (tab.pane().id().equals(paneId) && tab.width() > 0.0f) return tab;
+        }
+        return null;
+    }
+
+    /**
+     * Можно ли начать перетаскивание окна-хоста из этой точки.
+     *
+     * <p>Окно-хост лишено собственного заголовка, поэтому за заголовок сходит полоса вкладок: тянуть
+     * можно за свободное место полосы, а если в окне одна вкладка — и за неё саму. Крестики, кнопка
+     * переполнения и разделители в зону не входят.</p>
+     *
+     * @param rootX X точки в root-координатах
+     * @param rootY Y точки в root-координатах
+     * @return {@code true}, если нажатие здесь должно двигать окно
+     */
+    @AiDoc(summary = "Checks whether pressing at (rootX, rootY) initiates window drag for host WindowWidgets.")
+    @WikiMethod(summary = "<key:docking.root.method.windowDragZoneAt>")
+    @WikiReturn("<key:docking.root.return.windowDragZoneAt>")
+    public boolean windowDragZoneAt(
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
+        if (windowHost == null) return false;
+        if (splitHandleAt(rootNode(), layoutBounds(), rootX, rootY) != null) return false;
+        LeafHit strip = tabStripAt(rootNode(), layoutBounds(), rootX, rootY);
+        if (strip == null) return false;
+        if (tabsOverflow(strip.node(), strip.bounds())
+                && contains(overflowButtonBounds(strip.bounds()), rootX, rootY)) {
+            return false;
+        }
+        TabHit tab = tabHitAt(rootNode(), layoutBounds(), rootX, rootY);
+        if (tab == null) return true;
+        return !tab.onClose() && manager.paneCount() <= 1;
+    }
+    /**
+     * Live-reorder табов: наведение на соседний таб того же листа ставит
+     * тащимую панель на его место.
+     *
+     * <p>Работает только внутри домашнего листа (таб под курсором и тащимая
+     * панель в одном листе): кросс-листовые перемещения — через обычный дроп.
+     * Повторные вызовы на том же табе — no-op, layout не дёргается.</p>
+     *
+     * @param pointer событие движения указателя
+     */
+    private void reorderTabAtPointer(PointerMovedEvent pointer) {
+        String draggedId = dragController.paneId();
+        DockPane hoveredTab = tabAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+        if (hoveredTab == null || hoveredTab.id().equals(draggedId)) return;
+        LeafHit hoveredLeaf = leafContainingPane(rootNode(), layoutBounds(), hoveredTab.id());
+        LeafHit draggedLeaf = leafContainingPane(rootNode(), layoutBounds(), draggedId);
+        if (hoveredLeaf == null || draggedLeaf == null || hoveredLeaf.node() != draggedLeaf.node()) return;
+        manager.reorderPane(draggedId, hoveredTab.id());
+    }
+
+    /**
+     * Live tear-off таба: выход указателя из таб-стрипов отрывает панель
+     * плавающим окном прямо посреди жеста.
+     *
+     * <p>Окно создаётся под курсором (хедером под указатель), драг
+     * продолжается им: capture и drag-состояние передаются окну, дальше жест
+     * идёт штатным window-путём (триггеры, превью, дроп). Уважается
+     * {@code tearOffOnDragOut}; везёт только пока панель ещё в дереве.
+     * Выход на чужой стрип — тоже отрыв: кросс-листовый дроп идёт окном
+     * через зону. Единственная панель не вырывается заживо: пустой root
+     * вместо дока никому не нужен, release-путь вернёт её snap-back'ом.</p>
+     *
+     * @param pointer событие движения указателя
+     */
+    private void tearOffTabAtPointer(PointerMovedEvent pointer) {
+        if (!tearOffOnDragOut) return;
+        if (manager.paneCount() <= 1) return;
+        String paneId = dragController.paneId();
+        int pointerId = pointer.pointerId();
+        float rootX = pointer.rootX();
+        float rootY = pointer.rootY();
+        LeafHit source = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (source == null) return;
+        // Выход из ЛЮБОГО таб-стрипа, не только домашнего: переход на чужой
+        // стрип — это тоже отрыв (кросс-листовый дроп идёт окном через зону).
+        if (tabStripAt(rootNode(), layoutBounds(), rootX, rootY) != null) return;
+        DockPane detached = manager.detachPaneForFloating(paneId);
+        if (detached == null) return;
+        float[] remembered = rememberedFloatingSize(paneId);
+        float winWidth = remembered != null
+                ? remembered[0]
+                : clamp(source.bounds().width(), 180.0f, 640.0f);
+        float winHeight = remembered != null
+                ? remembered[1]
+                : clamp(source.bounds().height(), 112.0f, 480.0f);
+        float grabDX = Math.min(Math.max(16.0f, winWidth * 0.5f), 96.0f);
+        WindowWidget window = createFloatingPaneWindow(detached, DockDropIntent.of(paneId, "", DockArea.FLOAT,
+                new MutableRect(rootX - grabDX, rootY - 11.0f, winWidth, winHeight), rootX, rootY));
+        lastFloatingWindow = window;
+        dragController.handoff(pointerId, rootX, rootY);
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        if (overlay != null) {
+            overlay.applyQueuedMutations();
+        }
+        RectView host = overlay != null ? overlay.layoutBounds() : floatingHostBounds();
+        window.arrangeInHost(host);
+        UIContext context = uiContext();
+        if (context != null) {
+            context.releasePointer(pointerId, this);
+            context.capturePointer(pointerId, window);
+        }
+        DockTheme dockTheme = theme();
+        if (dockTheme.tearOffPreviewEnabled()) {
+            window.takeoverCompactDrag(pointerId, rootX, rootY, dockTheme.tearOffWidth(), dockTheme.tearOffHeight());
+        } else {
+            window.takeoverDrag(pointerId, rootX, rootY);
+        }
+        setPressedPane("");
+        setHoveredPane("");
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private boolean handleOverflowMenuEventBeforeChildren(Event event) {
+        if (event instanceof ScrollEvent scroll
+                && scroll.phase() != EventPhase.BUBBLE
+                && scrollOverflowMenuAt(scroll.rootX(), scroll.rootY(), scroll.deltaX(), scroll.deltaY())) {
+            event.cancel();
+            return true;
+        }
+
+        if (event instanceof PointerMovedEvent pointer && pointer.phase() != EventPhase.BUBBLE) {
+            if (!openOverflowNodeId.isEmpty()) {
+                OverflowMenuItem hovered = overflowMenuItemAt(pointer.rootX(), pointer.rootY());
+                setHoveredOverflowMenuIndex(hovered == null ? -1 : hovered.index());
+                if (hovered != null) {
+                    setHoveredPane("");
+                    event.cancel();
+                    return true;
+                }
+            }
+        }
+
+        if (event instanceof PointerExitedEvent exited && exited.phase() != EventPhase.BUBBLE) {
+            setHoveredOverflowMenuIndex(-1);
+        }
+
+        if (event instanceof PointerPressedEvent pointer
+                && pointer.phase() != EventPhase.BUBBLE
+                && pointer.button() == PointerButton.PRIMARY
+                && !openOverflowNodeId.isEmpty()) {
+            OverflowMenuItem menuItem = overflowMenuItemAt(pointer.rootX(), pointer.rootY());
+            if (menuItem != null) {
+                int tabScrollOffset = normalizedTabScrollOffset(menuItem.node(), layoutBounds());
+                manager.selectPane(menuItem.pane().id());
+                tabScrollOffsets.put(menuItem.node().id(), tabScrollOffset);
+                closeOverflowMenu();
+                event.cancel();
+                return true;
+            }
+
+            LeafHit overflowButton = overflowButtonAt(rootNode(), layoutBounds(), pointer.rootX(), pointer.rootY());
+            if (overflowButton != null) {
+                openOverflowNodeId = overflowButton.node().id().equals(openOverflowNodeId) ? "" : overflowButton.node().id();
+                if (!openOverflowNodeId.isEmpty()) {
+                    revealOverflowMenuSelection(overflowButton.node());
+                }
+                setHoveredOverflowMenuIndex(-1);
+                invalidate(InvalidationFlags.VISUAL);
+                event.cancel();
+                return true;
+            }
+
+            closeOverflowMenu();
+            event.cancel();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void setHoveredPane(String paneId) {
+        String normalized = paneId == null ? "" : paneId;
+        if (hoveredPaneId.equals(normalized)) return;
+        hoveredPaneId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void setHoveredClose(String paneId) {
+        String normalized = paneId == null ? "" : paneId;
+        if (hoveredCloseId.equals(normalized)) return;
+        hoveredCloseId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    /**
+     * Закрывает вкладку по действию пользователя (крестик, средняя кнопка, {@code Ctrl+W}).
+     *
+     * <p>Уважает {@link DockPane#closable()} и охранник {@link DockPane#onCloseRequested}.</p>
+     *
+     * @param pane панель
+     * @return {@code true}, если панель закрыта
+     */
+    boolean requestClosePane(DockPane pane) {
+        if (pane == null || !manager.containsPane(pane.id()) || !pane.canClose()) return false;
+        manager.closePane(pane.id());
+        return true;
+    }
+
+    private void setPressedPane(String paneId) {
+        String normalized = paneId == null ? "" : paneId;
+        if (pressedPaneId.equals(normalized)) return;
+        pressedPaneId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void setHoveredSplitNode(String nodeId) {
+        String normalized = nodeId == null ? "" : nodeId;
+        if (hoveredSplitNodeId.equals(normalized)) return;
+        hoveredSplitNodeId = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void setHoveredOverflowMenuIndex(int index) {
+        int normalized = Math.max(-1, index);
+        if (hoveredOverflowMenuIndex == normalized) return;
+        hoveredOverflowMenuIndex = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void closeOverflowMenu() {
+        if (openOverflowNodeId.isEmpty() && hoveredOverflowMenuIndex < 0) return;
+        openOverflowNodeId = "";
+        hoveredOverflowMenuIndex = -1;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private boolean handleDockShortcut(KeyPressedEvent key) {
+        if (!KeyModifiers.has(key.modifiers(), KeyModifiers.CONTROL)) return false;
+        if (key.keyCode() == KeyCodes.W) {
+            return closeActivePane();
+        }
+        if (key.keyCode() == KeyCodes.TAB) {
+            return KeyModifiers.has(key.modifiers(), KeyModifiers.SHIFT)
+                    ? selectPreviousTab()
+                    : selectNextTab();
+        }
+        return false;
+    }
+
+    void unregisterPaneContent(DockPane pane) {
+        if (pane == null) return;
+        Widget content = pane.content();
+        if (registeredContents.remove(content)) {
+            super.removeChild(content);
+            applyQueuedMutations();
+        }
+    }
+
+    void onDockLayoutChanged(String operation, String paneId, String targetPaneId) {
+        if (hasArrangedBounds || isSelectionOperation(operation)) {
+            revealPane(paneId);
+        }
+        syncPaneChildren();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        DockLayoutChangedEvent event = new DockLayoutChangedEvent(this, operation, paneId, targetPaneId);
+        dispatchDockEvent(event);
+        if (windowHost != null && manager.empty() && "close".equals(operation) && windowHost.opened()) {
+            // Закрыта последняя вкладка окна-хоста: окно без содержимого не нужно.
+            windowHost.close();
+        }
+    }
+
+    private static boolean isSelectionOperation(String operation) {
+        return "select".equals(operation)
+                || "select_next".equals(operation)
+                || "select_previous".equals(operation);
+    }
+
+    void onDockLayoutRestored(DockLayoutSnapshot snapshot, int restoredPaneCount, int missingPaneCount) {
+        revealPane(activePaneId());
+        syncPaneChildren();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        dispatchDockEvent(new DockLayoutRestoredEvent(this, snapshot, restoredPaneCount, missingPaneCount));
+    }
+
+    void dispatchDockDragStarted(String paneId, float rootX, float rootY) {
+        dispatchDockEvent(new DockDragStartedEvent(this, paneId, rootX, rootY));
+    }
+
+    void dispatchDockDragMoved(String paneId, float rootX, float rootY, DockDropIntent intent) {
+        // Крест зон следует за курсором даже внутри одной зоны: инвалидируем
+        // каждый move, иначе подсветка отстаёт от указателя.
+        invalidate(InvalidationFlags.VISUAL);
+        dispatchDockEvent(new DockDragMovedEvent(this, paneId, rootX, rootY, intent));
+    }
+
+    void dispatchDockDragEnded(String paneId, float rootX, float rootY, DockDropIntent intent, boolean dropped) {
+        dispatchDockEvent(new DockDragEndedEvent(this, paneId, rootX, rootY, intent, dropped));
+    }
+
+    void dispatchDockDropPreviewChanged(String paneId, DockDropIntent oldIntent, DockDropIntent newIntent) {
+        invalidate(InvalidationFlags.VISUAL);
+        dispatchDockEvent(new DockDropPreviewChangedEvent(this, paneId, oldIntent, newIntent));
+    }
+
+    DockDropIntent resolveDockDropIntent(String sourcePaneId, float rootX, float rootY) {
+        RectView rootBounds = layoutBounds();
+        if (!contains(rootBounds, rootX, rootY)) {
+            RectView hostBounds = floatingHostBounds();
+            if (allowFloatingOutsideHost || contains(hostBounds, rootX, rootY)) {
+                return DockDropIntent.floating(sourcePaneId, rootX, rootY);
+            }
+            return DockDropIntent.none();
+        }
+        TriggerHit trigger = triggerAt(rootX, rootY);
+        if (!trigger.valid()) {
+            return DockDropIntent.none();
+        }
+        return leafIntent(sourcePaneId, trigger.leaf(), trigger.area(), rootX, rootY);
+    }
+
+    /**
+     * Строит intent дропа на лист: таб в центр, иначе сплит.
+     *
+     * @param sourcePaneId id перетаскиваемой панели
+     * @param hit лист под курсором
+     * @param area зона внутри листа
+     * @param rootX X курсора
+     * @param rootY Y курсора
+     * @return intent или {@code none} для дропа панели самой на себя
+     */
+    private DockDropIntent leafIntent(String sourcePaneId, LeafHit hit, DockArea area, float rootX, float rootY) {
+        DockPane target = hit.node().selectedPane();
+        if (target == null) target = hit.node().panes().get(0);
+        if (sourcePaneId != null && sourcePaneId.equals(target.id()) && hit.node().panes().size() == 1) {
+            return DockDropIntent.none();
+        }
+        return DockDropIntent.of(sourcePaneId, target.id(), area,
+                previewBounds(hit.bounds(), area), rootX, rootY);
+    }
+
+    boolean applyDockDropIntent(String paneId, DockDropIntent intent) {
+        if (intent == null || !intent.valid()) return false;
+        if (intent.floating()) {
+            DockPane pane = manager.detachPaneForFloating(paneId);
+            lastFloatingWindow = pane == null ? null : createFloatingPaneWindow(pane, intent);
+            if (lastFloatingWindow != null) {
+                return true;
+            }
+            return false;
+        }
+        lastFloatingWindow = null;
+        return manager.dockPane(paneId, intent.targetPaneId(), intent.area());
+    }
+
+    /**
+     * Отрывает панель плавающим окном при дропе мимо всех зон (tear-off).
+     *
+     * <p>Вызывается из {@code DockDragController.end} как fallback, когда
+     * intent пуст: панель уже убрана с места драгом, возвращать её молча —
+     * значит терять жест пользователя. Условия: флаг включён, root принимает
+     * дропы, панель ещё в дереве и отпустили вне её исходного листа.
+     * Позиция окна клампится в хост через {@code createFloatingPaneWindow},
+     * поэтому {@code allowFloatingOutsideHost} продолжает управлять только
+     * свободным движением, но не самим отрывом.</p>
+     *
+     * @param paneId id перетаскиваемой панели
+     * @param rootX X отпускания
+     * @param rootY Y отпускания
+     * @return {@code true}, если панель стала плавающим окном
+     */
+    boolean tryTearOff(String paneId, float rootX, float rootY) {
+        if (!tearOffOnDragOut || !acceptsDockDrops() || paneId == null || paneId.isEmpty()) return false;
+        LeafHit source = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (source == null) return false;
+        if (contains(source.bounds(), rootX, rootY)) return false;
+        DockPane detached = manager.detachPaneForFloating(paneId);
+        if (detached == null) return false;
+        lastFloatingWindow = createFloatingPaneWindow(detached, DockDropIntent.floating(paneId, rootX, rootY));
+        return lastFloatingWindow != null;
+    }
+
+    private WindowWidget createFloatingPaneWindow(DockPane pane, DockDropIntent intent) {
+        WindowWidget window = new WindowWidget(pane.richTitle(), pane.content());
+        window.icon(pane.icon());
+        window.theme(theme);
+        float[] remembered = rememberedFloatingSize(pane.id());
+        float width = remembered != null ? remembered[0] : Math.max(180.0f, intent.width());
+        float height = remembered != null ? remembered[1] : Math.max(112.0f, intent.height());
+        window.layout(style -> style.size(width, height));
+        window.minWindowSize(120.0f, 64.0f);
+        window.closeButtonVisible(false);
+        window.closeOnOutsideClick(false);
+        window.constrainToHost(true);
+        window.resizable(true);
+        // Floating-панель — dockable-источник своего же id: после tear-off
+        // окно докируется обратно штатным foreign-путём (превью на move,
+        // merge на release). Лок redock уважается там же.
+        window.dockable(true);
+        window.dockPaneId(pane.id());
+        window.dockKind(pane.kind());
+        window.dockSourcePane(pane);
+        window.dockRedockLocked(floatingWindowsRedockLocked);
+
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        RectView hostBounds = overlay == null ? floatingHostBounds() : overlay.layoutBounds();
+        float hostWidth = Math.max(0.0f, hostBounds.width());
+        float hostHeight = Math.max(0.0f, hostBounds.height());
+        float relativeX = intent.x() - hostBounds.x();
+        float relativeY = intent.y() - hostBounds.y();
+        if (!allowFloatingOutsideHost) {
+            relativeX = clamp(relativeX, 0.0f, Math.max(0.0f, hostWidth - width));
+            relativeY = clamp(relativeY, 0.0f, Math.max(0.0f, hostHeight - height));
+        }
+        window.position(relativeX, relativeY);
+
+        if (overlay != null) {
+            overlay.addOverlay(window);
+        }
+        window.open();
+        registerFloatingDockWindow(window);
+        return window;
+    }
+
+    /**
+     * Возвращает запомненный размер floating-окна панели или {@code null}.
+     *
+     * <p>Размер пишется в момент дока ({@code rememberFloatingSize}): повторный
+     * tear-off возвращает окну прошлый размер, а не размер листа, из которого
+     * его вытянули.</p>
+     *
+     * @param paneId id панели
+     * @return массив {@code [width, height]} или {@code null}, если панель ещё не плавала
+     */
+    private float[] rememberedFloatingSize(String paneId) {
+        float[] size = paneId == null ? null : floatingWindowSizes.get(paneId);
+        if (size == null) return null;
+        float width = clamp(size[0], 120.0f, 640.0f);
+        float height = clamp(size[1], 64.0f, 480.0f);
+        if (!Float.isFinite(width) || !Float.isFinite(height)) return null;
+        return new float[]{width, height};
+    }
+
+    /**
+     * Запоминает текущий размер floating-окна за id панели.
+     *
+     * @param paneId id панели
+     * @param window окно, чей размер запоминаем
+     */
+    private void rememberFloatingSize(String paneId, WindowWidget window) {
+        if (paneId == null || paneId.isEmpty() || window == null) return;
+        float width = window.fullWidth();
+        float height = window.fullHeight();
+        if (!Float.isFinite(width) || !Float.isFinite(height) || width <= 0.0f || height <= 0.0f) return;
+        floatingWindowSizes.put(paneId, new float[]{width, height});
+    }
+
+    private void registerFloatingDockWindow(WindowWidget window) {
+        if (window == null) return;
+        floatingDockWindows.removeIf(existing -> existing == null || !existing.opened());
+        if (!floatingDockWindows.contains(window)) {
+            floatingDockWindows.add(window);
+        }
+        window.dockRedockLocked(floatingWindowsRedockLocked);
+    }
+
+    private void syncFloatingDockWindowRedockLocks() {
+        floatingDockWindows.removeIf(window -> window == null || !window.opened());
+        for (WindowWidget window : floatingDockWindows) {
+            window.dockRedockLocked(floatingWindowsRedockLocked);
+        }
+    }
+
+    private RectView floatingHostBounds() {
+        OverlayLayer overlay = nearestOverlayLayer(this);
+        if (overlay != null && (overlay.layoutBounds().width() > 0.0f || overlay.layoutBounds().height() > 0.0f)) {
+            return overlay.layoutBounds();
+        }
+        Widget current = this;
+        Widget top = this;
+        while (current != null) {
+            top = current;
+            current = current.parent();
+        }
+        RectView bounds = top.layoutBounds();
+        return bounds == null ? layoutBounds() : bounds;
+    }
+
+    private static OverlayLayer nearestOverlayLayer(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current instanceof OverlayLayer overlay) return overlay;
+            current = current.parent();
+        }
+        return null;
+    }
+
+    private static Widget rootOf(Widget widget) {
+        Widget current = widget;
+        Widget top = widget;
+        while (current != null) {
+            top = current;
+            current = current.parent();
+        }
+        return top;
+    }
+
+    /**
+     * Показывает drop preview для чужого dockable-окна, которое тащат над docking root.
+     *
+     * <p>Вызывается из {@link WindowWidget} во время drag, когда у окна включён
+     * флаг {@code dockable}. Окно не обязано принадлежать docking-дереву:
+     * достаточно общего overlay-предка. При выключенном флаге, локе или
+     * отсутствии цели preview молча гасится.</p>
+     *
+     * @param window окно-источник в состоянии drag
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     */
+    @AiDoc(summary = "Calculates and updates docking drop preview for an externally dragged WindowWidget.")
+    @WikiMethod(summary = "<key:docking.root.method.previewForeignWindowDrop>")
+    public static void previewForeignWindowDrop(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
+        if (window == null || !window.dockable() || window.dockRedockLocked()) {
+            clearForeignWindowDropPreview(window);
+            return;
+        }
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        Widget searchRoot = overlay != null ? overlay : rootOf(window);
+        DockingRoot target = foreignDropTarget(searchRoot, window, rootX, rootY);
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.get(window);
+        if (previous != null && previous != target) {
+            previous.floatingDropPreview(DockDropIntent.none());
+            releaseAutoHost(previous);
+        }
+        if (target == null) {
+            FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+            return;
+        }
+        FOREIGN_WINDOW_PREVIEW_TARGETS.put(window, target);
+        String sourcePaneId = window.dockingRoot() != null && !window.dockingRoot().manager().panes().isEmpty()
+                ? window.dockingRoot().manager().panes().get(0).id()
+                : window.dockSourceId();
+        target.floatingDropPreview(target.resolveDockDropIntent(sourcePaneId, rootX, rootY));
+    }
+
+    /**
+     * Ищет root, который примет дроп окна в этой точке: сначала окна (любое подходящее окно на лету
+     * становится хостом), затем обычные {@link DockingRoot} в дереве.
+     */
+    private static DockingRoot foreignDropTarget(Widget searchRoot, WindowWidget source, float rootX, float rootY) {
+        WindowWidget hostWindow = windowHostAt(searchRoot, source, rootX, rootY);
+        DockingRoot target = hostWindow != null ? hostWindow.ensureDockHost() : null;
+        if (target == null) target = dockingRootAt(searchRoot, source, rootX, rootY);
+        return target != null && target.acceptsDockDrops() ? target : null;
+    }
+
+    /**
+     * Откатывает временный хост, созданный наведением окна, если дроп в него не состоялся.
+     */
+    private static void releaseAutoHost(DockingRoot root) {
+        if (root != null && root.windowHost() != null) {
+            root.windowHost().releaseAutoDockHost();
+        }
+    }
+
+    /**
+     * Завершает drop чужого окна: гасит preview и докирует контент.
+     *
+     * <p>Если точка дропа попадает на другое окно, дроп идёт через зоны его внутреннего root (таб/сплит
+     * по триггеру, мимо триггеров — окно остаётся плавать); окно-хост со всеми панелями дропается так
+     * же, перенося всё содержимое. Иначе контент докируется в найденный {@link DockingRoot} как одна
+     * панель. Временные хосты, в которые ничего не легло, откатываются.</p>
+     *
+     * @param window окно-источник в конце drag
+     * @param rootX X указателя в root-координатах
+     * @param rootY Y указателя в root-координатах
+     * @return {@code true}, если контент окна стал dock-панелью
+     */
+    @AiDoc(summary = "Completes drop of an external WindowWidget into the docking layout.")
+    @WikiMethod(summary = "<key:docking.root.method.finishForeignWindowDrop>")
+    @WikiReturn("<key:docking.root.return.docked>")
+    public static boolean finishForeignWindowDrop(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+        if (previous != null) {
+            previous.floatingDropPreview(DockDropIntent.none());
+        }
+        if (window == null || !window.dockable() || window.dockRedockLocked()) {
+            releaseAutoHost(previous);
+            return false;
+        }
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        Widget searchRoot = overlay != null ? overlay : rootOf(window);
+        DockingRoot target = foreignDropTarget(searchRoot, window, rootX, rootY);
+        boolean docked = target != null && target.dockForeignWindow(window, rootX, rootY);
+        if (!docked) {
+            releaseAutoHost(target);
+            releaseAutoHost(previous);
+        }
+        return docked;
+    }
+
+    /**
+     * Гасит drop preview чужого окна, если оно сейчас подсвечено на каком-либо root.
+     *
+     * @param window окно-источник или {@code null}
+     */
+    @AiDoc(summary = "Clears any active foreign window drop preview highlighting.")
+    @WikiMethod(summary = "<key:docking.root.method.clearForeignWindowDropPreview>")
+    public static void clearForeignWindowDropPreview(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window
+    ) {
+        if (window == null) return;
+        DockingRoot previous = FOREIGN_WINDOW_PREVIEW_TARGETS.remove(window);
+        if (previous != null) {
+            previous.floatingDropPreview(DockDropIntent.none());
+            releaseAutoHost(previous);
+        }
+    }
+
+    /**
+     * Докирует контент чужого {@link WindowWidget} как новую панель этого root.
+     *
+     * <p>Если источник — окно-хост с панелями, все его панели мержатся в этот
+     * root табом, а источник закрывается. Иначе контент окна отсоединяется как
+     * одна панель с id {@code dockSourceId()} и вставляется по drop-зоне под
+     * точкой {@code rootX/rootY}: центр — табом, края — сплитом.</p>
+     *
+     * @param window окно-источник с включённым флагом {@code dockable}
+     * @param rootX X дропа в root-координатах
+     * @param rootY Y дропа в root-координатах
+     * @return {@code true}, если панель добавлена в дерево
+     */
+    @AiDoc(summary = "Docks the content of an external WindowWidget into this DockingRoot.")
+    @WikiMethod(summary = "<key:docking.root.method.dockForeignWindow>")
+    @WikiReturn("<key:docking.root.return.docked>")
+    public boolean dockForeignWindow(
+            @WikiParameter(description = "<key:docking.root.param.window>")
+            WindowWidget window,
+            @WikiParameter(description = "<key:docking.root.param.rootX>")
+            float rootX,
+            @WikiParameter(description = "<key:docking.root.param.rootY>")
+            float rootY
+    ) {
+        if (window == null || !window.dockable() || window.dockRedockLocked()) return false;
+        if (!acceptsDockDrops()) return false;
+        floatingDropPreview(DockDropIntent.none());
+        // Вне триггеров окно остаётся плавать (симметрично redockFloatingPane):
+        // иначе релиз мимо креста/стрипа молча табал бы контент в preferred
+        // leaf. Пустой root принимает дроп anywhere.
+        if (!manager.empty() && !triggerAt(rootX, rootY).valid()) {
+            return false;
+        }
+
+        DockingRoot sourceRoot = window.dockingRoot();
+        if (sourceRoot != null) {
+            java.util.List<DockPane> panes = java.util.List.copyOf(sourceRoot.manager().panes());
+            if (!panes.isEmpty()) {
+                LeafHit anchorHit = anchorLeafForMerge(rootX, rootY);
+                String firstId = "";
+                for (DockPane pane : panes) {
+                    rememberFloatingSize(pane.id(), window);
+                    DockPane detached = sourceRoot.manager().detachPaneForFloating(pane.id());
+                    if (detached == null) continue;
+                    if (firstId.isEmpty()) {
+                        if (!insertMergedPane(detached, anchorHit, rootX, rootY)) {
+                            manager.addPane(detached);
+                        }
+                        firstId = detached.id();
+                    } else {
+                        // Последующие панели мержатся табом к первой перенесённой.
+                        manager.tabPane(firstId, detached);
+                    }
+                }
+                detachForeignWindow(window);
+                if (lastFloatingWindow == window) {
+                    lastFloatingWindow = null;
+                }
+                if (windowHost != null) windowHost.commitDockHost();
+                return true;
+            }
+        }
+
+        Widget content = window.content();
+        if (content == null || content == window.dockingRoot()) {
+            // Окно-хост без панелей: нечего докировать.
+            if (sourceRoot != null) detachForeignWindow(window);
+            return sourceRoot != null;
+        }
+        String paneId = window.dockSourceId();
+        rememberFloatingSize(paneId, window);
+        // Окно, вытащенное из дока, помнит свою исходную панель: её состояние (иконка, dirty, охранник
+        // закрытия) переживёт отрыв и возврат.
+        DockPane pane = window.dockSourcePane();
+        if (pane == null || pane.content() != content) {
+            pane = window.dockKind() == DockPaneKind.DOCUMENT
+                    ? DockPane.document(paneId, window.richTitle(), content)
+                    : DockPane.tool(paneId, window.richTitle(), content);
+            pane.closable(window.closeButtonVisible());
+            pane.icon(window.icon());
+        }
+        window.dockSourcePane(null);
+
+        window.content(null);
+        window.applyQueuedMutations();
+        detachForeignWindow(window);
+        if (!insertMergedPane(pane, anchorLeafForMerge(rootX, rootY), rootX, rootY)) {
+            manager.addPane(pane);
+        }
+        if (lastFloatingWindow == window) {
+            lastFloatingWindow = null;
+        }
+        if (windowHost != null) windowHost.commitDockHost();
+        return true;
+    }
+
+    private LeafHit anchorLeafForMerge(float rootX, float rootY) {
+        return leafAt(rootNode(), layoutBounds(), rootX, rootY);
+    }
+
+    private boolean insertMergedPane(DockPane pane, LeafHit hit, float rootX, float rootY) {
+        if (hit == null || hit.node().panes().isEmpty()) {
+            manager.addPane(pane);
+            return true;
+        }
+        TriggerHit trigger = triggerAt(rootX, rootY);
+        if (!trigger.valid()) {
+            return false;
+        }
+        DockPane targetPane = trigger.leaf().node().selectedPane();
+        if (targetPane == null) targetPane = trigger.leaf().node().panes().get(0);
+        DockArea area = trigger.area();
+        if (area == DockArea.CENTER || area == DockArea.TAB) {
+            manager.tabPane(targetPane.id(), pane);
+        } else {
+            manager.splitPane(targetPane.id(), area, pane);
+        }
+        return true;
+    }
+
+    private static void detachForeignWindow(WindowWidget window) {
+        if (window == null) return;
+        window.content(null);
+        window.applyQueuedMutations();
+        OverlayLayer overlay = nearestOverlayLayer(window);
+        if (overlay != null) {
+            overlay.removeOverlay(window);
+        }
+        window.close();
+    }
+
+    private static DockingRoot dockingRootAt(Widget root, Widget ignored, float rootX, float rootY) {
+        if (root == null) return null;
+        WindowWidget hostWindow = windowHostAt(root, ignored, rootX, rootY);
+        if (hostWindow != null) {
+            DockingRoot hosted = hostWindow.ensureDockHost();
+            if (hosted != null && hosted.acceptsDockDrops()) return hosted;
+        }
+        if (root == ignored || root.visibility() != Visibility.VISIBLE) return null;
+        if (!contains(root.layoutBounds(), rootX, rootY)) return null;
+        List<Widget> children = root.children();
+        for (int i = children.size() - 1; i >= 0; i--) {
+            DockingRoot childHit = dockingRootAt(children.get(i), ignored, rootX, rootY);
+            if (childHit != null) return childHit;
+        }
+        DockingRoot self = root instanceof DockingRoot dockingRoot ? dockingRoot : null;
+        return self != null && self.acceptsDockDrops() ? self : null;
+    }
+
+    /**
+     * Ищет окно, готовое принять дроп, под точкой.
+     *
+     * <p>Окно-источник исключается: окно нельзя дропнуть само на себя. Подходит любое открытое
+     * немодальное окно с политикой {@link DockPolicy#FULL}, даже если оно ещё не стало хостом:
+     * хост создаётся на лету через {@link WindowWidget#ensureDockHost()}.</p>
+     */
+    private static WindowWidget windowHostAt(Widget root, Widget ignored, float rootX, float rootY) {
+        if (root == null || root.visibility() != Visibility.VISIBLE) return null;
+        List<Widget> children = root.children();
+        for (int i = children.size() - 1; i >= 0; i--) {
+            Widget child = children.get(i);
+            if (child == ignored) continue;
+            WindowWidget nested = windowHostAt(child, ignored, rootX, rootY);
+            if (nested != null) return nested;
+        }
+        if (root == ignored) return null;
+        if (root instanceof WindowWidget window
+                && window.acceptsDocking()
+                && contains(window.layoutBounds(), rootX, rootY)) {
+            return window;
+        }
+        return null;
+    }
+
+    private void dispatchDockEvent(dev.sixik.unigui.api.event.WidgetEvent event) {
+        UIContext context = uiContext();
+        if (context == null) {
+            emit(event);
+        } else {
+            context.routedEvents().dispatch(event);
+        }
+    }
+
+    private LeafHit leafAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null || !contains(bounds, rootX, rootY)) return null;
+        if (node.isLeaf()) {
+            return new LeafHit(node, new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()));
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        LeafHit first = leafAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : leafAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    /**
+     * Результат trigger-резолва: видимый триггер под курсором.
+     *
+     * @param leaf лист триггера
+     * @param area зона триггера
+     */
+    private record TriggerHit(LeafHit leaf, DockArea area) {
+        private static TriggerHit none() {
+            return new TriggerHit(null, null);
+        }
+
+        private boolean valid() {
+            return area != null;
+        }
+    }
+
+    private static final DockArea[] CROSS_AREAS = {
+            DockArea.CENTER, DockArea.TOP, DockArea.BOTTOM, DockArea.LEFT, DockArea.RIGHT
+    };
+
+    /**
+     * Находит видимый триггер под курсором мыши.
+     *
+     * <p>Единственная точка истины для всех drop-путей (intent, merge, redock):
+     * таб-стрип → ячейка креста листа. Квадрантной fallback-геометрии нет:
+     * оффер существует ровно там, где нарисован триггер. Вне триггеров —
+     * мимо зон (tear-off/float/addPane по контексту).</p>
+     *
+     * @param rootX X курсора в root-координатах
+     * @param rootY Y курсора в root-координатах
+     * @return триггер или {@code none()}
+     */
+    private TriggerHit triggerAt(float rootX, float rootY) {
+        RectView rootBounds = layoutBounds();
+        LeafHit tabHit = tabStripAt(rootNode(), rootBounds, rootX, rootY);
+        if (tabHit != null && !tabHit.node().panes().isEmpty()) {
+            return new TriggerHit(tabHit, DockArea.CENTER);
+        }
+        LeafHit hit = leafAt(rootNode(), rootBounds, rootX, rootY);
+        if (hit != null && !hit.node().panes().isEmpty()) {
+            for (DockArea area : CROSS_AREAS) {
+                if (contains(crossCellRect(hit.bounds(), area), rootX, rootY)) {
+                    return new TriggerHit(hit, area);
+                }
+            }
+        }
+        return TriggerHit.none();
+    }
+
+    /**
+     * Возвращает rect ячейки креста drop-зон для листа.
+     *
+     * <p>Та же геометрия используется рендером adornments и хит-тестом:
+     * нарисованная ячейка и есть зона дропа — расхождений «показали одно,
+     * приняли другое» быть не может. Ячейки не пересекаются.</p>
+     *
+     * @param leafBounds границы листа
+     * @param area зона: TOP/BOTTOM/LEFT/RIGHT — стороны креста, CENTER/TAB — центр
+     * @return rect ячейки; для прочих зон — пустой rect
+     */
+    @AiDoc(summary = "Calculates the geometric bounds of a drop cross directional trigger cell.")
+    @WikiMethod(summary = "<key:docking.root.method.crossCellRect>")
+    @WikiReturn("<key:docking.root.return.crossCellRect>")
+    public static MutableRect crossCellRect(
+            @WikiParameter(description = "<key:docking.root.param.leafBounds>")
+            RectView leafBounds,
+            @WikiParameter(description = "<key:docking.root.param.area>")
+            DockArea area
+    ) {
+        if (leafBounds == null) return new MutableRect();
+        float cell = dropZoneCell(leafBounds);
+        float gap = DROP_ZONE_GAP;
+        float centerX = leafBounds.x() + leafBounds.width() * 0.5f;
+        float centerY = leafBounds.y() + leafBounds.height() * 0.5f;
+        float half = cell * 0.5f;
+        if (area == DockArea.TOP) {
+            return new MutableRect(centerX - half, centerY - half - gap - cell, cell, cell);
+        }
+        if (area == DockArea.BOTTOM) {
+            return new MutableRect(centerX - half, centerY + half + gap, cell, cell);
+        }
+        if (area == DockArea.LEFT) {
+            return new MutableRect(centerX - half - gap - cell, centerY - half, cell, cell);
+        }
+        if (area == DockArea.RIGHT) {
+            return new MutableRect(centerX + half + gap, centerY - half, cell, cell);
+        }
+        if (area == DockArea.CENTER || area == DockArea.TAB) {
+            return new MutableRect(centerX - half, centerY - half, cell, cell);
+        }
+        return new MutableRect();
+    }
+
+    /**
+     * Возвращает размер ячейки креста drop-зон для листа.
+     *
+     * <p>Та же геометрия используется хит-тестом ({@code triggerAt}) и рендером
+     * ({@code renderDropCross}): что нарисовано, туда и дропается. Крест
+     * целиком влезает в лист ({@code 3*cell + 2*gap <= minSide}): в маленьком
+     * окне ячейки уменьшаются вместо того, чтобы вылезти за границы, где на
+     * них невозможно навестись. Пол — 8px: ячейка остаётся видимой
+     * и хитабельной даже в крошечных листах.</p>
+     *
+     * @param bounds границы листа
+     * @return сторона квадратной ячейки креста
+     */
+    private static float dropZoneCell(RectView bounds) {
+        float minSide = Math.min(Math.max(1.0f, bounds.width()), Math.max(1.0f, bounds.height()));
+        float fit = (minSide - DROP_ZONE_GAP * 2.0f) / 3.0f;
+        return Math.max(8.0f, Math.min(64.0f, Math.min(minSide * 0.25f, fit)));
+    }
+
+    private MutableRect previewBounds(RectView bounds, DockArea area) {
+        float thirdWidth = Math.max(0.0f, bounds.width() * 0.33f);
+        float thirdHeight = Math.max(0.0f, bounds.height() * 0.33f);
+        return switch (area == null ? DockArea.CENTER : area) {
+            case LEFT -> new MutableRect(bounds.x(), bounds.y(), thirdWidth, bounds.height());
+            case RIGHT -> new MutableRect(bounds.x() + Math.max(0.0f, bounds.width() - thirdWidth), bounds.y(),
+                    thirdWidth, bounds.height());
+            case TOP -> new MutableRect(bounds.x(), bounds.y(), bounds.width(), thirdHeight);
+            case BOTTOM -> new MutableRect(bounds.x(), bounds.y() + Math.max(0.0f, bounds.height() - thirdHeight),
+                    bounds.width(), thirdHeight);
+            case CENTER, TAB -> new MutableRect(bounds.x() + 3.0f, bounds.y() + 3.0f,
+                    Math.max(0.0f, bounds.width() - 6.0f), Math.max(0.0f, bounds.height() - 6.0f));
+            case FLOAT -> new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+        };
+    }
+
+    private static boolean contains(RectView bounds, float rootX, float rootY) {
+        return bounds != null
+                && rootX >= bounds.x()
+                && rootX <= bounds.x() + bounds.width()
+                && rootY >= bounds.y()
+                && rootY <= bounds.y() + bounds.height();
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private void syncPaneChildren() {
+        Set<Widget> desired = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (DockPane pane : manager.panes()) {
+            desired.add(pane.content());
+            if (registeredContents.add(pane.content())) {
+                super.addChild(pane.content());
+            }
+        }
+        List<Widget> stale = new ObjectArrayList<>();
+        for (Widget content : registeredContents) {
+            if (!desired.contains(content)) {
+                stale.add(content);
+            }
+        }
+        for (Widget content : stale) {
+            registeredContents.remove(content);
+            super.removeChild(content);
+        }
+    }
+
+    private DockPane firstDocumentPane() {
+        for (DockPane pane : manager.panes()) {
+            if (pane.document()) return pane;
+        }
+        return null;
+    }
+
+    private void measureSelectedContents(DockNode node, LayoutContext context) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            DockPane selected = node.selectedPane();
+            if (selected != null && selected.content().visibility() != Visibility.COLLAPSED) {
+                selected.content().measure(context);
+            }
+            return;
+        }
+        measureSelectedContents(node.first(), context);
+        measureSelectedContents(node.second(), context);
+    }
+
+    private void arrangeNode(DockNode node, RectView bounds, Set<Widget> arranged) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            DockPane selected = node.selectedPane();
+            if (selected == null) return;
+            MutableRect contentBounds = contentBounds(bounds);
+            selected.content().arrange(contentBounds);
+            arranged.add(selected.content());
+            return;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        arrangeNode(node.first(), split.first(), arranged);
+        arrangeNode(node.second(), split.second(), arranged);
+    }
+
+    private void renderSelectedContents(RenderContext context, DockNode node, RectView bounds) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            DockPane selected = node.selectedPane();
+            ColorView contentBackground = theme().color(DockColor.CONTENT_BACKGROUND);
+            if (selected != null && contentBackground.a() > 0.0f) {
+                MutableRect area = contentBounds(bounds);
+                context.rectFilled(area.x(), area.y(), area.width(), area.height(), contentBackground);
+            }
+            if (selected != null && selected.content().visibility() == Visibility.VISIBLE) {
+                MutableRect clip = contentBounds(bounds);
+                context.pushClip(clip.x(), clip.y(), clip.width(), clip.height());
+                try {
+                    renderChildWithInheritedTransform(context, selected.content());
+                } finally {
+                    context.popClip();
+                }
+            }
+            return;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        renderSelectedContents(context, node.first(), split.first());
+        renderSelectedContents(context, node.second(), split.second());
+    }
+
+    private MutableRect contentBounds(RectView bounds) {
+        float tab = Math.min(tabHeight, bounds.height());
+        float contentY = bounds.y() + tab;
+        float contentHeight = Math.max(0.0f, bounds.height() - tab);
+        return new MutableRect(
+                bounds.x() + 1.0f,
+                contentY,
+                Math.max(0.0f, bounds.width() - 2.0f),
+                Math.max(0.0f, contentHeight - 1.0f));
+    }
+
+    private void renderChrome(RenderContext context) {
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        WidgetRender pane = effectivePaneRenderer();
+        if (pane != null) {
+            pane.render(draw, this);
+        } else {
+            renderDefaultPanes(draw, rootNode(), layoutBounds());
+        }
+        WidgetRender split = effectiveSplitHandleRenderer();
+        if (split != null) {
+            split.render(draw, this);
+        } else {
+            renderDefaultSplits(draw, rootNode(), layoutBounds());
+        }
+        // Custom preview renderers are only invoked for a valid preview,
+        // matching the old conditional call contract.
+        DockDropIntent preview = dropPreviewIntent();
+        if (preview.valid()) {
+            WidgetRender drop = effectiveDropPreviewRenderer();
+            if (drop != null) {
+                drop.render(draw, this);
+            } else {
+                renderDefaultDropPreview(draw, preview);
+            }
+        }
+        renderDefaultDropZones(draw);
+    }
+
+    private void renderDefaultRoot(DrawScope draw) {
+        float x = layoutBounds().x();
+        float y = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        if (backgroundVisible()) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.fill(background()));
+        }
+        if (borderVisible() && borderWidth() > 0.0f) {
+            draw.roundedRect(x, y, width, height, radius(),
+                    Paint.stroke(borderColor(), borderWidth()));
+        }
+        if (dragController.dragging() || dropPreviewIntent().valid()) {
+            draw.roundedRect(x + 1.0f, y + 1.0f,
+                    Math.max(0.0f, width - 2.0f), Math.max(0.0f, height - 2.0f),
+                    Math.max(0.0f, radius() - 1.0f), Paint.stroke(theme().color(DockColor.EMPTY_TEXT), 1.0f));
+        }
+        if (manager.empty()) {
+            draw.text("Drop or add a DockPane", x + 8.0f, y + 8.0f,
+                    Math.max(0.0f, width - 16.0f), 14.0f, Paint.fill(theme().color(DockColor.EMPTY_TEXT)));
+        }
+    }
+
+    private void renderDefaultPanes(DrawScope draw, DockNode node, RectView bounds) {
+        if (node == null || bounds == null) return;
+        if (node.isLeaf()) {
+            renderDefaultPane(draw, node, bounds);
+            return;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        renderDefaultPanes(draw, node.first(), split.first());
+        renderDefaultPanes(draw, node.second(), split.second());
+    }
+
+    private void renderDefaultPane(DrawScope draw, DockNode node, RectView bounds) {
+        float width = bounds.width();
+        float height = bounds.height();
+        if (width <= 0.0f || height <= 0.0f) return;
+        DockTheme theme = theme();
+        float stripHeight = Math.min(tabHeight, height);
+        boolean overflow = tabsOverflow(node, bounds);
+        DockChrome.StripState state = new DockChrome.StripState(
+                manager.selectedLeaf() == node,
+                hoveredPaneId, pressedPaneId, hoveredCloseId, pressedCloseId,
+                dragController.dragging() ? dragController.paneId() : "",
+                overflow,
+                overflow ? overflowButtonBounds(bounds) : null,
+                node.id().equals(openOverflowNodeId));
+        DockChrome.paintStrip(draw, theme, bounds, stripHeight, tabLayouts(node, bounds),
+                node.selectedIndex(), state);
+        draw.rect(bounds.x(), bounds.y(), width, height, Paint.stroke(theme.color(DockColor.PANE_BORDER), 1.0f));
+    }
+    private void renderDefaultSplits(DrawScope draw, DockNode node, RectView bounds) {
+        if (node == null || node.isLeaf() || bounds == null) return;
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        renderDefaultSplitHandle(draw,
+                split.handle().x(), split.handle().y(), split.handle().width(), split.handle().height(),
+                node.orientation(),
+                node.id().equals(hoveredSplitNodeId),
+                node.id().equals(pressedSplitNodeId));
+        renderDefaultSplits(draw, node.first(), split.first());
+        renderDefaultSplits(draw, node.second(), split.second());
+    }
+
+    private void renderDefaultSplitHandle(DrawScope draw, float x, float y, float width, float height,
+                                                DockSplitOrientation orientation, boolean hovered, boolean pressed) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        DockTheme theme = theme();
+        draw.rect(x, y, width, height, Paint.fill(theme.color(DockColor.SPLIT)));
+        if (hovered || pressed) {
+            draw.rect(x, y, width, height,
+                    Paint.fill(theme.color(pressed ? DockColor.SPLIT_PRESSED : DockColor.SPLIT_HOVER)));
+        } else if (splitHandleStyle == SplitHandleStyle.BLOCK) {
+            ColorView line = theme.color(DockColor.TAB_SEPARATOR);
+            if (orientation == DockSplitOrientation.HORIZONTAL) {
+                float cx = x + width * 0.5f;
+                draw.line(cx, y + 4.0f, cx, y + Math.max(4.0f, height - 4.0f), Paint.stroke(line, 1.0f));
+            } else {
+                float cy = y + height * 0.5f;
+                draw.line(x + 4.0f, cy, x + Math.max(4.0f, width - 4.0f), cy, Paint.stroke(line, 1.0f));
+            }
+        }
+    }
+    private void renderDefaultDropPreview(DrawScope draw, DockDropIntent preview) {
+        if (preview == null || !preview.valid() || preview.width() <= 0.0f || preview.height() <= 0.0f) return;
+        draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.fill(theme().color(DockColor.DROP_FILL)));
+        draw.roundedRect(preview.x(), preview.y(), preview.width(), preview.height(), 4.0f, Paint.stroke(theme().color(DockColor.DROP_STROKE), 1.5f));
+    }
+
+    /**
+     * Рисует drop-зоны во время драга: крест над целевым листом.
+     *
+     * <p>Геометрия 1-в-1 с хит-тестом ({@code crossCellRect}): что нарисовано,
+     * туда и дропается. Активная зона подсвечена акцентом по текущему intent,
+     * остальные тусклые. Крест якорится на целевой лист intent'а (или лист
+     * под курсором, если intent пуст).</p>
+     *
+     * @param draw draw scope
+     */
+    private void renderDefaultDropZones(DrawScope draw) {
+        boolean dragging = dragController.dragging();
+        DockDropIntent intent = dropPreviewIntent();
+        if (!dragging && !intent.valid()) return;
+        RectView rootBounds = layoutBounds();
+        if (rootBounds.width() <= 0.0f || rootBounds.height() <= 0.0f) return;
+
+        DockNode anchorNode = null;
+        RectView anchorBounds = null;
+        if (!intent.targetPaneId().isEmpty()) {
+            LeafHit hit = leafContainingPane(rootNode(), rootBounds, intent.targetPaneId());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        } else if (dragging) {
+            LeafHit hit = leafAt(rootNode(), rootBounds,
+                    dragController.lastRootX(), dragController.lastRootY());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        } else if (intent.valid()) {
+            // Floating-окно нависло над root, но триггер не задет: крест
+            // якорится на лист под указателем по координатам intent.
+            LeafHit hit = leafAt(rootNode(), rootBounds, intent.pointerX(), intent.pointerY());
+            if (hit != null && !hit.node().panes().isEmpty()) {
+                anchorNode = hit.node();
+                anchorBounds = hit.bounds();
+            }
+        }
+        if (anchorBounds != null) {
+            DockArea active = intent.valid()
+                    && !intent.targetPaneId().isEmpty()
+                    && anchorContainsPane(anchorNode, intent.targetPaneId())
+                    ? intent.area()
+                    : null;
+            renderDropCross(draw, anchorBounds, active);
+        }
+    }
+
+    private static boolean anchorContainsPane(DockNode node, String paneId) {
+        if (node == null || paneId == null || paneId.isEmpty()) return false;
+        for (DockPane pane : node.panes()) {
+            if (pane != null && paneId.equals(pane.id())) return true;
+        }
+        return false;
+    }
+
+    private void renderDropCross(DrawScope draw, RectView bounds, DockArea active) {
+        DockTheme theme = theme();
+        float cell = dropZoneCell(bounds);
+        MutableRect center = crossCellRect(bounds, DockArea.CENTER);
+        MutableRect top = crossCellRect(bounds, DockArea.TOP);
+        renderZoneCell(draw, theme, center.x(), center.y(), cell, active == DockArea.CENTER || active == DockArea.TAB);
+        renderZoneCell(draw, theme, top.x(), top.y(), cell, active == DockArea.TOP);
+        MutableRect bottom = crossCellRect(bounds, DockArea.BOTTOM);
+        renderZoneCell(draw, theme, bottom.x(), bottom.y(), cell, active == DockArea.BOTTOM);
+        MutableRect left = crossCellRect(bounds, DockArea.LEFT);
+        renderZoneCell(draw, theme, left.x(), left.y(), cell, active == DockArea.LEFT);
+        MutableRect right = crossCellRect(bounds, DockArea.RIGHT);
+        renderZoneCell(draw, theme, right.x(), right.y(), cell, active == DockArea.RIGHT);
+        // Метафоры стыковки: плашка, прибитая к стороне дропа.
+        // Верх — таб-стрип сверху, низ — плашка снизу,
+        // лево/право — вертикальные плашки у краёв, центр — слои.
+        float barMargin = Math.max(6.0f, cell * 0.18f);
+        float barThick = Math.max(2.0f, cell * 0.16f);
+        float barLen = Math.max(0.0f, cell - barMargin * 2.0f);
+        draw.roundedRectFilled(top.x() + barMargin, top.y() + barMargin,
+                barLen, barThick, 2.0f, theme.color(DockColor.ZONE_GLYPH));
+        draw.roundedRectFilled(bottom.x() + barMargin, bottom.y() + bottom.height() - barMargin - barThick,
+                barLen, barThick, 2.0f, theme.color(DockColor.ZONE_GLYPH));
+        draw.roundedRectFilled(left.x() + barMargin, left.y() + barMargin,
+                barThick, barLen, 2.0f, theme.color(DockColor.ZONE_GLYPH));
+        draw.roundedRectFilled(right.x() + right.width() - barMargin - barThick, right.y() + barMargin,
+                barThick, barLen, 2.0f, theme.color(DockColor.ZONE_GLYPH));
+        float centerX = bounds.x() + bounds.width() * 0.5f;
+        float centerY = bounds.y() + bounds.height() * 0.5f;
+        for (int line = -1; line <= 1; line++) {
+            float ly = centerY + line * Math.max(4.0f, cell * 0.14f);
+            float lx = Math.max(4.0f, cell * 0.22f);
+            draw.line(centerX - lx, ly, centerX + lx, ly, Paint.stroke(theme.color(DockColor.ZONE_GLYPH), 1.5f));
+        }
+    }
+
+    private static void renderZoneCell(DrawScope draw, DockTheme theme, float x, float y, float cell,
+                                       boolean active) {
+        draw.roundedRectFilled(x, y, cell, cell, 8.0f, active
+                ? theme.color(DockColor.ZONE_FILL_ACTIVE) : theme.color(DockColor.ZONE_FILL));
+        draw.roundedRectStroke(x, y, cell, cell, 8.0f, active ? theme.color(DockColor.DROP_STROKE) : theme.color(DockColor.ZONE_STROKE), active ? 2.0f : 1.0f);
+    }
+
+    private DockDropIntent dropPreviewIntent() {
+        DockDropIntent preview = dragController.previewIntent().valid()
+                ? dragController.previewIntent()
+                : floatingDropPreviewIntent;
+        return preview == null ? DockDropIntent.none() : preview;
+    }
+
+    private void floatingDropPreview(DockDropIntent intent) {
+        DockDropIntent normalized = intent == null ? DockDropIntent.none() : intent;
+        if (floatingDropPreviewIntent.equals(normalized)) return;
+        floatingDropPreviewIntent = normalized;
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    private void renderOverflowMenu(RenderContext context) {
+        if (openOverflowNodeId.isEmpty()) return;
+        LeafHit hit = leafById(rootNode(), layoutBounds(), openOverflowNodeId);
+        if (hit == null || hit.node().panes().isEmpty() || !tabsOverflow(hit.node(), hit.bounds())) {
+            openOverflowNodeId = "";
+            return;
+        }
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        MutableRect menu = overflowMenuBounds(hit);
+        float x = menu.x();
+        float y = menu.y();
+        float menuWidth = menu.width();
+        float rowHeight = Math.max(16.0f, OVERFLOW_MENU_ROW_HEIGHT);
+        draw.roundedRect(menu.x(), menu.y(), menu.width(), menu.height(), 4.0f, Paint.fill(theme().color(DockColor.OVERFLOW_BACKGROUND)));
+        draw.rect(menu.x(), menu.y(), menu.width(), menu.height(), Paint.stroke(theme().color(DockColor.OVERFLOW_BORDER), 1.0f));
+        int first = normalizedOverflowMenuScrollOffset(hit.node());
+        int visibleRows = overflowMenuVisibleRows(hit.node());
+        int lastExclusive = Math.min(hit.node().panes().size(), first + visibleRows);
+        draw.pushClip(menu.x(), menu.y(), menu.width(), menu.height());
+        try {
+        for (int i = first; i < lastExclusive; i++) {
+            DockPane pane = hit.node().panes().get(i);
+            float rowY = y + (i - first) * rowHeight;
+            if (i == hoveredOverflowMenuIndex) {
+                draw.rect(x + 1.0f, rowY + 1.0f, Math.max(0.0f, menuWidth - 2.0f), Math.max(0.0f, rowHeight - 2.0f),
+                        Paint.fill(theme().color(DockColor.OVERFLOW_HOVER)));
+            } else if (i == hit.node().selectedIndex()) {
+                draw.rect(x + 1.0f, rowY + 1.0f, Math.max(0.0f, menuWidth - 2.0f), Math.max(0.0f, rowHeight - 2.0f),
+                        Paint.fill(theme().color(DockColor.OVERFLOW_SELECTED)));
+            }
+            draw.pushTextClip(x + 6.0f, rowY, Math.max(0.0f, menuWidth - 12.0f), rowHeight);
+            try {
+                TextEngine.drawInline(draw, pane.richTitle(), x + 6.0f, rowY + 4.0f,
+                        Math.max(0.0f, menuWidth - 12.0f), Math.max(0.0f, rowHeight - 6.0f),
+                        Paint.fill(theme().color(DockColor.OVERFLOW_TEXT)));
+            } finally {
+                draw.popClip();
+            }
+        }
+        } finally {
+            draw.popClip();
+        }
+        if (hit.node().panes().size() > visibleRows) {
+            float trackX = x + Math.max(0.0f, menuWidth - 5.0f);
+            float trackHeight = Math.max(0.0f, menu.height() - 4.0f);
+            float thumbHeight = Math.max(10.0f, trackHeight * visibleRows / Math.max(1, hit.node().panes().size()));
+            float maxScroll = Math.max(1, hit.node().panes().size() - visibleRows);
+            float thumbY = y + 2.0f + (trackHeight - thumbHeight) * (first / maxScroll);
+            draw.rect(trackX, y + 2.0f, 2.0f, trackHeight, Paint.fill(theme().color(DockColor.OVERFLOW_SELECTED)));
+            draw.rect(trackX, thumbY, 2.0f, thumbHeight, Paint.fill(theme().color(DockColor.OVERFLOW_BORDER)));
+        }
+    }
+
+    private DockPane tabAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        TabHit hit = tabHitAt(node, bounds, rootX, rootY);
+        return hit == null ? null : hit.pane();
+    }
+
+    /**
+     * Ищет вкладку под точкой и сообщает, попала ли точка в её кнопку закрытия.
+     *
+     * @param node узел дерева
+     * @param bounds границы узла
+     * @param rootX X точки
+     * @param rootY Y точки
+     * @return попадание или {@code null}
+     */
+    private TabHit tabHitAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null) return null;
+        if (node.isLeaf()) {
+            if (rootY < bounds.y() || rootY > bounds.y() + Math.min(tabHeight, bounds.height())) return null;
+            DockTheme theme = theme();
+            for (DockTabLayout tab : tabLayouts(node, bounds)) {
+                if (tab.contains(rootX, rootY)) {
+                    return new TabHit(tab.pane(), DockChrome.hitsClose(tab, theme, rootX, rootY));
+                }
+            }
+            return null;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        TabHit first = tabHitAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : tabHitAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    /**
+     * Раскладывает вкладки листа по ширине содержимого.
+     *
+     * <p>Пока всё помещается, каждая вкладка получает свою предпочтительную ширину (отступы, иконка,
+     * текст, место под крестик). Если не помещается — ширины линейно сжимаются к минимуму темы. Когда даже
+     * минимумы не влезают, включается режим переполнения: равные вкладки, прокрутка и меню.</p>
+     */
+    private List<DockTabLayout> tabLayouts(DockNode node, RectView bounds) {
+        List<DockTabLayout> tabs = new ObjectArrayList<>();
+        if (node == null || !node.isLeaf() || node.panes().isEmpty()) return tabs;
+        DockTheme theme = theme();
+        float y = bounds.y();
+        float height = Math.min(tabHeight, bounds.height());
+        boolean overflow = tabsOverflow(node, bounds);
+        float availableWidth = Math.max(0.0f, bounds.width() - (overflow ? OVERFLOW_BUTTON_WIDTH : 0.0f));
+        int count = node.panes().size();
+        int visibleCapacity = visibleTabCapacity(node, bounds);
+        int firstVisible = overflow ? normalizedTabScrollOffset(node, bounds) : 0;
+        int lastVisible = overflow ? Math.min(count - 1, firstVisible + visibleCapacity - 1) : count - 1;
+        float minWidth = theme.tabMinWidth();
+        float[] widths = new float[count];
+        if (overflow) {
+            float uniform = Math.max(minWidth, Math.min(theme.tabMaxWidth(),
+                    availableWidth / Math.max(1, visibleCapacity)));
+            java.util.Arrays.fill(widths, uniform);
+        } else {
+            float total = 0.0f;
+            for (int i = 0; i < count; i++) {
+                widths[i] = DockChrome.preferredTabWidth(node.panes().get(i), theme);
+                total += widths[i];
+            }
+            float minTotal = minWidth * count;
+            if (total > availableWidth && total > minTotal) {
+                float t = Math.max(0.0f, Math.min(1.0f, (availableWidth - minTotal) / (total - minTotal)));
+                for (int i = 0; i < count; i++) {
+                    widths[i] = minWidth + (widths[i] - minWidth) * t;
+                }
+            }
+        }
+        float x = bounds.x();
+        for (int i = 0; i < count; i++) {
+            DockPane pane = node.panes().get(i);
+            boolean visible = !overflow || (i >= firstVisible && i <= lastVisible);
+            float remaining = Math.max(0.0f, bounds.x() + bounds.width() - x);
+            float width = visible ? Math.min(widths[i], remaining) : 0.0f;
+            if (!visible || remaining <= 0.0f || width < 12.0f) {
+                width = 0.0f;
+            }
+            tabs.add(new DockTabLayout(i, pane, x, y, Math.max(0.0f, width), height));
+            if (visible) x += width;
+        }
+        return tabs;
+    }
+
+    /**
+     * Результат хит-теста по полосе вкладок.
+     *
+     * @param pane вкладка под точкой
+     * @param onClose точка попала в кнопку закрытия вкладки
+     */
+    private record TabHit(DockPane pane, boolean onClose) {
+    }
+    private boolean tabsOverflow(DockNode node, RectView bounds) {
+        return node != null
+                && node.isLeaf()
+                && node.panes().size() > visibleTabCapacity(node, bounds);
+    }
+
+    private int visibleTabCapacity(DockNode node, RectView bounds) {
+        if (node == null || !node.isLeaf() || node.panes().isEmpty() || bounds == null) return 0;
+        float availableWidth = Math.max(0.0f, bounds.width());
+        int fullCapacity = Math.max(1, (int) Math.floor(availableWidth / theme().tabMinWidth()));
+        if (node.panes().size() <= fullCapacity) return node.panes().size();
+        float overflowAvailableWidth = Math.max(0.0f, availableWidth - OVERFLOW_BUTTON_WIDTH);
+        return Math.max(1, (int) Math.floor(overflowAvailableWidth / theme().tabMinWidth()));
+    }
+
+    private int normalizedTabScrollOffset(DockNode node, RectView bounds) {
+        int max = maxTabScrollOffset(node, bounds);
+        int current = tabScrollOffsets.getOrDefault(node.id(), 0);
+        int normalized = Math.max(0, Math.min(max, current));
+        if (normalized != current) {
+            tabScrollOffsets.put(node.id(), normalized);
+        }
+        return normalized;
+    }
+
+    private int maxTabScrollOffset(DockNode node, RectView bounds) {
+        if (node == null || !node.isLeaf()) return 0;
+        return Math.max(0, node.panes().size() - visibleTabCapacity(node, bounds));
+    }
+
+    private MutableRect overflowButtonBounds(RectView bounds) {
+        float height = Math.min(tabHeight, bounds == null ? 0.0f : bounds.height());
+        float width = Math.min(OVERFLOW_BUTTON_WIDTH, bounds == null ? 0.0f : bounds.width());
+        return new MutableRect(
+                bounds == null ? 0.0f : bounds.x() + Math.max(0.0f, bounds.width() - width),
+                bounds == null ? 0.0f : bounds.y(),
+                Math.max(0.0f, width),
+                Math.max(0.0f, height));
+    }
+
+    private boolean scrollTabsAt(float rootX, float rootY, float deltaX, float deltaY) {
+        LeafHit hit = tabStripAt(rootNode(), layoutBounds(), rootX, rootY);
+        if (hit == null || !tabsOverflow(hit.node(), hit.bounds())) return false;
+        float delta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+        if (delta == 0.0f) return false;
+        int direction = delta < 0.0f ? 1 : -1;
+        int current = normalizedTabScrollOffset(hit.node(), hit.bounds());
+        int next = Math.max(0, Math.min(maxTabScrollOffset(hit.node(), hit.bounds()), current + direction));
+        if (next == current) return true;
+        tabScrollOffsets.put(hit.node().id(), next);
+        openOverflowNodeId = "";
+        setHoveredPane("");
+        invalidate(InvalidationFlags.VISUAL);
+        return true;
+    }
+
+    private boolean scrollOverflowMenuAt(float rootX, float rootY, float deltaX, float deltaY) {
+        if (openOverflowNodeId.isEmpty()) return false;
+        LeafHit hit = leafById(rootNode(), layoutBounds(), openOverflowNodeId);
+        if (hit == null || !tabsOverflow(hit.node(), hit.bounds())) return false;
+        MutableRect menu = overflowMenuBounds(hit);
+        if (!contains(menu, rootX, rootY)) return false;
+        float delta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+        if (delta == 0.0f) return true;
+        int direction = delta < 0.0f ? 1 : -1;
+        int current = normalizedOverflowMenuScrollOffset(hit.node());
+        int next = Math.max(0, Math.min(maxOverflowMenuScrollOffset(hit.node()), current + direction));
+        if (next != current) {
+            overflowMenuScrollOffsets.put(hit.node().id(), next);
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return true;
+    }
+
+    private void revealPane(String paneId) {
+        LeafHit ref = leafContainingPane(rootNode(), layoutBounds(), paneId);
+        if (ref != null) revealPane(ref.node(), paneId);
+    }
+
+    private void revealPane(DockNode node, String paneId) {
+        if (node == null || paneId == null || paneId.isEmpty()) return;
+        int index = -1;
+        for (int i = 0; i < node.panes().size(); i++) {
+            if (node.panes().get(i).id().equals(paneId)) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) return;
+        int capacity = visibleTabCapacity(node, layoutBounds());
+        if (capacity <= 0 || node.panes().size() <= capacity) {
+            tabScrollOffsets.put(node.id(), 0);
+            return;
+        }
+        int first = normalizedTabScrollOffset(node, layoutBounds());
+        int last = first + capacity - 1;
+        if (index < first) {
+            tabScrollOffsets.put(node.id(), index);
+        } else if (index > last) {
+            tabScrollOffsets.put(node.id(), Math.max(0, index - capacity + 1));
+        }
+    }
+
+    private LeafHit overflowButtonAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null || bounds == null || !contains(bounds, rootX, rootY)) return null;
+        if (node.isLeaf()) {
+            if (!tabsOverflow(node, bounds)) return null;
+            MutableRect button = overflowButtonBounds(bounds);
+            return contains(button, rootX, rootY) ? new LeafHit(node, button) : null;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        LeafHit first = overflowButtonAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : overflowButtonAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    private LeafHit tabStripAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null || bounds == null || !contains(bounds, rootX, rootY)) return null;
+        if (node.isLeaf()) {
+            float tabStripHeight = Math.min(tabHeight, bounds.height());
+            if (rootY < bounds.y() || rootY > bounds.y() + tabStripHeight) return null;
+            return new LeafHit(node, new MutableRect(bounds.x(), bounds.y(), bounds.width(), tabStripHeight));
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        LeafHit first = tabStripAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : tabStripAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    private LeafHit leafById(DockNode node, RectView bounds, String nodeId) {
+        if (node == null || bounds == null || nodeId == null || nodeId.isEmpty()) return null;
+        if (node.id().equals(nodeId)) {
+            return new LeafHit(node, new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()));
+        }
+        if (node.isLeaf()) return null;
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        LeafHit first = leafById(node.first(), split.first(), nodeId);
+        return first != null ? first : leafById(node.second(), split.second(), nodeId);
+    }
+
+    private LeafHit leafContainingPane(DockNode node, RectView bounds, String paneId) {
+        if (node == null || bounds == null || paneId == null || paneId.isEmpty()) return null;
+        if (node.isLeaf()) {
+            return node.containsPane(paneId)
+                    ? new LeafHit(node, new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()))
+                    : null;
+        }
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        LeafHit first = leafContainingPane(node.first(), split.first(), paneId);
+        return first != null ? first : leafContainingPane(node.second(), split.second(), paneId);
+    }
+
+    private OverflowMenuItem overflowMenuItemAt(float rootX, float rootY) {
+        if (openOverflowNodeId.isEmpty()) return null;
+        LeafHit hit = leafById(rootNode(), layoutBounds(), openOverflowNodeId);
+        if (hit == null || !tabsOverflow(hit.node(), hit.bounds())) return null;
+        MutableRect menu = overflowMenuBounds(hit);
+        if (!contains(menu, rootX, rootY)) return null;
+        int index = normalizedOverflowMenuScrollOffset(hit.node())
+                + (int) Math.floor((rootY - menu.y()) / Math.max(16.0f, OVERFLOW_MENU_ROW_HEIGHT));
+        if (index < 0 || index >= hit.node().panes().size()) return null;
+        return new OverflowMenuItem(hit.node(), hit.node().panes().get(index), index);
+    }
+
+    private MutableRect overflowMenuBounds(LeafHit hit) {
+        MutableRect button = overflowButtonBounds(hit.bounds());
+        float rowHeight = Math.max(16.0f, OVERFLOW_MENU_ROW_HEIGHT);
+        float menuWidth = Math.min(OVERFLOW_MENU_WIDTH, Math.max(72.0f, layoutBounds().width()));
+        float menuHeight = rowHeight * overflowMenuVisibleRows(hit.node());
+        float x = Math.min(button.x(), layoutBounds().x() + Math.max(0.0f, layoutBounds().width() - menuWidth));
+        float y = Math.min(button.y() + button.height(),
+                layoutBounds().y() + Math.max(0.0f, layoutBounds().height() - menuHeight));
+        return new MutableRect(x, y, menuWidth, menuHeight);
+    }
+
+    private int overflowMenuVisibleRows(DockNode node) {
+        if (node == null || !node.isLeaf() || node.panes().isEmpty()) return 0;
+        return Math.max(1, Math.min(OVERFLOW_MENU_MAX_VISIBLE_ROWS, node.panes().size()));
+    }
+
+    private int normalizedOverflowMenuScrollOffset(DockNode node) {
+        if (node == null) return 0;
+        int max = maxOverflowMenuScrollOffset(node);
+        int current = overflowMenuScrollOffsets.getOrDefault(node.id(), 0);
+        int normalized = Math.max(0, Math.min(max, current));
+        if (normalized != current) {
+            overflowMenuScrollOffsets.put(node.id(), normalized);
+        }
+        return normalized;
+    }
+
+    private int maxOverflowMenuScrollOffset(DockNode node) {
+        if (node == null || !node.isLeaf()) return 0;
+        return Math.max(0, node.panes().size() - overflowMenuVisibleRows(node));
+    }
+
+    private void revealOverflowMenuSelection(DockNode node) {
+        if (node == null || !node.isLeaf()) return;
+        int selected = Math.max(0, node.selectedIndex());
+        int first = normalizedOverflowMenuScrollOffset(node);
+        int visibleRows = overflowMenuVisibleRows(node);
+        int last = first + visibleRows - 1;
+        if (selected < first) {
+            overflowMenuScrollOffsets.put(node.id(), selected);
+        } else if (selected > last) {
+            overflowMenuScrollOffsets.put(node.id(), Math.max(0, selected - visibleRows + 1));
+        }
+    }
+
+    private SplitRects splitRects(RectView bounds, DockSplitOrientation orientation, float ratio) {
+        float thickness = Math.min(splitHandleThickness,
+                Math.max(0.0f, orientation == DockSplitOrientation.HORIZONTAL ? bounds.width() : bounds.height()));
+        float available = Math.max(0.0f,
+                (orientation == DockSplitOrientation.HORIZONTAL ? bounds.width() : bounds.height()) - thickness);
+        float firstSize = available * Math.max(0.0f, Math.min(1.0f, ratio));
+        float secondSize = Math.max(0.0f, available - firstSize);
+        if (orientation == DockSplitOrientation.HORIZONTAL) {
+            return new SplitRects(
+                    new MutableRect(bounds.x(), bounds.y(), firstSize, bounds.height()),
+                    new MutableRect(bounds.x() + firstSize, bounds.y(), thickness, bounds.height()),
+                    new MutableRect(bounds.x() + firstSize + thickness, bounds.y(), secondSize, bounds.height()));
+        }
+        return new SplitRects(
+                new MutableRect(bounds.x(), bounds.y(), bounds.width(), firstSize),
+                new MutableRect(bounds.x(), bounds.y() + firstSize, bounds.width(), thickness),
+                new MutableRect(bounds.x(), bounds.y() + firstSize + thickness, bounds.width(), secondSize));
+    }
+
+    private WidgetRender effectivePaneRenderer() {
+        return paneRenderer;
+    }
+
+    private WidgetRender effectiveSplitHandleRenderer() {
+        return splitHandleRenderer;
+    }
+
+    private WidgetRender effectiveDropPreviewRenderer() {
+        return dropPreviewRenderer;
+    }
+
+    private String activePaneId() {
+        DockPane active = manager.selectedPane();
+        return active == null ? "" : active.id();
+    }
+
+    private static float finiteOr(float value, float fallback) {
+        return Float.isFinite(value) && value > 0.0f ? value : fallback;
+    }
+
+    private record SplitRects(MutableRect first, MutableRect handle, MutableRect second) {
+    }
+
+    private record LeafHit(DockNode node, MutableRect bounds) {
+    }
+
+    private record OverflowMenuItem(DockNode node, DockPane pane, int index) {
+    }
+
+    private record SplitNodeHit(DockNode node, MutableRect nodeBounds, MutableRect handleBounds,
+                                DockSplitOrientation orientation) {
+    }
+
+    // -- Split-drag helpers ----------------------------------------------------
+
+    /**
+     * Returns the split node whose handle intersects the given root-space point,
+     * or {@code null} if no handle is hit.
+     */
+    private SplitNodeHit splitHandleAt(DockNode node, RectView bounds, float rootX, float rootY) {
+        if (node == null || node.isLeaf() || bounds == null) return null;
+        if (!contains(bounds, rootX, rootY)) return null;
+        SplitRects split = splitRects(bounds, node.orientation(), node.splitRatio());
+        if (contains(split.handle(), rootX, rootY)) {
+            return new SplitNodeHit(node,
+                    new MutableRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()),
+                    new MutableRect(split.handle().x(), split.handle().y(),
+                            split.handle().width(), split.handle().height()),
+                    node.orientation());
+        }
+        SplitNodeHit first = splitHandleAt(node.first(), split.first(), rootX, rootY);
+        return first != null ? first : splitHandleAt(node.second(), split.second(), rootX, rootY);
+    }
+
+    /**
+     * Finds the split node with the given id anywhere in the tree.
+     */
+    private DockNode findSplitNodeById(DockNode node, String id) {
+        if (node == null || id == null || id.isEmpty()) return null;
+        if (node.id().equals(id) && node.isSplit()) return node;
+        if (node.isLeaf()) return null;
+        DockNode found = findSplitNodeById(node.first(), id);
+        return found != null ? found : findSplitNodeById(node.second(), id);
+    }
+
+    /**
+     * Computes the new split ratio during a drag, clamped to [0.05, 0.95].
+     */
+    private float computeNewSplitRatio(float currentRootX, float currentRootY) {
+        float delta = splitDragOrientation == DockSplitOrientation.HORIZONTAL
+                ? currentRootX - splitDragStartX
+                : currentRootY - splitDragStartY;
+        float newRatio = splitDragStartRatio + delta / splitDragAvailable;
+        return Math.max(0.05f, Math.min(0.95f, newRatio));
+    }
+}

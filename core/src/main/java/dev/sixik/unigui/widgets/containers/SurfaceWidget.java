@@ -1,0 +1,1321 @@
+package dev.sixik.unigui.widgets.containers;
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.animation.FloatValueReader;
+import dev.sixik.unigui.api.animation.FloatValueWriter;
+import dev.sixik.unigui.api.animation.TransitionSpec;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureFilter;
+import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.TextureLayer;
+import dev.sixik.unigui.api.render.TextureGroup;
+import dev.sixik.unigui.api.render.TexturePlacement;
+import dev.sixik.unigui.api.render.TextureWrap;
+import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
+import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleKey;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.widget.visual.BackgroundKind;
+import dev.sixik.unigui.api.widget.visual.Surface;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.load.TextureResolution;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.api.widget.render.WidgetRender;
+
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Базовый контейнер с композируемой поверхностью: фон, рамка и радиус.
+ *
+ * <p>Ядро новой визуальной системы. Вместо наследования визуала от {@code Box}
+ * каждый виджет <em>содержит</em> {@link Surface}: источник фона выбирается через
+ * {@link BackgroundKind} (цвет, текстура или шейдер) и переключается стилем,
+ * кодом или XML без смены renderer-класса.</p>
+ *
+ * <p>Порядок отрисовки: custom {@link WidgetRender} (если задан, заменяет весь визуал),
+ * затем {@link #renderSurface(RenderContext)} (хром), затем {@link #renderContent(RenderContext)}
+ * (foreground + дети).</p>
+ *
+ * @param <T> self-тип для fluent-наследования
+ * @see Surface
+ * @see BackgroundKind
+ * @see WidgetRender
+ * @see Box
+ */
+@AiDoc(
+        summary = "Container with a composable Surface for background color, textures, shaders, borders, and corner radius.",
+        purpose = "Provides full visual chrome (background, border, radius, overlay textures) around child widgets "
+                + "with built-in transition support and Theme/StylePack resolution.",
+        useWhen = {
+                "Create cards, panels, buttons, and custom controls that require backgrounds, borders, or textures.",
+                "Animate visual properties such as background color, border width, or corner radius.",
+                "Render procedural backgrounds using custom GLSL shaders via backgroundShader()."
+        },
+        criticalRules = {
+                "Setting background() or border() automatically enables backgroundVisible(true) / borderVisible(true).",
+                "Order of rendering: custom WidgetRender (if set), then surface chrome, then content and children.",
+                "Custom visual renderers override the default surface chrome entirely."
+        },
+        related = {"Box", "PanelWidget", "Surface", "BackgroundKind"},
+        examples = @AiDoc.Example(
+                title = "Create styled surface",
+                code = "SurfaceWidget<?> surface = new Box()\n        .background(ColorView.ofHex(\"#202225\"))\n        .radius(6.0f);"))
+@WikiPage(
+        title = "<key:surface.widget.title>",
+        slug = "surface-widget",
+        category = "<key:surface.widget.category>",
+        summary = "<key:surface.widget.summary>",
+        order = 20)
+@WikiSection(title = "<key:surface.widget.section.overview.title>",
+        markdown = "<key:surface.widget.section.overview.body>", order = 10)
+@WikiSection(title = "<key:surface.widget.section.layers.title>",
+        markdown = "<key:surface.widget.section.layers.body>", order = 20)
+@WikiExample(title = "<key:surface.widget.example.card.title>",
+        code = "<key:surface.widget.example.card.code>", order = 10)
+@WikiLink(label = "Box", target = "page:box")
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
+@XamlWidget("Surface")
+public class SurfaceWidget<T extends SurfaceWidget<T>> extends PanelWidget {
+    /**
+     * Композируемая поверхность: фон, рамка и радиус.
+     */
+    protected final Surface surface = new Surface(() -> invalidate(InvalidationFlags.VISUAL));
+    /**
+     * Мастер-переключатель отрисовки поверхности. Контролы со своим foreground
+     * (слайдеры, текстовые поля) выключают его, чтобы рисовать только контент.
+     */
+    private boolean boxVisualEnabled = true;
+    private boolean themeEnabled = true;
+    private long lastAppliedStyleVersion = Long.MIN_VALUE;
+    private long lastAppliedScopeStyleVersion = Long.MIN_VALUE;
+    private long transitionStyleVersion = Long.MIN_VALUE;
+    private long transitionScopeStyleVersion = Long.MIN_VALUE;
+    private WidgetState transitionState;
+    private TransitionSpec styleTransition = TransitionSpec.INSTANT;
+    private final FloatValueReader borderWidthReader = () -> surface.borderWidth();
+    private final FloatValueWriter borderWidthWriter = value -> {
+        if (surface.borderWidth() == value) return;
+        surface.borderWidth(value);
+    };
+    private final FloatValueReader radiusReader = () -> surface.radius();
+    private final FloatValueWriter radiusWriter = value -> {
+        if (surface.radius() == value) return;
+        surface.radius(value);
+    };
+    /**
+     * Дополнительные текстурные слои поверх базового фона. Ленивый список:
+     * {@code null}, пока не добавлен первый слой, — нулевая цена для
+     * виджетов с одной текстурой.
+     */
+    private List<TextureLayer> overlayTextures;
+
+    /**
+     * Создаёт виджет с пустой композируемой поверхностью.
+     */
+    protected SurfaceWidget() {
+    }
+
+    /**
+     * Возвращает self для fluent-наследования.
+     *
+     * @return этот виджет с точным типом наследника
+     */
+    @SuppressWarnings("unchecked")
+    protected final T self() {
+        return (T) this;
+    }
+
+    /**
+     * Применяет при создании только стандартные значения поверхности компонента для состояния NORMAL.
+     * Значения темы и родительских/локальных стилей разрешаются позже через {@link #applyTheme()}.
+     *
+     * @param defaults стандартные стили компонента, применяемые к поверхности
+     */
+    protected final void applyComponentStyleDefaults(Style defaults) {
+        if (defaults == null || defaults == Style.EMPTY) return;
+        surface.themeUpdating(true);
+        try {
+            BackgroundKind kind = defaults.get(StyleKeys.BACKGROUND_KIND, WidgetState.NORMAL,
+                    surface.backgroundKind());
+            ColorView background = defaults.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL,
+                    surface.background());
+            Boolean backgroundVisible = defaults.get(StyleKeys.BACKGROUND_VISIBLE, WidgetState.NORMAL,
+                    surface.backgroundVisible());
+            TextureHandle backgroundTexture = defaults.get(StyleKeys.BACKGROUND_TEXTURE, WidgetState.NORMAL,
+                    surface.backgroundTexture());
+            ColorView textureTint = defaults.get(StyleKeys.BACKGROUND_TEXTURE_TINT, WidgetState.NORMAL,
+                    surface.backgroundTextureTint());
+            ImageFit textureFit = defaults.get(StyleKeys.BACKGROUND_TEXTURE_FIT, WidgetState.NORMAL,
+                    surface.backgroundTextureFit());
+            SliceBorders sliceBorders = defaults.get(StyleKeys.SLICE_BORDERS, WidgetState.NORMAL,
+                    surface.sliceBorders());
+            ShaderHandle shader = defaults.get(StyleKeys.BACKGROUND_SHADER, WidgetState.NORMAL,
+                    surface.backgroundShader());
+            ColorView border = defaults.get(StyleKeys.BORDER_COLOR, WidgetState.NORMAL,
+                    surface.borderColor());
+            Boolean borderVisible = defaults.get(StyleKeys.BORDER_VISIBLE, WidgetState.NORMAL,
+                    surface.borderVisible());
+            Float borderWidth = defaults.get(StyleKeys.BORDER_WIDTH, WidgetState.NORMAL,
+                    surface.borderWidth());
+            Float radius = defaults.get(StyleKeys.RADIUS, WidgetState.NORMAL, surface.radius());
+            if (kind != null) surface.backgroundKind(kind);
+            if (background != null) surface.background().set(background);
+            if (backgroundVisible != null) surface.backgroundVisible(backgroundVisible);
+            if (backgroundTexture != null) surface.backgroundTexture(backgroundTexture);
+            if (textureTint != null) surface.backgroundTextureTint().set(textureTint);
+            if (textureFit != null) surface.backgroundTextureFit(textureFit);
+            if (sliceBorders != null) surface.sliceBorders(sliceBorders);
+            if (shader != null) surface.backgroundShader(shader);
+            if (border != null) surface.borderColor().set(border);
+            if (borderVisible != null) surface.borderVisible(borderVisible);
+            if (borderWidth != null) surface.borderWidth(borderWidth);
+            if (radius != null) surface.radius(radius);
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
+    @Override
+    public T style(String declarations) {
+        super.style(declarations);
+        return self();
+    }
+
+    @Override
+    public T style(Consumer<MutableStyle> update) {
+        super.style(update);
+        return self();
+    }
+
+    /**
+     * Удаляет inline-style этого виджета, сохраняя component defaults, тему и внешние local styles.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    @Override
+    public T styleClear() {
+        super.styleClear();
+        return self();
+    }
+
+    /**
+     * Возвращает композируемую поверхность виджета.
+     *
+     * @return поверхность фона и рамки
+     */
+    @WikiMethod(order = 80, title = "<key:surface.widget.method.surface.title>", summary = "<key:surface.widget.method.surface.summary>")
+    @WikiReturn("<key:surface.widget.method.surface.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 80, summary = "Returns the underlying composable Surface model.")
+    public Surface surface() {
+        return surface;
+    }
+
+    /**
+     * Возвращает live-цвет фона.
+     *
+     * @return изменяемый цвет фона
+     */
+    public MutableColor background() {
+        return surface.background();
+    }
+
+    @XamlProperty(value = "background", category = "Appearance", defaultValue = "#00000000", description = "Background color; setting it also enables background rendering.")
+    @WikiMethod(order = 15, title = "<key:surface.widget.method.background.title>", summary = "<key:surface.widget.method.background.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 15, summary = "Sets background fill color and enables background visibility.")
+    public T background(@WikiParameter(description = "<key:surface.widget.method.background.param>") ColorView color) {
+        surface.explicitBackground();
+        surface.background().set(color == null ? new MutableColor(0.0f, 0.0f, 0.0f, 0.0f) : color);
+        backgroundVisible(true);
+        return self();
+    }
+
+    /**
+     * Анимирует цвет фона за заданное время.
+     *
+     * @param color           целевой цвет
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBackgroundColor(ColorView color, float durationSeconds) {
+        animateColor(surface.background(), color, durationSeconds);
+        return self();
+    }
+
+    /**
+     * Анимирует цвет фона по заданной transition-спецификации.
+     *
+     * @param color целевой цвет
+     * @param spec  параметры transition'а
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBackgroundColor(ColorView color, TransitionSpec spec) {
+        animateColor(surface.background(), color, spec);
+        return self();
+    }
+
+    /**
+     * Включает или выключает отрисовку фона.
+     *
+     * @param backgroundVisible {@code true}, чтобы renderer рисовал фон
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "backgroundVisible", category = "Appearance", defaultValue = "false", description = "Whether the background is rendered.")
+    @WikiMethod(order = 10, title = "<key:surface.widget.method.background_visible.title>", summary = "<key:surface.widget.method.background_visible.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 10, summary = "Controls whether the surface background is rendered.")
+    public T backgroundVisible(@WikiParameter(description = "<key:surface.widget.method.background_visible.param>") boolean backgroundVisible) {
+        surface.backgroundVisible(backgroundVisible);
+        return self();
+    }
+
+    /**
+     * Возвращает, должен ли renderer рисовать фон.
+     *
+     * @return {@code true}, если фон включён
+     */
+    @WikiMethod(order = 12, title = "<key:surface.widget.method.get_background_visible.title>", summary = "<key:surface.widget.method.get_background_visible.summary>")
+    @WikiReturn("<key:surface.widget.method.get_background_visible.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 12, summary = "Checks if background rendering is active.")
+    public boolean backgroundVisible() {
+        return surface.backgroundVisible();
+    }
+
+    /**
+     * Возвращает источник фона поверхности.
+     *
+     * @return явный kind или {@code null}, если kind выводится автоматически
+     */
+    public BackgroundKind backgroundKind() {
+        return surface.backgroundKind();
+    }
+
+    /**
+     * Задаёт источник фона: цвет, текстура или шейдер.
+     *
+     * <pre>{@code
+     * widget.backgroundKind(BackgroundKind.TEXTURE).backgroundTexture(texture);
+     * widget.backgroundKind(BackgroundKind.SHADER).backgroundShader(shader);
+     * }</pre>
+     *
+     * @param kind источник фона; {@code null} включает автовывод
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "backgroundKind", category = "Appearance", defaultValue = "", description = "Background source: none, color, texture or shader. Empty means automatic.")
+    public T backgroundKind(BackgroundKind kind) {
+        surface.backgroundKind(kind);
+        return self();
+    }
+
+    /**
+     * Возвращает шейдер фона.
+     *
+     * @return handle шейдера или {@code null}
+     */
+    public ShaderHandle backgroundShader() {
+        return surface.backgroundShader();
+    }
+
+    /**
+     * Задаёт шейдер фона.
+     *
+     * @param shader handle шейдера или {@code null}
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "backgroundShader", category = "Appearance", defaultValue = "", description = "Shader resource id used as background when background kind is shader.")
+    public T backgroundShader(ShaderHandle shader) {
+        surface.backgroundShader(shader);
+        return self();
+    }
+
+    /**
+     * Задаёт шейдер фона по resource id.
+     *
+     * @param shaderId resource id шейдера; пустая строка сбрасывает шейдер
+     * @return этот виджет для fluent-настройки
+     */
+    public T backgroundShader(String shaderId) {
+        String normalized = shaderId == null ? "" : shaderId.trim();
+        surface.backgroundShader(normalized.isEmpty() ? null : ShaderHandle.resource(normalized));
+        return self();
+    }
+
+    /**
+     * Возвращает uniforms шейдера фона.
+     *
+     * @return uniforms или {@code null}
+     */
+    public ShaderUniforms shaderUniforms() {
+        return surface.shaderUniforms();
+    }
+
+    /**
+     * Задаёт uniforms шейдера фона.
+     *
+     * @param uniforms uniforms шейдера
+     * @return этот виджет для fluent-настройки
+     */
+    public T shaderUniforms(ShaderUniforms uniforms) {
+        surface.shaderUniforms(uniforms);
+        return self();
+    }
+
+    /**
+     * Возвращает опции отрисовки шейдера фона.
+     *
+     * @return опции или {@code null} для defaults
+     */
+    public ShaderDrawOptions shaderOptions() {
+        return surface.shaderOptions();
+    }
+
+    /**
+     * Задаёт опции отрисовки шейдера фона.
+     *
+     * @param options опции отрисовки
+     * @return этот виджет для fluent-настройки
+     */
+    public T shaderOptions(ShaderDrawOptions options) {
+        surface.shaderOptions(options);
+        return self();
+    }
+
+    /**
+     * Возвращает текстуру фона.
+     *
+     * @return handle текстуры или {@code null}
+     */
+    public TextureHandle backgroundTexture() {
+        return surface.backgroundTexture();
+    }
+
+    /**
+     * Задаёт текстуру фона.
+     *
+     * @param backgroundTexture handle текстуры или {@code null}
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "backgroundTexture", displayName = "Background Texture", category = "Assets", defaultValue = "", description = "Texture resource id resolved through XmlWidgetOptions.textureResolver.")
+    public T backgroundTexture(TextureHandle backgroundTexture) {
+        surface.backgroundTexture(backgroundTexture);
+        return self();
+    }
+
+    @XamlProperty(value = "backgroundTextureWidth", displayName = "Background Texture Width", category = "Assets", defaultValue = "16", description = "Source texture width used for contain and cover placement.")
+    public T backgroundTextureWidth(int width) {
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), width, null));
+    }
+
+    @XamlProperty(value = "backgroundTextureHeight", displayName = "Background Texture Height", category = "Assets", defaultValue = "16", description = "Source texture height used for contain and cover placement.")
+    public T backgroundTextureHeight(int height) {
+        return backgroundTexture(TextureResolution.resize(surface.backgroundTexture(), null, height));
+    }
+
+    @XamlProperty(value = "backgroundTextureSampling", displayName = "Background Texture Sampling", category = "Assets", defaultValue = "nearest", description = "Texture filtering mode used by the renderer backend.")
+    public T backgroundTextureSampling(TextureFilter filter) {
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.sampling(filter)));
+    }
+
+    @XamlProperty(value = "backgroundTextureWrap", displayName = "Background Texture Wrap", category = "Assets", defaultValue = "clamp-to-edge", description = "Texture coordinate wrap mode used by the renderer backend.")
+    public T backgroundTextureWrap(TextureWrap wrap) {
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.wrap(wrap)));
+    }
+
+    @XamlProperty(value = "backgroundTextureMipmaps", displayName = "Background Texture Mipmaps", category = "Assets", defaultValue = "false", description = "Whether the texture should use mipmapped sampling.")
+    public T backgroundTextureMipmaps(boolean mipmaps) {
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.mipmaps(mipmaps)));
+    }
+
+    @XamlProperty(value = "backgroundTexturePremultipliedAlpha", displayName = "Background Texture Premultiplied Alpha", category = "Assets", defaultValue = "false", description = "Whether the texture color data already uses premultiplied alpha.")
+    public T backgroundTexturePremultipliedAlpha(boolean premultipliedAlpha) {
+        return backgroundTexture(TextureResolution.options(surface.backgroundTexture(), options -> options.premultipliedAlpha(premultipliedAlpha)));
+    }
+
+    /**
+     * Возвращает live tint-цвет фоновой текстуры.
+     *
+     * @return изменяемый tint-цвет
+     */
+    public MutableColor backgroundTextureTint() {
+        return surface.backgroundTextureTint();
+    }
+
+    @XamlProperty(value = "backgroundTextureTint", displayName = "Background Texture Tint", category = "Assets", defaultValue = "#FFFFFFFF", description = "Tint color applied while drawing the background texture.")
+    public T backgroundTextureTint(ColorView color) {
+        if (color != null) surface.backgroundTextureTint().set(color);
+        return self();
+    }
+
+    /**
+     * Анимирует tint фоновой текстуры за заданное время.
+     *
+     * @param color           целевой tint-цвет
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBackgroundTextureTint(ColorView color, float durationSeconds) {
+        animateColor(surface.backgroundTextureTint(), color, durationSeconds);
+        return self();
+    }
+
+    /**
+     * Анимирует tint фоновой текстуры по заданной transition-спецификации.
+     *
+     * @param color целевой tint-цвет
+     * @param spec  параметры transition'а
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBackgroundTextureTint(ColorView color, TransitionSpec spec) {
+        animateColor(surface.backgroundTextureTint(), color, spec);
+        return self();
+    }
+
+    /**
+     * Возвращает source-rect фоновой текстуры в UV-координатах.
+     *
+     * @return live rect {@code u/v/width/height}
+     */
+    public MutableRect backgroundTextureSource() {
+        return surface.backgroundTextureSource();
+    }
+
+    @XamlProperty(value = "backgroundTextureSource", displayName = "Background Texture Source", category = "Assets", defaultValue = "0 0 1 1", description = "Normalized UV source rectangle: u v width height.")
+    public T backgroundTextureSource(MutableRect source) {
+        surface.backgroundTextureSource().set(source == null ? new MutableRect(0.0f, 0.0f, 1.0f, 1.0f) : source);
+        return self();
+    }
+
+    /**
+     * Задаёт source-rect фоновой текстуры в UV-координатах.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    public T backgroundTextureSource(float u, float v, float width, float height) {
+        surface.backgroundTextureSource().set(u, v, width, height);
+        return self();
+    }
+
+    /**
+     * Возвращает способ вписывания фоновой текстуры в bounds виджета.
+     *
+     * @return режим вписывания текстуры
+     */
+    public ImageFit backgroundTextureFit() {
+        return surface.backgroundTextureFit();
+    }
+
+    /**
+     * Задаёт способ вписывания фоновой текстуры в bounds виджета.
+     *
+     * @param fit режим вписывания; {@code null} трактуется как {@link ImageFit#STRETCH}
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "backgroundTextureFit", displayName = "Background Texture Fit", category = "Assets", defaultValue = "stretch", description = "Placement mode for the background texture.")
+    public T backgroundTextureFit(ImageFit fit) {
+        surface.backgroundTextureFit(fit);
+        return self();
+    }
+
+    /**
+     * Возвращает рамки nine-slice фоновой текстуры в пикселях текстуры.
+     *
+     * @return immutable рамки слайсинга
+     */
+    public SliceBorders sliceBorders() {
+        return surface.sliceBorders();
+    }
+
+    /**
+     * Задаёт рамки nine-slice фоновой текстуры.
+     *
+     * <p>Используются, когда {@link #backgroundTextureFit(ImageFit)} равен
+     * {@link ImageFit#NINE_SLICE}: углы рисуются без растяжения, края тянутся
+     * вдоль одной оси, центр — по обеим.</p>
+     *
+     * @param borders рамки в пикселях текстуры; {@code null} сбрасывает к нулевым
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "sliceBorders", displayName = "Slice Borders", category = "Assets", defaultValue = "0 0 0 0", description = "Nine-slice borders in texture pixels: left top right bottom.")
+    public T sliceBorders(SliceBorders borders) {
+        surface.sliceBorders(borders);
+        return self();
+    }
+
+    /**
+     * Задаёт одинаковые рамки nine-slice со всех сторон.
+     *
+     * @param border ширина рамки в пикселях текстуры
+     * @return этот виджет для fluent-настройки
+     */
+    public T sliceBorders(float border) {
+        surface.sliceBorders(SliceBorders.all(border));
+        return self();
+    }
+
+    /**
+     * Возвращает дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Слои рисуются после базового фона в порядке списка, каждый со своим
+     * fit/source/tint. Возвращаемый список — live view для чтения; менять
+     * пачку следует через {@link #overlayTexture(TextureHandle)},
+     * {@link #overlayTexture(TextureLayer)} и {@link #clearOverlayTextures()}.</p>
+     *
+     * @return immutable вид пачки слоёв (пустой, если слоёв нет)
+     */
+    public List<TextureLayer> overlayTextures() {
+        return overlayTextures == null ? List.of() : Collections.unmodifiableList(overlayTextures);
+    }
+
+    /**
+     * Добавляет текстурный слой поверх базового фона.
+     *
+     * @param texture handle текстуры или {@code null} (пустой слой пропускается рендером)
+     * @return добавленный слой для chained-настройки fit/source/tint
+     */
+    public TextureLayer overlayTexture(TextureHandle texture) {
+        return overlayTexture(new TextureLayer(texture));
+    }
+
+    /**
+     * Добавляет готовый текстурный слой поверх базового фона.
+     *
+     * @param layer слой; {@code null} игнорируется
+     * @return добавленный слой или {@code null}, если передан {@code null}
+     */
+    public TextureLayer overlayTexture(TextureLayer layer) {
+        if (layer == null) return null;
+        if (overlayTextures == null) overlayTextures = new ArrayList<>(2);
+        overlayTextures.add(layer);
+        layer.source().onChanged(this::invalidateOverlayTexture);
+        layer.tint().onChanged(this::invalidateOverlayTexture);
+        invalidate(InvalidationFlags.VISUAL);
+        return layer;
+    }
+
+    /**
+     * Убирает текстурный слой из пачки.
+     *
+     * @param layer слой для удаления
+     * @return {@code true}, если слой был в пачке
+     */
+    public boolean removeOverlayTexture(TextureLayer layer) {
+        if (layer == null || overlayTextures == null) return false;
+        // onChanged у Mutable-объектов single-slot: отписываемся сбросом на no-op.
+        layer.source().onChanged(null);
+        layer.tint().onChanged(null);
+        boolean removed = overlayTextures.remove(layer);
+        if (removed) invalidate(InvalidationFlags.VISUAL);
+        return removed;
+    }
+
+    /**
+     * Убирает все дополнительные текстурные слои.
+     *
+     * @return этот виджет для fluent-настройки
+     */
+    public T clearOverlayTextures() {
+        if (overlayTextures == null || overlayTextures.isEmpty()) return self();
+        for (TextureLayer layer : overlayTextures) {
+            layer.source().onChanged(null);
+            layer.tint().onChanged(null);
+        }
+        overlayTextures.clear();
+        invalidate(InvalidationFlags.VISUAL);
+        return self();
+    }
+
+    private void invalidateOverlayTexture() {
+        invalidate(InvalidationFlags.VISUAL);
+    }
+
+    /**
+     * Задаёт рамки nine-slice по четырём сторонам.
+     *
+     * @param left   левая рамка в пикселях текстуры
+     * @param top    верхняя рамка в пикселях текстуры
+     * @param right  правая рамка в пикселях текстуры
+     * @param bottom нижняя рамка в пикселях текстуры
+     * @return этот виджет для fluent-настройки
+     */
+    public T sliceBorders(float left, float top, float right, float bottom) {
+        surface.sliceBorders(new SliceBorders(left, top, right, bottom));
+        return self();
+    }
+
+    /**
+     * Возвращает live-цвет рамки.
+     *
+     * @return изменяемый цвет рамки
+     */
+    public MutableColor borderColor() {
+        return surface.borderColor();
+    }
+
+    @XamlProperty(value = "border", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color; setting it also enables border rendering.")
+    @WikiMethod(order = 25, title = "<key:surface.widget.method.border.title>", summary = "<key:surface.widget.method.border.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 25, summary = "Sets border stroke color and enables border visibility.")
+    public T border(@WikiParameter(description = "<key:surface.widget.method.border.param>") ColorView color) {
+        borderColor(color);
+        borderVisible(true);
+        return self();
+    }
+
+    @XamlProperty(value = "borderColor", category = "Appearance", defaultValue = "#FFFFFFFF", description = "Border color used when border rendering is enabled.")
+    @WikiMethod(order = 20, title = "<key:surface.widget.method.border_color.title>", summary = "<key:surface.widget.method.border_color.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 20, summary = "Sets border color and enables border visibility.")
+    public T borderColor(@WikiParameter(description = "<key:surface.widget.method.border_color.param>") ColorView color) {
+        if (color != null) {
+            surface.explicitBorder();
+            surface.borderColor().set(color);
+        }
+        return self();
+    }
+
+    /**
+     * Анимирует цвет рамки за заданное время.
+     *
+     * @param color           целевой цвет рамки
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBorderColor(ColorView color, float durationSeconds) {
+        animateColor(surface.borderColor(), color, durationSeconds);
+        return self();
+    }
+
+    /**
+     * Анимирует цвет рамки по заданной transition-спецификации.
+     *
+     * @param color целевой цвет рамки
+     * @param spec  параметры transition'а
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBorderColor(ColorView color, TransitionSpec spec) {
+        animateColor(surface.borderColor(), color, spec);
+        return self();
+    }
+
+    /**
+     * Включает или выключает отрисовку рамки.
+     *
+     * @param borderVisible {@code true}, чтобы renderer рисовал рамку
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "borderVisible", category = "Appearance", defaultValue = "false", description = "Whether the border is rendered.")
+    @WikiMethod(order = 30, title = "<key:surface.widget.method.border_visible.title>", summary = "<key:surface.widget.method.border_visible.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 30, summary = "Controls whether the border stroke is rendered.")
+    public T borderVisible(@WikiParameter(description = "<key:surface.widget.method.border_visible.param>") boolean borderVisible) {
+        surface.borderVisible(borderVisible);
+        return self();
+    }
+
+    /**
+     * Возвращает, должна ли отрисовываться рамка.
+     *
+     * @return {@code true}, если рамка включена
+     */
+    public boolean borderVisible() {
+        return surface.borderVisible();
+    }
+
+    /**
+     * Возвращает толщину рамки.
+     *
+     * @return толщина рамки в пикселях UI-пространства
+     */
+    public float borderWidth() {
+        return surface.borderWidth();
+    }
+
+    /**
+     * Задаёт толщину рамки.
+     *
+     * @param borderWidth толщина рамки в пикселях UI-пространства
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "borderWidth", category = "Appearance", defaultValue = "1", description = "Border thickness in UI pixels.")
+    @WikiMethod(order = 40, title = "<key:surface.widget.method.border_width.title>", summary = "<key:surface.widget.method.border_width.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 40, summary = "Sets stroke thickness of the border.")
+    public T borderWidth(@WikiParameter(description = "<key:surface.widget.method.border_width.param.width>") float borderWidth) {
+        surface.explicitBorder();
+        surface.borderWidth(borderWidth);
+        return self();
+    }
+
+    /**
+     * Анимирует толщину рамки за заданное время.
+     *
+     * @param borderWidth     целевая толщина рамки
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBorderWidth(float borderWidth, float durationSeconds) {
+        return animateBorderWidth(borderWidth, TransitionSpec.of(durationSeconds));
+    }
+
+    /**
+     * Анимирует толщину рамки по заданной transition-спецификации.
+     *
+     * @param borderWidth целевая толщина рамки
+     * @param spec        параметры transition'а
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateBorderWidth(float borderWidth, TransitionSpec spec) {
+        animateParameter("Box.borderWidth", borderWidthReader, borderWidthWriter, borderWidth, spec);
+        return self();
+    }
+
+    /**
+     * Возвращает радиус скругления.
+     *
+     * @return радиус скругления в пикселях UI-пространства
+     */
+    public float radius() {
+        return surface.radius();
+    }
+
+    /**
+     * Задаёт радиус скругления.
+     *
+     * @param radius радиус скругления в пикселях UI-пространства
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "radius", category = "Appearance", defaultValue = "0", description = "Corner radius in UI pixels.")
+    @WikiMethod(order = 50, title = "<key:surface.widget.method.radius.title>", summary = "<key:surface.widget.method.radius.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 50, summary = "Sets corner rounding radius in UI pixels.")
+    public T radius(@WikiParameter(description = "<key:surface.widget.method.radius.param.radius>") float radius) {
+        surface.explicitRadius();
+        surface.radius(radius);
+        return self();
+    }
+
+    /**
+     * Анимирует радиус скругления за заданное время.
+     *
+     * @param radius          целевой радиус скругления
+     * @param durationSeconds длительность анимации в секундах
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateRadius(float radius, float durationSeconds) {
+        return animateRadius(radius, TransitionSpec.of(durationSeconds));
+    }
+
+    /**
+     * Анимирует радиус скругления по заданной transition-спецификации.
+     *
+     * @param radius целевой радиус скругления
+     * @param spec   параметры transition'а
+     * @return этот виджет для fluent-настройки
+     */
+    public T animateRadius(float radius, TransitionSpec spec) {
+        animateParameter("Box.radius", radiusReader, radiusWriter, radius, spec);
+        return self();
+    }
+
+    /**
+     * Возвращает, рисуется ли собственная поверхность виджета.
+     *
+     * @return {@code true}, если {@link #renderSurface(RenderContext)} может рисовать
+     */
+    public boolean boxVisualEnabled() {
+        return boxVisualEnabled;
+    }
+
+    /**
+     * Включает или выключает отрисовку собственной поверхности.
+     *
+     * @param boxVisualEnabled {@code true}, чтобы рисовать поверхность виджета
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "boxVisualEnabled", category = "Appearance", defaultValue = "true", description = "Whether surface rendering is enabled.")
+    @WikiMethod(order = 60, title = "<key:surface.widget.method.box_visual_enabled.title>", summary = "<key:surface.widget.method.box_visual_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 60, summary = "Enables or disables all surface visual rendering.")
+    public T boxVisualEnabled(@WikiParameter(description = "<key:surface.widget.method.box_visual_enabled.param>") boolean boxVisualEnabled) {
+        if (this.boxVisualEnabled == boxVisualEnabled) return self();
+        this.boxVisualEnabled = boxVisualEnabled;
+        invalidate(InvalidationFlags.VISUAL);
+        return self();
+    }
+
+    /**
+     * Задаёт custom renderer виджета с точным типом наследника для fluent-цепочек.
+     *
+     * <p>Custom renderer полностью заменяет стандартный визуал (фон плюс контент).</p>
+     *
+     * @param renderer custom renderer или {@code null} для стандартного визуала
+     * @return этот виджет для fluent-настройки
+     */
+    @Override
+    public T renderer(WidgetRender renderer) {
+        super.renderer(renderer);
+        return self();
+    }
+
+    /**
+     * Возвращает, участвует ли виджет в theme/style lookup.
+     *
+     * @return {@code true}, если theme/local styles применяются к поверхности
+     */
+    public boolean themeEnabled() {
+        return themeEnabled;
+    }
+
+    /**
+     * Включает или выключает lookup глобальной темы для этого виджета.
+     *
+     * <p>Локальные стили, заданные через {@link #style(Consumer)}, применяются независимо
+     * от этого флага и имеют приоритет над глобальной темой.</p>
+     *
+     * @param themeEnabled {@code true}, чтобы применять глобальную тему
+     * @return этот виджет для fluent-настройки
+     */
+    @XamlProperty(value = "themeEnabled", category = "Appearance", defaultValue = "true", description = "Whether global theme lookup can override visual values; local styles always apply.")
+    @WikiMethod(order = 70, title = "<key:surface.widget.method.theme_enabled.title>", summary = "<key:surface.widget.method.theme_enabled.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 10, order = 70, summary = "Controls whether global Theme styles override surface properties.")
+    public T themeEnabled(@WikiParameter(description = "<key:surface.widget.method.theme_enabled.param>") boolean themeEnabled) {
+        if (this.themeEnabled == themeEnabled) return self();
+        this.themeEnabled = themeEnabled;
+        transitionState = null;
+        transitionStyleVersion = Long.MIN_VALUE;
+        transitionScopeStyleVersion = Long.MIN_VALUE;
+        invalidate(InvalidationFlags.VISUAL);
+        return self();
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        surface.themeUpdating(true);
+        try {
+            super.tick(frame);
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
+    @Override
+    public void render(RenderContext context) {
+        if (visibility() != Visibility.VISIBLE) return;
+        pushOpacity(context);
+        try {
+            DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+            if (renderCustomVisual(draw)) {
+                renderChildren(context);
+                return;
+            }
+            if (boxVisualEnabled) {
+                renderSurface(context);
+            }
+            renderContent(context);
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    /**
+     * Рендерит поверхность виджета перед контентом.
+     *
+     * <p>Хром рисуется напрямую из полей поверхности: цвет, текстура или шейдер
+     * по active {@link BackgroundKind} плюс рамка. Custom {@link WidgetRender}
+     * обрабатывается раньше в {@link #render(RenderContext)} и полностью
+     * заменяет поверхность.</p>
+     *
+     * @param context текущий render context
+     */
+    protected void renderSurface(RenderContext context) {
+        applyTheme();
+        DrawScope draw = new DrawScope(context, transform(), layoutBounds());
+        RectView bounds = layoutBounds();
+        float x = bounds.x();
+        float y = bounds.y();
+        float width = bounds.width();
+        float height = bounds.height();
+        float radius = surface.radius();
+        if (surface.backgroundVisible()) {
+            TextureGroup textureGroup = styleValue(StyleKeys.BACKGROUND_TEXTURE_GROUP, styleState(), null);
+            switch (surface.effectiveKind()) {
+                case COLOR -> draw.roundedRectFilled(x, y, width, height, radius,
+                        surface.background());
+                case TEXTURE -> {
+                    if (surface.background().a() > 0.0f) {
+                        draw.roundedRectFilled(x, y, width, height, radius,
+                                surface.background());
+                    }
+                    if (textureGroup != null) {
+                        for (TextureLayer layer : textureGroup.layers()) {
+                            if (layer != null && layer.visible() && !layer.isEmpty()) {
+                                renderTextureLayer(draw, layer, x, y, width, height, radius);
+                            }
+                        }
+                    } else if (surface.backgroundTexture() != null) {
+                        TextureHandle texture = surface.backgroundTexture();
+                        if (surface.backgroundTextureFit() == ImageFit.NINE_SLICE) {
+                            draw.nineSlice(surface.sliceBorders().slice(texture),
+                                    x, y, width, height,
+                                    Paint.fill(surface.backgroundTextureTint()));
+                        } else {
+                            TexturePlacement placement = TexturePlacement.fit(texture,
+                                    surface.backgroundTextureSource(),
+                                    new MutableRect(x, y, width, height),
+                                    surface.backgroundTextureFit());
+                            draw.textureTinted(texture, placement, radius,
+                                    surface.backgroundTextureTint());
+                        }
+                    }
+                }
+                case SHADER -> {
+                    ShaderHandle shader = surface.backgroundShader();
+                    if (shader != null) {
+                        draw.shader(shader, x, y, width, height,
+                                surface.shaderUniforms(), surface.shaderOptions());
+                    } else {
+                        draw.roundedRectFilled(x, y, width, height, radius,
+                                surface.background());
+                    }
+                }
+                case NONE -> {
+                }
+            }
+            renderOverlayTextures(draw, x, y, width, height, radius);
+        }
+        if (surface.borderVisible()) {
+            draw.roundedRectStroke(x, y, width, height, radius,
+                    surface.borderColor(), surface.borderWidth());
+        }
+    }
+
+    /**
+     * Рисует дополнительные текстурные слои поверх базового фона.
+     *
+     * <p>Каждый слой — своя текстура со своим fit/source/tint; порядок —
+     * порядок добавления. Пустые ({@code null}-текстура) и невидимые слои
+     * пропускаются. No-op без слоёв: ноль накладных для одиночных фонов.</p>
+     *
+     * @param draw   draw scope поверхности
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderOverlayTextures(DrawScope draw, float x, float y, float width, float height, float radius) {
+        if (draw == null || overlayTextures == null || overlayTextures.isEmpty()) return;
+        for (int i = 0, size = overlayTextures.size(); i < size; i++) {
+            TextureLayer layer = overlayTextures.get(i);
+            if (layer == null || !layer.visible() || layer.isEmpty()) continue;
+            renderTextureLayer(draw, layer, x, y, width, height, radius);
+        }
+    }
+
+    /**
+     * Рисует один текстурный слой в границах поверхности.
+     *
+     * <p>Nine-slice идёт через {@code draw.nineSlice}, остальные fit — через
+     * {@code TexturePlacement} + {@code draw.textureTinted}. Общая точка для
+     * базового фона и оверлеев, чтобы размещение не разъезжалось.</p>
+     *
+     * @param draw   draw scope поверхности
+     * @param layer  слой для отрисовки
+     * @param x      X границ
+     * @param y      Y границ
+     * @param width  ширина
+     * @param height высота
+     * @param radius радиус скругления поверхности
+     */
+    protected void renderTextureLayer(DrawScope draw, TextureLayer layer,
+                                      float x, float y, float width, float height, float radius) {
+        if (draw == null || layer == null || layer.isEmpty()) return;
+        TextureHandle texture = layer.texture();
+        MutableRect layerBounds = layer.bounds(x, y, width, height);
+        if (layer.fit() == ImageFit.NINE_SLICE) {
+            draw.nineSlice(layer.sliceBorders().slice(texture),
+                    layerBounds.x(), layerBounds.y(), layerBounds.width(), layerBounds.height(),
+                    Paint.fill(layer.tint()));
+        } else {
+            TexturePlacement placement = TexturePlacement.fit(texture,
+                    layer.source(),
+                    layerBounds,
+                    layer.fit());
+            draw.textureTinted(texture, placement, radius, layer.tint());
+        }
+    }
+
+    /**
+     * Рендерит контент виджета после поверхности.
+     *
+     * <p>Базовая реализация рисует только детей. Контентные виджеты переопределяют
+     * метод и рисуют свой foreground напрямую — без дублирования фона, который
+     * уже отрисован {@link #renderSurface}.</p>
+     *
+     * @param context текущий render context
+     */
+    protected void renderContent(RenderContext context) {
+        renderChildren(context);
+    }
+
+    /**
+     * Применяет theme/local style значения к поверхности.
+     *
+     * <p>Метод вызывается лениво перед render'ом и следит за версиями theme и
+     * local style scopes, чтобы invalidate происходил при смене стилей.</p>
+     */
+    protected void applyTheme() {
+        UIContext context = uiContext();
+        long styleVersion = !themeEnabled || context == null ? Theme.EMPTY.version() : context.styleVersion();
+        long scopeStyleVersion = scopeStyleVersion();
+        WidgetState state = styleState();
+        updateStyleTransition(styleVersion, scopeStyleVersion, state);
+        if ((lastAppliedStyleVersion != Long.MIN_VALUE && lastAppliedStyleVersion != styleVersion)
+                || (lastAppliedScopeStyleVersion != Long.MIN_VALUE && lastAppliedScopeStyleVersion != scopeStyleVersion)) {
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        lastAppliedStyleVersion = styleVersion;
+        lastAppliedScopeStyleVersion = scopeStyleVersion;
+
+        BackgroundKind themedKind = styleValue(StyleKeys.BACKGROUND_KIND, state, surface.backgroundKind());
+        ColorView themedBackground = styleValue(StyleKeys.BACKGROUND_COLOR, state, surface.background());
+        TextureHandle themedBackgroundTexture = styleValue(StyleKeys.BACKGROUND_TEXTURE, state, surface.backgroundTexture());
+        ColorView themedBackgroundTextureTint = styleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state, surface.backgroundTextureTint());
+        ImageFit themedBackgroundTextureFit = styleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state, surface.backgroundTextureFit());
+        SliceBorders themedSliceBorders = styleValue(
+                StyleKeys.SLICE_BORDERS, state, surface.sliceBorders());
+        ShaderHandle themedShader = styleValue(StyleKeys.BACKGROUND_SHADER, state, surface.backgroundShader());
+        ColorView themedBorder = styleValue(StyleKeys.BORDER_COLOR, state, surface.borderColor());
+        Float themedBorderWidth = styleValue(StyleKeys.BORDER_WIDTH, state, surface.borderWidth());
+        Float themedRadius = styleValue(StyleKeys.RADIUS, state, surface.radius());
+        Boolean themedBackgroundVisible = styleValue(StyleKeys.BACKGROUND_VISIBLE, state, surface.backgroundVisible());
+        Boolean themedBorderVisible = styleValue(StyleKeys.BORDER_VISIBLE, state, surface.borderVisible());
+
+        surface.themeUpdating(true);
+        try {
+            if (themedKind != null && (!surface.hasExplicitBackgroundKind()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_KIND, state))
+                    && themedKind != surface.backgroundKind()) {
+                surface.backgroundKind(themedKind);
+            }
+            if (themedBackground != null && (!surface.hasExplicitBackground()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_COLOR, state))) {
+                animateColor(surface.background(), themedBackground, styleTransition);
+            }
+            if ((!surface.hasExplicitBackgroundTexture()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE, state))
+                    && surface.backgroundTexture() != themedBackgroundTexture) {
+                surface.backgroundTexture(themedBackgroundTexture);
+            }
+            if (themedBackgroundTextureTint != null && (!surface.hasExplicitBackgroundTextureTint()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE_TINT, state))) {
+                animateColor(surface.backgroundTextureTint(), themedBackgroundTextureTint, styleTransition);
+            }
+            if ((!surface.hasExplicitBackgroundTextureFit()
+                    || hasLocalStyleValue(StyleKeys.BACKGROUND_TEXTURE_FIT, state))
+                    && themedBackgroundTextureFit != null
+                    && surface.backgroundTextureFit() != themedBackgroundTextureFit) {
+                surface.backgroundTextureFit(themedBackgroundTextureFit);
+            }
+            if ((!surface.hasExplicitBackgroundShader() || hasLocalStyleValue(StyleKeys.BACKGROUND_SHADER, state))
+                    && themedShader != surface.backgroundShader()) {
+                surface.backgroundShader(themedShader);
+            }
+            if (themedSliceBorders != null && !surface.sliceBorders().equals(themedSliceBorders)) {
+                surface.sliceBorders(themedSliceBorders);
+            }
+            if (themedBackgroundVisible != null && surface.backgroundVisible() != themedBackgroundVisible) {
+                surface.backgroundVisible(themedBackgroundVisible);
+            }
+            if (themedBorderVisible != null && surface.borderVisible() != themedBorderVisible) {
+                surface.borderVisible(themedBorderVisible);
+            }
+            if (themedBorder != null && (!surface.hasExplicitBorder()
+                    || hasLocalStyleValue(StyleKeys.BORDER_COLOR, state))) {
+                animateColor(surface.borderColor(), themedBorder, styleTransition);
+            }
+            if (themedBorderWidth != null && (!surface.hasExplicitBorder()
+                    || hasLocalStyleValue(StyleKeys.BORDER_WIDTH, state))) {
+                animateParameter(StyleKeys.BORDER_WIDTH, borderWidthReader, borderWidthWriter,
+                        themedBorderWidth, styleTransition);
+            }
+            if (themedRadius != null && (!surface.hasExplicitRadius()
+                    || hasLocalStyleValue(StyleKeys.RADIUS, state))) {
+                animateParameter(StyleKeys.RADIUS, radiusReader, radiusWriter, themedRadius, styleTransition);
+            }
+        } finally {
+            surface.themeUpdating(false);
+        }
+    }
+
+    /**
+     * Возвращает transition, выбранный для текущего изменения состояния или темы.
+     *
+     * @return transition автоматического применения style-свойств
+     */
+    protected final TransitionSpec styleTransition() {
+        return styleTransition;
+    }
+
+    private void updateStyleTransition(long styleVersion, long scopeStyleVersion, WidgetState state) {
+        if (transitionStyleVersion == styleVersion
+                && transitionScopeStyleVersion == scopeStyleVersion
+                && transitionState == state) {
+            return;
+        }
+
+        boolean firstApplication = transitionState == null;
+        Float duration = styleValue(StyleKeys.TRANSITION_DURATION, state, 0.0f);
+        AnimationEasing easing = styleValue(StyleKeys.TRANSITION_EASING, state, AnimationEasing.EASE_OUT);
+        float normalizedDuration = duration == null || !Float.isFinite(duration)
+                ? 0.0f
+                : Math.max(0.0f, duration);
+        styleTransition = firstApplication || normalizedDuration <= 0.0f
+                ? TransitionSpec.INSTANT
+                : new TransitionSpec(normalizedDuration, easing == null ? AnimationEasing.EASE_OUT : easing);
+        transitionStyleVersion = styleVersion;
+        transitionScopeStyleVersion = scopeStyleVersion;
+        transitionState = state;
+    }
+
+    /**
+     * Возвращает состояние виджета для style lookup.
+     *
+     * @return disabled, hovered или normal
+     */
+    protected WidgetState styleState() {
+        if (!enabled()) return WidgetState.DISABLED;
+        return hovered() ? WidgetState.HOVERED : WidgetState.NORMAL;
+    }
+
+    /**
+     * Возвращает style type, по которому theme ищет значения для виджета.
+     *
+     * @return имя runtime-класса по умолчанию
+     */
+    protected String styleType() {
+        return getClass().getSimpleName();
+    }
+
+    @Override
+    protected WidgetRender styleRenderOverride() {
+        return super.styleRenderOverride(renderRole(), themeEnabled);
+    }
+
+    /**
+     * Ищет style value в theme и local style scopes.
+     *
+     * @param key      ключ style-значения
+     * @param fallback значение, если style ничего не задал
+     * @return найденное или fallback-значение
+     */
+    protected <S> S styleValue(StyleKey<S> key, S fallback) {
+        return styleValue(key, styleState(), fallback);
+    }
+
+    /**
+     * Ищет style value для конкретного {@link WidgetState}.
+     *
+     * @param key      ключ style-значения
+     * @param state    состояние виджета для style lookup
+     * @param fallback значение, если style ничего не задал
+     * @return найденное или fallback-значение
+     */
+    protected <S> S styleValue(StyleKey<S> key, WidgetState state, S fallback) {
+        UIContext context = uiContext();
+        Theme theme = themeEnabled && context != null ? context.theme() : Theme.EMPTY;
+        String type = styleType();
+        S value = defaultStyle().get(key, state, fallback);
+        Style themeStyle = theme instanceof StylePack stylePack
+                ? stylePack.resolveStyleFor(type, styleId(), styleClasses())
+                : theme.styleFor(type);
+        value = themeStyle.get(key, state, value);
+        for (Widget current : styleLookupChain()) {
+            Style localStyle = current.localStyle(type);
+            value = localStyle.get(key, state, value);
+        }
+        // Inline-стиль применяется только к самому виджету и не каскадируется на потомков.
+        value = inlineStyle().get(key, state, value);
+        return value;
+    }
+
+    private boolean hasLocalStyleValue(StyleKey<?> key, WidgetState state) {
+        String type = styleType();
+        if (containsStyleValue(inlineStyle().values(), key, state)) return true;
+        for (Widget current = this; current != null; current = current.parent()) {
+            if (containsStyleValue(current.localStyle(type).values(), key, state)) return true;
+            if (current != this && current.styleScope()) break;
+        }
+        return false;
+    }
+
+    private static boolean containsStyleValue(
+            java.util.Map<WidgetState, java.util.Map<StyleKey<?>, Object>> values,
+            StyleKey<?> key,
+            WidgetState state) {
+        java.util.Map<StyleKey<?>, Object> stateValues = values.get(state);
+        if (stateValues != null && stateValues.containsKey(key)) return true;
+        if (state != WidgetState.NORMAL) {
+            java.util.Map<StyleKey<?>, Object> normalValues = values.get(WidgetState.NORMAL);
+            return normalValues != null && normalValues.containsKey(key);
+        }
+        return false;
+    }
+
+    private long scopeStyleVersion() {
+        long version = inlineStyle().version();
+        String type = styleType();
+        for (Widget current : styleLookupChain()) {
+            version += current.localStyle(type).version();
+        }
+        return version;
+    }
+
+    private List<Widget> styleLookupChain() {
+        List<Widget> chain = new ObjectArrayList<>();
+        Widget current = this;
+        while (current != null) {
+            chain.add(current);
+            if (current != this && current.styleScope()) {
+                break;
+            }
+            current = current.parent();
+        }
+        Collections.reverse(chain);
+        return chain;
+    }
+}

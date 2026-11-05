@@ -2,6 +2,10 @@ package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.screen.UniRenderLayer;
+import dev.sixik.unigui.api.screen.UniRenderLayerRegistration;
+import dev.sixik.unigui.api.screen.UniRenderTarget;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
@@ -27,7 +31,7 @@ import java.util.function.Predicate;
  */
 @Environment(EnvType.CLIENT)
 public final class ScreenOverlayRender {
-    private static final MinecraftRenderLayerRegistry<Screen> REGISTRY =
+    private static final MinecraftRenderLayerRegistry<Object> REGISTRY =
             new MinecraftRenderLayerRegistry<>();
     private static final List<PointerBlocker> POINTER_BLOCKERS = new CopyOnWriteArrayList<>();
 
@@ -42,13 +46,17 @@ public final class ScreenOverlayRender {
     private ScreenOverlayRender() {
     }
 
-    /** Регистрирует блокировщик курсора. @return handle для отмены регистрации */
+    /**
+     * Регистрирует блокировщик курсора. @return handle для отмены регистрации
+     */
     public static AutoCloseable addPointerBlocker(PointerBlocker blocker) {
         POINTER_BLOCKERS.add(Objects.requireNonNull(blocker, "blocker"));
         return () -> POINTER_BLOCKERS.remove(blocker);
     }
 
-    /** @return {@code true}, если overlay-слои перекрывают курсор над ванильным экраном */
+    /**
+     * @return {@code true}, если overlay-слои перекрывают курсор над ванильным экраном
+     */
     public static boolean blocksPointer(Screen screen, double mouseX, double mouseY) {
         if (screen == null) return false;
         for (PointerBlocker blocker : POINTER_BLOCKERS) {
@@ -73,25 +81,51 @@ public final class ScreenOverlayRender {
             MinecraftWidgetRenderLayer layer,
             Predicate<? super Screen> visibility,
             int priority) {
-        return REGISTRY.add(layer, visibility, priority);
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        MinecraftRenderLayerRegistration<Screen> registration = (MinecraftRenderLayerRegistration)
+                REGISTRY.add(layer, (Predicate) visibility, priority);
+        return registration;
     }
 
-    /** Удаляет все screen-overlay слои и освобождает принадлежащие им ресурсы. */
+    /**
+     * Registers a Minecraft-independent overlay layer.
+     */
+    public static UniRenderLayerRegistration register(
+            UniRenderLayer layer,
+            Predicate<? super Object> visibility,
+            int priority) {
+        return new UniRenderLayerRegistration(layer, UniGuiRuntime.backend().registerLayer(
+                layer, UniRenderTarget.SCREEN_OVERLAY, visibility::test, priority));
+    }
+
+    public static UniRenderLayerRegistration register(UniRenderLayer layer) {
+        return register(layer, ignored -> true, 0);
+    }
+
+    /**
+     * Удаляет все screen-overlay слои и освобождает принадлежащие им ресурсы.
+     */
     public static void clear() {
         REGISTRY.clear();
     }
 
-    /** @return {@code true}, если для экрана зарегистрирован хотя бы один видимый слой */
+    /**
+     * @return {@code true}, если для экрана зарегистрирован хотя бы один видимый слой
+     */
     public static boolean hasVisibleLayer(Screen screen) {
         return screen != null && REGISTRY.hasVisibleEntries(screen);
     }
 
-    /** @return {@code true}, если в overlay-слоях для экрана есть виджет с фокусом ввода текста */
+    /**
+     * @return {@code true}, если в overlay-слоях для экрана есть виджет с фокусом ввода текста
+     */
     public static boolean isTextInputActive(Screen screen) {
         return screen != null && REGISTRY.isInputFocused(screen);
     }
 
-    /** Внутренняя точка вызова из Screen hook. */
+    /**
+     * Внутренняя точка вызова из Screen hook.
+     */
     public static void render(Screen screen, GuiGraphics graphics,
                               int mouseX, int mouseY, float partialTick) {
         if (screen == null) return;
@@ -99,43 +133,59 @@ public final class ScreenOverlayRender {
                 mouseX, mouseY, partialTick);
     }
 
-    /** Передаёт движение мыши overlay-слоям для обновления hover-состояния. */
+    /**
+     * Передаёт движение мыши overlay-слоям для обновления hover-состояния.
+     */
     public static void mouseMoved(Screen screen, double mouseX, double mouseY) {
         if (screen != null) REGISTRY.mouseMoved(screen, mouseX, mouseY);
     }
 
-    /** @return {@code true}, если overlay обработал нажатие мыши */
+    /**
+     * @return {@code true}, если overlay обработал нажатие мыши
+     */
     public static boolean mouseClicked(Screen screen, double mouseX, double mouseY, int button) {
         return screen != null && REGISTRY.mouseClicked(screen, mouseX, mouseY, button);
     }
 
-    /** @return {@code true}, если overlay обработал отпускание мыши */
+    /**
+     * @return {@code true}, если overlay обработал отпускание мыши
+     */
     public static boolean mouseReleased(Screen screen, double mouseX, double mouseY, int button) {
         return screen != null && REGISTRY.mouseReleased(screen, mouseX, mouseY, button);
     }
 
-    /** @return {@code true}, если overlay обработал drag мыши */
+    /**
+     * @return {@code true}, если overlay обработал drag мыши
+     */
     public static boolean mouseDragged(Screen screen, double mouseX, double mouseY, int button,
                                        double dragX, double dragY) {
         return screen != null && REGISTRY.mouseDragged(screen, mouseX, mouseY, button, dragX, dragY);
     }
 
-    /** @return {@code true}, если overlay обработал колесо мыши */
+    /**
+     * @return {@code true}, если overlay обработал колесо мыши
+     */
     public static boolean mouseScrolled(Screen screen, double mouseX, double mouseY, double delta) {
         return screen != null && REGISTRY.mouseScrolled(screen, mouseX, mouseY, delta);
     }
 
-    /** @return {@code true}, если overlay обработал нажатие клавиши */
+    /**
+     * @return {@code true}, если overlay обработал нажатие клавиши
+     */
     public static boolean keyPressed(Screen screen, int keyCode, int scanCode, int modifiers) {
         return screen != null && REGISTRY.keyPressed(screen, keyCode, scanCode, modifiers);
     }
 
-    /** @return {@code true}, если overlay обработал отпускание клавиши */
+    /**
+     * @return {@code true}, если overlay обработал отпускание клавиши
+     */
     public static boolean keyReleased(Screen screen, int keyCode, int scanCode, int modifiers) {
         return screen != null && REGISTRY.keyReleased(screen, keyCode, scanCode, modifiers);
     }
 
-    /** @return {@code true}, если overlay обработал ввод символа */
+    /**
+     * @return {@code true}, если overlay обработал ввод символа
+     */
     public static boolean charTyped(Screen screen, char codePoint, int modifiers) {
         return screen != null && REGISTRY.charTyped(screen, codePoint, modifiers);
     }

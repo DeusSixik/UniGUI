@@ -1,0 +1,687 @@
+package dev.sixik.unigui.widgets.interaction;
+
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.KeyPressedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.EdgeInsets;
+import dev.sixik.unigui.api.layout.LayoutConstraints;
+import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.DrawPoint;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+
+import java.util.Objects;
+import dev.sixik.unigui.impl.layout.SlotLayout;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.LinearBox;
+import dev.sixik.unigui.widgets.containers.ScrollView;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.feedback.Popup;
+import dev.sixik.unigui.widgets.WidgetStyles;
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+/**
+ * Generic drop-down host for arbitrary popup content.
+ *
+ * <p>Use {@link ComboBox} when the drop-down content is a selectable list.
+ * DropDownBox intentionally owns only the header/open state and a single
+ * content widget.</p>
+ */
+@AiDoc(
+        summary = "Collapsible container widget with an expandable header button and popup or inline content host.",
+        purpose = "Houses collapsible sections, menus, or custom control panels under a single toggleable header.",
+        useWhen = {
+                "Advanced settings sections that can be folded to save space.",
+                "Custom dropdown menus with complex layouts."
+        },
+        criticalRules = {
+                "Supports both inline expansion and overlay popup modes via useInline() and useOverlay().",
+                "Header button automatically reflects opened state with rotation arrow indicator."
+        },
+        related = {"ComboBox", "Popup", "ScrollView", "LinearBox"})
+@WikiPage(
+        title = "<key:drop.down.box.title>",
+        slug = "drop-down-box",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:drop.down.box.summary>",
+        order = 200)
+@WikiSection(
+        title = "<key:drop.down.box.section.overview.title>",
+        markdown = "<key:drop.down.box.section.overview.body>",
+        order = 10)
+@WikiExample(
+        title = "<key:drop.down.box.example.basic.title>",
+        code = "<key:drop.down.box.example.basic.code>",
+        order = 10)
+@XamlWidget("DropDownBox")
+public class DropDownBox extends LinearBox {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.DROP_DOWN_BOX;
+
+    private static final float HEADER_HEIGHT = 36.0f;
+    private static final float CONTENT_INSET = 2.0f;
+    private static final float DEFAULT_DROP_DOWN_ROW_HEIGHT = HEADER_HEIGHT;
+    private static final int DEFAULT_MAX_VISIBLE_ROWS = 6;
+    private static final float DEFAULT_MAX_CONTENT_HEIGHT = DEFAULT_DROP_DOWN_ROW_HEIGHT * DEFAULT_MAX_VISIBLE_ROWS;
+    /** Фон хоста контента: --bg-1. */
+    private static final float HOST_BG_R = 0.118f;
+    private static final float HOST_BG_G = 0.129f;
+    private static final float HOST_BG_B = 0.149f;
+    /** Рамка хоста контента: --border-subtle. */
+    private static final float HOST_BORDER_R = 0.180f;
+    private static final float HOST_BORDER_G = 0.200f;
+    private static final float HOST_BORDER_B = 0.231f;
+
+    private final Button headerButton = new Button();
+    private final Box contentHost = new Box();
+    private final ScrollView contentScroll = new ScrollView();
+    private final Popup dropDownPopup = new Popup();
+    private final RichText headerArrowClosed = createHeaderArrow(false);
+    private final RichText headerArrowOpened = createHeaderArrow(true);
+    private Widget content;
+    private String headerText = "Open...";
+    private RichText richHeaderText = RichText.plain(headerText);
+    private ComboBox.DropDownMode dropDownMode = ComboBox.DropDownMode.OVERLAY;
+    private OverlayLayer explicitOverlayLayer;
+    private OverlayLayer attachedOverlayLayer;
+    private float dropDownWidth;
+    private boolean dropDownMatchesWidgetWidth;
+    private float maxContentHeight = DEFAULT_MAX_CONTENT_HEIGHT;
+    private boolean syncingPopup;
+    private boolean opened;
+
+    public DropDownBox() {
+        super(Orientation.VERTICAL);
+        spacing(2.0f);
+        focusable(true);
+
+        headerButton.style(style -> style.putAll(WidgetStyles.Selection.DROPDOWN_HEADER));
+        headerButton.layout(style -> style.size(LayoutConstraints.AUTO, HEADER_HEIGHT).flexGrow(0).flexShrink(0.0f));
+        headerButton.textPaddingX(12.0f);
+        headerButton.chevronVisible(true);
+        headerButton.onClick(event -> toggle());
+
+        contentHost.backgroundVisible(true);
+        contentHost.borderVisible(true);
+        contentHost.radius(8.0f);
+        contentHost.background().set(HOST_BG_R, HOST_BG_G, HOST_BG_B, 0.97f);
+        contentHost.borderColor().set(HOST_BORDER_R, HOST_BORDER_G, HOST_BORDER_B, 1.0f);
+        contentHost.visibility(Visibility.COLLAPSED);
+        contentHost.layout(style -> style
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .overflow(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+
+        contentScroll.scrollStep(DEFAULT_DROP_DOWN_ROW_HEIGHT);
+        // Reserved-скроллбар как в ComboBox: контент не уезжает под полосу.
+        contentScroll.overlayScrollBars(false);
+        contentScroll.scrollbarGap(1.0f);
+        contentScroll.scrollbarTrackColor().set(0.0f, 0.0f, 0.0f, 0.36f);
+        contentScroll.scrollbarThumbColor().set(0.82f, 0.84f, 0.88f, 0.82f);
+        contentScroll.layout(style -> style
+                .size(LayoutConstraints.AUTO, LayoutConstraints.AUTO)
+                .maxHeight(DEFAULT_MAX_CONTENT_HEIGHT)
+                .margin(CONTENT_INSET)
+                .align(Alignment.STRETCH, Alignment.START)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        contentHost.addChild(contentScroll);
+
+        dropDownPopup.anchor(headerButton);
+        dropDownPopup.offset(0.0f, 6.0f);
+        dropDownPopup.padding(EdgeInsets.all(0.0f));
+        dropDownPopup.backgroundVisible(false);
+        dropDownPopup.borderVisible(false);
+        dropDownPopup.closeOnOutsideClick(true);
+        dropDownPopup.onOpenChanged(() -> {
+            if (!syncingPopup && dropDownMode == ComboBox.DropDownMode.OVERLAY && opened != dropDownPopup.opened()) {
+                opened = dropDownPopup.opened();
+                updateHeaderText();
+                invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+            }
+        });
+
+        super.addChild(headerButton);
+        headerButton.richText(richHeaderText);
+        headerButton.chevronUp(opened);
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content.title>",
+            summary = "<key:drop.down.box.method.content.summary>")
+    public Widget content() {
+        return content;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_content.title>",
+            summary = "<key:drop.down.box.method.set_content.summary>")
+    public DropDownBox content(Widget content) {
+        if (this.content == content) return this;
+        this.content = content;
+        contentScroll.content(content);
+        contentScroll.scrollTo(0.0f, 0.0f);
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.header_text.title>",
+            summary = "<key:drop.down.box.method.header_text.summary>")
+    public String headerText() {
+        return headerText;
+    }
+
+    @XamlProperty(value = "headerText", category = "Content", defaultValue = "Open...", description = "Header button text when the dropdown is closed.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_header_text.title>",
+            summary = "<key:drop.down.box.method.set_header_text.summary>")
+    public DropDownBox headerText(String headerText) {
+        String normalized = normalize(headerText);
+        if (Objects.equals(this.headerText, normalized)) return this;
+        this.headerText = normalized;
+        this.richHeaderText = RichText.resolve(normalized);
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.rich_header_text.title>",
+            summary = "<key:drop.down.box.method.rich_header_text.summary>")
+    public RichText richHeaderText() {
+        return richHeaderText;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_rich_header_text.title>",
+            summary = "<key:drop.down.box.method.set_rich_header_text.summary>")
+    public DropDownBox richHeaderText(RichText headerText) {
+        RichText normalized = headerText == null ? RichText.plain("") : headerText;
+        if (Objects.equals(this.richHeaderText, normalized)) return this;
+        this.richHeaderText = normalized;
+        this.headerText = normalized.plainText();
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.opened.title>",
+            summary = "<key:drop.down.box.method.opened.summary>")
+    public boolean opened() {
+        return opened;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.open.title>",
+            summary = "<key:drop.down.box.method.open.summary>")
+    public DropDownBox open() {
+        return opened(true);
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.close.title>",
+            summary = "<key:drop.down.box.method.close.summary>")
+    public DropDownBox close() {
+        return opened(false);
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.toggle.title>",
+            summary = "<key:drop.down.box.method.toggle.summary>")
+    public DropDownBox toggle() {
+        return opened(!opened);
+    }
+
+    @XamlProperty(value = "opened", category = "Behavior", defaultValue = "false", description = "Whether the dropdown content starts open.")
+    public DropDownBox opened(boolean opened) {
+        if (this.opened == opened) return this;
+        this.opened = opened;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        updateHeaderText();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public ComboBox.DropDownMode dropDownMode() {
+        return dropDownMode;
+    }
+
+    @XamlProperty(value = "dropDownMode", category = "Behavior", defaultValue = "overlay", description = "Whether dropdown content is shown inline or in an overlay popup.")
+    public DropDownBox dropDownMode(ComboBox.DropDownMode dropDownMode) {
+        ComboBox.DropDownMode normalized = dropDownMode == null ? ComboBox.DropDownMode.INLINE : dropDownMode;
+        if (this.dropDownMode == normalized) return this;
+        this.dropDownMode = normalized;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.use_inline.title>",
+            summary = "<key:drop.down.box.method.use_inline.summary>")
+    public DropDownBox useInline() {
+        return dropDownMode(ComboBox.DropDownMode.INLINE);
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.use_overlay.title>",
+            summary = "<key:drop.down.box.method.use_overlay.summary>")
+    public DropDownBox useOverlay() {
+        return dropDownMode(ComboBox.DropDownMode.OVERLAY);
+    }
+
+    public DropDownBox useOverlay(OverlayLayer overlayLayer) {
+        overlayLayer(overlayLayer);
+        return useOverlay();
+    }
+
+    public OverlayLayer overlayLayer() {
+        return explicitOverlayLayer != null ? explicitOverlayLayer : findTopmostOverlayLayer();
+    }
+
+    public DropDownBox overlayLayer(OverlayLayer overlayLayer) {
+        if (this.explicitOverlayLayer == overlayLayer) return this;
+        detachFromOverlay();
+        this.explicitOverlayLayer = overlayLayer;
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public OverlayLayer attachedOverlayLayer() {
+        return attachedOverlayLayer;
+    }
+
+    public Popup dropDownPopup() {
+        return dropDownPopup;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.header_button.title>",
+            summary = "<key:drop.down.box.method.header_button.summary>")
+    public Button headerButton() {
+        return headerButton;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content_host.title>",
+            summary = "<key:drop.down.box.method.content_host.summary>")
+    public Box contentHost() {
+        return contentHost;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.content_scroll.title>",
+            summary = "<key:drop.down.box.method.content_scroll.summary>")
+    public ScrollView contentScroll() {
+        return contentScroll;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.drop_down_width.title>",
+            summary = "<key:drop.down.box.method.drop_down_width.summary>")
+    public float dropDownWidth() {
+        return dropDownWidth;
+    }
+
+    @XamlProperty(value = "dropDownWidth", category = "Layout", defaultValue = "0", description = "Explicit dropdown width; 0 uses automatic sizing.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_drop_down_width.title>",
+            summary = "<key:drop.down.box.method.set_drop_down_width.summary>")
+    public DropDownBox dropDownWidth(float width) {
+        float normalized = Float.isFinite(width) ? Math.max(0.0f, width) : 0.0f;
+        if (dropDownWidth == normalized && !dropDownMatchesWidgetWidth) return this;
+        dropDownWidth = normalized;
+        dropDownMatchesWidgetWidth = false;
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean dropDownMatchesWidgetWidth() {
+        return dropDownMatchesWidgetWidth;
+    }
+
+    @XamlProperty(value = "dropDownMatchesWidgetWidth", category = "Layout", defaultValue = "false", description = "Whether dropdown width follows the host widget width.")
+    public DropDownBox dropDownMatchesWidgetWidth(boolean match) {
+        if (dropDownMatchesWidgetWidth == match && (match || dropDownWidth <= 0.0f)) return this;
+        dropDownMatchesWidgetWidth = match;
+        if (match) {
+            dropDownWidth = 0.0f;
+        }
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public DropDownBox dropDownSameWidth() {
+        return dropDownMatchesWidgetWidth(true);
+    }
+
+    public DropDownBox autoDropDownWidth() {
+        boolean changed = dropDownWidth > 0.0f || dropDownMatchesWidgetWidth;
+        dropDownWidth = 0.0f;
+        dropDownMatchesWidgetWidth = false;
+        if (changed) {
+            syncDropDownSize();
+            invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+        return this;
+    }
+
+    @WikiMethod(
+            title = "<key:drop.down.box.method.max_content_height.title>",
+            summary = "<key:drop.down.box.method.max_content_height.summary>")
+    public float maxContentHeight() {
+        return maxContentHeight;
+    }
+
+    @XamlProperty(value = "maxContentHeight", category = "Layout", defaultValue = "216", description = "Maximum dropdown content height before scrolling is used; 0 disables the cap.")
+    @WikiMethod(
+            title = "<key:drop.down.box.method.set_max_content_height.title>",
+            summary = "<key:drop.down.box.method.set_max_content_height.summary>")
+    public DropDownBox maxContentHeight(float height) {
+        float normalized = Float.isFinite(height) && height > 0.0f ? height : 0.0f;
+        if (maxContentHeight == normalized) return this;
+        maxContentHeight = normalized;
+        syncDropDownSize();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public DropDownBox unrestrictedContentHeight() {
+        return maxContentHeight(0.0f);
+    }
+
+    @Override
+    public void addChild(Widget child) {
+        content(child);
+    }
+
+    @Override
+    public void clearChildren() {
+        content(null);
+    }
+
+    @Override
+    public void setParentInternal(Widget parent) {
+        super.setParentInternal(parent);
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+    }
+
+    @Override
+    public void setUiContextInternal(UIContext uiContext) {
+        super.setUiContextInternal(uiContext);
+        syncDropDownAttachment();
+        syncDropDownVisibility();
+    }
+
+    @Override
+    public void handle(Event event) {
+        super.handle(event);
+        if (event.isCancelled()) return;
+        if (event instanceof KeyPressedEvent key
+                && key.phase() == EventPhase.TARGET
+                && uiContext() != null
+                && uiContext().focusManager().isFocused(this)) {
+            if (key.keyCode() == KeyCodes.SPACE || key.keyCode() == KeyCodes.ENTER || key.keyCode() == KeyCodes.KEYPAD_ENTER) {
+                toggle();
+                event.cancel();
+            } else if (key.keyCode() == KeyCodes.ESCAPE && opened) {
+                close();
+                event.cancel();
+            }
+        }
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        super.arrange(bounds);
+        syncDropDownSize();
+    }
+
+    private void updateHeaderText() {
+        headerButton.richText(richHeaderText);
+        headerButton.chevronUp(opened);
+    }
+
+    /**
+     * Возвращает заранее созданную стрелку текущего состояния списка.
+     *
+     * <p>Legacy inline-индикатор для наследников: базовый хедер рисует шеврон
+     * слотом кнопки ({@code Button.chevronVisible/chevronUp}), а не текстом.
+     * Метод оставлен {@code protected}, чтобы наследник мог заменить
+     * визуальное представление.</p>
+     *
+     * @return стрелка вниз для закрытого списка или стрелка вверх для открытого
+     */
+    protected RichText headerArrow() {
+        return opened ? headerArrowOpened : headerArrowClosed;
+    }
+
+    /**
+     * Создаёт inline-индикатор состояния раскрытия.
+     *
+     * <p>Индикатор рисуется как filled triangle, а не как текстовый символ, поэтому его
+     * форма не зависит от выбранного шрифта. По умолчанию перед индикатором добавляется
+     * пробел: это сохраняет текущую разметку заголовков DropDownBox и ComboBox.</p>
+     *
+     * @param opened {@code true} для стрелки вверх, {@code false} для стрелки вниз
+     * @return rich-text с inline-индикатором
+     */
+    public static RichText createHeaderArrow(boolean opened) {
+        return createHeaderArrow(opened, true);
+    }
+
+    /**
+     * Создаёт inline-индикатор состояния с управляемым ведущим пробелом.
+     *
+     * @param opened {@code true} для стрелки вверх, {@code false} для стрелки вниз
+     * @param leadingSpace добавлять ли пробел перед индикатором
+     * @return rich-text с inline-индикатором
+     */
+    public static RichText createHeaderArrow(boolean opened, boolean leadingSpace) {
+        RichText.Builder builder = RichText.builder();
+        if (leadingSpace) builder.append(" ");
+        return builder.inline(
+                opened ? "dropdown-arrow-opened" : "dropdown-arrow-closed",
+                opened ? "[up]" : "[down]",
+                14.0f,
+                14.0f,
+                (draw, context) -> {
+                    float left = context.x() + 2.0f;
+                    float center = context.x() + context.width() * 0.5f;
+                    float right = context.x() + context.width() - 2.0f;
+                    float top = context.y() + 3.0f;
+                    float bottom = context.y() + context.height() - 3.0f;
+                    var color = context.color() == null
+                            ? MutableColor.rgba(0.72f, 0.84f, 0.90f, 1.0f)
+                            : context.color();
+                    if (opened) {
+                        draw.addTriangleFilled(
+                                new DrawPoint(center, top),
+                                new DrawPoint(left, bottom),
+                                new DrawPoint(right, bottom), color);
+                    } else {
+                        draw.addTriangleFilled(
+                                new DrawPoint(left, top),
+                                new DrawPoint(right, top),
+                                new DrawPoint(center, bottom), color);
+                    }
+                }).build();
+    }
+
+    private void syncDropDownAttachment() {
+        syncDropDownSize();
+        if (dropDownMode == ComboBox.DropDownMode.INLINE) {
+            detachFromOverlay();
+            clearPopupContent();
+            if (contentHost.parent() != this) {
+                super.addChild(contentHost);
+            }
+            return;
+        }
+
+        detachContentFromInlineLayout();
+
+        OverlayLayer targetOverlay = overlayLayer();
+        if (targetOverlay != null) {
+            if (dropDownPopup.content() != contentHost) {
+                dropDownPopup.content(contentHost);
+            }
+            if (attachedOverlayLayer != targetOverlay) {
+                detachFromOverlay();
+                attachedOverlayLayer = targetOverlay;
+                attachedOverlayLayer.addOverlay(dropDownPopup);
+            }
+        } else {
+            detachFromOverlay();
+            clearPopupContent();
+        }
+    }
+
+    private void syncDropDownVisibility() {
+        syncDropDownSize();
+        if (dropDownMode == ComboBox.DropDownMode.OVERLAY) {
+            contentHost.visibility(attachedOverlayLayer != null ? Visibility.VISIBLE : Visibility.COLLAPSED);
+            syncingPopup = true;
+            try {
+                dropDownPopup.open(opened && attachedOverlayLayer != null);
+            } finally {
+                syncingPopup = false;
+            }
+        } else {
+            syncingPopup = true;
+            try {
+                dropDownPopup.close();
+            } finally {
+                syncingPopup = false;
+            }
+            contentHost.visibility(opened ? Visibility.VISIBLE : Visibility.COLLAPSED);
+        }
+    }
+
+    private void detachContentFromInlineLayout() {
+        if (contentHost.parent() == this) {
+            super.removeChild(contentHost);
+            applyQueuedMutations();
+        }
+    }
+
+    private void clearPopupContent() {
+        syncingPopup = true;
+        try {
+            dropDownPopup.close();
+            if (dropDownPopup.content() != null) {
+                dropDownPopup.content(null);
+                dropDownPopup.applyQueuedMutations();
+            }
+        } finally {
+            syncingPopup = false;
+        }
+    }
+
+    private void detachFromOverlay() {
+        if (attachedOverlayLayer != null) {
+            attachedOverlayLayer.removeOverlay(dropDownPopup);
+            attachedOverlayLayer = null;
+        }
+    }
+
+    private void syncDropDownSize() {
+        float resolvedWidth = resolvedDropDownWidth();
+        float width = resolvedWidth > 0.0f ? resolvedWidth : LayoutConstraints.AUTO;
+        float scrollWidth = resolvedWidth > CONTENT_INSET * 2.0f ? resolvedWidth - CONTENT_INSET * 2.0f : LayoutConstraints.AUTO;
+        float hostMaxHeight = maxContentHeight > 0.0f
+                ? maxContentHeight + CONTENT_INSET * 2.0f
+                : Float.POSITIVE_INFINITY;
+        float scrollMaxHeight = maxContentHeight > 0.0f ? maxContentHeight : Float.POSITIVE_INFINITY;
+        Overflow verticalOverflow = shouldScrollContent() ? Overflow.SCROLL : Overflow.HIDDEN;
+
+        contentHost.layout(style -> style
+                .size(width, LayoutConstraints.AUTO)
+                .maxHeight(hostMaxHeight)
+                .overflow(Overflow.HIDDEN)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+        contentScroll.layout(style -> style
+                .size(scrollWidth, LayoutConstraints.AUTO)
+                .maxHeight(scrollMaxHeight)
+                .margin(CONTENT_INSET)
+                .align(Alignment.STRETCH, Alignment.START)
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(verticalOverflow)
+                .flexGrow(0)
+                .flexShrink(0.0f));
+    }
+
+    private boolean shouldScrollContent() {
+        if (maxContentHeight <= 0.0f || content == null) {
+            return false;
+        }
+        float contentHeight = content.desiredSize().height() + SlotLayout.marginOf(content).vertical();
+        return contentHeight > maxContentHeight + 0.5f;
+    }
+
+    private float resolvedDropDownWidth() {
+        if (dropDownWidth > 0.0f) {
+            return dropDownWidth;
+        }
+        if (dropDownMatchesWidgetWidth) {
+            float width = layoutBounds().width();
+            if (width <= 0.0f && desiredSize().width() > 0.0f) {
+                width = desiredSize().width();
+            }
+            if (width <= 0.0f && headerButton.layoutBounds().width() > 0.0f) {
+                width = headerButton.layoutBounds().width();
+            }
+            if (width <= 0.0f && headerButton.desiredSize().width() > 0.0f) {
+                width = headerButton.desiredSize().width();
+            }
+            return Math.max(0.0f, width);
+        }
+        return 0.0f;
+    }
+
+    private OverlayLayer findTopmostOverlayLayer() {
+        OverlayLayer result = null;
+        Widget current = this;
+        while (current != null) {
+            if (current instanceof OverlayLayer layer) {
+                result = layer;
+            }
+            current = current.parent();
+        }
+        return result;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value;
+    }
+}

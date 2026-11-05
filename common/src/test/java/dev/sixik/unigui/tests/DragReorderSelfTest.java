@@ -21,7 +21,7 @@ import dev.sixik.unigui.widgets.dnd.DragOutcome;
 import dev.sixik.unigui.widgets.dnd.DragSession;
 import dev.sixik.unigui.widgets.dnd.DropController;
 import dev.sixik.unigui.widgets.dnd.ReorderController;
-import dev.sixik.unigui.widgets.editor.DragPayload;
+import dev.sixik.unigui.widgets.dnd.DragPayload;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 
 import java.util.ArrayList;

@@ -21,7 +21,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextOverflowMode;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.api.xml.XMLWidget;
+import dev.sixik.unigui.xaml.Xaml;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftFonts;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
@@ -36,6 +36,15 @@ import dev.sixik.unigui.widgets.docking.DockPane;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.*;
 import dev.sixik.unigui.widgets.graph.*;
+import dev.sixik.unigui.widgets.graph.node.NodeBuilder;
+import dev.sixik.unigui.widgets.graph.node.NodeType;
+import dev.sixik.unigui.widgets.graph.node.PortType;
+import dev.sixik.unigui.widgets.graph.node.ValueEditors;
+import dev.sixik.unigui.widgets.graph.runtime.GraphExecutionException;
+import dev.sixik.unigui.widgets.graph.runtime.GraphExecutor;
+import dev.sixik.unigui.widgets.graph.runtime.GraphIssue;
+import dev.sixik.unigui.widgets.graph.runtime.GraphResult;
+import dev.sixik.unigui.widgets.graph.runtime.NodeBehavior;
 import dev.sixik.unigui.widgets.interaction.*;
 import dev.sixik.unigui.widgets.map.MapCanvas;
 import dev.sixik.unigui.widgets.map.MapProjection;
@@ -55,8 +64,10 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 
 public final class UniGuiDemo {
     private static final MutableUIScaleProvider SCALE = new MutableUIScaleProvider(2.0f);
@@ -425,7 +436,11 @@ public final class UniGuiDemo {
     }
 
     public static void openDemo() {
-        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+        // Без хоста категория Minecraft в галерее показывает только заглушку.
+        dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost.install();
+//        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+        // Системный буфер обмена: без него демо использует MemoryClipboardService, и копирование не выходит за игру.
+        RenderSystem.recordRenderCall(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -446,6 +461,12 @@ public final class UniGuiDemo {
                     ComplexUiDemo.openDemo();
                     return 0;
                 })));
+
+        dispatcher.register(Commands.literal("unigui_old")
+                .executes(ctx -> {
+                    RenderSystem.recordRenderCall(() -> UniGuiDemo.openDemoClient());
+                    return 0;
+                }));
     }
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
@@ -459,7 +480,6 @@ public final class UniGuiDemo {
     private static void openDemoClient() {
         DefaultUIContext context = new DefaultUIContext(new MinecraftClipboardService())
                 .scaleProvider(SCALE);
-        context.debugFlags(DebugFlags.ELEMENTS_INSPECTOR);
 
         Widget root = demoScreenWidget(context);
         openScreen(Component.literal("UniGUI Demo"), root, context);
@@ -520,6 +540,7 @@ public final class UniGuiDemo {
         tabs.addTab("Custom Renders", scroll(customRendersPage()));
         tabs.addTab("Animations", scroll(animationsPage()));
         tabs.addTab("Node Graph", nodeGraphPage());
+        tabs.addTab("Blueprint Graph", blueprintGraphPage());
         tabs.addTab("World Canvas", worldCanvasPage());
         tabs.addTab("Map Canvas", mapCanvasPage());
         tabs.addTab("Overlays", overlaysPage());
@@ -548,8 +569,8 @@ public final class UniGuiDemo {
 
 
     private static VBox overviewPage() {
-        VBox page = XMLWidget.createResource(XML_OVERVIEW_RESOURCE, VBox.class);
-        VBox quickFactoriesSlot = XMLWidget.getWidget(page, "quickFactoriesSlot", VBox.class);
+        VBox page = Xaml.loadResource(XML_OVERVIEW_RESOURCE, VBox.class);
+        VBox quickFactoriesSlot = Xaml.get(page, "quickFactoriesSlot", VBox.class);
         quickFactoriesSlot.addChild(factoryGallery());
         quickFactoriesSlot.applyQueuedMutations();
         return page;
@@ -1045,6 +1066,8 @@ public final class UniGuiDemo {
         table.layout(style -> style.size(LayoutConstraints.AUTO, 150.0f).flexGrow(0).flexShrink(0.0f));
         page.addChild(section("VirtualTableView", table));
 
+        page.addChild(section("VirtualTableView — dynamic rows & columns", dynamicTableDemo()));
+
         WrapPanel visuals = wrap();
         List<Integer> series = List.of(8, 14, 10, 22, 18, 30, 24, 36, 28);
         Chart chart = new Chart().values(series).type(Chart.Type.BAR);
@@ -1072,6 +1095,140 @@ public final class UniGuiDemo {
         visuals.addChild(visualStatus);
         page.addChild(section("Chart / Sparkline / GraphView", visuals));
         return page;
+    }
+
+    /**
+     * Демонстрация таблицы с динамическим добавлением/удалением строк и колонок.
+     *
+     * <p>Каждая колонка получает стабильный modelIndex, который передаётся в провайдер ячеек.
+     * Добавление колонки вставляет новый столбец в порядок отображения; удаление — убирает.
+     * Строки хранятся в {@code List<List<String>>}, индексируемом по modelIndex колонки.</p>
+     */
+    private static VBox dynamicTableDemo() {
+        // backing model: rows × column-model-index → cell text
+        List<List<String>> rows = new ArrayList<>();
+        Random rng = new Random(42);
+        for (int r = 0; r < 6; r++) {
+            List<String> row = new ArrayList<>();
+            row.add("Item " + r);
+            row.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
+            row.add(String.valueOf(rng.nextInt(100)));
+            rows.add(row);
+        }
+
+        VirtualTableView tbl = new VirtualTableView()
+                .rowCount(rows.size())
+                .rowHeight(22.0f)
+                .headerHeight(22.0f)
+                .selectionMode(SelectionMode.MULTIPLE)
+                .cellTextProvider((row, modelCol) -> {
+                    if (row < 0 || row >= rows.size()) return "";
+                    List<String> r = rows.get(row);
+                    if (modelCol < 0 || modelCol >= r.size()) return "";
+                    return r.get(modelCol);
+                });
+
+        tbl.addColumn("Name", 120.0f);
+        tbl.addColumn("State", 80.0f);
+        tbl.addColumn("Value", 60.0f);
+        tbl.sortKeyProvider((row, modelCol) -> {
+            if (row < 0 || row >= rows.size()) return "";
+            List<String> r = rows.get(row);
+            if (modelCol < 0 || modelCol >= r.size()) return "";
+            String v = r.get(modelCol);
+            if (modelCol == 2) return Integer.valueOf(v);
+            return v;
+        });
+
+        tbl.layout(style -> style.size(LayoutConstraints.AUTO, 160.0f).flexGrow(0).flexShrink(0.0f));
+
+        // hook cell edits back into the model
+        tbl.editable(true);
+        tbl.onCellEditCommitted(event -> {
+            if (event.row() >= 0 && event.row() < rows.size()) {
+                List<String> r = rows.get(event.row());
+                int mi = tbl.columns().get(event.column()).modelIndex();
+                while (r.size() <= mi) r.add("");
+                r.set(mi, event.newText());
+            }
+        });
+
+        Label status = new Label("Add/remove rows and columns; double-click a cell to edit.");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 16.0f).flexGrow(0).flexShrink(0.0f));
+
+        // ── row controls ──
+        HBox rowControls = new HBox();
+        rowControls.spacing(6.0f);
+        Button addRowBtn = new Button("+ Row");
+        Button removeRowBtn = new Button("– Row");
+        addRowBtn.layout(style -> style.size(72.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        removeRowBtn.layout(style -> style.size(72.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        addRowBtn.onClick(e -> {
+            int idx = rows.size();
+            List<String> newRow = new ArrayList<>();
+            newRow.add("Item " + idx);
+            newRow.add(switch (rng.nextInt(3)) { case 0 -> "Active"; case 1 -> "Idle"; default -> "Error"; });
+            newRow.add(String.valueOf(rng.nextInt(100)));
+            rows.add(newRow);
+            tbl.addRow();
+            tbl.scrollToRow(idx);
+            status.text("Added row " + idx);
+        });
+        removeRowBtn.onClick(e -> {
+            if (rows.isEmpty()) { status.text("No rows to remove"); return; }
+            java.util.List<Integer> sel = tbl.selectedRows();
+            if (!sel.isEmpty()) {
+                // remove in descending order
+                sel = new ArrayList<>(sel);
+                java.util.Collections.sort(sel, java.util.Collections.reverseOrder());
+                for (int r : sel) { rows.remove(r); tbl.removeRow(r); }
+                status.text("Removed " + sel.size() + " selected row(s)");
+            } else {
+                int last = rows.size() - 1;
+                rows.remove(last);
+                tbl.removeRow(last);
+                status.text("Removed last row");
+            }
+        });
+        rowControls.addChild(addRowBtn);
+        rowControls.addChild(removeRowBtn);
+        rowControls.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        // ── column controls ──
+        HBox colControls = new HBox();
+        colControls.spacing(6.0f);
+        Button addColBtn = new Button("+ Column");
+        final int[] colCounter = {3};
+        addColBtn.layout(style -> style.size(90.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        addColBtn.onClick(e -> {
+            String name = "Col" + colCounter[0]++;
+            for (List<String> r : rows) r.add(String.valueOf(rng.nextInt(100)));
+            tbl.addColumn(name, 70.0f);
+            status.text("Added column " + name);
+        });
+        Button removeColBtn = new Button("– Column");
+        removeColBtn.layout(style -> style.size(90.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        removeColBtn.onClick(e -> {
+            int cols = tbl.columns().size();
+            if (cols <= 1) { status.text("Cannot remove last column"); return; }
+            int last = cols - 1;
+            for (List<String> r : rows) {
+                if (r.size() > last) r.remove(last);
+            }
+            tbl.removeColumn(last);
+            status.text("Removed last column");
+        });
+        colControls.addChild(addColBtn);
+        colControls.addChild(removeColBtn);
+        colControls.layout(style -> style.size(LayoutConstraints.AUTO, 22.0f).flexGrow(0).flexShrink(0.0f));
+
+        VBox wrapper = new VBox();
+        wrapper.spacing(4.0f);
+        wrapper.addChild(status);
+        wrapper.addChild(rowControls);
+        wrapper.addChild(colControls);
+        wrapper.addChild(tbl);
+        return wrapper;
     }
 
     private static VBox customRendersPage() {
@@ -1385,6 +1542,147 @@ public final class UniGuiDemo {
         return page;
     }
 
+
+    /**
+     * Blueprint-подобный граф из модульных нод: заголовки цвета категории со стрелкой сворачивания,
+     * exec-пины (квадраты) и data-пины (кружки по типу), inline-поля у свободных входов, регион-комментарий
+     * и миникарта.
+     */
+    private static Widget blueprintGraphPage() {
+        VBox page = page("Blueprint Graph",
+                "Right-click empty space or press Space for the node palette (categories form a tree); drop a wire into empty space to add a connected node. "
+                        + "Right-click a node: undo/redo, duplicate, group, align, spread. Right-click a region title (or press F2): rename, comment, group. "
+                        + "Hold Ctrl to snap to the grid; Shift+click or Shift+drag selects several nodes. Double-click a wire inserts a reroute. "
+                        + "Header arrow collapses, region title carries its nodes and nested regions; hover a title with the bubble icon to read its comment. "
+                        + "Keys: Ctrl+Z/Y undo/redo, Ctrl+C/V/D copy/paste/duplicate, F frame, Home frame all, C group, R reroute a selected wire.");
+
+        Label status = new Label("Blueprint: ready");
+        status.layout(style -> style.size(LayoutConstraints.AUTO, 18.0f).flexGrow(0).flexShrink(0.0f));
+        NodeGraph graph = new NodeGraph()
+                .selectionMode(NodeGraphSelectionMode.MULTIPLE)
+                .minimapEnabled(true);
+        graph.layout(style -> style.flexGrow(1).flexShrink(1.0f));
+
+        graph.portTypes()
+                .register(PortType.data("bool", 0xFFE05252))
+                .register(PortType.data("number", 0xFF5CD6A9))
+                .register(PortType.data("vec3", 0xFFF5D547))
+                .register(PortType.data("string", 0xFFE08BD0))
+                .register(PortType.data("entity", 0xFF5B8DEF))
+                .allowConversion("number", "vec3");
+
+        graph.nodeTypes()
+                .register(NodeType.of("event.start", "Start", "Events", id -> NodeBuilder.node(id)
+                        .color(0xFFD9534F)
+                        .header("Start")
+                        .flowRow(null, "then")
+                        .build()))
+                .register(NodeType.of("npc.create", "Create NPC", "NPC", id -> NodeBuilder.node(id)
+                        .color(0xFF4F9D4F)
+                        .header("Create NPC")
+                        .flowRow("exec", "then")
+                        .input("pos", "Position", "vec3", ValueEditors.vector(3, 0, 64, 0))
+                        .input("name", "Name", "string", ValueEditors.text("Villager"))
+                        .output("npc", "Result", "entity")
+                        .build()))
+                .register(NodeType.of("logic.compare", "Less or equal", "Logic", id -> NodeBuilder.node(id)
+                        .color(0xFF8E44AD)
+                        .header("Less or equal")
+                        .requiredInput("a", "A", "number")
+                        .input("b", "B", "number", ValueEditors.number(5))
+                        .output("result", "Result", "bool")
+                        .build()))
+                .register(NodeType.of("npc.say", "Say", "NPC/Dialogue", id -> NodeBuilder.node(id)
+                        .color(0xFF2E8B57)
+                        .header("Say")
+                        .flowRow("exec", "then")
+                        .input("who", "Who", "entity")
+                        .input("text", "Text", "string", ValueEditors.text("Hello!"))
+                        .input("loud", "Shout", "bool", ValueEditors.bool(false))
+                        .build()));
+
+        graph.addRegion("setup", "Spawn setup", 20.0f, 20.0f, 520.0f, 250.0f)
+                .comment("Creates the NPC and greets the player")
+                .color(0xFF3B6EA5);
+        graph.addRegion("dialogue", "Dialogue", 345.0f, 44.0f, 190.0f, 216.0f)
+                .comment("Nested region: it moves with 'Spawn setup'. Select it and press Group to wrap it again.")
+                .color(0xFFA5703B);
+        graph.spawn("event.start", "start", 40.0f, 70.0f);
+        graph.spawn("npc.create", "create", 190.0f, 60.0f);
+        graph.spawn("npc.say", "say", 360.0f, 60.0f);
+        graph.spawn("logic.compare", "compare", 190.0f, 330.0f);
+        graph.addConnection("w-start", "start", "then", "create", "exec");
+        graph.addConnection("w-then", "create", "then", "say", "exec");
+        graph.addConnection("w-npc", "create", "npc", "say", "who");
+
+        graph.onItemCollapsed(event -> status.text("Blueprint: " + event.itemId()
+                + (event.collapsed() ? " collapsed" : " expanded")));
+        graph.onRegionChanged(event -> status.text("Blueprint: region " + event.regionId() + " " + event.kind()));
+        graph.onValueChanged(event -> status.text("Blueprint: " + event.itemId() + "." + event.portId()
+                + " = " + event.serialized()));
+        graph.onConnectionCreated(event -> status.text("Blueprint: connected "
+                + event.from().itemId() + "." + event.from().portId() + " -> "
+                + event.to().itemId() + "." + event.to().portId()));
+
+        HBox tools = new HBox();
+        tools.spacing(6.0f);
+        tools.layout(style -> style.size(LayoutConstraints.AUTO, 24.0f).flexGrow(0).flexShrink(0.0f));
+        tools.addChild(graphToolButton("Frame all", () -> {
+            graph.frameAll();
+            status.text("Blueprint: framed all");
+        }));
+        Button snap = graphToolButton("Snap: Ctrl", null);
+        snap.onClick(event -> {
+            graph.snapToGrid(!graph.snapToGrid());
+            snap.text(graph.snapToGrid() ? "Snap: always" : "Snap: Ctrl");
+        });
+        tools.addChild(snap);
+
+        List<String> sayLog = new ArrayList<>();
+        // Поведения нод: что граф делает при запуске. Редакторы входов дают значения по умолчанию.
+        GraphExecutor executor = new GraphExecutor()
+                .register("event.start", NodeBehavior.exec(context -> context.continueWith("then")))
+                .register("npc.create", NodeBehavior.exec(context -> {
+                    double[] at = context.vector("pos");
+                    context.output("npc", context.text("name") + "@" + (at == null ? "?" : at[0] + "," + at[1] + "," + at[2]));
+                    context.continueWith("then");
+                }))
+                .register("logic.compare", NodeBehavior.pure(context ->
+                        context.output("result", context.number("a") <= context.number("b"))))
+                .register("npc.say", NodeBehavior.exec(context -> {
+                    String line = context.text("who") + " says " + context.text("text");
+                    sayLog.add(context.bool("loud") ? line.toUpperCase(Locale.ROOT) : line);
+                    context.continueWith("then");
+                }));
+        tools.addChild(graphToolButton("Run", () -> {
+            sayLog.clear();
+            try {
+                GraphResult result = executor.fire(graph.model(), "start");
+                status.text("Blueprint run (" + result.steps() + " steps): " + String.join(" | ", sayLog));
+            } catch (GraphExecutionException failure) {
+                status.text("Blueprint run failed: " + failure.getMessage());
+            }
+        }));
+        tools.addChild(graphToolButton("Validate", () -> {
+            List<GraphIssue> issues = graph.validate(executor);
+            status.text(issues.isEmpty()
+                    ? "Blueprint: graph is valid"
+                    : "Blueprint: " + issues.size() + " issue(s), first: " + issues.get(0).message()
+                    + " [" + issues.get(0).itemId() + "]");
+        }));
+
+        page.addChild(status);
+        page.addChild(tools);
+        page.addChild(graph);
+        return page;
+    }
+
+    private static Button graphToolButton(String text, Runnable action) {
+        Button button = new Button(text);
+        button.layout(style -> style.size(86.0f, 22.0f).flexGrow(0).flexShrink(0.0f));
+        if (action != null) button.onClick(event -> action.run());
+        return button;
+    }
 
     private static Widget worldCanvasPage() {
         VBox page = page("World Canvas", "Generic pan/zoom viewport with screen-space anchors. Drag empty canvas, Ctrl+wheel zooms.");

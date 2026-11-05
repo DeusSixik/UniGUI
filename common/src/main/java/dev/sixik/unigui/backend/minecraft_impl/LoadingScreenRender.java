@@ -2,6 +2,10 @@ package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.api.screen.UniRenderLayer;
+import dev.sixik.unigui.api.screen.UniRenderLayerRegistration;
+import dev.sixik.unigui.api.screen.UniRenderTarget;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
@@ -11,6 +15,7 @@ import net.minecraft.server.packs.resources.ReloadInstance;
 
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Точка регистрации UniGUI-слоёв для экрана загрузки Minecraft.
@@ -40,22 +45,42 @@ public final class LoadingScreenRender {
     private LoadingScreenRender() {
     }
 
-    /** Регистрирует слой с контекстом UniGUI по умолчанию. */
+    /**
+     * Регистрирует слой с контекстом UniGUI по умолчанию.
+     */
     public static MinecraftRenderLayerRegistration<Minecraft> register(Widget root) {
         return register(new MinecraftWidgetRenderLayer(root));
     }
 
-    /** Регистрирует слой с указанным контекстом UniGUI. */
+    /**
+     * Регистрирует слой с указанным контекстом UniGUI.
+     */
     public static MinecraftRenderLayerRegistration<Minecraft> register(Widget root, UIContext context) {
         return register(new MinecraftWidgetRenderLayer(root, context));
     }
 
-    /** Регистрирует готовый render-layer загрузочного экрана. */
+    /**
+     * Регистрирует готовый render-layer загрузочного экрана.
+     */
     public static MinecraftRenderLayerRegistration<Minecraft> register(MinecraftWidgetRenderLayer layer) {
-        return REGISTRY.add(layer, client -> true, 0);
+        return register(layer, client -> true, 0);
     }
 
-    /** Удаляет все зарегистрированные загрузочные слои и освобождает их ресурсы. */
+    public static MinecraftRenderLayerRegistration<Minecraft> register(
+            MinecraftWidgetRenderLayer layer,
+            Predicate<? super Minecraft> visibility,
+            int priority) {
+        return REGISTRY.add(layer, visibility, priority);
+    }
+
+    public static UniRenderLayerRegistration register(UniRenderLayer layer) {
+        return new UniRenderLayerRegistration(layer, UniGuiRuntime.backend().registerLayer(
+                layer, UniRenderTarget.LOADING_SCREEN, ignored -> true, 0));
+    }
+
+    /**
+     * Удаляет все зарегистрированные загрузочные слои и освобождает их ресурсы.
+     */
     public static void clear() {
         REGISTRY.clear();
     }
@@ -73,7 +98,9 @@ public final class LoadingScreenRender {
         return client.getOverlay() == context.overlay() ? context : null;
     }
 
-    /** @return {@code true}, если сейчас активен LoadingOverlay */
+    /**
+     * @return {@code true}, если сейчас активен LoadingOverlay
+     */
     public static boolean isLoading() {
         return context() != null;
     }
@@ -112,7 +139,9 @@ public final class LoadingScreenRender {
         }
     }
 
-    /** Внутренняя точка вызова из version-specific LoadingOverlay hook. */
+    /**
+     * Внутренняя точка вызова из version-specific LoadingOverlay hook.
+     */
     public static void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (graphics == null) return;
 

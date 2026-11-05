@@ -38,6 +38,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import dev.sixik.unigui.api.layout.LayoutContext;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -52,8 +54,7 @@ import java.util.Set;
 
 /** Создаёт UniGUI-дерево из декларативного visual ISF-рецепта. */
 final class IsfVisualWidgetFactory {
-    private static final org.slf4j.Logger LOGGER =
-            org.slf4j.LoggerFactory.getLogger(IsfVisualWidgetFactory.class);
+    private static final Logger LOGGER = LogManager.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
     private final Button recipePlus = new Button();
     /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */

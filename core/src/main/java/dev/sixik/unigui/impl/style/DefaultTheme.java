@@ -1,0 +1,311 @@
+package dev.sixik.unigui.impl.style;
+
+import dev.sixik.unigui.api.animation.AnimationEasing;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.style.CheckboxMarkShape;
+import dev.sixik.unigui.api.style.MutableStyle;
+import dev.sixik.unigui.api.style.ResolvedStyle;
+import dev.sixik.unigui.api.style.Style;
+import dev.sixik.unigui.api.style.StyleBackend;
+import dev.sixik.unigui.api.style.StyleDefinition;
+import dev.sixik.unigui.api.style.StyleIds;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.StylePack;
+import dev.sixik.unigui.api.style.StyleSelector;
+import dev.sixik.unigui.api.style.Theme;
+import dev.sixik.unigui.api.style.ThemeTokens;
+import dev.sixik.unigui.api.style.WidgetState;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class DefaultTheme implements Theme {
+    private static final ColorView BG_0 = color(0x13, 0x14, 0x18, 255);
+    private static final ColorView BG_0_SOFT = color(0x13, 0x14, 0x18, 225);
+    private static final ColorView BG_1 = color(0x1C, 0x1E, 0x23, 240);
+    private static final ColorView BG_2 = color(0x2A, 0x2D, 0x34, 255);
+    private static final ColorView BG_2_HOVER = color(0x34, 0x38, 0x41, 255);
+    private static final ColorView BG_DISABLED = color(0x17, 0x1A, 0x20, 185);
+    private static final ColorView BORDER = color(0x30, 0x33, 0x3B, 255);
+    private static final ColorView BORDER_STRONG = color(0x42, 0x46, 0x50, 255);
+    private static final ColorView TEXT_HI = color(0xE8, 0xEA, 0xEE, 255);
+    private static final ColorView TEXT_MID = color(0x9A, 0xA2, 0xB1, 255);
+    private static final ColorView TEXT_LO = color(0x5C, 0x65, 0x77, 225);
+    private static final ColorView TEXT_ON_ACCENT = color(0xFF, 0xFF, 0xFF, 255);
+    private static final ColorView ACCENT = color(0x4C, 0x8D, 0xFF, 255);
+    private static final ColorView ACCENT_HI = color(0x74, 0xA8, 0xFF, 255);
+    private static final ColorView ACCENT_DIM = color(0x2B, 0x4F, 0x8A, 255);
+    private static final float RADIUS = 4.0f;
+
+    /**
+     * Стандартная тема без пользовательских token override.
+     */
+    public static final DefaultTheme INSTANCE = new DefaultTheme(ThemeTokens.EMPTY);
+
+    private final Style fallback;
+    private final Map<String, Style> styles = new HashMap<>();
+    private final ThemeTokens tokens;
+
+    /**
+     * Создаёт копию стандартной темы с token override поверх hardcoded defaults.
+     *
+     * @param tokens снимок токенов или {@link ThemeTokens#EMPTY}
+     * @return тема с сохранёнными типовыми правилами и новой палитрой
+     */
+    public static DefaultTheme withTokens(ThemeTokens tokens) {
+        return new DefaultTheme(tokens == null ? ThemeTokens.EMPTY : tokens);
+    }
+
+    private DefaultTheme(ThemeTokens tokens) {
+        this.tokens = tokens;
+        fallback = new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_1)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.PLACEHOLDER_COLOR, TEXT_LO)
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
+                .put(StyleKeys.TRACK_COLOR, BG_0)
+                .put(StyleKeys.THUMB_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_WIDTH, 1.0f)
+                .put(StyleKeys.RADIUS, RADIUS);
+
+        register(StyleIds.Widget.BOX, fallback);
+        register(StyleIds.Widget.BUTTON, controlStyle());
+        register(StyleIds.Widget.TOGGLE_BUTTON, toggleStyle());
+        register(StyleIds.Widget.TOGGLE_SWITCH, switchStyle());
+        register(StyleIds.Widget.CHECKBOX, checkboxStyle());
+        register(StyleIds.Widget.RADIO_BUTTON, checkedControlStyle());
+        register(StyleIds.Widget.TEXT_INPUT, textInputStyle());
+        register(StyleIds.Widget.TEXT_FIELD, textInputStyle());
+        register(StyleIds.Widget.NUMBER_FIELD, textInputStyle());
+        register(StyleIds.Widget.PASSWORD_FIELD, textInputStyle());
+        register(StyleIds.Widget.SEARCH_FIELD, textInputStyle());
+        register(StyleIds.Widget.SLIDER, rangeStyle());
+        register(StyleIds.Widget.PROGRESS_BAR, progressStyle());
+        register(StyleIds.Widget.SCROLL_BAR, scrollBarStyle());
+    }
+
+    @Override
+    public Style styleFor(String widgetType) {
+        Style style = widgetType == null || widgetType.isEmpty()
+                ? fallback
+                : styles.getOrDefault(widgetType, fallback);
+        return ResolvedStyle.of(List.of(style, tokens.asStyle()));
+    }
+
+    @Override
+    public ThemeTokens tokens() {
+        return tokens;
+    }
+
+    @Override
+    public long version() {
+        long result = tokens.version();
+        for (Style style : styles.values()) {
+            result += style.version();
+        }
+        return result;
+    }
+
+    StylePack copyStylePack() {
+        StylePack pack = StylePack.create("default")
+                .fallback(new MutableStyle().putAll(fallback))
+                .tokens(tokens);
+        for (Map.Entry<String, Style> entry : styles.entrySet()) {
+            String widgetType = entry.getKey();
+            String styleId = "default." + widgetType;
+            Style style = new MutableStyle().putAll(entry.getValue());
+            pack.put(new StyleDefinition(styleId, new StyleSelector(widgetType, "", ""),
+                    StyleBackend.declarative(style), Map.of()));
+            pack.bind(widgetType, styleId);
+        }
+        return pack;
+    }
+
+    private void register(String widgetType, Style style) {
+        styles.put(widgetType, style == null ? fallback : style);
+    }
+
+    private static Style controlStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_2)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2_HOVER)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, ACCENT)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.PRESSED, ACCENT_HI)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, ACCENT_HI)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.PRESSED, TEXT_ON_ACCENT)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.TRANSITION_DURATION, 0.12f)
+                .put(StyleKeys.TRANSITION_EASING, AnimationEasing.CUBIC_OUT)
+                .put(StyleKeys.RADIUS, RADIUS);
+    }
+
+    private static Style toggleStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_2)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2_HOVER)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, ACCENT_DIM)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, ACCENT_HI)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.CHECKED, TEXT_ON_ACCENT)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, TEXT_ON_ACCENT)
+                .put(StyleKeys.RADIUS, RADIUS);
+    }
+
+    private static Style checkedControlStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_2)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2_HOVER)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, ACCENT_DIM)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, ACCENT_HI)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.HOVERED, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.CHECKED, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
+                .put(StyleKeys.RADIUS, RADIUS);
+    }
+
+    private static Style checkboxStyle() {
+        return new MutableStyle().putAll(checkedControlStyle())
+                .put(StyleKeys.CHECKBOX_MARK_SHAPE, CheckboxMarkShape.CHECK)
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.CHECKBOX_MARK_COLOR, WidgetState.CHECKED, TEXT_ON_ACCENT)
+                .put(StyleKeys.RADIUS, 3.0f);
+    }
+
+    private static Style switchStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_0)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, BG_2)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.PRESSED, ACCENT_DIM)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT_DIM)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, BG_DISABLED)
+                .put(StyleKeys.BORDER_COLOR, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.THUMB_COLOR, TEXT_LO)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.HOVERED, TEXT_MID)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.CHECKED, ACCENT_HI)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.DISABLED, color(0x45, 0x4E, 0x60, 180))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.RADIUS, 10.0f);
+    }
+
+    private static Style textInputStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.BACKGROUND_COLOR, BG_0_SOFT)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.HOVERED, color(0x19, 0x1D, 0x24, 235))
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.FOCUSED, BG_0)
+                .put(StyleKeys.BACKGROUND_COLOR, WidgetState.DISABLED, color(0x11, 0x13, 0x18, 170))
+                .put(StyleKeys.BORDER_COLOR, BORDER)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.HOVERED, BORDER_STRONG)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.FOCUSED, ACCENT)
+                .put(StyleKeys.BORDER_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 205))
+                .put(StyleKeys.TEXT_COLOR, TEXT_HI)
+                .put(StyleKeys.TEXT_COLOR, WidgetState.DISABLED, TEXT_LO)
+                .put(StyleKeys.PLACEHOLDER_COLOR, TEXT_LO)
+                .put(StyleKeys.PLACEHOLDER_COLOR, WidgetState.FOCUSED, TEXT_MID)
+                .put(StyleKeys.ACCENT_COLOR, ACCENT_HI)
+                .put(StyleKeys.RADIUS, RADIUS);
+    }
+
+    private static Style rangeStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.TRACK_COLOR, BG_0)
+                .put(StyleKeys.TRACK_COLOR, WidgetState.DISABLED, color(0x11, 0x13, 0x18, 170))
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
+                .put(StyleKeys.THUMB_COLOR, ACCENT_HI)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.HOVERED, color(0xA3, 0xC6, 0xFF, 255))
+                .put(StyleKeys.THUMB_COLOR, WidgetState.DISABLED, BORDER_STRONG);
+    }
+
+    private static Style progressStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.TRACK_COLOR, BG_0)
+                .put(StyleKeys.TRACK_COLOR, WidgetState.DISABLED, color(0x11, 0x13, 0x18, 170))
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
+                .put(StyleKeys.THUMB_COLOR, ACCENT);
+    }
+
+    private static Style scrollBarStyle() {
+        return new MutableStyle()
+                .put(StyleKeys.TRACK_COLOR, color(0x15, 0x18, 0x1D, 110))
+                .put(StyleKeys.THUMB_COLOR, BORDER_STRONG)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.HOVERED, TEXT_LO)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.PRESSED, ACCENT)
+                .put(StyleKeys.THUMB_COLOR, WidgetState.DISABLED, color(0x25, 0x2A, 0x34, 150));
+    }
+
+    private static ColorView color(float r, float g, float b, float a) {
+        return new StaticColor(r, g, b, a);
+    }
+
+    private static ColorView color(int r, int g, int b, int a) {
+        return new StaticColor((float) r / 255, (float) g / 255, (float) b / 255, (float) a / 255);
+    }
+
+    private static final class StaticColor implements ColorView {
+        private final float r;
+        private final float g;
+        private final float b;
+        private final float a;
+
+        private StaticColor(float r, float g, float b, float a) {
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.a = a;
+        }
+
+        @Override
+        public float r() {
+            return r;
+        }
+
+        @Override
+        public float g() {
+            return g;
+        }
+
+        @Override
+        public float b() {
+            return b;
+        }
+
+        @Override
+        public float a() {
+            return a;
+        }
+    }
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "unigui",
+    "name": "UniGUI",
+    "description": "UniGUI integration for Cleanroom on Minecraft 1.12.2.",
+    "version": "${mod_version}",
+    "mcversion": "1.12.2",
+    "authorList": ["Sixik"],
+    "credits": "",
+    "url": "",
+    "updateUrl": "",
+    "logoFile": ""
+  }
+]

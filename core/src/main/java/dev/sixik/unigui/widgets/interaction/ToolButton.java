@@ -1,0 +1,184 @@
+package dev.sixik.unigui.widgets.interaction;
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.render.DrawScope;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.style.WidgetState;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.api.widget.render.WidgetRole;
+
+/** Compact toolbar-friendly button with optional icon, text and command metadata. */
+@AiDoc(
+        summary = "Square toolbar button displaying an icon with hover feedback and tooltip support.",
+        purpose = "Standard command button for horizontal or vertical toolbars and quick-action palettes.",
+        useWhen = {"Toolbar actions (e.g. Cut, Copy, Undo, Redo, Zoom)."},
+        related = {"Button", "IconButton", "ToggleToolButton"}
+)
+@WikiPage(
+        title = "<key:tool.button.title>",
+        slug = "tool-button",
+        category = "<key:core.widgets.interaction.category>",
+        summary = "<key:tool.button.summary>",
+        order = 30
+)
+@WikiSection(
+        title = "<key:tool.button.section.overview.title>",
+        markdown = "<key:tool.button.section.overview.body>",
+        order = 10
+)
+@WikiExample(
+        title = "<key:tool.button.example.basic.title>",
+        code = "<key:tool.button.example.basic.code>",
+        order = 10
+)
+@WikiLink(label = "Button", target = "page:button")
+@WikiLink(label = "ToggleToolButton", target = "page:toggle-tool-button")
+@XamlWidget("ToolButton")
+public class ToolButton extends Button {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.TOOL_BUTTON;
+
+    private String icon = "";
+    private String label = "";
+    private String tooltip = "";
+    private String commandId = "";
+    private DisplayMode displayMode = DisplayMode.ICON_AND_TEXT;
+    private boolean checked;
+
+    public ToolButton() {
+        textPadding(6.0f, 2.0f);
+        layout(style -> style.height(22.0f).flexGrow(0.0f).flexShrink(0.0f));
+        refreshText();
+    }
+
+    public ToolButton(String label) {
+        this();
+        label(label);
+    }
+
+    public String icon() {
+        return icon;
+    }
+
+    @XamlProperty(value = "icon", category = "Content", defaultValue = "", description = "Short icon glyph or icon resource id displayed by the tool button.")
+    public ToolButton icon(String icon) {
+        String normalized = normalize(icon);
+        if (this.icon.equals(normalized)) return this;
+        this.icon = normalized;
+        refreshText();
+        return this;
+    }
+
+    public String label() {
+        return label;
+    }
+
+    @XamlProperty(value = "label", category = "Content", defaultValue = "", description = "Text label for text or icon+text toolbar modes.")
+    public ToolButton label(String label) {
+        String normalized = normalize(label);
+        if (this.label.equals(normalized)) return this;
+        this.label = normalized;
+        refreshText();
+        return this;
+    }
+
+    @Override
+    @XamlProperty(value = "text", category = "Content", defaultValue = "", description = "Alias for the toolbar button label.")
+    public ToolButton text(String text) {
+        return label(text);
+    }
+
+    public String tooltip() {
+        return tooltip;
+    }
+
+    @XamlProperty(value = "tooltip", category = "Content", defaultValue = "", description = "Tooltip text shown by hosts that materialize tooltips.")
+    public ToolButton tooltip(String tooltip) {
+        this.tooltip = normalize(tooltip);
+        return this;
+    }
+
+    public String commandId() {
+        return commandId;
+    }
+
+    @XamlProperty(value = "command", category = "Behavior", defaultValue = "", description = "Command id executed by a command-aware toolbar host.")
+    public ToolButton commandId(String commandId) {
+        this.commandId = normalize(commandId);
+        return this;
+    }
+
+    public DisplayMode displayMode() {
+        return displayMode;
+    }
+
+    @XamlProperty(value = "displayMode", category = "Appearance", defaultValue = "icon_and_text", description = "Whether the toolbar button renders icon, text or both.")
+    public ToolButton displayMode(DisplayMode displayMode) {
+        DisplayMode normalized = displayMode == null ? DisplayMode.ICON_AND_TEXT : displayMode;
+        if (this.displayMode == normalized) return this;
+        this.displayMode = normalized;
+        refreshText();
+        return this;
+    }
+
+    public boolean checked() {
+        return checked;
+    }
+
+    @XamlProperty(value = "checked", category = "State", defaultValue = "false", description = "Whether the tool button is rendered as active.")
+    public ToolButton checked(boolean checked) {
+        if (this.checked == checked) return this;
+        this.checked = checked;
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    @Override
+    public ToolButton enabled(boolean enabled) {
+        super.enabled(enabled);
+        return this;
+    }
+
+    @Override
+    protected WidgetState styleState() {
+        if (!enabled()) return super.styleState();
+        if (checked) return WidgetState.CHECKED;
+        return super.styleState();
+    }
+
+    @Override
+    protected WidgetRole renderRole() {
+        return WidgetRole.TOOL_BUTTON;
+    }
+
+    protected void refreshText() {
+        super.text(renderText());
+    }
+
+    private String renderText() {
+        return switch (displayMode) {
+            case ICON_ONLY -> !icon.isEmpty() ? icon : label;
+            case TEXT_ONLY -> label;
+            case ICON_AND_TEXT -> icon.isEmpty() ? label : label.isEmpty() ? icon : icon + " " + label;
+        };
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public enum DisplayMode {
+        ICON_ONLY,
+        TEXT_ONLY,
+        ICON_AND_TEXT
+    }
+}

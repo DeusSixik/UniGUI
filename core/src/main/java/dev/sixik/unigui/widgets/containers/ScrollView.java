@@ -1,0 +1,1072 @@
+package dev.sixik.unigui.widgets.containers;
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+import dev.sixik.unigui.api.core.FrameContext;
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.event.Event;
+import dev.sixik.unigui.api.event.EventPhase;
+import dev.sixik.unigui.api.event.ScrollEvent;
+import dev.sixik.unigui.api.input.KeyModifiers;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.layout.Overflow;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3ScrollAdapter;
+import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.core.Orientation;
+import dev.sixik.unigui.widgets.interaction.ScrollBar;
+
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Контейнер viewport'а для одного большого content-виджета.
+ *
+ * <p>{@code ScrollView} измеряет content, вычисляет видимую область и при
+ * необходимости показывает горизонтальный/вертикальный {@link ScrollBar}. Оси
+ * скролла включаются через {@code layoutStyle().overflowX/Y(...)}: обычно
+ * {@link Overflow#AUTO} показывает scrollbar только при переполнении, а
+ * {@link Overflow#SCROLL} резервирует его всегда.</p>
+ *
+ * <p>Если явный {@link #contentSize(float, float)} не задан, scroll extent
+ * берётся из measured-size content'а. Позиция скролла всегда зажимается в
+ * диапазон {@code 0..maxScrollX/Y}. Колесо мыши скроллит обе оси, а
+ * {@code Shift + vertical wheel} переключает вертикальный wheel в горизонтальный
+ * скролл, если горизонтальная ось доступна.</p>
+ *
+ * <pre>{@code
+ * ScrollView listViewport = new ScrollView(list)
+ *         .scrollStep(18.0f)
+ *         .scrollbarGap(2.0f);
+ * listViewport.layout(style -> style
+ *         .overflowX(Overflow.HIDDEN)
+ *         .overflowY(Overflow.AUTO));
+ * }</pre>
+ *
+ * @see ScrollBar
+ * @see Overflow
+ */
+@AiDoc(
+        summary = "Scrollable viewport container that hosts a single child content widget with horizontal and vertical scrolling support.",
+        purpose = "Displays large content inside a constrained viewing region, managing scroll offsets, clamping, wheel inputs, and scrollbar rendering.",
+        useWhen = {
+                "Child content may exceed visible container boundaries: item lists, text views, large canvas boards.",
+                "Require customizable overlay or reserved scrollbars with smooth wheel scrolling and Shift-axis toggling."
+        },
+        criticalRules = {
+                "A ScrollView hosts exactly one content widget set via content(Widget).",
+                "Scrolling axes are controlled by layoutStyle().overflowX/Y(...), with Overflow.AUTO showing bars when content overflows, and Overflow.HIDDEN disabling that axis.",
+                "By default overlayScrollBars is enabled, meaning scrollbars float over content rather than shrinking the viewport."
+        },
+        related = {"Box", "VBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "Create ScrollView with vertical auto scroll",
+                code = "ScrollView scroll = new ScrollView(largeWidget).scrollStep(18.0f);\nscroll.layout(style -> style.overflowX(Overflow.HIDDEN).overflowY(Overflow.AUTO));"))
+@WikiPage(
+        title = "<key:scroll.view.title>",
+        slug = "scroll-view",
+        category = "<key:scroll.view.category>",
+        summary = "<key:scroll.view.summary>",
+        order = 110)
+@WikiSection(title = "<key:scroll.view.section.overview.title>",
+        markdown = "<key:scroll.view.section.overview.body>", order = 10)
+@WikiSection(title = "<key:scroll.view.section.bars.title>",
+        markdown = "<key:scroll.view.section.bars.body>", order = 20)
+@WikiExample(title = "<key:scroll.view.example.basic.title>",
+        code = "<key:scroll.view.example.basic.code>", order = 10)
+@WikiLink(label = "Box", target = "page:box")
+@WikiLink(label = "VBox", target = "page:vbox")
+@WikiLink(label = "PanelWidget", target = "page:panel-widget")
+@XamlWidget("ScrollView")
+public class ScrollView extends WidgetBase {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.SCROLL_VIEW;
+
+    private final MutableColor scrollbarTrackColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.28f);
+    private final MutableColor scrollbarThumbColor = new MutableColor(0.55f, 0.58f, 0.62f, 0.60f);
+    private final MutableColor scrollbarThumbHoverColor = new MutableColor(0.80f, 0.82f, 0.86f, 0.90f);
+    private final ScrollBar horizontalScrollBar = new ScrollBar().orientation(Orientation.HORIZONTAL);
+    private final ScrollBar verticalScrollBar = new ScrollBar().orientation(Orientation.VERTICAL);
+    private Widget content;
+    private float contentWidth;
+    private float contentHeight;
+    private float measuredContentWidth;
+    private float measuredContentHeight;
+    /**
+     * Ширина, с которой контент был измерен в последний раз; {@code NaN}, если ширина не ограничивалась.
+     */
+    private float measuredForWidth = Float.NaN;
+    private float scrollX;
+    private float scrollY;
+    private float scrollStep = 16.0f;
+    private float scrollbarGap = ScrollBar.DEFAULT_GAP;
+    private float scrollbarSize = ScrollBar.DEFAULT_SIZE;
+    private float overlayInset = 3.0f;
+    private boolean overlayScrollBars = true;
+    private boolean scrollingEnabled = true;
+    private boolean consumeWheelAtScrollBounds = true;
+    private boolean horizontalScrollBarVisible;
+    private boolean verticalScrollBarVisible;
+    private List<Widget> childrenView = Collections.emptyList();
+    private boolean childrenViewDirty = true;
+    private boolean childrenViewHasHorizontalScrollBar;
+    private boolean childrenViewHasVerticalScrollBar;
+    private boolean tickCullingEnabled = true;
+
+    /**
+     * Создаёт пустой scroll viewport с {@code overflowX=HIDDEN} и {@code overflowY=AUTO}.
+     */
+    public ScrollView() {
+        layout(style -> style
+                .overflowX(Overflow.HIDDEN)
+                .overflowY(Overflow.AUTO));
+        scrollbarTrackColor.onChanged(() -> {
+            horizontalScrollBar.trackColor().set(scrollbarTrackColor);
+            verticalScrollBar.trackColor().set(scrollbarTrackColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        scrollbarThumbColor.onChanged(() -> {
+            horizontalScrollBar.thumbColor().set(scrollbarThumbColor);
+            verticalScrollBar.thumbColor().set(scrollbarThumbColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        scrollbarThumbHoverColor.onChanged(() -> {
+            horizontalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+            verticalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+            invalidate(InvalidationFlags.VISUAL);
+        });
+        horizontalScrollBar.setParentInternal(this);
+        verticalScrollBar.setParentInternal(this);
+        horizontalScrollBar.trackColor().set(scrollbarTrackColor);
+        horizontalScrollBar.thumbColor().set(scrollbarThumbColor);
+        horizontalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+        verticalScrollBar.trackColor().set(scrollbarTrackColor);
+        verticalScrollBar.thumbColor().set(scrollbarThumbColor);
+        verticalScrollBar.thumbHoverColor().set(scrollbarThumbHoverColor);
+        horizontalScrollBar.onValueChanged(event -> scrollTo(event.newValue(), scrollY));
+        verticalScrollBar.onValueChanged(event -> scrollTo(scrollX, event.newValue()));
+    }
+
+    /**
+     * Создаёт scroll viewport с начальным content-виджетом.
+     *
+     * @param content content, который будет расположен внутри viewport'а
+     */
+    public ScrollView(Widget content) {
+        this();
+        content(content);
+    }
+
+    /**
+     * Возвращает текущий content-виджет.
+     *
+     * @return content или {@code null}
+     */
+    public Widget content() {
+        return content;
+    }
+
+    /**
+     * Заменяет content-виджет внутри scroll viewport'а.
+     *
+     * <p>У старого content'а сбрасываются parent/UI context, у нового —
+     * назначаются текущие parent/UI context. Сам {@code ScrollView} не может
+     * быть собственным content'ом.</p>
+     *
+     * @param content новый content или {@code null}
+     * @return этот scroll view для fluent-настройки
+     * @throws IllegalArgumentException если передан сам {@code ScrollView}
+     */
+    @WikiMethod(order = 10, title = "<key:scroll.view.method.content.title>", summary = "<key:scroll.view.method.content>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Content", sectionOrder = 10, order = 10, summary = "Sets the single content widget inside this scroll viewport.")
+    public ScrollView content(@WikiParameter(description = "<key:scroll.view.param.content>") Widget content) {
+        if (this.content == content) return this;
+        if (content == this) throw new IllegalArgumentException("ScrollView cannot contain itself");
+        detachContent();
+        this.content = content;
+        attachContent(content);
+        markChildrenViewDirty();
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает явно заданную ширину content extent'а.
+     *
+     * @return ширина content'а; {@code 0} означает использовать measured width
+     */
+    public float contentWidth() {
+        return contentWidth;
+    }
+
+    @XamlProperty(value = "contentWidth", category = "Layout", defaultValue = "0", description = "Explicit scroll content width; 0 uses measured width.")
+    public ScrollView contentWidth(float contentWidth) {
+        return contentSize(contentWidth, contentHeight);
+    }
+
+    /**
+     * Возвращает явно заданную высоту content extent'а.
+     *
+     * @return высота content'а; {@code 0} означает использовать measured height
+     */
+    public float contentHeight() {
+        return contentHeight;
+    }
+
+    @XamlProperty(value = "contentHeight", category = "Layout", defaultValue = "0", description = "Explicit scroll content height; 0 uses measured height.")
+    public ScrollView contentHeight(float contentHeight) {
+        return contentSize(contentWidth, contentHeight);
+    }
+
+    /**
+     * Задаёт явный scroll extent content'а.
+     *
+     * <p>Значения зажимаются к {@code >= 0}. Если размер равен {@code 0}, для
+     * соответствующей оси используется measured-size content'а.</p>
+     *
+     * @param width  ширина scroll content'а
+     * @param height высота scroll content'а
+     * @return этот scroll view для fluent-настройки
+     */
+    public ScrollView contentSize(float width, float height) {
+        float normalizedWidth = Math.max(0.0f, width);
+        float normalizedHeight = Math.max(0.0f, height);
+        if (contentWidth == normalizedWidth && contentHeight == normalizedHeight) return this;
+        contentWidth = normalizedWidth;
+        contentHeight = normalizedHeight;
+        scrollTo(scrollX, scrollY);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает горизонтальную позицию скролла.
+     *
+     * @return x-offset content'а относительно viewport'а
+     */
+    public float scrollX() {
+        return scrollX;
+    }
+
+    /**
+     * Возвращает вертикальную позицию скролла.
+     *
+     * @return y-offset content'а относительно viewport'а
+     */
+    public float scrollY() {
+        return scrollY;
+    }
+
+    /**
+     * Возвращает множитель wheel/page step'а.
+     *
+     * @return количество UI-пикселей на единицу scroll delta
+     */
+    public float scrollStep() {
+        return scrollStep;
+    }
+
+    /**
+     * Задаёт множитель wheel/page step'а.
+     *
+     * @param scrollStep количество UI-пикселей на единицу scroll delta; минимум {@code 1}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "scrollStep", category = "Behavior", defaultValue = "16", description = "UI pixels scrolled per wheel/page delta unit.")
+    @WikiMethod(order = 40, title = "<key:scroll.view.method.scroll_step.title>", summary = "<key:scroll.view.method.scroll_step>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Behavior", sectionOrder = 30, order = 40, summary = "Sets scroll step multiplier in pixels per wheel unit.")
+    public ScrollView scrollStep(@WikiParameter(description = "<key:scroll.view.param.scroll_step>") float scrollStep) {
+        this.scrollStep = Math.max(1.0f, scrollStep);
+        return this;
+    }
+
+    /**
+     * Возвращает, включён ли пользовательский scrolling.
+     *
+     * @return {@code true}, если wheel и scrollbar'ы могут менять scroll position
+     */
+    public boolean scrollingEnabled() {
+        return scrollingEnabled;
+    }
+
+    /**
+     * Включает или выключает пользовательский scrolling.
+     *
+     * <p>При выключении позиция скролла сбрасывается в {@code 0,0}, а scrollbar'ы
+     * скрываются независимо от overflow-настроек.</p>
+     *
+     * @param scrollingEnabled {@code true}, чтобы разрешить scrolling
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "scrollingEnabled", category = "Behavior", defaultValue = "true", description = "Whether wheel input and scrollbars can change scroll position.")
+    public ScrollView scrollingEnabled(boolean scrollingEnabled) {
+        if (this.scrollingEnabled == scrollingEnabled) return this;
+        this.scrollingEnabled = scrollingEnabled;
+        if (!scrollingEnabled) {
+            horizontalScrollBarVisible = false;
+            verticalScrollBarVisible = false;
+            markChildrenViewDirty();
+            scrollX = 0.0f;
+            scrollY = 0.0f;
+            syncScrollBars();
+        }
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Выключает пользовательский scrolling.
+     *
+     * @return этот scroll view для fluent-настройки
+     */
+    public ScrollView disableScrolling() {
+        return scrollingEnabled(false);
+    }
+
+    /**
+     * Включает пользовательский scrolling.
+     *
+     * @return этот scroll view для fluent-настройки
+     */
+    public ScrollView enableScrolling() {
+        return scrollingEnabled(true);
+    }
+
+    /**
+     * Возвращает, будет ли wheel-событие потребляться на границах scroll range.
+     *
+     * @return {@code true}, если scroll view блокирует propagation wheel'а на своих границах
+     */
+    public boolean consumeWheelAtScrollBounds() {
+        return consumeWheelAtScrollBounds;
+    }
+
+    /**
+     * Управляет потреблением wheel-событий на границах scroll range.
+     *
+     * <p>Если включено, scroll view может отменить wheel-событие даже когда
+     * позиция уже упёрлась в начало/конец, чтобы родительские scroll areas не
+     * начали прокручиваться от того же события.</p>
+     *
+     * @param consumeWheelAtScrollBounds {@code true}, чтобы потреблять wheel на границах
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "consumeWheelAtScrollBounds", category = "Behavior", defaultValue = "true", description = "Whether wheel events are consumed at scroll range boundaries.")
+    public ScrollView consumeWheelAtScrollBounds(boolean consumeWheelAtScrollBounds) {
+        this.consumeWheelAtScrollBounds = consumeWheelAtScrollBounds;
+        return this;
+    }
+
+    /**
+     * Возвращает расстояние между content viewport'ом и scrollbar'ами.
+     *
+     * @return gap в пикселях UI-пространства
+     */
+    public float scrollbarGap() {
+        return scrollbarGap;
+    }
+
+    /**
+     * Задаёт расстояние между content viewport'ом и scrollbar'ами.
+     *
+     * <p>Используется только в reserved-режиме как разделитель. В overlay-режиме
+     * отступ от края задаёт {@link #overlayInset(float)}.</p>
+     *
+     * @param scrollbarGap gap в пикселях UI-пространства; невалидные значения заменяются дефолтом
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "scrollbarGap", category = "Layout", defaultValue = "2", description = "Gap between viewport content and scrollbar tracks.")
+    public ScrollView scrollbarGap(float scrollbarGap) {
+        float normalized = Float.isFinite(scrollbarGap) ? Math.max(0.0f, scrollbarGap) : ScrollBar.DEFAULT_GAP;
+        if (this.scrollbarGap == normalized) return this;
+        this.scrollbarGap = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает толщину scrollbar'ов этого scroll view.
+     *
+     * @return толщина полосы поперёк оси прокрутки в пикселях UI-пространства
+     */
+    public float scrollbarSize() {
+        return scrollbarSize;
+    }
+
+    /**
+     * Задаёт толщину scrollbar'ов этого scroll view.
+     *
+     * <p>По умолчанию используется {@link ScrollBar#DEFAULT_SIZE}. В reserved-режиме
+     * значение влияет на резерв места под полосу: viewport сжимается на
+     * {@code scrollbarSize + scrollbarGap} вдоль активной оси. В overlay-режиме
+     * это ширина хит-зоны полосы; визуальный тамб уже ({@code idleThickness} в
+     * покое, {@code hoverThickness} под курсором) и рисуется внутри неё.</p>
+     *
+     * @param scrollbarSize толщина полосы в пикселях UI-пространства; минимум {@code 1}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "scrollbarSize", category = "Layout", defaultValue = "6", description = "Thickness of the horizontal/vertical scrollbar tracks.")
+    public ScrollView scrollbarSize(float scrollbarSize) {
+        float normalized = Float.isFinite(scrollbarSize) ? Math.max(1.0f, scrollbarSize) : ScrollBar.DEFAULT_SIZE;
+        if (this.scrollbarSize == normalized) return this;
+        this.scrollbarSize = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Прокручивает content к абсолютной позиции.
+     *
+     * <p>Координаты автоматически зажимаются в диапазон
+     * {@code 0..maxScrollX/Y}, а scrollbar'ы синхронизируются без обратного
+     * value callback'а.</p>
+     *
+     * @param x желаемый горизонтальный offset
+     * @param y желаемый вертикальный offset
+     * @return этот scroll view для fluent-настройки
+     */
+    @WikiMethod(order = 20, title = "<key:scroll.view.method.scroll_to.title>", summary = "<key:scroll.view.method.scroll_to>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Navigation", sectionOrder = 20, order = 20, summary = "Scrolls to absolute coordinates clamped to valid bounds.")
+    public ScrollView scrollTo(@WikiParameter(description = "<key:scroll.view.param.scroll_x>") float x,
+                               @WikiParameter(description = "<key:scroll.view.param.scroll_y>") float y) {
+        float clampedX = clamp(x, 0.0f, maxScrollX());
+        float clampedY = clamp(y, 0.0f, maxScrollY());
+        if (scrollX == clampedX && scrollY == clampedY) return this;
+        scrollX = clampedX;
+        scrollY = clampedY;
+        syncScrollBars();
+        arrangeScrolledChildrenNow();
+        // Скролл — чистый сдвиг viewport, геометрия контента не меняется:
+        // только VISUAL, без LAYOUT. Иначе каждый тик колеса запускал бы
+        // полный root.measure + root.arrange + clear всего экрана.
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Прокручивает content относительно текущей позиции.
+     *
+     * @param dx изменение горизонтального offset'а
+     * @param dy изменение вертикального offset'а
+     * @return этот scroll view для fluent-настройки
+     */
+    @WikiMethod(order = 30, title = "<key:scroll.view.method.scroll_by.title>", summary = "<key:scroll.view.method.scroll_by>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Navigation", sectionOrder = 20, order = 30, summary = "Scrolls relatively by dx and dy offsets.")
+    public ScrollView scrollBy(@WikiParameter(description = "<key:scroll.view.param.scroll_dx>") float dx,
+                               @WikiParameter(description = "<key:scroll.view.param.scroll_dy>") float dy) {
+        return scrollTo(scrollX + dx, scrollY + dy);
+    }
+
+    /**
+     * Возвращает максимальный горизонтальный scroll offset.
+     *
+     * @return {@code 0}, если горизонтальный scrolling выключен или content помещается
+     */
+    public float maxScrollX() {
+        if (!scrollingEnabled || !horizontalScrollingEnabled()) return 0.0f;
+        return Math.max(0.0f, effectiveContentWidth() - viewportWidth());
+    }
+
+    /**
+     * Возвращает максимальный вертикальный scroll offset.
+     *
+     * @return {@code 0}, если вертикальный scrolling выключен или content помещается
+     */
+    public float maxScrollY() {
+        if (!scrollingEnabled || !verticalScrollingEnabled()) return 0.0f;
+        return Math.max(0.0f, effectiveContentHeight() - viewportHeight());
+    }
+
+    /**
+     * Возвращает live-цвет дорожки scrollbar'ов.
+     *
+     * @return изменяемый цвет track'а для обеих осей
+     */
+    public MutableColor scrollbarTrackColor() {
+        return scrollbarTrackColor;
+    }
+
+    /**
+     * Возвращает live-цвет thumb scrollbar'ов.
+     *
+     * @return изменяемый цвет thumb'а для обеих осей
+     */
+    public MutableColor scrollbarThumbColor() {
+        return scrollbarThumbColor;
+    }
+
+    /**
+     * Возвращает live-цвет thumb scrollbar'ов под курсором и в драге.
+     *
+     * @return изменяемый hover-цвет thumb'а для обеих осей
+     */
+    public MutableColor scrollbarThumbHoverColor() {
+        return scrollbarThumbHoverColor;
+    }
+
+    /**
+     * Возвращает, рисуются ли scrollbar'ы поверх контента без резерва места.
+     *
+     * @return {@code true} для overlay-полос (modern default)
+     */
+    public boolean overlayScrollBars() {
+        return overlayScrollBars;
+    }
+
+    /**
+     * Переключает overlay- и reserved-режим scrollbar'ов.
+     *
+     * <p>Overlay (default): полосы плавают поверх контента у края вьюпорта,
+     * контент занимает всю ширину — как в современных редакторах. Reserved:
+     * классика, под полосы резервируется {@code scrollbarSize + scrollbarGap},
+     * контент сужается.</p>
+     *
+     * @param overlayScrollBars {@code true} для overlay-полос
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "overlayScrollBars", category = "Behavior", defaultValue = "true", description = "Whether scrollbars float above content without reserving layout space.")
+    @WikiMethod(order = 50, title = "<key:scroll.view.method.overlay_scrollbars.title>", summary = "<key:scroll.view.method.overlay_scrollbars>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Appearance", sectionOrder = 40, order = 50, summary = "Toggles overlay vs reserved scrollbar mode.")
+    public ScrollView overlayScrollBars(@WikiParameter(description = "<key:scroll.view.param.overlay_scrollbars>") boolean overlayScrollBars) {
+        if (this.overlayScrollBars == overlayScrollBars) return this;
+        this.overlayScrollBars = overlayScrollBars;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает отступ overlay-полос от края вьюпорта.
+     *
+     * @return inset в пикселях UI-пространства; используется только в overlay-режиме
+     */
+    public float overlayInset() {
+        return overlayInset;
+    }
+
+    /**
+     * Задаёт отступ overlay-полос от края вьюпорта.
+     *
+     * @param overlayInset inset в пикселях; отрицательные приводятся к {@code 0}
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "overlayInset", category = "Layout", defaultValue = "3", description = "Inset of overlay scrollbars from the viewport edge.")
+    public ScrollView overlayInset(float overlayInset) {
+        float normalized = Float.isFinite(overlayInset) ? Math.max(0.0f, overlayInset) : 3.0f;
+        if (this.overlayInset == normalized) return this;
+        this.overlayInset = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает вертикальный scrollbar.
+     *
+     * <p>Scrollbar принадлежит этому {@code ScrollView}; его можно стилизовать,
+     * но не нужно добавлять в другой контейнер вручную.</p>
+     *
+     * @return внутренний вертикальный scrollbar
+     */
+    public ScrollBar verticalScrollBar() {
+        return verticalScrollBar;
+    }
+
+    /**
+     * Возвращает горизонтальный scrollbar.
+     *
+     * <p>Scrollbar принадлежит этому {@code ScrollView}; его можно стилизовать,
+     * но не нужно добавлять в другой контейнер вручную.</p>
+     *
+     * @return внутренний горизонтальный scrollbar
+     */
+    public ScrollBar horizontalScrollBar() {
+        return horizontalScrollBar;
+    }
+
+    @Override
+    public void setUiContextInternal(UIContext uiContext) {
+        super.setUiContextInternal(uiContext);
+        attachContent(content);
+        horizontalScrollBar.setParentInternal(this);
+        horizontalScrollBar.setUiContextInternal(uiContext);
+        verticalScrollBar.setParentInternal(this);
+        verticalScrollBar.setUiContextInternal(uiContext);
+    }
+
+    /**
+     * Возвращает content и видимые scrollbar'ы как дочерние виджеты.
+     *
+     * <p>Список пересобирается лениво, когда меняется видимость scrollbar'ов
+     * или content. Это сохраняет обычную event/navigation модель для внутренних
+     * scrollbar'ов.</p>
+     *
+     * @return неизменяемый список текущих детей scroll view
+     */
+    @Override
+    public List<Widget> children() {
+        boolean horizontalVisible = showsHorizontalScrollBar();
+        boolean verticalVisible = showsVerticalScrollBar();
+        if (childrenViewDirty
+                || childrenViewHasHorizontalScrollBar != horizontalVisible
+                || childrenViewHasVerticalScrollBar != verticalVisible) {
+            if (content == null && !horizontalVisible && !verticalVisible) {
+                childrenView = Collections.emptyList();
+            } else {
+                List<Widget> children = new ObjectArrayList<>(3);
+                if (content != null) {
+                    children.add(content);
+                }
+                if (horizontalVisible) {
+                    children.add(horizontalScrollBar);
+                }
+                if (verticalVisible) {
+                    children.add(verticalScrollBar);
+                }
+                childrenView = Collections.unmodifiableList(children);
+            }
+            childrenViewHasHorizontalScrollBar = horizontalVisible;
+            childrenViewHasVerticalScrollBar = verticalVisible;
+            childrenViewDirty = false;
+        }
+        return childrenView;
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == dev.sixik.unigui.api.widget.Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
+        }
+        if (content != null) {
+            LayoutV3ScrollAdapter.Extent extent = LayoutV3ScrollAdapter.measureContent(
+                    content,
+                    context,
+                    horizontalScrollingEnabled(),
+                    verticalScrollingEnabled());
+            measuredContentWidth = extent.contentWidth();
+            measuredContentHeight = extent.contentHeight();
+            measuredForWidth = horizontalScrollingEnabled() || context == null
+                    ? Float.NaN : context.availableWidth();
+            float desiredWidth = contentWidth > 0.0f ? contentWidth : measuredContentWidth;
+            float desiredHeight = contentHeight > 0.0f ? contentHeight : measuredContentHeight;
+            setDesiredSize(resolveDesiredSize(context, desiredWidth, desiredHeight));
+        } else {
+            measuredContentWidth = 0.0f;
+            measuredContentHeight = 0.0f;
+            setDesiredSize(resolveDesiredSize(context, 0.0f, 0.0f));
+        }
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        super.arrange(bounds);
+        remeasureContentForViewport();
+        updateScrollBarVisibility();
+        // Появившаяся полоса прокрутки сужает viewport, а высота контента с переносами зависит от ширины.
+        remeasureContentForViewport();
+        scrollTo(scrollX, scrollY);
+        arrangeContent();
+        arrangeScrollBars();
+    }
+
+    @Override
+    public void tick(FrameContext frame) {
+        super.tick(frame);
+        if (content != null && content.visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+            if (tickCullingEnabled && visibility() == dev.sixik.unigui.api.widget.Visibility.VISIBLE) {
+                MutableRect viewportBounds = new MutableRect(
+                        layoutBounds().x(),
+                        layoutBounds().y(),
+                        viewportWidth(),
+                        viewportHeight());
+                RectView previous = PanelWidget.pushTickCullBounds(viewportBounds);
+                try {
+                    content.tick(frame);
+                } finally {
+                    PanelWidget.restoreTickCullBounds(previous);
+                }
+            } else {
+                content.tick(frame);
+            }
+        }
+        if (showsHorizontalScrollBar()) {
+            horizontalScrollBar.tick(frame);
+        }
+        if (showsVerticalScrollBar()) {
+            verticalScrollBar.tick(frame);
+        }
+    }
+
+    /**
+     * Возвращает, пропускается ли tick виджетов вне видимого viewport.
+     *
+     * <p>По умолчанию {@code true}: внеэкранные дети контента не тикают
+     * (анимации/таймеры в них останавливаются за кадром). Рендер таких детей
+     * и так отсекается через clip + render cull bounds.</p>
+     */
+    public boolean tickCullingEnabled() {
+        return tickCullingEnabled;
+    }
+
+    /**
+     * Включает или выключает пропуск tick внеэкранного контента.
+     *
+     * <p>Выключай, если контент за кадром обязан тикать: фоновые таймеры,
+     * progress-бары, live-данные. Рендер-куллинг при этом продолжает работать.</p>
+     *
+     * @param tickCullingEnabled {@code true}, чтобы тикали только видимые виджеты
+     * @return этот scroll view для fluent-настройки
+     */
+    @XamlProperty(value = "tickCulling", category = "Behavior", defaultValue = "true", description = "Whether widgets outside the visible viewport skip tick.")
+    public ScrollView tickCullingEnabled(boolean tickCullingEnabled) {
+        this.tickCullingEnabled = tickCullingEnabled;
+        return this;
+    }
+
+    @Override
+    public void render(RenderContext context) {
+        pushOpacity(context);
+        try {
+            if (content != null) {
+                boolean clipsContent = clipsContent();
+                MutableRect viewportBounds = new MutableRect(
+                        layoutBounds().x(),
+                        layoutBounds().y(),
+                        viewportWidth(),
+                        viewportHeight());
+                if (clipsContent) {
+                    context.pushClip(viewportBounds.x(), viewportBounds.y(), viewportBounds.width(), viewportBounds.height());
+                }
+                RectView previousCullBounds = PanelWidget.pushRenderCullBounds(viewportBounds);
+                try {
+                    context.pushTextPixelSnap(false);
+                    renderChildWithInheritedTransform(context, content);
+                } finally {
+                    context.popTextPixelSnap();
+                    PanelWidget.restoreRenderCullBounds(previousCullBounds);
+                    if (clipsContent) {
+                        context.popClip();
+                    }
+                }
+            }
+            if (showsHorizontalScrollBar()) {
+                renderChildWithInheritedTransform(context, horizontalScrollBar);
+            }
+            if (showsVerticalScrollBar()) {
+                renderChildWithInheritedTransform(context, verticalScrollBar);
+            }
+        } finally {
+            popOpacity(context);
+        }
+    }
+
+    @Override
+    public void handle(Event event) {
+        super.handle(event);
+        if (event.isCancelled()) return;
+        if (scrollingEnabled && event instanceof ScrollEvent scroll && scroll.phase() != EventPhase.CAPTURE) {
+            float beforeX = scrollX;
+            float beforeY = scrollY;
+            boolean horizontalOnly = !verticalScrollingEnabled() && horizontalScrollingEnabled();
+            boolean shiftHorizontal = (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) || horizontalOnly)
+                    && maxScrollX() > 0.0f
+                    && scroll.deltaY() != 0.0f;
+            if (shiftHorizontal) {
+                scrollBy(-scroll.deltaY() * scrollStep, 0.0f);
+            } else {
+                scrollBy(-scroll.deltaX() * scrollStep, -scroll.deltaY() * scrollStep);
+            }
+            if (beforeX != scrollX || beforeY != scrollY) {
+                syncScrollBars();
+                event.cancel();
+            } else if (consumeWheelAtScrollBounds && canScrollWheel(scroll)) {
+                event.cancel();
+            }
+        }
+    }
+
+    @Override
+    public void dispose() {
+        if (content != null) {
+            content.dispose();
+        }
+        detachContent();
+        content = null;
+        horizontalScrollBar.setParentInternal(null);
+        horizontalScrollBar.setUiContextInternal(null);
+        verticalScrollBar.setParentInternal(null);
+        verticalScrollBar.setUiContextInternal(null);
+        super.dispose();
+    }
+
+    private void arrangeScrolledChildrenNow() {
+        if (layoutBounds().width() <= 0.0f && layoutBounds().height() <= 0.0f) return;
+        arrangeContent();
+        arrangeScrollBars();
+    }
+
+    /**
+     * Перемеряет контент по ширине, с которой он реально будет выложен.
+     *
+     * <p>Без горизонтальной прокрутки ширина контента равна ширине viewport, но {@link #measure} получает
+     * ширину родителя, которая может отличаться (например, split-панель мерила детей до раздачи долей).
+     * Высота контента с переносами (flex-wrap, текст) зависит от ширины, поэтому при расхождении
+     * extent оказывался занижен: прокрутка и полоса прокрутки не появлялись, а часть контента обрезалась.</p>
+     */
+    private void remeasureContentForViewport() {
+        if (content == null || horizontalScrollingEnabled()) return;
+        float width = viewportWidth();
+        if (width <= 0.0f || Math.abs(width - measuredForWidth) < 0.5f) return;
+        LayoutV3ScrollAdapter.Extent extent = LayoutV3ScrollAdapter.measureContent(
+                content,
+                new LayoutContext(width, Math.max(0.0f, layoutBounds().height())),
+                false,
+                verticalScrollingEnabled());
+        measuredContentWidth = extent.contentWidth();
+        measuredContentHeight = extent.contentHeight();
+        measuredForWidth = width;
+    }
+
+    private void arrangeContent() {
+        if (content == null) return;
+        StackPanel.arrangeChild(content,
+                layoutBounds().x() - scrollX,
+                layoutBounds().y() - scrollY,
+                effectiveContentWidth(),
+                effectiveContentHeight());
+    }
+
+    private void arrangeScrollBars() {
+        if (overlayScrollBars) {
+            arrangeOverlayScrollBars();
+            syncScrollBars();
+            return;
+        }
+        if (showsHorizontalScrollBar()) {
+            float horizontalInset = showsVerticalScrollBar() ? scrollbarGap * 0.5f : 0.0f;
+            horizontalScrollBar.arrange(new MutableRect(
+                    layoutBounds().x() + horizontalInset,
+                    layoutBounds().y() + viewportHeight() + scrollbarGap,
+                    viewportWidth(),
+                    scrollbarSize));
+        }
+        if (showsVerticalScrollBar()) {
+            verticalScrollBar.arrange(new MutableRect(
+                    layoutBounds().x() + viewportWidth() + scrollbarGap,
+                    layoutBounds().y(),
+                    scrollbarSize,
+                    viewportHeight()));
+        }
+        syncScrollBars();
+    }
+
+    /**
+     * Раскладывает overlay-полосы внутри вьюпорта поверх контента.
+     *
+     * <p>Вертикальная полоса — на всю высоту у правого края, горизонтальная —
+     * на всю ширину минус угол под вертикальную. Контент под полосами виден
+     * (тамб полупрозрачный и узкий в покое), клики по полосе забирает она сама:
+     * в children-порядке полосы идут после контента.</p>
+     */
+    private void arrangeOverlayScrollBars() {
+        float left = layoutBounds().x();
+        float top = layoutBounds().y();
+        float width = layoutBounds().width();
+        float height = layoutBounds().height();
+        if (showsVerticalScrollBar()) {
+            verticalScrollBar.arrange(new MutableRect(
+                    left + width - overlayInset - scrollbarSize,
+                    top,
+                    scrollbarSize,
+                    height));
+        }
+        if (showsHorizontalScrollBar()) {
+            float reservedCorner = showsVerticalScrollBar() ? scrollbarSize + overlayInset : 0.0f;
+            horizontalScrollBar.arrange(new MutableRect(
+                    left,
+                    top + height - overlayInset - scrollbarSize,
+                    Math.max(0.0f, width - reservedCorner),
+                    scrollbarSize));
+        }
+    }
+
+    private void syncScrollBars() {
+        horizontalScrollBar
+                .range(0.0f, maxScrollX())
+                .pageSize(Math.max(1.0f, viewportWidth()))
+                .step(scrollStep)
+                .silentValue(scrollX);
+        verticalScrollBar
+                .range(0.0f, maxScrollY())
+                .pageSize(Math.max(1.0f, viewportHeight()))
+                .step(scrollStep)
+                .silentValue(scrollY);
+    }
+
+    private void updateScrollBarVisibility() {
+        if (!scrollingEnabled) {
+            if (horizontalScrollBarVisible || verticalScrollBarVisible) {
+                markChildrenViewDirty();
+            }
+            horizontalScrollBarVisible = false;
+            verticalScrollBarVisible = false;
+            return;
+        }
+        boolean horizontal = effectiveOverflowX() == Overflow.SCROLL;
+        boolean vertical = effectiveOverflowY() == Overflow.SCROLL;
+        float width = Math.max(0.0f, layoutBounds().width());
+        float height = Math.max(0.0f, layoutBounds().height());
+
+        for (int pass = 0; pass < 4; pass++) {
+            float candidateWidth = Math.max(0.0f, width - (vertical ? scrollbarReservation() : 0.0f));
+            float candidateHeight = Math.max(0.0f, height - (horizontal ? scrollbarReservation() : 0.0f));
+            boolean nextHorizontal = effectiveOverflowX() == Overflow.SCROLL
+                    || (effectiveOverflowX() == Overflow.AUTO
+                    && rawContentWidth() > candidateWidth);
+            boolean nextVertical = effectiveOverflowY() == Overflow.SCROLL
+                    || (effectiveOverflowY() == Overflow.AUTO
+                    && rawContentHeight() > candidateHeight);
+            if (horizontal == nextHorizontal && vertical == nextVertical) break;
+            horizontal = nextHorizontal;
+            vertical = nextVertical;
+        }
+
+        if (horizontalScrollBarVisible != horizontal || verticalScrollBarVisible != vertical) {
+            markChildrenViewDirty();
+        }
+        horizontalScrollBarVisible = horizontal;
+        verticalScrollBarVisible = vertical;
+    }
+
+    private float viewportWidth() {
+        return Math.max(0.0f, layoutBounds().width()
+                - (showsVerticalScrollBar() ? scrollbarReservation() : 0.0f));
+    }
+
+    private float viewportHeight() {
+        return Math.max(0.0f, layoutBounds().height()
+                - (showsHorizontalScrollBar() ? scrollbarReservation() : 0.0f));
+    }
+
+    private float scrollbarReservation() {
+        if (overlayScrollBars) return 0.0f;
+        return scrollbarSize + scrollbarGap;
+    }
+
+    private float effectiveContentWidth() {
+        if (!horizontalScrollingEnabled()) {
+            return viewportWidth();
+        }
+        if (contentWidth > 0.0f) {
+            return contentWidth;
+        }
+        return Math.max(measuredContentWidth, viewportWidth());
+    }
+
+    private float effectiveContentHeight() {
+        if (!verticalScrollingEnabled()) {
+            return viewportHeight();
+        }
+        if (contentHeight > 0.0f) {
+            return contentHeight;
+        }
+        return Math.max(measuredContentHeight, viewportHeight());
+    }
+
+    private float rawContentWidth() {
+        return contentWidth > 0.0f ? contentWidth : measuredContentWidth;
+    }
+
+    private float rawContentHeight() {
+        return contentHeight > 0.0f ? contentHeight : measuredContentHeight;
+    }
+
+    private boolean horizontalScrollingEnabled() {
+        if (!scrollingEnabled) return false;
+        Overflow overflow = effectiveOverflowX();
+        return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
+    }
+
+    private boolean verticalScrollingEnabled() {
+        if (!scrollingEnabled) return false;
+        Overflow overflow = effectiveOverflowY();
+        return overflow == Overflow.AUTO || overflow == Overflow.SCROLL;
+    }
+
+    private boolean canScrollWheel(ScrollEvent scroll) {
+        if (scroll.deltaX() != 0.0f && maxScrollX() > 0.0f) return true;
+        if (scroll.deltaY() != 0.0f && maxScrollY() > 0.0f) return true;
+        boolean horizontalOnly = !verticalScrollingEnabled() && horizontalScrollingEnabled();
+        return (KeyModifiers.has(scroll.modifiers(), KeyModifiers.SHIFT) || horizontalOnly)
+                && scroll.deltaY() != 0.0f
+                && maxScrollX() > 0.0f;
+    }
+
+    private boolean showsHorizontalScrollBar() {
+        return effectiveOverflowX() == Overflow.SCROLL
+                || (effectiveOverflowX() == Overflow.AUTO && horizontalScrollBarVisible);
+    }
+
+    private boolean showsVerticalScrollBar() {
+        return effectiveOverflowY() == Overflow.SCROLL
+                || (effectiveOverflowY() == Overflow.AUTO && verticalScrollBarVisible);
+    }
+
+    private Overflow effectiveOverflowX() {
+        return Overflow.effectiveHorizontal(layoutStyle().overflowX(), layoutStyle().overflowY());
+    }
+
+    private Overflow effectiveOverflowY() {
+        return Overflow.effectiveVertical(layoutStyle().overflowX(), layoutStyle().overflowY());
+    }
+
+    private boolean clipsContent() {
+        return layoutStyle().overflowX() != Overflow.VISIBLE
+                || layoutStyle().overflowY() != Overflow.VISIBLE;
+    }
+
+    private void attachContent(Widget widget) {
+        if (widget instanceof WidgetBase base) {
+            base.setParentInternal(this);
+            base.setUiContextInternal(uiContext());
+        }
+    }
+
+    private void detachContent() {
+        Widget previous = content;
+        content = null;
+        if (previous instanceof WidgetBase base) {
+            base.setParentInternal(null);
+            base.setUiContextInternal(null);
+        }
+        markChildrenViewDirty();
+    }
+
+    private void markChildrenViewDirty() {
+        childrenViewDirty = true;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+}

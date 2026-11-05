@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /** Откладывает vanilla tooltip, чтобы screen-overlay не перекрывал их. */
 @Mixin(GuiGraphics.class)
@@ -29,13 +29,12 @@ public abstract class MixinGuiGraphicsTooltipOrder implements DeferredMinecraftT
     @Unique
     private boolean unigui$replayingTooltips;
 
-    @Shadow
-    protected abstract void renderTooltipInternal(
-            Font font,
-            List<ClientTooltipComponent> components,
-            int mouseX,
-            int mouseY,
-            ClientTooltipPositioner positioner);
+    /**
+     * Приватный vanilla-метод ищется по сигнатуре, а не через {@code @Shadow}: так он находится при любых маппингах
+     * (в production Forge он называется {@code m_280497_}) и не ломает загрузку миксина.
+     */
+    @Unique
+    private static final Method unigui$renderTooltipInternal = unigui$findRenderTooltipInternal();
 
     @Inject(method = "renderTooltipInternal", at = @At("HEAD"), cancellable = true)
     private void unigui$deferTooltip(Font font,
@@ -71,13 +70,40 @@ public abstract class MixinGuiGraphicsTooltipOrder implements DeferredMinecraftT
         try {
             for (UniGuiDeferredTooltip tooltip : unigui$deferredTooltips) {
                 unigui$setTooltipStack(tooltip.stack());
-                renderTooltipInternal(
-                        tooltip.font(), tooltip.components(), tooltip.mouseX(), tooltip.mouseY(), tooltip.positioner());
+                unigui$invokeRenderTooltipInternal(tooltip);
             }
         } finally {
             unigui$setTooltipStack(previousStack);
             unigui$replayingTooltips = false;
             unigui$deferredTooltips.clear();
+        }
+    }
+
+    @Unique
+    private static Method unigui$findRenderTooltipInternal() {
+        for (Method method : GuiGraphics.class.getDeclaredMethods()) {
+            Class<?>[] types = method.getParameterTypes();
+            if (method.getReturnType() != void.class || types.length != 5) continue;
+            if (types[0] != Font.class || types[1] != List.class || types[2] != int.class
+                    || types[3] != int.class || types[4] != ClientTooltipPositioner.class) continue;
+            try {
+                method.setAccessible(true);
+                return method;
+            } catch (RuntimeException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    @Unique
+    private void unigui$invokeRenderTooltipInternal(UniGuiDeferredTooltip tooltip) {
+        if (unigui$renderTooltipInternal == null) return;
+        try {
+            unigui$renderTooltipInternal.invoke(this,
+                    tooltip.font(), tooltip.components(), tooltip.mouseX(), tooltip.mouseY(), tooltip.positioner());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot replay deferred tooltip", e);
         }
     }
 

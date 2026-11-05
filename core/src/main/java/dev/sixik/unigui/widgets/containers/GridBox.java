@@ -1,0 +1,228 @@
+package dev.sixik.unigui.widgets.containers;
+
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
+import dev.sixik.unigui.api.core.InvalidationFlags;
+import dev.sixik.unigui.api.layout.GridAutoFlow;
+import dev.sixik.unigui.api.layout.GridTrack;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.layout.LayoutSize;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.widget.Visibility;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.XamlProperty;
+import dev.sixik.unigui.xaml.XamlWidget;
+import dev.sixik.unigui.impl.layout.SlotLayout;
+import dev.sixik.unigui.impl.layout.v3.LayoutV3GridAdapter;
+
+/**
+ * Простая равномерная сетка с фиксированным количеством колонок.
+ *
+ * <p>{@code GridBox} раскладывает видимые дочерние виджеты построчно: индекс
+ * ребёнка определяет строку и колонку. Количество колонок всегда не меньше
+ * единицы, а расстояния между ячейками задаются отдельно по горизонтали и
+ * вертикали.</p>
+ *
+ * <p>Размеры и alignment конкретного ребёнка продолжают задаваться через его
+ * {@code LayoutConstraints}/{@code LayoutStyle}; сам контейнер отвечает только
+ * за разбиение доступной области на ячейки.</p>
+ */
+@AiDoc(
+        summary = "Multi-column grid container placing children into uniform cells or custom track templates.",
+        purpose = "Arranges children row by row into uniform columns or CSS Grid tracks with independent horizontal/vertical spacing.",
+        useWhen = {
+                "Display items in a grid: inventory slots, gallery tiles, or tabular control panels.",
+                "Define custom column/row sizing tracks using GridTrack templates."
+        },
+        criticalRules = {
+                "columns() must be >= 1.",
+                "Custom gridColumns(GridTrack...) overrides uniform column division."
+        },
+        related = {"LayoutStyle", "FlexBox", "PanelWidget"},
+        examples = @AiDoc.Example(
+                title = "3-column grid",
+                code = "GridBox grid = new GridBox().columns(3).spacing(8.0f);"))
+@WikiPage(
+        title = "<key:grid.box.title>",
+        slug = "grid-box",
+        category = "<key:grid.box.category>",
+        summary = "<key:grid.box.summary>",
+        order = 80)
+@WikiSection(title = "<key:grid.box.section.overview.title>",
+        markdown = "<key:grid.box.section.overview.body>", order = 10)
+@WikiExample(title = "<key:grid.box.example.basic.title>",
+        code = "<key:grid.box.example.basic.code>", order = 10)
+@WikiLink(label = "LayoutStyle", target = "page:layout-style")
+@WikiLink(label = "FlexBox", target = "page:flex-box")
+@XamlWidget("GridBox")
+public final class GridBox extends PanelWidget {
+    public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.GRID_BOX;
+
+    private int columns = 1;
+    private float horizontalSpacing;
+    private float verticalSpacing;
+
+    /**
+     * Возвращает количество колонок сетки.
+     *
+     * @return число колонок, минимум {@code 1}
+     */
+    public int columns() {
+        return columns;
+    }
+
+    /**
+     * Задаёт количество колонок сетки.
+     *
+     * @param columns желаемое количество колонок; значения меньше {@code 1} приводятся к {@code 1}
+     * @return эта сетка для fluent-настройки
+     */
+    @XamlProperty(value = "columns", category = "Layout", defaultValue = "1", description = "Number of grid columns.")
+    @WikiMethod(order = 10, title = "<key:grid.box.method.columns.title>", summary = "<key:grid.box.method.columns.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 10, summary = "Sets fixed number of columns for grid arrangement.")
+    public GridBox columns(@WikiParameter(description = "<key:grid.box.method.columns.param>") int columns) {
+        int normalized = Math.max(1, columns);
+        if (this.columns == normalized) return this;
+        this.columns = normalized;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт явный шаблон колонок грида.
+     *
+     * <p>Когда шаблон задан, он заменяет равномерное деление по {@link #columns()}:
+     * треки могут быть фиксированными, процентными, {@code fr}, content-based или
+     * {@code minmax}. Строки без шаблона остаются неявными ({@code auto}).</p>
+     *
+     * @param tracks треки колонок
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridColumns(GridTrack... tracks) {
+        layoutStyle().gridTemplateColumns(tracks);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт явный шаблон строк грида.
+     *
+     * @param tracks треки строк
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridRows(GridTrack... tracks) {
+        layoutStyle().gridTemplateRows(tracks);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт направление автопозиционирования в гриде.
+     *
+     * @param flow направление; {@code null} трактуется как {@link GridAutoFlow#ROW}
+     * @return эта сетка для fluent-настройки
+     */
+    public GridBox gridAutoFlow(GridAutoFlow flow) {
+        layoutStyle().gridAutoFlow(flow);
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает горизонтальный gap между колонками.
+     *
+     * @return расстояние между колонками в пикселях UI-пространства
+     */
+    public float horizontalSpacing() {
+        return horizontalSpacing;
+    }
+
+    /**
+     * Задаёт горизонтальный gap между колонками.
+     *
+     * @param horizontalSpacing расстояние между колонками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
+    @XamlProperty(value = "horizontalSpacing", category = "Layout", defaultValue = "0", description = "Horizontal gap between grid columns.")
+    @WikiMethod(order = 30, title = "<key:grid.box.method.horizontal_spacing.title>", summary = "<key:grid.box.method.horizontal_spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 30, summary = "Sets horizontal gap between columns.")
+    public GridBox horizontalSpacing(@WikiParameter(description = "<key:grid.box.method.horizontal_spacing.param>") float horizontalSpacing) {
+        if (this.horizontalSpacing == horizontalSpacing) return this;
+        this.horizontalSpacing = horizontalSpacing;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Возвращает вертикальный gap между строками.
+     *
+     * @return расстояние между строками в пикселях UI-пространства
+     */
+    public float verticalSpacing() {
+        return verticalSpacing;
+    }
+
+    /**
+     * Задаёт вертикальный gap между строками.
+     *
+     * @param verticalSpacing расстояние между строками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
+    @XamlProperty(value = "verticalSpacing", category = "Layout", defaultValue = "0", description = "Vertical gap between grid rows.")
+    @WikiMethod(order = 40, title = "<key:grid.box.method.vertical_spacing.title>", summary = "<key:grid.box.method.vertical_spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 40, summary = "Sets vertical gap between rows.")
+    public GridBox verticalSpacing(@WikiParameter(description = "<key:grid.box.method.vertical_spacing.param>") float verticalSpacing) {
+        if (this.verticalSpacing == verticalSpacing) return this;
+        this.verticalSpacing = verticalSpacing;
+        invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Задаёт одинаковый gap между строками и колонками.
+     *
+     * @param spacing расстояние между ячейками в пикселях UI-пространства
+     * @return эта сетка для fluent-настройки
+     */
+    @WikiMethod(order = 20, title = "<key:grid.box.method.spacing.title>", summary = "<key:grid.box.method.spacing.summary>")
+    @WikiReturn("<key:widget.base.method.fluent.return>")
+    @AiDoc(section = "Layout", sectionOrder = 10, order = 20, summary = "Sets uniform row and column spacing in UI pixels.")
+    public GridBox spacing(@WikiParameter(description = "<key:grid.box.method.spacing.param>") float spacing) {
+        return horizontalSpacing(spacing).verticalSpacing(spacing);
+    }
+
+    @Override
+    public void measure(LayoutContext context) {
+        if (visibility() == Visibility.COLLAPSED) {
+            setDesiredSize(LayoutSize.ZERO);
+            return;
+        }
+        applyQueuedMutations();
+
+        LayoutSize measured = LayoutV3GridAdapter.measure(
+                children(), columns, horizontalSpacing, verticalSpacing, context, layoutStyle());
+        setDesiredSize(resolveDesiredSize(context, measured.width(), measured.height()));
+    }
+
+    @Override
+    public void arrange(RectView bounds) {
+        mutableLayoutBounds().set(bounds);
+        if (visibility() == Visibility.COLLAPSED) return;
+        applyQueuedMutations();
+        LayoutV3GridAdapter.arrange(children(), columns, horizontalSpacing, verticalSpacing, bounds, layoutStyle());
+    }
+
+    private static void arrangeChild(Widget child, float cellX, float cellY, float cellWidth, float cellHeight) {
+        SlotLayout.arrangeChild(child, cellX, cellY, cellWidth, cellHeight);
+    }
+}
