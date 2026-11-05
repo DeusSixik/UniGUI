@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import dev.sixik.isf.IsfMod;
 import dev.sixik.isf.definition.IsfExpression;
 import dev.sixik.isf.definition.IsfVisualNode;
+import dev.sixik.isf.network.IsfNetwork;
 import dev.sixik.isf.runtime.IsfEvaluationContext;
 import dev.sixik.isf.runtime.IsfExpressionEvaluator;
 import dev.sixik.unigui.api.layout.Align;
@@ -13,8 +14,15 @@ import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.layout.Justify;
 import dev.sixik.unigui.api.layout.PositionType;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.render.ImageFit;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.SliceBorders;
+import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.api.style.WidgetState;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.GridBox;
@@ -22,8 +30,10 @@ import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -49,7 +59,7 @@ final class IsfVisualWidgetFactory {
     private final Button recipePlus = new Button();
     /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
     private static final float CHANCE_TEXT_SIZE = 7.0f;
-    static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/slot.png";
+    static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/dark_slot.png";
     static final String ARROW_TEXTURE = "isf:textures/jei/atlas/gui/recipe_arrow.png";
 
     private final IsfExpressionEvaluator evaluator = new IsfExpressionEvaluator(IsfMod.runtime().functions());
@@ -98,6 +108,7 @@ final class IsfVisualWidgetFactory {
             case "isf:loot_scroll", "loot_scroll" -> lootScroll(node);
             case "isf:entity_or_item", "entity_or_item" -> entityOrItem(node);
             case "isf:transfer_button", "transfer_button" -> transferButton(node);
+            case "isf:mark_button", "mark_button" -> markButton(node);
             default -> {
                 Label unsupported = new Label("Unknown visual widget: " + node.widget());
                 unsupported.color(MutableColor.fromHex("#FF6B6BFF"));
@@ -129,6 +140,45 @@ final class IsfVisualWidgetFactory {
                 value(node, "items"));
         transferButtons.add(button);
         return button;
+    }
+
+    private WidgetBase markButton(IsfVisualNode node) {
+        ToggleButton button = new ToggleButton();
+        button.themeEnabled(false);
+        button.style(style -> style.put(StyleKeys.BORDER_VISIBLE, false)
+                .put(StyleKeys.BACKGROUND_VISIBLE, true)
+                .put(StyleKeys.BACKGROUND_TEXTURE_FIT, ImageFit.NINE_SLICE)
+                .put(StyleKeys.SLICE_BORDERS, SliceBorders.all(1.0f))
+                .put(StyleKeys.BACKGROUND_TEXTURE,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/mark.png"), 11, 11,
+                        TextureOptions.nearest()))
+                .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.CHECKED,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/mark_hovered.png"), 11, 11,
+                        TextureOptions.nearest())));
+        button.layout(style -> style.size(8,8));
+        ResourceLocation itemId = bookmarkItemId(node);
+        // Начальное состояние берём из уже собранных клеток закладок оверлея:
+        // если предмет там есть, кнопка рисуется в CHECKED (своя текстура).
+        button.silentChecked(IsfClient.OVERLAY.bookmarkCells.containsKey(itemId));
+        button.onCheckedChanged(event -> {
+            System.out.println(itemId);
+            // ToggleButton переключил checked до события, поэтому newValue —
+            // целевое состояние: true — добавить в закладки, false — убрать.
+            IsfNetwork.toggleBookmark(itemId, event.newValue());
+        });
+        return button;
+    }
+
+    /**
+     * Предмет, которым управляет mark-кнопка: свойство {@code item} узла, либо
+     * результат рецепта ({@code result}), если свойство не задано.
+     * Воздух и неизвестные id дают {@code null}.
+     */
+    private ResourceLocation bookmarkItemId(IsfVisualNode node) {
+        JsonElement raw = value(node, "item");
+        if (raw == null) raw = context.parameter("result");
+        ResourceLocation id = itemId(firstAlternative(raw));
+        if (id == null) return null;
+        Item item = BuiltInRegistries.ITEM.get(id);
+        return item == null || item == net.minecraft.world.item.Items.AIR ? null : id;
     }
 
     private WidgetBase itemWidget(IsfVisualNode node) {
@@ -166,9 +216,11 @@ final class IsfVisualWidgetFactory {
         String id = string(value(node, "texture"), SLOT_TEXTURE);
         int width = Math.max(1, integer(value(node, "width"), 16));
         int height = Math.max(1, integer(value(node, "height"), 16));
-        dev.sixik.unigui.widgets.display.TextureWidget texture =
-                new dev.sixik.unigui.widgets.display.TextureWidget(
-                        new dev.sixik.unigui.api.render.SimpleTextureHandle(id, width, height));
+        final SimpleTextureHandle handle = new SimpleTextureHandle(id, width, height);
+        TextureWidget texture =
+                new TextureWidget(
+                        handle);
+        texture.style(s -> s.put(StyleKeys.BACKGROUND_TEXTURE, handle));
         texture.layout(style -> style.size(width, height).flexNone());
         return texture;
     }
@@ -176,12 +228,14 @@ final class IsfVisualWidgetFactory {
     private static WidgetBase slotBackground(float size, String textureId) {
         Box background = new Box();
         background.layout(style -> style.size(size, size).flexNone());
-        dev.sixik.unigui.widgets.display.TextureWidget texture =
-                new dev.sixik.unigui.widgets.display.TextureWidget(
-                        new dev.sixik.unigui.api.render.SimpleTextureHandle(textureId, 18, 18));
+        final SimpleTextureHandle handle = new SimpleTextureHandle(textureId, 18, 18);
+        TextureWidget texture =
+                new TextureWidget(
+                        handle);
         // Текстура не участвует в hit-test — она декорация.
         texture.enabled(false);
         texture.layout(style -> style.sizePercent(100.0f, 100.0f).flexNone());
+        texture.style(s -> s.put(StyleKeys.BACKGROUND_TEXTURE, handle));
         background.addChild(texture);
         return background;
     }

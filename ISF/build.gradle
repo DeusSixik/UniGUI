@@ -9,7 +9,7 @@ architectury {
 }
 
 // Имя файла: Название_Лоадер_ВерсияМайна_vВерсияМода, например ISF_Forge_1.20.1_v0.1.0.
-def isfModVersion = versionProject.findProperty('isf_version') ?: '0.1.0'
+def isfModVersion = versionProject.findProperty('isf_version') ?: '1.0.0'
 def isfMinecraftVersion = versionProject.minecraft_version
 
 base {

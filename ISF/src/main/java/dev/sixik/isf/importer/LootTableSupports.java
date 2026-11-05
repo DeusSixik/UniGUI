@@ -991,7 +991,7 @@ public final class LootTableSupports {
         IsfVisualNode source = new IsfVisualNode("source", id("isf:entity_or_item"), Map.of(
                 "item", parameter("source_item"),
                 "entity", parameter("entity_type"),
-                "slot", literal("isf:textures/jei/atlas/gui/slot.png"),
+                "slot", literal("isf:textures/jei/atlas/gui/dark_slot.png"),
                 "width", literal(18),
                 "height", literal(18),
                 "entity_size", literal(36),

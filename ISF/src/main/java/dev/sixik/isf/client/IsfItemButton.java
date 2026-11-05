@@ -10,7 +10,9 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawPoint;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.style.StyleKeys;
+import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -78,13 +80,16 @@ final class IsfItemButton extends Button {
                 .put(StyleKeys.BORDER_VISIBLE, false));
         textPadding(0.0f, 0.0f);
         if (backgroundTexture != null) {
-            dev.sixik.unigui.widgets.display.TextureWidget background =
-                    new dev.sixik.unigui.widgets.display.TextureWidget(
-                            new dev.sixik.unigui.api.render.SimpleTextureHandle(
-                                    backgroundTexture, Math.round(backgroundSize), Math.round(backgroundSize)));
+            final var texture =  new SimpleTextureHandle(
+                    backgroundTexture, Math.round(backgroundSize), Math.round(backgroundSize));
+            TextureWidget background =
+                    new TextureWidget(
+                            texture
+                    );
             // Фон только рисуется: hover и hit-box должны доставаться кнопке,
             // иначе tooltip-якорь считает кнопку не наведённой.
             background.enabled(false);
+            background.style(s -> s.put(StyleKeys.BACKGROUND_TEXTURE, texture));
             background.layout(style -> style.size(backgroundSize, backgroundSize).flexNone());
             addChild(background);
         }

@@ -316,6 +316,10 @@ public final class VanillaRecipeTypeSupports {
                                 new IsfVisualNode("transfer", id("isf:transfer_button"), Map.of(
                                         "kind", literal("crafting_grid"),
                                         "items", parameter("pattern"),
+                                        "alignSelf", literal("center")), List.of()),
+                                new IsfVisualNode("mark_button", id("isf:mark_button"), Map.of(
+                                        "kind", literal("crafting_grid"),
+                                        "items", parameter("pattern"),
                                         "alignSelf", literal("center")), List.of())
                         ))
                 ))
@@ -337,7 +341,12 @@ public final class VanillaRecipeTypeSupports {
                         "width", literal(18),
                         "height", literal(18)), List.of()),
                 arrow(),
-                resultItem())));
+                resultItem(),
+                new IsfVisualNode("mark_button", id("isf:mark_button"), Map.of(
+                "kind", literal("crafting_grid"),
+                "items", parameter("pattern"),
+                "alignSelf", literal("center")), List.of()))
+        ));
     }
 
     private static IsfVisualNode smithingVisual() {
@@ -351,7 +360,12 @@ public final class VanillaRecipeTypeSupports {
                         "width", literal(54),
                         "height", literal(24)), List.of()),
                 arrow(),
-                resultItem())));
+                resultItem(),
+                new IsfVisualNode("mark_button", id("isf:mark_button"), Map.of(
+                "kind", literal("crafting_grid"),
+                "items", parameter("pattern"),
+                "alignSelf", literal("center")), List.of()))
+        ));
     }
 
     private static IsfVisualNode rootVisual(IsfVisualNode body) {
