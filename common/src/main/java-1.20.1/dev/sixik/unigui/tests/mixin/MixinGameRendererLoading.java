@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(GameRenderer.class)
 public abstract class MixinGameRendererLoading {
     @Redirect(
-            method = "render(FJZ)V",
+            method = {"render(FJZ)V", "m_109093_(FJZ)V"},
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/screens/Overlay;render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V")
     )

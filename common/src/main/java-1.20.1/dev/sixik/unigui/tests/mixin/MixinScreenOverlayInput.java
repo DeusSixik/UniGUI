@@ -39,7 +39,7 @@ public interface MixinScreenOverlayInput {
         }
     }
 
-    @Inject(method = "mouseScrolled(DDD)Z", at = @At("HEAD"), cancellable = true)
+    @Inject(method = {"mouseScrolled(DDD)Z", "m_6050_(DDD)Z"}, at = @At("HEAD"), cancellable = true)
     private void unigui$mouseScrolled(double mouseX, double mouseY, double delta,
                                       CallbackInfoReturnable<Boolean> callback) {
         if ((Object) this instanceof Screen screen

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** HUD hook для Minecraft 1.20.1. */
 @Mixin(Gui.class)
 public abstract class MixinHudRender {
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;F)V", at = @At("TAIL"))
+    @Inject(method = {"render(Lnet/minecraft/client/gui/GuiGraphics;F)V", "m_280421_(Lnet/minecraft/client/gui/GuiGraphics;F)V"}, at = @At("TAIL"))
     private void unigui$renderHud(GuiGraphics graphics, float partialTick, CallbackInfo callback) {
         HudRender.render(graphics, partialTick);
     }
