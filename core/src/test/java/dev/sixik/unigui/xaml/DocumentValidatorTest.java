@@ -111,7 +111,7 @@ final class DocumentValidatorTest {
                 """);
         assertTrue(has(result, 4, "Duplicate resource key 'Gap'"), result.diagnostics().toString());
         assertTrue(has(result, 5, "requires x:Key"), result.diagnostics().toString());
-        assertTrue(has(result, 6, "Widget resources are not supported yet"), result.diagnostics().toString());
+        assertTrue(has(result, 6, "Use <Style> for property sets"), result.diagnostics().toString());
         assertTrue(has(result, 9, "Resource 'Missing' was not found"), result.diagnostics().toString());
         assertTrue(has(result, 10, "Cannot parse/apply attribute 'color'"),
                 "a resource that is not a colour is flagged where it is used: " + result.diagnostics());
@@ -222,5 +222,28 @@ final class DocumentValidatorTest {
         assertEquals(CodeLanguagePreset.XAML, editor.languagePreset());
         assertEquals("xaml", editor.languageId());
         assertEquals(List.of(), editor.diagnostics().stream().map(Object::toString).collect(Collectors.toList()));
+    }
+
+    @Test
+    void styleSettersAreCheckedAgainstTheirTargetType() {
+        DocumentValidator.Result result = validate("""
+                <VBox xmlns:x="https://unigui.dev/xaml">
+                    <VBox.Resources>
+                        <Style x:Key="Good" TargetType="Button"><Setter Property="text" Value="Go"/></Style>
+                        <Style x:Key="UnknownProperty" TargetType="Button"><Setter Property="nope" Value="1"/></Style>
+                        <Style x:Key="BadValue" TargetType="Button"><Setter Property="opacity" Value="lots"/></Style>
+                        <Style x:Key="WrongOwner" TargetType="Label"><Setter Property="onClick" Value="x"/></Style>
+                        <Style x:Key="UnknownTarget" TargetType="Nope"><Setter Property="text" Value="x"/></Style>
+                        <Style x:Key="Anywhere"><Setter Property="opacity" Value="0.5"/></Style>
+                        <Style x:Key="AnywhereUnknown"><Setter Property="zzz" Value="1"/></Style>
+                    </VBox.Resources>
+                </VBox>
+                """);
+        String all = result.diagnostics().toString();
+        assertTrue(all.contains("sets unknown property 'nope' of Button"), all);
+        assertTrue(all.contains("'lots' is not valid for 'opacity'"), all);
+        assertTrue(all.contains("targets unknown type 'Nope'"), all);
+        assertTrue(all.contains("sets unknown property 'zzz'"), all);
+        assertFalse(all.contains("'Good'") || all.contains("'Anywhere'"), all);
     }
 }

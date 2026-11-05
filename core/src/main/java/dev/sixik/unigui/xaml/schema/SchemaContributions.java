@@ -99,12 +99,16 @@ public final class SchemaContributions {
         return VERSION.get();
     }
 
-    /** @return копия текущего списка расширений */
+    /**
+     * @return копия текущего списка расширений
+     */
     public static List<SchemaContributor> contributors() {
         return List.copyOf(CONTRIBUTORS);
     }
 
-    /** @return сообщения об ошибках загрузки расширений через ServiceLoader */
+    /**
+     * @return сообщения об ошибках загрузки расширений через ServiceLoader
+     */
     public static List<String> loadFailures() {
         return new ArrayList<>(LOAD_FAILURES);
     }

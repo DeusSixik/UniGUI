@@ -34,10 +34,13 @@ import java.util.function.Supplier;
  * <p>Класс потокобезопасен: определения можно добавлять и читать из разных потоков.</p>
  */
 public final class Schema {
-    /** Пространство имён встроенных виджетов UniGUI; пустой namespace в документе трактуется как оно. */
+    /**
+     * Пространство имён встроенных виджетов UniGUI; пустой namespace в документе трактуется как оно.
+     */
     public static final String UI_NAMESPACE = "https://unigui.dev/ui";
 
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();
+    private final Map<String, String> attached = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, String> aliases = new ConcurrentHashMap<>();
 
     /**
@@ -217,6 +220,34 @@ public final class Schema {
      * @param name имя с namespace; пустой namespace означает {@link #UI_NAMESPACE}
      * @return схема типа, построенная при первом обращении
      */
+    /**
+     * Объявляет attached-свойство: запись {@code Grid.Row="1"} на потомке означает свойство {@code gridRow} самого
+     * потомка. Владелец ({@code Grid}) нужен только как читаемое имя, виджет с таким именем не обязателен.
+     *
+     * @param owner    имя владельца записи
+     * @param member   имя члена после точки
+     * @param property имя обычного свойства виджета, которое задаётся этой записью
+     * @return этот реестр
+     */
+    public Schema attach(String owner, String member, String property) {
+        attached.put(owner + '.' + member, property);
+        return this;
+    }
+
+    /**
+     * Находит свойство, которое задаёт запись вида {@code Owner.Member} на виджете данного типа.
+     *
+     * @param type   тип виджета, на котором записано свойство
+     * @param owner  владелец записи
+     * @param member имя члена
+     * @return свойство или пусто, если запись не attached-свойство или у типа такого свойства нет
+     */
+    public Optional<PropertyInfo<?, ?>> attachedProperty(TypeInfo<?> type, UiName owner, String member) {
+        String property = attached.get(owner.local() + '.' + member);
+        if (property == null) return Optional.empty();
+        return type.property(property).map(info -> (PropertyInfo<?, ?>) info);
+    }
+
     public Optional<TypeInfo<?>> type(UiName name) {
         String key = key(name.namespace(), name.local());
         String target = aliases.get(key);
@@ -314,7 +345,9 @@ public final class Schema {
         return key.substring(key.indexOf('\u0000') + 1);
     }
 
-    /** Ленивая ячейка: схема строится один раз, повторные обращения читают готовое значение. */
+    /**
+     * Ленивая ячейка: схема строится один раз, повторные обращения читают готовое значение.
+     */
     private static final class Entry {
         private final Supplier<TypeInfo<?>> definition;
         private volatile TypeInfo<?> value;

@@ -42,6 +42,7 @@ Accordion category=Navigation children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -74,6 +75,7 @@ Accordion category=Navigation children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -125,6 +127,7 @@ Box category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -154,6 +157,7 @@ Box category=Containers children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -207,6 +211,7 @@ Button category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -247,6 +252,7 @@ Button category=Controls children=false
   @textPaddingY:NUMBER default=4 category=Layout
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -278,6 +284,7 @@ CachedSubtreeWidget category=Performance children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -306,6 +313,7 @@ CachedSubtreeWidget category=Performance children=true
   @targetOptions:ENUM default=color category=Performance
   @tint:COLOR default=#FFFFFFFF category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -338,6 +346,7 @@ CanvasWidget category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -364,6 +373,7 @@ CanvasWidget category=Display children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -414,6 +424,7 @@ Carousel category=Navigation children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -446,6 +457,7 @@ Carousel category=Navigation children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -481,6 +493,7 @@ Chart category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -513,6 +526,7 @@ Chart category=Widgets children=false
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
   @type:ENUM default=line category=Appearance
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -569,6 +583,7 @@ Checkbox category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -614,6 +629,7 @@ Checkbox category=Controls children=false
   @top:SIZE_VALUE default=auto category=Layout
   @triState:BOOLEAN default=false category=Behavior
   @uncheckedBackground:COLOR default= category=Appearance
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -667,6 +683,7 @@ CodeEditor category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @languageId:RESOURCE_ID default= category=Behavior
@@ -711,6 +728,7 @@ CodeEditor category=Controls children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visibleLines:NUMBER default=6 category=Layout
@@ -765,6 +783,7 @@ ColorPicker category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -797,6 +816,7 @@ ColorPicker category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @type:ENUM default=hsv category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -850,6 +870,7 @@ ComboBox category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @items:STRING default= category=Content
   @justifyContent:ENUM default=start category=Layout
@@ -890,6 +911,7 @@ ComboBox category=Controls children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -941,6 +963,7 @@ ContextMenu category=Feedback children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -972,6 +995,7 @@ ContextMenu category=Feedback children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1023,6 +1047,7 @@ DatePicker category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1055,6 +1080,7 @@ DatePicker category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @value:STRING default=today category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1107,6 +1133,7 @@ DockingRoot category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1140,6 +1167,7 @@ DockingRoot category=Containers children=true
   @tearOffOnDragOut:BOOLEAN default=true category=Behavior
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1196,6 +1224,7 @@ DropDownBox category=Controls children=true
   @gridTemplateRows:STRING default= category=Layout
   @headerText:STRING default=Open... category=Content
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1229,6 +1258,7 @@ DropDownBox category=Controls children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1281,6 +1311,7 @@ ExpandablePanel category=Navigation children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1313,6 +1344,7 @@ ExpandablePanel category=Navigation children=true
   @themeEnabled:BOOLEAN default=true category=Appearance
   @title:STRING default= category=Content
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1345,6 +1377,7 @@ FlexBox category=Widgets children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1371,6 +1404,7 @@ FlexBox category=Widgets children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1404,6 +1438,7 @@ GridBox category=Widgets children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @horizontalSpacing:NUMBER default=0 category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
@@ -1431,6 +1466,7 @@ GridBox category=Widgets children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @verticalSpacing:NUMBER default=0 category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
@@ -1483,6 +1519,7 @@ HBox category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1514,6 +1551,7 @@ HBox category=Containers children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1570,6 +1608,7 @@ IconButton category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -1613,6 +1652,7 @@ IconButton category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @tooltip:STRING default= category=Content
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1645,6 +1685,7 @@ ImageView category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1682,6 +1723,7 @@ ImageView category=Display children=false
   @textureWrap:ENUM default=clamp-to-edge category=Assets
   @tint:COLOR default=#FFFFFFFF category=Assets
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1731,6 +1773,7 @@ Label category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1764,6 +1807,7 @@ Label category=Display children=false
   @text:STRING default= category=Content
   @textBrush:STRING default=none category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1819,6 +1863,7 @@ LoadingIndicator category=Feedback children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1857,6 +1902,7 @@ LoadingIndicator category=Feedback children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @thickness:NUMBER default=3 category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1907,6 +1953,7 @@ MenuBar category=Navigation children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -1938,6 +1985,7 @@ MenuBar category=Navigation children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -1989,6 +2037,7 @@ NotificationView category=Feedback children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2023,6 +2072,7 @@ NotificationView category=Feedback children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2074,6 +2124,7 @@ NumberField category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2113,6 +2164,7 @@ NumberField category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @value:NUMBER default=0 category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -2145,6 +2197,7 @@ OverlayLayer category=Feedback children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2172,6 +2225,7 @@ OverlayLayer category=Feedback children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2205,6 +2259,7 @@ PageView category=Navigation children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2232,6 +2287,7 @@ PageView category=Navigation children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2264,6 +2320,7 @@ Panel category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2290,6 +2347,7 @@ Panel category=Containers children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2342,6 +2400,7 @@ PasswordField category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2378,6 +2437,7 @@ PasswordField category=Controls children=false
   @textPaddingX:NUMBER default=12 category=Layout
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -2412,6 +2472,7 @@ Path category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2440,6 +2501,7 @@ Path category=Display children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2491,6 +2553,7 @@ Popup category=Feedback children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2522,6 +2585,7 @@ Popup category=Feedback children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2556,6 +2620,7 @@ PostProcessingLayer category=Widgets children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2582,6 +2647,7 @@ PostProcessingLayer category=Widgets children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2634,6 +2700,7 @@ ProgressBar category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @indeterminate:BOOLEAN default=false category=Behavior
   @indeterminateSpeed:NUMBER default=0.85 category=Behavior
@@ -2672,6 +2739,7 @@ ProgressBar category=Controls children=false
   @top:SIZE_VALUE default=auto category=Layout
   @trackColor:COLOR default= category=Appearance
   @value:NUMBER default=0 category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2725,6 +2793,7 @@ RadioButton category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -2770,6 +2839,7 @@ RadioButton category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @value:STRING default= category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2804,6 +2874,7 @@ ScrollView category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2839,6 +2910,7 @@ ScrollView category=Containers children=true
   @styleClass:STRING default= category=Common
   @tickCulling:BOOLEAN default=true category=Behavior
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -2891,6 +2963,7 @@ SearchField category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2927,6 +3000,7 @@ SearchField category=Controls children=false
   @textPaddingX:NUMBER default=12 category=Layout
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -2960,6 +3034,7 @@ Separator category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -2988,6 +3063,7 @@ Separator category=Display children=false
   @styleClass:STRING default= category=Common
   @thickness:NUMBER default=1 category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3021,6 +3097,7 @@ SettingRow category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @labelText:STRING default= category=Content
@@ -3053,6 +3130,7 @@ SettingRow category=Widgets children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3085,6 +3163,7 @@ Shape category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3115,6 +3194,7 @@ Shape category=Widgets children=false
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
   @type:ENUM default=rect category=Appearance
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3166,6 +3246,7 @@ Slider category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @knobColor:COLOR default= category=Appearance
@@ -3204,6 +3285,7 @@ Slider category=Controls children=false
   @top:SIZE_VALUE default=auto category=Layout
   @trackColor:COLOR default= category=Appearance
   @value:NUMBER default=0 category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3236,6 +3318,7 @@ Sparkline category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3267,6 +3350,7 @@ Sparkline category=Widgets children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3321,6 +3405,7 @@ Spinner category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3359,6 +3444,7 @@ Spinner category=Widgets children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @thickness:NUMBER default=3 category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3390,6 +3476,7 @@ StackPanel category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3416,6 +3503,7 @@ StackPanel category=Containers children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3467,6 +3555,7 @@ TabControl category=Navigation children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3499,6 +3588,7 @@ TabControl category=Navigation children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3549,6 +3639,7 @@ Text category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3582,6 +3673,7 @@ Text category=Display children=false
   @text:STRING default= category=Content
   @textBrush:STRING default=none category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3635,6 +3727,7 @@ TextArea category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3672,6 +3765,7 @@ TextArea category=Controls children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visibleLines:NUMBER default=6 category=Layout
@@ -3723,6 +3817,7 @@ TextBlock category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3756,6 +3851,7 @@ TextBlock category=Display children=false
   @text:STRING default= category=Content
   @textBrush:STRING default=none category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -3808,6 +3904,7 @@ TextField category=Widgets children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3843,6 +3940,7 @@ TextField category=Widgets children=false
   @textPaddingX:NUMBER default=12 category=Layout
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -3895,6 +3993,7 @@ TextInput category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -3930,6 +4029,7 @@ TextInput category=Controls children=false
   @textPaddingX:NUMBER default=12 category=Layout
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -3980,6 +4080,7 @@ TextWidget category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4013,6 +4114,7 @@ TextWidget category=Display children=false
   @text:STRING default= category=Content
   @textBrush:STRING default=none category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4046,6 +4148,7 @@ TextureWidget category=Display children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4083,6 +4186,7 @@ TextureWidget category=Display children=false
   @textureWrap:ENUM default=clamp-to-edge category=Assets
   @tint:COLOR default=#FFFFFFFF category=Assets
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4134,6 +4238,7 @@ TimeSpanField category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4170,6 +4275,7 @@ TimeSpanField category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @value:STRING default=00:00:00 category=Behavior
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visualOnlyTextChanges:BOOLEAN default=false category=Behavior
@@ -4222,6 +4328,7 @@ Toast category=Feedback children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4253,6 +4360,7 @@ Toast category=Feedback children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4307,6 +4415,7 @@ ToggleButton category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -4348,6 +4457,7 @@ ToggleButton category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
   @uncheckedBackground:COLOR default= category=Appearance
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4402,6 +4512,7 @@ ToggleSwitch category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -4449,6 +4560,7 @@ ToggleSwitch category=Controls children=false
   @trackHeight:NUMBER default=18 category=Layout
   @trackWidth:NUMBER default=34 category=Layout
   @uncheckedBackground:COLOR default= category=Appearance
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4504,6 +4616,7 @@ ToggleToolButton category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -4547,6 +4660,7 @@ ToggleToolButton category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @tooltip:STRING default= category=Content
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4597,6 +4711,7 @@ ToolBar category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4628,6 +4743,7 @@ ToolBar category=Controls children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4683,6 +4799,7 @@ ToolButton category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverBackground:COLOR default= category=Appearance
   @hoverShader:RESOURCE_ID default= category=Appearance
   @hoverTexture:RESOURCE_ID default= category=Assets
@@ -4726,6 +4843,7 @@ ToolButton category=Controls children=false
   @themeEnabled:BOOLEAN default=true category=Appearance
   @tooltip:STRING default= category=Content
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4776,6 +4894,7 @@ Tooltip category=Feedback children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -4806,6 +4925,7 @@ Tooltip category=Feedback children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4856,6 +4976,7 @@ TreeList category=Navigation children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverScrollSpeed:NUMBER default=24 category=Behavior
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
@@ -4890,6 +5011,7 @@ TreeList category=Navigation children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -4943,6 +5065,7 @@ TreeListPicker category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @items:STRING default= category=Content
   @justifyContent:ENUM default=start category=Layout
@@ -4983,6 +5106,7 @@ TreeListPicker category=Controls children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5033,6 +5157,7 @@ TreeView category=Navigation children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @hoverScrollSpeed:NUMBER default=24 category=Behavior
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
@@ -5067,6 +5192,7 @@ TreeView category=Navigation children=false
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5117,6 +5243,7 @@ VBox category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -5148,6 +5275,7 @@ VBox category=Containers children=true
   @styleClass:STRING default= category=Common
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5185,9 +5313,11 @@ VirtualListView category=Data children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @itemCount:NUMBER default=0 category=Data
   @itemHeight:NUMBER default=18 category=Layout
+  @items:BINDING_OR_ACTION default= category=Data
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
   @left:SIZE_VALUE default=auto category=Layout
@@ -5217,6 +5347,7 @@ VirtualListView category=Data children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @viewMode:ENUM default=list category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
@@ -5224,6 +5355,7 @@ VirtualListView category=Data children=false
   @x:NUMBER default=0 category=Layout
   @y:NUMBER default=0 category=Layout
   @zIndex:NUMBER default=0 category=Layout
+  .ItemTemplate single=true
 VirtualTableView category=Data children=false
   @align:ENUM default=stretch category=Layout
   @alignContent:ENUM default=stretch category=Layout
@@ -5255,6 +5387,7 @@ VirtualTableView category=Data children=false
   @gridTemplateRows:STRING default= category=Layout
   @headerHeight:NUMBER default=18 category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -5288,6 +5421,7 @@ VirtualTableView category=Data children=false
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5352,6 +5486,7 @@ WindowWidget category=Feedback children=true
   @gridTemplateRows:STRING default= category=Layout
   @headerHeight:NUMBER default=22 category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -5386,6 +5521,7 @@ WindowWidget category=Feedback children=true
   @themeEnabled:BOOLEAN default=true category=Appearance
   @title:STRING default= category=Content
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5420,6 +5556,7 @@ WrapPanel category=Containers children=true
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @layoutTransitionsEnabled:BOOLEAN default=false category=Animation
@@ -5449,6 +5586,7 @@ WrapPanel category=Containers children=true
   @style:STRING default= category=Common
   @styleClass:STRING default= category=Common
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @width:SIZE_VALUE default=auto category=Layout
@@ -5503,6 +5641,7 @@ XmlCodeEditor category=Controls children=false
   @gridTemplateColumns:STRING default= category=Layout
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
+  @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
   @languageId:RESOURCE_ID default= category=Behavior
@@ -5547,6 +5686,7 @@ XmlCodeEditor category=Controls children=false
   @text:STRING default= category=Content
   @themeEnabled:BOOLEAN default=true category=Appearance
   @top:SIZE_VALUE default=auto category=Layout
+  @verticalAlignment:ENUM default=stretch category=Layout
   @visibility:ENUM default=visible category=Behavior
   @visible:BOOLEAN default=true category=Behavior
   @visibleLines:NUMBER default=6 category=Layout

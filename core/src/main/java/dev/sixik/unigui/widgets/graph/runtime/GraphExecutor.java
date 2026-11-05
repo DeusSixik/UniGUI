@@ -61,6 +61,40 @@ public class GraphExecutor {
     public static final int DEFAULT_MAX_STEPS = 10_000;
 
     private final Map<String, NodeBehavior> behaviors = new HashMap<>();
+    private Trace trace;
+
+    /**
+     * Наблюдатель за ходом исполнения: отладчик записывает по нему, какие ноды отработали и что они выдали.
+     */
+    public interface Trace {
+        /**
+         * Нода отработала.
+         *
+         * @param node          нода
+         * @param pure          {@code true}, если это вычисление чистой ноды по запросу данных
+         * @param outputs       значения, которые нода выдала на выходы данных
+         * @param continuations выходы потока, по которым исполнение пошло дальше
+         */
+        void step(GraphModel.Node node, boolean pure, Map<String, Object> outputs, List<String> continuations);
+
+        /**
+         * Нода завершилась ошибкой.
+         *
+         * @param node    нода
+         * @param failure причина
+         */
+        default void failed(GraphModel.Node node, RuntimeException failure) {
+        }
+    }
+
+    /**
+     * @param trace наблюдатель или {@code null}
+     * @return этот исполнитель
+     */
+    public GraphExecutor trace(Trace trace) {
+        this.trace = trace;
+        return this;
+    }
     private int maxSteps = DEFAULT_MAX_STEPS;
 
     /**
@@ -121,9 +155,95 @@ public class GraphExecutor {
         if (start == null) {
             throw new GraphExecutionException("No such node: " + startNodeId);
         }
-        Execution execution = new Execution(model);
-        execution.runChain(start);
-        return new GraphResult(execution.steps, execution.copyOutputs());
+        Run run = new Run(new Execution(model), start);
+        run.resume(node -> false, false);
+        return run.result();
+    }
+
+    /**
+     * Начинает запуск, который можно останавливать между нодами. Исполнение идёт нодами из явного стека, а не
+     * рекурсией, поэтому его можно приостановить перед любой нодой потока и продолжить позже, хоть в другом кадре.
+     * Чистые ноды вычисляются по запросу данных внутри шага ноды потока и отдельно не останавливаются.
+     *
+     * @param model       модель графа
+     * @param startNodeId нода-вход
+     * @return запуск, который ещё ничего не исполнил
+     * @throws GraphExecutionException если такой ноды нет
+     */
+    public Run begin(GraphModel model, String startNodeId) {
+        GraphModel.Node start = model.node(startNodeId);
+        if (start == null) throw new GraphExecutionException("No such node: " + startNodeId);
+        return new Run(new Execution(model), start);
+    }
+
+    /**
+     * Запуск графа по нодам потока: можно исполнить одну ноду, продолжить до остановки или до конца.
+     */
+    public final class Run {
+        private final Execution execution;
+        private final java.util.ArrayDeque<GraphModel.Node> stack = new java.util.ArrayDeque<>();
+        private boolean failed;
+
+        private Run(Execution execution, GraphModel.Node start) {
+            this.execution = execution;
+            stack.push(start);
+        }
+
+        /** @return {@code true}, когда исполнять больше нечего или запуск завершился ошибкой */
+        public boolean finished() {
+            return failed || stack.isEmpty();
+        }
+
+        /** @return нода, которая исполнится следующей, или {@code null}, если запуск завершён */
+        public GraphModel.Node next() {
+            return failed ? null : stack.peek();
+        }
+
+        /**
+         * Исполняет одну ноду потока и ставит в очередь те, в которые она направила поток.
+         *
+         * @throws GraphExecutionException если нода упала или превышен лимит шагов; запуск при этом завершён
+         */
+        public void step() {
+            if (finished()) return;
+            GraphModel.Node node = stack.pop();
+            try {
+                Execution.Context context = execution.step(node);
+                java.util.List<GraphModel.Node> targets = new ArrayList<>();
+                for (String port : context.continuations) {
+                    for (GraphModel.Wire wire : execution.model.outgoing(node.id(), port)) {
+                        targets.add(execution.requireNode(wire.toNode()));
+                    }
+                }
+                // Порядок прежний: цель за целью, каждая цепочка до конца, поэтому первая цель кладётся сверху.
+                for (int i = targets.size() - 1; i >= 0; i--) stack.push(targets.get(i));
+            } catch (RuntimeException failure) {
+                failed = true;
+                stack.clear();
+                throw failure;
+            }
+        }
+
+        /**
+         * Исполняет ноды, пока запуск не кончится или очередная нода не потребует остановки.
+         *
+         * @param pauseBefore   {@code true} для ноды, перед которой нужно остановиться
+         * @param checkFirst    проверять ли первую ноду; при продолжении после остановки её проверять нельзя, иначе
+         *                      запуск остановился бы на той же ноде снова
+         */
+        public void resume(java.util.function.Predicate<GraphModel.Node> pauseBefore, boolean checkFirst) {
+            boolean first = true;
+            while (!finished()) {
+                if ((checkFirst || !first) && pauseBefore.test(next())) return;
+                first = false;
+                step();
+            }
+        }
+
+        /** @return итог запуска; значения выходов нод потока на данный момент */
+        public GraphResult result() {
+            return new GraphResult(execution.steps, execution.copyOutputs());
+        }
     }
 
     /**
@@ -202,6 +322,7 @@ public class GraphExecutor {
                     ? new HashMap<>() : execOutputs.computeIfAbsent(node.id(), id -> new LinkedHashMap<>()));
             invoke(behavior, context, node);
             pureCache.clear();
+            if (trace != null) trace.step(node, false, new LinkedHashMap<>(context.outputs), List.copyOf(context.continuations));
             return context;
         }
 
@@ -227,6 +348,7 @@ public class GraphExecutor {
                     invoke(behavior, context, source);
                     cached = context.outputs;
                     pureCache.put(source.id(), cached);
+                    if (trace != null) trace.step(source, true, new LinkedHashMap<>(cached), List.of());
                 } finally {
                     evaluating.remove(source.id());
                 }
@@ -238,10 +360,13 @@ public class GraphExecutor {
             try {
                 behavior.run(context);
             } catch (GraphExecutionException failure) {
+                if (trace != null) trace.failed(node, failure);
                 throw failure;
             } catch (RuntimeException failure) {
-                throw new GraphExecutionException("Node '" + node.id() + "' (" + node.typeId() + ") failed: "
-                        + failure.getMessage(), failure);
+                GraphExecutionException wrapped = new GraphExecutionException("Node '" + node.id() + "' ("
+                        + node.typeId() + ") failed: " + failure.getMessage(), failure);
+                if (trace != null) trace.failed(node, wrapped);
+                throw wrapped;
             }
         }
 

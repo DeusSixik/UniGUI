@@ -1,5 +1,7 @@
 package dev.sixik.unigui.xaml.load;
 
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.bind.XamlBindingContext;
 import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
 
@@ -22,9 +24,12 @@ public record LoadOptions(
         XamlTextureResolver textureResolver,
         XamlCommandRegistry commands,
         XamlBindingContext bindingContext,
-        MarkupExtensionRegistry extensions) {
-    /** Строгая загрузка, глубина 128, всё остальное по умолчанию. */
-    public static final LoadOptions DEFAULT = new LoadOptions(true, 128, null, null, null, null);
+        MarkupExtensionRegistry extensions,
+        NodeObserver nodeObserver) {
+    /**
+     * Строгая загрузка, глубина 128, всё остальное по умолчанию.
+     */
+    public static final LoadOptions DEFAULT = new LoadOptions(true, 128, null, null, null, null, null);
 
     public LoadOptions {
         if (maxDepth < 0) throw new IllegalArgumentException("maxDepth must not be negative");
@@ -33,37 +38,64 @@ public record LoadOptions(
         extensions = extensions == null ? MarkupExtensionRegistry.DEFAULT : extensions;
     }
 
-    /** @return строгие настройки по умолчанию */
+    /**
+     * @return строгие настройки по умолчанию
+     */
     public static LoadOptions strict() {
         return DEFAULT;
     }
 
-    /** @return настройки, при которых неизвестные атрибуты пропускаются */
+    /**
+     * @return настройки, при которых неизвестные атрибуты пропускаются
+     */
     public static LoadOptions lenient() {
         return DEFAULT.strictAttributes(false);
     }
 
     public LoadOptions strictAttributes(boolean value) {
-        return new LoadOptions(value, maxDepth, textureResolver, commands, bindingContext, extensions);
+        return new LoadOptions(value, maxDepth, textureResolver, commands, bindingContext, extensions, nodeObserver);
     }
 
     public LoadOptions maxDepth(int value) {
-        return new LoadOptions(strictAttributes, value, textureResolver, commands, bindingContext, extensions);
+        return new LoadOptions(strictAttributes, value, textureResolver, commands, bindingContext, extensions, nodeObserver);
     }
 
     public LoadOptions textureResolver(XamlTextureResolver value) {
-        return new LoadOptions(strictAttributes, maxDepth, value, commands, bindingContext, extensions);
+        return new LoadOptions(strictAttributes, maxDepth, value, commands, bindingContext, extensions, nodeObserver);
     }
 
     public LoadOptions commands(XamlCommandRegistry value) {
-        return new LoadOptions(strictAttributes, maxDepth, textureResolver, value, bindingContext, extensions);
+        return new LoadOptions(strictAttributes, maxDepth, textureResolver, value, bindingContext, extensions, nodeObserver);
     }
 
     public LoadOptions bindingContext(XamlBindingContext value) {
-        return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, value, extensions);
+        return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, value, extensions, nodeObserver);
     }
 
     public LoadOptions extensions(MarkupExtensionRegistry value) {
-        return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext, value);
+        return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext, value, nodeObserver);
+    }
+
+    /**
+     * Задаёт наблюдателя, которому загрузчик сообщает, какой виджет создан из какого узла. Нужен редакторам:
+     * по нему выбранный в иерархии узел находится в живом дереве. Узлы шаблонов сообщаются для каждой строки.
+     *
+     * @param value наблюдатель или {@code null}
+     * @return новые настройки
+     */
+    public LoadOptions nodeObserver(NodeObserver value) {
+        return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext, extensions, value);
+    }
+
+    /**
+     * Получает пары «узел разметки — созданный виджет» в порядке создания.
+     */
+    @FunctionalInterface
+    public interface NodeObserver {
+        /**
+         * @param node   узел документа
+         * @param widget виджет, созданный из узла (его свойства ещё не применены)
+         */
+        void created(UiNode node, Widget widget);
     }
 }

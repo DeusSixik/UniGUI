@@ -2,6 +2,7 @@ package dev.sixik.unigui.impl.style;
 
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.style.CheckboxMarkShape;
 import dev.sixik.unigui.api.style.MutableStyle;
 import dev.sixik.unigui.api.style.ResolvedStyle;
 import dev.sixik.unigui.api.style.Style;
@@ -20,23 +21,22 @@ import java.util.List;
 import java.util.Map;
 
 public final class DefaultTheme implements Theme {
-    private static final ColorView BG_0 = color(0x15, 0x18, 0x1D, 255);
-    private static final ColorView BG_0_SOFT = color(0x15, 0x18, 0x1D, 210);
-    private static final ColorView BG_1 = color(0x1B, 0x1F, 0x26, 235);
-    private static final ColorView BG_2 = color(0x23, 0x28, 0x33, 255);
-    private static final ColorView BG_2_HOVER = color(0x2A, 0x30, 0x3B, 255);
+    private static final ColorView BG_0 = color(0x13, 0x14, 0x18, 255);
+    private static final ColorView BG_0_SOFT = color(0x13, 0x14, 0x18, 225);
+    private static final ColorView BG_1 = color(0x1C, 0x1E, 0x23, 240);
+    private static final ColorView BG_2 = color(0x2A, 0x2D, 0x34, 255);
+    private static final ColorView BG_2_HOVER = color(0x34, 0x38, 0x41, 255);
     private static final ColorView BG_DISABLED = color(0x17, 0x1A, 0x20, 185);
-    private static final ColorView BORDER = color(0x33, 0x3A, 0x48, 255);
-    private static final ColorView BORDER_STRONG = color(0x45, 0x4E, 0x60, 255);
+    private static final ColorView BORDER = color(0x30, 0x33, 0x3B, 255);
+    private static final ColorView BORDER_STRONG = color(0x42, 0x46, 0x50, 255);
     private static final ColorView TEXT_HI = color(0xE8, 0xEA, 0xEE, 255);
     private static final ColorView TEXT_MID = color(0x9A, 0xA2, 0xB1, 255);
     private static final ColorView TEXT_LO = color(0x5C, 0x65, 0x77, 225);
-    private static final ColorView TEXT_ON_ACCENT = color(0x20, 0x12, 0x06, 255);
-    private static final ColorView ACCENT = color(0xC9, 0x8A, 0x4B, 255);
-    private static final ColorView ACCENT_HI = color(0xE0, 0xA6, 0x68, 255);
-    private static final ColorView ACCENT_DIM = color(0x6B, 0x4A, 0x2C, 255);
-    private static final ColorView OK = color(0x5F, 0xAE, 0x7A, 255);
-    private static final float RADIUS = 5.0f;
+    private static final ColorView TEXT_ON_ACCENT = color(0xFF, 0xFF, 0xFF, 255);
+    private static final ColorView ACCENT = color(0x4C, 0x8D, 0xFF, 255);
+    private static final ColorView ACCENT_HI = color(0x74, 0xA8, 0xFF, 255);
+    private static final ColorView ACCENT_DIM = color(0x2B, 0x4F, 0x8A, 255);
+    private static final float RADIUS = 4.0f;
 
     /**
      * Стандартная тема без пользовательских token override.
@@ -79,7 +79,7 @@ public final class DefaultTheme implements Theme {
         register(StyleIds.Widget.BUTTON, controlStyle());
         register(StyleIds.Widget.TOGGLE_BUTTON, toggleStyle());
         register(StyleIds.Widget.TOGGLE_SWITCH, switchStyle());
-        register(StyleIds.Widget.CHECKBOX, checkedControlStyle());
+        register(StyleIds.Widget.CHECKBOX, checkboxStyle());
         register(StyleIds.Widget.RADIO_BUTTON, checkedControlStyle());
         register(StyleIds.Widget.TEXT_INPUT, textInputStyle());
         register(StyleIds.Widget.TEXT_FIELD, textInputStyle());
@@ -193,6 +193,14 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.RADIUS, RADIUS);
     }
 
+    private static Style checkboxStyle() {
+        return new MutableStyle().putAll(checkedControlStyle())
+                .put(StyleKeys.CHECKBOX_MARK_SHAPE, CheckboxMarkShape.CHECK)
+                .put(StyleKeys.CHECKBOX_BACKGROUND_COLOR, WidgetState.CHECKED, ACCENT)
+                .put(StyleKeys.CHECKBOX_MARK_COLOR, WidgetState.CHECKED, TEXT_ON_ACCENT)
+                .put(StyleKeys.RADIUS, 3.0f);
+    }
+
     private static Style switchStyle() {
         return new MutableStyle()
                 .put(StyleKeys.BACKGROUND_COLOR, BG_0)
@@ -237,7 +245,7 @@ public final class DefaultTheme implements Theme {
                 .put(StyleKeys.ACCENT_COLOR, WidgetState.HOVERED, ACCENT_HI)
                 .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
                 .put(StyleKeys.THUMB_COLOR, ACCENT_HI)
-                .put(StyleKeys.THUMB_COLOR, WidgetState.HOVERED, color(0xF0, 0xBD, 0x7A, 255))
+                .put(StyleKeys.THUMB_COLOR, WidgetState.HOVERED, color(0xA3, 0xC6, 0xFF, 255))
                 .put(StyleKeys.THUMB_COLOR, WidgetState.DISABLED, BORDER_STRONG);
     }
 
@@ -245,9 +253,9 @@ public final class DefaultTheme implements Theme {
         return new MutableStyle()
                 .put(StyleKeys.TRACK_COLOR, BG_0)
                 .put(StyleKeys.TRACK_COLOR, WidgetState.DISABLED, color(0x11, 0x13, 0x18, 170))
-                .put(StyleKeys.ACCENT_COLOR, OK)
-                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, color(0x3C, 0x68, 0x4C, 190))
-                .put(StyleKeys.THUMB_COLOR, OK);
+                .put(StyleKeys.ACCENT_COLOR, ACCENT)
+                .put(StyleKeys.ACCENT_COLOR, WidgetState.DISABLED, ACCENT_DIM)
+                .put(StyleKeys.THUMB_COLOR, ACCENT);
     }
 
     private static Style scrollBarStyle() {

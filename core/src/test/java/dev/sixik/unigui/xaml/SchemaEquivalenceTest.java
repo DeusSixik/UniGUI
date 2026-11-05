@@ -30,7 +30,9 @@ final class SchemaEquivalenceTest {
             "ToggleButton.focusRingVisible", "ToggleButton.hoverShader",
             "ProgressBar.orientation", "Slider.orientation",
             "ScrollView.overlayInset", "ScrollView.overlayScrollBars", "ScrollView.scrollbarSize",
-            "ScrollView.tickCulling");
+            "ScrollView.tickCulling",
+            // Список с шаблоном строки (этап шаблонов): данные приходят привязкой, строка описывается ItemTemplate.
+            "VirtualListView.items", "VirtualListView..ItemTemplate");
 
     private static final Map<String, Type> LEGACY = parse(Golden.read("registry-schema.txt"));
     private static final Map<String, Type> CURRENT = parse(SchemaDump.dump(Schema.builtIns()));
@@ -66,7 +68,10 @@ final class SchemaEquivalenceTest {
         for (Map.Entry<String, Type> type : LEGACY.entrySet()) {
             Set<String> before = names(type.getValue().lines.keySet());
             for (String name : names(CURRENT.get(type.getKey()).lines.keySet())) {
-                if (!before.contains(name)) added.add(type.getKey() + "." + name.replaceFirst("^@", ""));
+                String bare = name.replaceFirst("^@", "");
+                // Якоря в слоте (редактор UI): общие свойства всех виджетов, добавленные осознанно и целиком.
+                if (bare.equals("horizontalAlignment") || bare.equals("verticalAlignment")) continue;
+                if (!before.contains(name)) added.add(type.getKey() + "." + bare);
             }
         }
         assertEquals(new TreeSet<>(NEWLY_EXPOSED), added,

@@ -26,7 +26,9 @@ import java.util.Locale;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.singleContent;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** Отображение: текст, изображения, разделители, векторные пути, кэшируемые поддеревья. */
+/**
+ * Отображение: текст, изображения, разделители, векторные пути, кэшируемые поддеревья.
+ */
 final class DisplayTypes {
     private DisplayTypes() {
     }

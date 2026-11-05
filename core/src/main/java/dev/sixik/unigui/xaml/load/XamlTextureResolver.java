@@ -16,9 +16,9 @@ public interface XamlTextureResolver {
     /**
      * Разрешает texture id в handle.
      *
-     * @param id строковый id из XML-атрибута
-     * @param width желаемая ширина source texture
-     * @param height желаемая высота source texture
+     * @param id      строковый id из XML-атрибута
+     * @param width   желаемая ширина source texture
+     * @param height  желаемая высота source texture
      * @param options параметры sampling/wrap/mipmaps; может быть {@code null}
      * @return runtime texture handle
      */
@@ -35,6 +35,8 @@ public interface XamlTextureResolver {
         return DEFAULT;
     }
 
-    /** Общий простой resolver: не хранит состояния, поэтому безопасен для общего использования. */
+    /**
+     * Общий простой resolver: не хранит состояния, поэтому безопасен для общего использования.
+     */
     XamlTextureResolver DEFAULT = (id, width, height, options) -> new SimpleTextureHandle(id, width, height, null, options);
 }

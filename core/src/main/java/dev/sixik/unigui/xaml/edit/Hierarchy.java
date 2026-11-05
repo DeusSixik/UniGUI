@@ -36,7 +36,9 @@ public final class Hierarchy {
      */
     public record Row(UiNode node, NodePath path, int depth, String typeName, String id, boolean known,
                       boolean structureEditable, int childCount) {
-        /** @return подпись строки: {@code Тип} или {@code Тип #id} */
+        /**
+         * @return подпись строки: {@code Тип} или {@code Тип #id}
+         */
         public String label() {
             return id.isEmpty() ? typeName : typeName + " #" + id;
         }
@@ -55,17 +57,26 @@ public final class Hierarchy {
         return rows;
     }
 
+    /**
+     * Контракт и граф компонента — данные, а не виджеты: у них свои панели, в дереве им делать нечего.
+     */
+    private static boolean shown(UiNode node, UiProperty property) {
+        if (!(property.value() instanceof UiValue.Elements)) return false;
+        String slot = property.name().local();
+        return !(node.type().local().equals("Component") && (slot.equals("Contract") || slot.equals("Graph")));
+    }
+
     private static void collect(UiNode node, NodePath path, int depth, boolean editable, Schema schema, List<Row> rows) {
         List<NodePath.Step> base = path.steps();
         int slotCount = 0;
         for (UiProperty property : node.properties()) {
-            if (property.value() instanceof UiValue.Elements) slotCount += NodePath.nodesAt(node, property.name().local()).size();
+            if (shown(node, property)) slotCount += NodePath.nodesAt(node, property.name().local()).size();
         }
         rows.add(new Row(node, path, depth, node.type().qualified(), idOf(node),
                 schema != null && schema.contains(node.type()), editable, node.children().size() + slotCount));
 
         for (UiProperty property : node.properties()) {
-            if (!(property.value() instanceof UiValue.Elements)) continue;
+            if (!shown(node, property)) continue;
             String slot = property.name().local();
             List<UiNode> nodes = NodePath.nodesAt(node, slot);
             for (int i = 0; i < nodes.size(); i++) {
@@ -116,7 +127,9 @@ public final class Hierarchy {
         return Optional.ofNullable(Edits.parentOf(document.root(), node));
     }
 
-    /** {@code id}, {@code name}, {@code Name} или {@code x:Name} узла; пустая строка, если не задан. */
+    /**
+     * {@code id}, {@code name}, {@code Name} или {@code x:Name} узла; пустая строка, если не задан.
+     */
     static String idOf(UiNode node) {
         for (UiProperty property : node.properties()) {
             String local = property.name().local();

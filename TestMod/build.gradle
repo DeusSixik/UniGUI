@@ -33,6 +33,7 @@ dependencies {
     common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
     common(project(path: ':core')) { transitive false }
     common(project(path: ':demo')) { transitive false }
+    common(project(path: ':editor')) { transitive false }
     uniguiMod(project(path: "${versionProject.path}:fabric", configuration: 'namedElements')) { transitive false }
 }
 

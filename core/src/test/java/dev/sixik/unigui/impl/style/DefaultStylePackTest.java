@@ -19,8 +19,8 @@ class DefaultStylePackTest {
         var toggleStyle = pack.resolveStyleFor("ToggleButton", "", java.util.List.of());
         var normalBackground = toggleStyle.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null);
         var checkedBackground = toggleStyle.get(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, null);
-        assertEquals(0x23 / 255.0f, normalBackground.r(), 0.00001f);
-        assertEquals(0xC9 / 255.0f, checkedBackground.r(), 0.00001f);
+        assertEquals(0x2A / 255.0f, normalBackground.r(), 0.00001f);
+        assertEquals(0x4C / 255.0f, checkedBackground.r(), 0.00001f);
 
         pack.put(StyleDefinition.of("toggle.override", new MutableStyle()
                 .put(StyleKeys.TEXT_COLOR, new MutableColor().set(0, 0, 0, 1.0f)))
@@ -28,9 +28,9 @@ class DefaultStylePackTest {
 
         var customized = pack.resolveStyleFor("ToggleButton", "", java.util.List.of());
         assertEquals(0.0f, customized.get(StyleKeys.TEXT_COLOR, WidgetState.NORMAL, null).r(), 0.00001f);
-        assertEquals(0x23 / 255.0f,
+        assertEquals(0x2A / 255.0f,
                 customized.get(StyleKeys.BACKGROUND_COLOR, WidgetState.NORMAL, null).r(), 0.00001f);
-        assertEquals(0xC9 / 255.0f,
+        assertEquals(0x4C / 255.0f,
                 customized.get(StyleKeys.BACKGROUND_COLOR, WidgetState.CHECKED, null).r(), 0.00001f);
     }
 

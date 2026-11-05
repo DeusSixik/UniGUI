@@ -8,14 +8,22 @@ package dev.sixik.unigui.xaml;
  * WPF/Noesis, чтобы документы можно было переносить без правок.</p>
  */
 public final class XamlNamespaces {
-    /** Собственный URI языковых конструкций. */
+    /**
+     * Собственный URI языковых конструкций.
+     */
     public static final String LANGUAGE = "https://unigui.dev/xaml";
-    /** URI из WPF/Noesis; принимается как синоним {@link #LANGUAGE}. */
+    /**
+     * URI из WPF/Noesis; принимается как синоним {@link #LANGUAGE}.
+     */
     public static final String LANGUAGE_WPF = "http://schemas.microsoft.com/winfx/2006/xaml";
 
-    /** Пространство имён виджетов Minecraft-бэкендов; в документах принято префиксом {@code mc}. */
+    /**
+     * Пространство имён виджетов Minecraft-бэкендов; в документах принято префиксом {@code mc}.
+     */
     public static final String MINECRAFT = "https://unigui.dev/minecraft";
-    /** Префикс по умолчанию для {@link #MINECRAFT}. */
+    /**
+     * Префикс по умолчанию для {@link #MINECRAFT}.
+     */
     public static final String MINECRAFT_PREFIX = "mc";
 
     private XamlNamespaces() {

@@ -38,10 +38,10 @@ public final class XamlBinding<T> implements AutoCloseable {
      * <p>Метод удобен для прямого связывания: {@code context.bind("user.name", String.class, label::text)}.
      * Если {@code source == null}, имя будет пустым, а результат получит статус missing.</p>
      *
-     * @param source observable source или {@code null}, если path не найден
+     * @param source     observable source или {@code null}, если path не найден
      * @param targetType ожидаемый тип значения
-     * @param target callback, который применяет значение к code-behind или editor state
-     * @param <T> ожидаемый тип значения
+     * @param target     callback, который применяет значение к code-behind или editor state
+     * @param <T>        ожидаемый тип значения
      * @return активный binding либо неактивный binding с диагностикой
      */
     public static <T> XamlBinding<T> bind(XamlObservableValue<?> source, Class<T> targetType, Consumer<? super T> target) {
@@ -56,15 +56,15 @@ public final class XamlBinding<T> implements AutoCloseable {
      * При успешной проверке target получает текущее значение синхронно, а затем все будущие изменения.
      * При ошибке callback не вызывается, а возвращённый binding содержит статус для диагностики.</p>
      *
-     * @param source observable source или {@code null}
+     * @param source     observable source или {@code null}
      * @param targetType ожидаемый тип значения; не может быть {@code null}
-     * @param target callback применения значения; не может быть {@code null}
+     * @param target     callback применения значения; не может быть {@code null}
      * @param targetName имя target-а для диагностик; пустое значение заменяется именем source
-     * @param <T> ожидаемый тип значения
+     * @param <T>        ожидаемый тип значения
      * @return binding, который нужно закрыть после использования
      */
     public static <T> XamlBinding<T> bind(XamlObservableValue<?> source, Class<T> targetType,
-                                         Consumer<? super T> target, String targetName) {
+                                          Consumer<? super T> target, String targetName) {
         if (targetType == null) throw new IllegalArgumentException("XML binding target type must not be null");
         if (target == null) throw new IllegalArgumentException("XML binding target must not be null");
 

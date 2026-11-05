@@ -14,6 +14,9 @@ import dev.sixik.unigui.xaml.UiValue;
 import dev.sixik.unigui.xaml.XamlNamespaces;
 import dev.sixik.unigui.xaml.format.MarkupExtensions;
 import dev.sixik.unigui.xaml.format.XamlFormat;
+import dev.sixik.unigui.xaml.component.ComponentDefinition;
+import dev.sixik.unigui.xaml.component.Contract;
+import dev.sixik.unigui.xaml.logic.GraphCompiler;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.PropertyInfo;
 import dev.sixik.unigui.xaml.schema.Schema;
@@ -44,6 +47,10 @@ public final class DocumentValidator {
     private final Schema schema;
     private final MarkupExtensionRegistry extensions;
     private final boolean strictAttributes;
+    /**
+     * Контракт компонента, чьё тело проверяется; {@code null} вне документа компонента.
+     */
+    private Contract contract;
 
     /**
      * Результат проверки.
@@ -56,12 +63,16 @@ public final class DocumentValidator {
             diagnostics = List.copyOf(diagnostics);
         }
 
-        /** @return {@code true}, если документ разобран и проблем нет */
+        /**
+         * @return {@code true}, если документ разобран и проблем нет
+         */
         public boolean valid() {
             return document != null && diagnostics.isEmpty();
         }
 
-        /** @return {@code true}, если есть хотя бы одна проблема */
+        /**
+         * @return {@code true}, если есть хотя бы одна проблема
+         */
         public boolean hasDiagnostics() {
             return !diagnostics.isEmpty();
         }
@@ -118,11 +129,50 @@ public final class DocumentValidator {
      */
     public Result validate(UiDocument document) {
         if (document == null) throw new IllegalArgumentException("document must not be null");
-        Run run = new Run();
         UiNode root = document.root();
+        if (isComponentDocument(root)) return new Result(document, validateComponent(document));
+        Run run = new Run();
         if (run.isScreen(root)) run.screen(root);
         else run.node(root, ResourceScope.EMPTY);
         return new Result(document, run.problems);
+    }
+
+    private static boolean isComponentDocument(UiNode root) {
+        return root.type().local().equals("Component")
+                && (root.type().namespace().isEmpty() || root.type().namespace().equals(Schema.UI_NAMESPACE));
+    }
+
+    /**
+     * Проверяет документ компонента: контракт и структуру ({@link ComponentDefinition}), тело как обычное поддерево
+     * виджетов (где разрешены {@code {Param}} и {@code {Raise}}) и граф в мягком режиме, допускающем недособранность.
+     */
+    private List<UiDiagnostic> validateComponent(UiDocument document) {
+        List<UiDiagnostic> problems = new ArrayList<>();
+        ComponentDefinition definition;
+        try {
+            definition = ComponentDefinition.parse("component", document);
+        } catch (XamlLoadException failure) {
+            problems.addAll(failure.diagnostics());
+            return problems;
+        }
+        MarkupExtensionRegistry inside = extensions.copy()
+                .replace("Param", (context, use, target) -> {
+                })
+                .replace("Var", (context, use, target) -> {
+                })
+                .replace("Raise", (context, use, target) -> {
+                });
+        DocumentValidator body = new DocumentValidator(schema, inside, strictAttributes);
+        body.contract = definition.contract();
+        Run run = body.new Run();
+        run.node(definition.body(), ResourceScope.EMPTY);
+        problems.addAll(run.problems);
+        try {
+            GraphCompiler.check("component", definition.graph(), definition.contract());
+        } catch (XamlLoadException failure) {
+            problems.addAll(failure.diagnostics());
+        }
+        return problems;
     }
 
     private static boolean isElementForm(UiProperty property) {
@@ -156,7 +206,9 @@ public final class DocumentValidator {
             check(node, type, scope);
         }
 
-        /** У неизвестного типа проверить нечего, но вложенные виджеты всё равно проверяются. */
+        /**
+         * У неизвестного типа проверить нечего, но вложенные виджеты всё равно проверяются.
+         */
         private void descendUnknown(UiNode node, ResourceScope scope) {
             for (UiProperty property : node.properties()) {
                 if (property.value() instanceof UiValue.Elements elements) {
@@ -205,10 +257,30 @@ public final class DocumentValidator {
         }
 
         private <T extends Widget> void checkAttribute(UiProperty property, TypeInfo<T> type, ResourceScope scope) {
+            if (property.owner() == null && property.name().namespace().isEmpty()
+                    && property.name().local().equals("Style")) {
+                String key = StyleDef.keyOf(property.value());
+                if (key == null || key.isEmpty()) {
+                    add(property.location(), "Style must be a style key or {StaticResource key}.");
+                    return;
+                }
+                try {
+                    scope.resolveStyle(key);
+                } catch (IllegalArgumentException failure) {
+                    add(property.location(), failure.getMessage());
+                }
+                return;
+            }
             PropertyInfo<? super T, ?> info = null;
             boolean qualifiedOk = property.owner() == null && property.name().namespace().isEmpty();
             if (property.owner() != null) {
                 qualifiedOk = schema.type(property.owner()).orElse(null) == type;
+                if (!qualifiedOk) {
+                    @SuppressWarnings("unchecked")
+                    PropertyInfo<? super T, ?> attached = (PropertyInfo<? super T, ?>)
+                            schema.attachedProperty(type, property.owner(), property.name().local()).orElse(null);
+                    info = attached;
+                }
             }
             if (qualifiedOk) info = type.property(property.name().local()).orElse(null);
             if (info == null) {
@@ -233,7 +305,9 @@ public final class DocumentValidator {
                     return;
                 }
                 String name = extension.name().local();
-                if (name.equals("Binding") && !info.bindable()) {
+                if (contract != null && (name.equals("Param") || name.equals("Var") || name.equals("Raise"))) {
+                    checkComponentUse(name, extension, info, property, where);
+                } else if (name.equals("Binding") && !info.bindable()) {
                     add(property.location(), where + "Attribute '" + property.displayName()
                             + "' does not support XML binding");
                 } else if (name.equals("StaticResource")) {
@@ -247,6 +321,49 @@ public final class DocumentValidator {
                         }
                     }
                 }
+            }
+        }
+
+        /**
+         * {@code {Param X}} и {@code {Raise X}} в теле компонента должны ссылаться на объявленное в контракте.
+         */
+        private void checkComponentUse(String kind, UiValue.Extension use, PropertyInfo<?, ?> info,
+                                       UiProperty property, String where) {
+            if (use.positional().size() > 1 || !use.named().isEmpty()) {
+                add(property.location(), where + kind + " takes a single name, for example {" + kind + " Name}");
+                return;
+            }
+            if (!(use.argument("Name", 0) instanceof UiValue.Literal literal) || literal.text().isBlank()) {
+                add(property.location(), where + kind + " requires a name, for example {" + kind
+                        + (kind.equals("Param") ? " Title}" : " Buy}"));
+                return;
+            }
+            String name = literal.text().trim();
+            if (kind.equals("Param") || kind.equals("Var")) {
+                boolean parameter = kind.equals("Param");
+                Contract.Param declared = (parameter ? contract.param(name) : contract.var(name)).orElse(null);
+                if (declared == null) {
+                    add(property.location(), where + "the component has no " + (parameter ? "parameter" : "variable")
+                            + " '" + name + "'." + (parameter ? " Declared: " + contract.paramNames() + "." : ""));
+                } else if (declared.type() == dev.sixik.unigui.xaml.component.ParamType.STRING
+                        && dev.sixik.unigui.xaml.component.ParamType.needsText(info.valueType())) {
+                    // Значение проверит конвертер свойства; значение по умолчанию известно уже сейчас.
+                    if (declared.defaultText() != null && !declared.defaultText().isEmpty()) {
+                        convert(info, declared.defaultText(), property, where);
+                    }
+                } else if (!declared.type().fits(info.valueType())) {
+                    add(property.location(), where + (parameter ? "parameter" : "variable") + " '" + name + "' is " + declared.type().name()
+                            + " but '" + property.displayName() + "' expects " + info.valueType().getSimpleName() + ".");
+                }
+                return;
+            }
+            Contract.Event event = contract.event(name).orElse(null);
+            if (event == null) {
+                add(property.location(), where + "the component has no event '" + name + "'. Declared: "
+                        + contract.eventNames() + ".");
+            } else if (event.direction() != Contract.Direction.OUT) {
+                add(property.location(), where + "event '" + name
+                        + "' is incoming and cannot be raised from the component body.");
             }
         }
 
@@ -319,20 +436,46 @@ public final class DocumentValidator {
             for (UiProperty property : node.properties()) {
                 if (!isElementForm(property) || !property.name().local().equals("Resources")) continue;
                 Map<String, String> entries = new LinkedHashMap<>();
+                Map<String, StyleDef> styles = new LinkedHashMap<>();
                 if (property.value() instanceof UiValue.Elements elements) {
                     for (UiContent item : elements.content()) {
-                        if (item instanceof UiNode entry) resource(entry, entries);
+                        if (item instanceof UiNode entry) resource(entry, entries, styles);
                     }
                 }
-                return entries.isEmpty() ? parent : new ResourceScope(parent, entries);
+                return entries.isEmpty() && styles.isEmpty() ? parent : new ResourceScope(parent, entries, styles);
             }
             return parent;
         }
 
-        private void resource(UiNode entry, Map<String, String> entries) {
+        /**
+         * Ошибка разбора стиля вместе с позицией: проверка собирает все проблемы, а не останавливается на первой.
+         */
+        private static final class StyleProblem extends RuntimeException {
+            private final SourceLocation at;
+
+            private StyleProblem(SourceLocation at, String message) {
+                super(message);
+                this.at = at;
+            }
+        }
+
+        private void resource(UiNode entry, Map<String, String> entries, Map<String, StyleDef> styles) {
+            if (entry.type().local().equals("Style") && (entry.type().namespace().isEmpty()
+                    || entry.type().namespace().equals(Schema.UI_NAMESPACE))) {
+                try {
+                    StyleDef style = StyleDef.read(entry, StyleProblem::new);
+                    if (styles.putIfAbsent(style.key(), style) != null) {
+                        add(entry.location(), "Duplicate resource key '" + style.key() + "'.");
+                    }
+                    checkSetters(style);
+                } catch (StyleProblem problem) {
+                    add(problem.at, problem.getMessage());
+                }
+                return;
+            }
             if (!XamlNamespaces.isLanguage(entry.type().namespace())) {
                 add(entry.location(), "Resources can only hold x: entries such as <x:String>, got '<"
-                        + entry.type().qualified() + ">'. Widget resources are not supported yet.");
+                        + entry.type().qualified() + ">'. Use <Style> for property sets and a component for reusable widgets.");
                 return;
             }
             String key = null;
@@ -347,6 +490,42 @@ public final class DocumentValidator {
                 add(entry.location(), "Resource entry <" + entry.type().qualified() + "> requires x:Key.");
             } else if (entries.putIfAbsent(key, entry.text().trim()) != null) {
                 add(entry.location(), "Duplicate resource key '" + key + "'.");
+            }
+        }
+
+        /**
+         * Сеттеры стиля должны называть существующее свойство и нести значение, которое оно принимает.
+         */
+        private void checkSetters(StyleDef style) {
+            TypeInfo<?> target = style.targetType() == null ? null : schema.type(style.targetType()).orElse(null);
+            if (style.targetType() != null && target == null) {
+                add(style.location(), "Style '" + style.key() + "' targets unknown type '"
+                        + style.targetType().qualified() + "'.");
+                return;
+            }
+            for (StyleDef.Setter setter : style.setters()) {
+                PropertyInfo<?, ?> info = null;
+                if (target != null) {
+                    info = target.property(setter.name()).orElse(null);
+                } else {
+                    for (TypeInfo<?> type : schema.types()) {
+                        info = type.property(setter.name()).orElse(null);
+                        if (info != null) break;
+                    }
+                }
+                if (info == null) {
+                    add(setter.location(), "Style '" + style.key() + "' sets unknown property '" + setter.name() + "'"
+                            + (target == null ? "." : " of " + target.name().local() + "."));
+                    continue;
+                }
+                if (setter.value() instanceof UiValue.Literal literal) {
+                    try {
+                        info.convert(literal.text(), LoadContext.DEFAULT);
+                    } catch (RuntimeException failure) {
+                        add(setter.location(), "Style '" + style.key() + "': '" + literal.text()
+                                + "' is not valid for '" + setter.name() + "': " + failure.getMessage());
+                    }
+                }
             }
         }
 
@@ -368,7 +547,8 @@ public final class DocumentValidator {
                 if (!isElementForm(property)) continue;
                 String shown = node.type().local() + "." + property.name().local();
                 switch (property.name().local()) {
-                    case "Resources" -> { }
+                    case "Resources" -> {
+                    }
                     case "ScaleProvider" -> scaleProvider(property);
                     case "Content" -> {
                         if (property.value() instanceof UiValue.Elements elements) {
@@ -425,7 +605,8 @@ public final class DocumentValidator {
                     add(property.location(), "Screen attribute '" + property.name().local() + "' must be plain text.");
                 }
             }
-            if (owner.equals("Screen") || SCREEN_NAMES.contains(ScreenConfig.normalize(owner))) readScreenConfig(values);
+            if (owner.equals("Screen") || SCREEN_NAMES.contains(ScreenConfig.normalize(owner)))
+                readScreenConfig(values);
             return values;
         }
 

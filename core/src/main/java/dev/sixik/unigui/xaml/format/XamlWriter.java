@@ -31,7 +31,9 @@ final class XamlWriter {
         return out.toString();
     }
 
-    /** Пишет узел начиная с текущей позиции: отступ перед ним ставит вызывающий. */
+    /**
+     * Пишет узел начиная с текущей позиции: отступ перед ним ставит вызывающий.
+     */
     private static void writeNode(StringBuilder out, UiNode node, int depth, UiFormat.WriteOptions options) {
         String name = node.type().qualified();
 

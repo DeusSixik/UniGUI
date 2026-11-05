@@ -590,9 +590,12 @@ final class XamlLoaderTest {
         name.set("second");
         assertEquals("first", once.text(), "OneTime takes the value once and then detaches");
 
+        XamlLoadException toSource = assertThrows(XamlLoadException.class, () -> Xaml.load(
+                "<Label text=\"{Binding user.name, Mode=OneWayToSource}\" />", options));
+        assertTrue(toSource.getMessage().contains("not supported yet"), toSource.getMessage());
         XamlLoadException twoWay = assertThrows(XamlLoadException.class, () -> Xaml.load(
                 "<Label text=\"{Binding user.name, Mode=TwoWay}\" />", options));
-        assertTrue(twoWay.getMessage().contains("not supported yet"), twoWay.getMessage());
+        assertTrue(twoWay.getMessage().contains("does not support Mode=TwoWay"), twoWay.getMessage());
         assertTrue(assertThrows(XamlLoadException.class, () -> Xaml.load(
                 "<Label text=\"{Binding user.name, Converter=X}\" />", options)).getMessage()
                 .contains("Unsupported Binding option 'Converter'"));
@@ -647,7 +650,7 @@ final class XamlLoaderTest {
         fails("<VBox " + X + "><VBox.Resources><x:String x:Key=\"a\">1</x:String><x:String x:Key=\"a\">2</x:String>"
                 + "</VBox.Resources></VBox>", "Duplicate resource key 'a'");
         fails("<VBox><VBox.Resources><Label x:Key=\"a\" xmlns:x=\"https://unigui.dev/xaml\"/></VBox.Resources></VBox>",
-                "Widget resources are not supported yet");
+                "Use <Style> for property sets");
     }
 
     @Test

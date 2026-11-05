@@ -737,7 +737,7 @@ public class Button extends SurfaceWidget<Button> {
     /**
      * Размер глифа шеврона в UI-пикселях.
      */
-    public static final float CHEVRON_GLYPH_SIZE = 12.0f;
+    public static final float CHEVRON_GLYPH_SIZE = 9.0f;
 
     /**
      * Возвращает, рисуется ли trailing-шеврон в правом слоте кнопки.
@@ -1082,7 +1082,7 @@ public class Button extends SurfaceWidget<Button> {
         float centerY = y + height * 0.5f;
         float half = CHEVRON_GLYPH_SIZE * 0.5f - 1.0f;
         float rise = CHEVRON_GLYPH_SIZE * 0.25f;
-        Paint paint = Paint.stroke(textColor, 2.0f);
+        Paint paint = Paint.stroke(textColor, 1.25f);
         if (chevronUp) {
             draw.line(centerX - half, centerY + rise, centerX, centerY - rise, paint);
             draw.line(centerX, centerY - rise, centerX + half, centerY + rise, paint);

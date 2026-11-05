@@ -50,9 +50,11 @@ final class CommonProperties {
         List<PropertyInfo<WidgetBase, ?>> out = new ArrayList<>(64);
 
         // --- Состояние и стиль
-        add(out, "class", Converters.STRING, (widget, value) -> { }, null, null, "Common", "",
+        add(out, "class", Converters.STRING, (widget, value) -> {
+                }, null, null, "Common", "",
                 "Optional style class alias preserved for editor/theme integration.");
-        add(out, "styleClass", Converters.STRING, (widget, value) -> { }, null, null, "Common", "",
+        add(out, "styleClass", Converters.STRING, (widget, value) -> {
+                }, null, null, "Common", "",
                 "Optional style class name preserved for editor/theme integration.");
         add(out, "enabled", Converters.BOOLEAN, WidgetBase::enabled, WidgetBase::enabled, Boolean.class, "Behavior", "true",
                 "Whether the widget can receive user interaction.");
@@ -156,6 +158,12 @@ final class CommonProperties {
         // --- Выравнивание
         layout(out, "align", Converters.enumOf(Alignment.class), (w, v) -> w.layout(s -> s.align(v, v)), null, "stretch",
                 "Legacy shorthand that applies the same alignment to both axes.");
+        layout(out, "horizontalAlignment", Converters.enumOf(Alignment.class),
+                (w, v) -> w.layout(s -> s.horizontalAlignment(v)), LayoutStyle::horizontalAlignment, "stretch",
+                "Horizontal anchor of the widget inside its slot (start, center, end, stretch); with a margin it acts as an anchor with offsets.");
+        layout(out, "verticalAlignment", Converters.enumOf(Alignment.class),
+                (w, v) -> w.layout(s -> s.verticalAlignment(v)), LayoutStyle::verticalAlignment, "stretch",
+                "Vertical anchor of the widget inside its slot (start, center, end, stretch).");
         layout(out, "alignItems", Converters.enumOf(Align.class), (w, v) -> w.layout(s -> s.alignItems(v)),
                 LayoutStyle::alignItems, "stretch", "Cross-axis alignment applied to child widgets.");
         layout(out, "alignSelf", Converters.enumOf(Align.class), (w, v) -> w.layout(s -> s.alignSelf(v)),
@@ -186,7 +194,9 @@ final class CommonProperties {
         return Collections.unmodifiableList(out);
     }
 
-    /** Свойство layout: читается из {@link LayoutStyle}; {@code getter == null} — сокращение без состояния. */
+    /**
+     * Свойство layout: читается из {@link LayoutStyle}; {@code getter == null} — сокращение без состояния.
+     */
     private static <V> void layout(List<PropertyInfo<WidgetBase, ?>> out, String name, ValueConverter<V> converter,
                                    BiConsumer<WidgetBase, V> setter, Function<LayoutStyle, ?> getter,
                                    String defaultValue, String description) {

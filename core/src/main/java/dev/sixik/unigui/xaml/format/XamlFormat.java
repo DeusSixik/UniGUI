@@ -13,7 +13,9 @@ import dev.sixik.unigui.xaml.UiDocument;
  * }</pre>
  */
 public final class XamlFormat implements UiFormat {
-    /** Общий экземпляр формата. */
+    /**
+     * Общий экземпляр формата.
+     */
     public static final XamlFormat INSTANCE = new XamlFormat();
 
     private XamlFormat() {

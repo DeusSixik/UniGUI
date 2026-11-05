@@ -48,6 +48,18 @@ public final class XamlBindingContext {
     }
 
     /**
+     * Публикует список как источник данных для {@code items="{Binding path}"}.
+     *
+     * @param path путь
+     * @param list список; для живых обновлений используйте {@link XamlObservableList}
+     * @return этот контекст
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public XamlBindingContext list(String path, java.util.List<?> list) {
+        return value(path, XamlMutableObservableValue.of(path, (Class) java.util.List.class, list));
+    }
+
+    /**
      * Регистрирует готовый observable source.
      *
      * @param path  имя/path, по которому source будет доступен
@@ -130,7 +142,7 @@ public final class XamlBindingContext {
      * @return active binding или inactive binding со статусом ошибки
      */
     public <T> XamlBinding<T> bind(String path, Class<T> targetType,
-                                  Consumer<? super T> target, String targetName) {
+                                   Consumer<? super T> target, String targetName) {
         if (targetType == null) throw new IllegalArgumentException("XML binding target type must not be null");
         if (target == null) throw new IllegalArgumentException("XML binding target must not be null");
         String normalized = normalizePath(path);

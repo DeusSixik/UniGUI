@@ -1,0 +1,52 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = rootProject.findProperty('maven_group') ?: 'dev.sixik'
+version = rootProject.findProperty('mod_version') ?: 'unspecified'
+
+repositories {
+    mavenCentral()
+}
+
+base {
+    archivesName = "${rootProject.findProperty('archives_name') ?: 'unigui'}-editor"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withSourcesJar()
+}
+
+dependencies {
+    // The editor framework is pure Java on top of core: no Minecraft classes, so it builds and tests headless.
+    api project(':core')
+    testImplementation 'it.unimi.dsi:fastutil:7.1.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'it.unimi.dsi:fastutil:7.1.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.compilerArgs << '-parameters'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}

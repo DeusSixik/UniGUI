@@ -223,6 +223,7 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
         markLogicalItemsDirty();
         attach(item);
         invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        dispatch(new NodeGraphItemAddedEvent(this, item.id()));
         history.record(NodeGraphHistory.Operation.of(() -> removeItem(item), () -> addItem(item)));
         return this;
     }
@@ -2108,6 +2109,11 @@ public class NodeGraph extends WidgetBase implements HitTestCoordinateMapper, Re
     @AiDoc(summary = "Registers a listener called when a node item is removed.")
     @WikiMethod(summary = "<key:node.graph.method.onItemRemoved>")
     @WikiReturn("<key:node.graph.return.subscription>")
+    public EventSubscription onItemAdded(EventListener<? super NodeGraphItemAddedEvent> listener) {
+        return on(NodeGraphItemAddedEvent.TYPE, listener);
+    }
+
+    @AiDoc(summary = "Registers a listener called when a node item is added.")
     public EventSubscription onItemRemoved(@WikiParameter(name = "listener", description = "<key:node.graph.param.listener>") EventListener<? super NodeGraphItemRemovedEvent> listener) {
         return on(NodeGraphItemRemovedEvent.TYPE, listener);
     }

@@ -33,7 +33,9 @@ public record NodePath(List<Step> steps) {
         }
     }
 
-    /** Путь к корню. */
+    /**
+     * Путь к корню.
+     */
     public static final NodePath ROOT = new NodePath(List.of());
 
     public NodePath {
@@ -52,7 +54,9 @@ public record NodePath(List<Step> steps) {
         return new NodePath(steps);
     }
 
-    /** @return {@code true}, если путь указывает на корень */
+    /**
+     * @return {@code true}, если путь указывает на корень
+     */
     public boolean isRoot() {
         return steps.isEmpty();
     }
@@ -115,7 +119,9 @@ public record NodePath(List<Step> steps) {
         return false;
     }
 
-    /** Узлы в указанном месте: прямые дети или содержимое property-элемента. */
+    /**
+     * Узлы в указанном месте: прямые дети или содержимое property-элемента.
+     */
     static List<UiNode> nodesAt(UiNode parent, String slot) {
         if (slot == null) return parent.children();
         List<UiNode> nodes = new ArrayList<>();

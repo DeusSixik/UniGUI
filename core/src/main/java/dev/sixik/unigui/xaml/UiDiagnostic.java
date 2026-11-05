@@ -36,17 +36,23 @@ public record UiDiagnostic(String message, SourceLocation location) {
         this(message, line > 0 && column > 0 ? new SourceLocation(line, column) : SourceLocation.UNKNOWN);
     }
 
-    /** @return {@code true}, если позиция известна */
+    /**
+     * @return {@code true}, если позиция известна
+     */
     public boolean hasLocation() {
         return location.known();
     }
 
-    /** @return номер строки или {@code -1} */
+    /**
+     * @return номер строки или {@code -1}
+     */
     public int line() {
         return location.line();
     }
 
-    /** @return номер колонки или {@code -1} */
+    /**
+     * @return номер колонки или {@code -1}
+     */
     public int column() {
         return location.column();
     }

@@ -5,8 +5,12 @@ import dev.sixik.unigui.xaml.UiDocument;
 import dev.sixik.unigui.xaml.UiName;
 import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.UiProperty;
+import dev.sixik.unigui.xaml.UiValue;
+import dev.sixik.unigui.xaml.load.XamlSources;
 import dev.sixik.unigui.xaml.schema.PropertyInfo;
 import dev.sixik.unigui.xaml.schema.Schema;
+import dev.sixik.unigui.xaml.schema.SlotInfo;
+import dev.sixik.unigui.xaml.schema.Template;
 import dev.sixik.unigui.xaml.schema.TypeInfo;
 
 import java.util.ArrayList;
@@ -55,7 +59,9 @@ public final class Snapshotter {
             diagnostics = List.copyOf(diagnostics);
         }
 
-        /** @return {@code true}, если снимок не заметил потерь */
+        /**
+         * @return {@code true}, если снимок не заметил потерь
+         */
         public boolean clean() {
             return diagnostics.isEmpty();
         }
@@ -85,7 +91,10 @@ public final class Snapshotter {
         private final Map<String, String> usedNamespaces = new LinkedHashMap<>();
 
         UiNode node(Widget widget, String path) {
-            Optional<TypeInfo<?>> found = schema.typeOf(widget.getClass());
+            // Все компоненты — один Java-класс, поэтому тип определяет не класс, а определение компонента.
+            Optional<TypeInfo<?>> found = widget instanceof dev.sixik.unigui.xaml.component.ComponentHost host
+                    ? schema.type(host.definition().tag())
+                    : schema.typeOf(widget.getClass());
             if (found.isEmpty()) {
                 diagnostics.add(path + ": no XAML type is registered for " + widget.getClass().getName()
                         + "; the widget was skipped");
@@ -109,6 +118,12 @@ public final class Snapshotter {
 
             Map<String, String> defaultTexts = defaultsOf(type);
             for (PropertyInfo<? super T, ?> property : type.properties()) {
+                // Выражение привязки или команды, которым свойство было задано, важнее его текущего значения.
+                UiValue source = XamlSources.find(widget, property.name()).orElse(null);
+                if (source != null && !property.name().equals("id")) {
+                    node.set(UiProperty.attribute(UiName.of(property.name()), source));
+                    continue;
+                }
                 if (!property.writable() || property.name().equals("id")) continue;
                 String text;
                 try {
@@ -120,6 +135,8 @@ public final class Snapshotter {
                 if (text == null || text.equals(defaultTexts.get(property.name()))) continue;
                 node.set(UiProperty.attribute(property.name(), text));
             }
+
+            writeTemplates(node, type, typed);
 
             if (!type.canExportChildren()) {
                 diagnostics.add(path + ": children of " + type.name().local()
@@ -137,7 +154,29 @@ public final class Snapshotter {
             return node;
         }
 
-        /** Тексты свойств у свежесозданного виджета типа: всё, что совпало с ними, в документ не пишется. */
+        /**
+         * Записывает слоты-шаблоны ({@code <VirtualListView.ItemTemplate>}): шаблон хранится как разметка.
+         */
+        private <T extends Widget> void writeTemplates(UiNode node, TypeInfo<T> type, T widget) {
+            for (SlotInfo<T> slot : type.slots()) {
+                if (slot.template() == null) continue;
+                Template template = slot.template().current(widget);
+                if (template == null) continue;
+                UiNode copy = template.node().copy();
+                noteNamespaces(copy);
+                node.set(new UiProperty(UiName.of(slot.name()), type.name(),
+                        new UiValue.Elements(List.of(copy)), UiProperty.Form.ELEMENT, null));
+            }
+        }
+
+        private void noteNamespaces(UiNode node) {
+            noteNamespace(node.type());
+            for (UiNode child : node.children()) noteNamespaces(child);
+        }
+
+        /**
+         * Тексты свойств у свежесозданного виджета типа: всё, что совпало с ними, в документ не пишется.
+         */
         private <T extends Widget> Map<String, String> defaultsOf(TypeInfo<T> type) {
             return defaults.computeIfAbsent(type, key -> {
                 Map<String, String> texts = new HashMap<>();
@@ -167,7 +206,9 @@ public final class Snapshotter {
             if (!name.prefix().isEmpty()) usedNamespaces.putIfAbsent(name.prefix(), name.namespace());
         }
 
-        /** Объявляет на корне префиксы всех namespace, которые встретились в документе. */
+        /**
+         * Объявляет на корне префиксы всех namespace, которые встретились в документе.
+         */
         void declareNamespaces(UiNode root) {
             usedNamespaces.forEach(root::declareNamespace);
         }

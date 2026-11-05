@@ -36,7 +36,9 @@ import java.util.Set;
  */
 public final class Xaml {
     private static volatile Schema defaultSchema;
-    /** Версия {@link SchemaContributions}, на которой построен {@link #defaultSchema}. */
+    /**
+     * Версия {@link SchemaContributions}, на которой построен {@link #defaultSchema}.
+     */
     private static volatile long defaultSchemaVersion = Long.MIN_VALUE;
 
     private Xaml() {
@@ -61,6 +63,17 @@ public final class Xaml {
             }
             return defaultSchema;
         }
+    }
+
+    /**
+     * Возвращает зарегистрированный компонент (см. {@link dev.sixik.unigui.xaml.component.Components}).
+     *
+     * @param id идентификатор регистрации, например {@code mymod:product_card}
+     * @return компонент, из которого создаются экземпляры
+     * @throws IllegalArgumentException если компонент не зарегистрирован
+     */
+    public static dev.sixik.unigui.xaml.component.Component component(String id) {
+        return dev.sixik.unigui.xaml.component.Components.get(id);
     }
 
     // ------------------------------------------------------------------ загрузка

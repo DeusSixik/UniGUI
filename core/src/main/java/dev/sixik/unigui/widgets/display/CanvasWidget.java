@@ -61,6 +61,17 @@ public final class CanvasWidget extends WidgetBase {
         return this;
     }
 
+    /**
+     * Просит перерисовать холст. Содержимое рисуют колбэки, а холст не знает, когда меняется то, что они читают
+     * (выбор, наведение), поэтому владелец сообщает об этом сам.
+     *
+     * @return этот холст
+     */
+    public CanvasWidget redraw() {
+        invalidate(InvalidationFlags.VISUAL);
+        return this;
+    }
+
     @WikiMethod(
             title = "<key:canvas.widget.method.clear_callbacks.title>",
             summary = "<key:canvas.widget.method.clear_callbacks.summary>")

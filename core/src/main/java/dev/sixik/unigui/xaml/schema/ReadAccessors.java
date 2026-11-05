@@ -67,7 +67,9 @@ final class ReadAccessors {
         TABLE.computeIfAbsent(owner, key -> new HashMap<>()).put(attribute, accessor);
     }
 
-    /** Шесть свойств, описывающих текстуру: размеры и параметры выборки. */
+    /**
+     * Шесть свойств, описывающих текстуру: размеры и параметры выборки.
+     */
     private static void textureFamily(Class<?> owner, String prefix, Function<Object, TextureHandle> texture) {
         register(owner, prefix + "Width", widget -> {
             TextureHandle handle = texture.apply(widget);

@@ -20,7 +20,9 @@ import dev.sixik.unigui.xaml.schema.SlotInfo;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.panel;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** Контейнеры: Panel, Box, VBox, HBox, FlexBox, GridBox, StackPanel, WrapPanel, ScrollView и родственные. */
+/**
+ * Контейнеры: Panel, Box, VBox, HBox, FlexBox, GridBox, StackPanel, WrapPanel, ScrollView и родственные.
+ */
 final class ContainerTypes {
     private ContainerTypes() {
     }

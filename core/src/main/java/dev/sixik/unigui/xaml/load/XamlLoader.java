@@ -7,6 +7,9 @@ import dev.sixik.unigui.api.text.InlineContentResolvers;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.xaml.bind.XamlBindingContext;
 import dev.sixik.unigui.xaml.bind.XamlBindingSession;
+import dev.sixik.unigui.xaml.bind.XamlCommand;
+import dev.sixik.unigui.xaml.bind.XamlCommandRegistry;
+import dev.sixik.unigui.xaml.bind.XamlParameterCommand;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.xaml.SourceLocation;
@@ -25,6 +28,7 @@ import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.PropertyInfo;
 import dev.sixik.unigui.xaml.schema.Schema;
 import dev.sixik.unigui.xaml.schema.SlotInfo;
+import dev.sixik.unigui.xaml.schema.Template;
 import dev.sixik.unigui.xaml.schema.TypeInfo;
 
 import java.util.ArrayList;
@@ -130,13 +134,32 @@ public final class XamlLoader {
         return value instanceof UiValue.Elements ? "<elements>" : MarkupExtensions.write(value);
     }
 
-    /** Один прогон загрузки: всё изменяемое состояние живёт здесь. */
+    /**
+     * Один прогон загрузки: всё изменяемое состояние живёт здесь.
+     */
     private final class Run {
         private final XamlBindingSession session = new XamlBindingSession();
         private final XamlBindingContext bindings = options.bindingContext() == null
                 ? XamlBindingContext.empty() : options.bindingContext();
-        private final LoadContext load = new LoadContext(options.textureResolver(), options.commands());
+        /**
+         * Не final: параметризованная команда подменяет реестр команд на слой с привязанными копиями.
+         */
+        private LoadContext load = new LoadContext(options.textureResolver(), options.commands());
+        private XamlCommandRegistry commandLayer;
+        private int boundCommands;
         private final Map<String, Widget> ids = new HashMap<>();
+        private final MarkupExtensionRegistry extensions;
+
+        Run() {
+            this(options.extensions());
+        }
+
+        /**
+         * Прогон с особым набором расширений: шаблон получает {@code Item} конкретного элемента.
+         */
+        Run(MarkupExtensionRegistry extensions) {
+            this.extensions = extensions;
+        }
 
         LoadedScreen<Widget> screen(UiDocument document) {
             // Текстовые атрибуты могут содержать маркеры {icon:...}; на время загрузки они разрешаются
@@ -173,6 +196,7 @@ public final class XamlLoader {
 
         private <T extends Widget> T build(UiNode node, TypeInfo<T> type, ResourceScope parentScope, int depth) {
             T widget = type.create();
+            if (options.nodeObserver() != null) options.nodeObserver().created(node, widget);
             ResourceScope scope = resourcesOf(node, parentScope);
 
             String id = idOf(node);
@@ -194,6 +218,14 @@ public final class XamlLoader {
                 } catch (RuntimeException failure) {
                     throw fail(childNode.location(), failure.getMessage(), failure);
                 }
+            }
+            try {
+                type.finishLoad(widget, load);
+            } catch (XamlLoadException failure) {
+                throw failure;
+            } catch (RuntimeException failure) {
+                throw fail(node.location(), "Cannot finish loading " + type.name().local() + ": "
+                        + failure.getMessage(), failure);
             }
             return widget;
         }
@@ -218,8 +250,7 @@ public final class XamlLoader {
 
         private <T extends Widget> void applyAttributes(UiNode node, TypeInfo<T> type, T widget, ResourceScope scope) {
             List<Pending<T>> pending = new ArrayList<>();
-            for (UiProperty property : node.properties()) {
-                if (isElementForm(property) || isIdProperty(property)) continue;
+            for (UiProperty property : attributesWithStyle(node, type, widget, scope)) {
                 PropertyInfo<? super T, ?> info = resolve(type, property);
                 if (info == null) {
                     if (options.strictAttributes()) {
@@ -234,11 +265,64 @@ public final class XamlLoader {
             for (Pending<T> item : pending) applyProperty(widget, type, item.info, item.property, scope);
         }
 
-        /** Находит свойство типа для записи в документе; {@code null}, если такого нет. */
+        /**
+         * Атрибуты узла вместе со значениями его стиля: сначала значения стиля, затем явные атрибуты, которые
+         * заменяют одноимённые значения стиля.
+         */
+        private <T extends Widget> Iterable<UiProperty> attributesWithStyle(UiNode node, TypeInfo<T> type, T widget,
+                                                                            ResourceScope scope) {
+            UiProperty reference = null;
+            List<UiProperty> own = new ArrayList<>();
+            for (UiProperty property : node.properties()) {
+                if (isElementForm(property) || isIdProperty(property)) continue;
+                if (property.owner() == null && property.name().namespace().isEmpty()
+                        && property.name().local().equals("Style")) {
+                    reference = property;
+                    continue;
+                }
+                own.add(property);
+            }
+            if (reference == null) return own;
+
+            String key = StyleDef.keyOf(reference.value());
+            if (key == null || key.isEmpty()) {
+                throw fail(reference.location(), "Style must be a style key or {StaticResource key}.");
+            }
+            List<StyleDef.Setter> setters;
+            try {
+                setters = scope.resolveStyle(key);
+                StyleDef direct = scope.findStyle(key).orElseThrow();
+                if (direct.targetType() != null) {
+                    TypeInfo<?> target = schema.type(direct.targetType()).orElse(null);
+                    if (target == null || !target.javaType().isInstance(widget)) {
+                        throw new IllegalArgumentException("Style '" + key + "' targets " + direct.targetType().local()
+                                + " but is applied to " + type.name().local());
+                    }
+                }
+            } catch (IllegalArgumentException failure) {
+                throw fail(reference.location(), failure.getMessage());
+            }
+            Map<String, UiProperty> merged = new LinkedHashMap<>();
+            for (StyleDef.Setter setter : setters) {
+                merged.put(setter.name(), new UiProperty(UiName.of(setter.name()), null, setter.value(),
+                        UiProperty.Form.ATTRIBUTE, setter.location()));
+            }
+            for (UiProperty property : own) merged.put(property.displayName(), property);
+            return merged.values();
+        }
+
+        /**
+         * Находит свойство типа для записи в документе; {@code null}, если такого нет.
+         */
         private <T extends Widget> PropertyInfo<? super T, ?> resolve(TypeInfo<T> type, UiProperty property) {
             if (property.owner() != null) {
-                // Attached-свойства пока не поддерживаются; запись Owner.Prop допустима, только если Owner это сам тип.
-                if (schema.type(property.owner()).orElse(null) != type) return null;
+                // Owner.Prop: либо свойство самого типа, либо attached-свойство (Grid.Row на потомке сетки).
+                if (schema.type(property.owner()).orElse(null) != type) {
+                    @SuppressWarnings("unchecked")
+                    PropertyInfo<? super T, ?> attached = (PropertyInfo<? super T, ?>)
+                            schema.attachedProperty(type, property.owner(), property.name().local()).orElse(null);
+                    return attached;
+                }
             } else if (!property.name().namespace().isEmpty()) {
                 return null;
             }
@@ -249,13 +333,16 @@ public final class XamlLoader {
                                                       UiProperty property, ResourceScope scope) {
             try {
                 UiValue value = property.value();
+                if (XamlSources.worthKeeping(value, info.readable())) {
+                    XamlSources.record(widget, info.name(), value);
+                }
                 if (value instanceof UiValue.Literal literal) {
                     info.apply(widget, literal.text(), load);
                 } else if (value instanceof UiValue.Extension extension) {
-                    MarkupExtension handler = options.extensions().find(extension.name()).orElseThrow(
+                    MarkupExtension handler = extensions.find(extension.name()).orElseThrow(
                             () -> new IllegalArgumentException(
                                     "Unknown markup extension '" + extension.name().qualified() + "'."));
-                    handler.apply(new ExtensionContext(scope, bindings, session), extension,
+                    handler.apply(new ExtensionContext(scope, bindings, session, new Host(scope)), extension,
                             new Target<>(widget, info, property.displayName()));
                 } else {
                     throw new IllegalArgumentException("Property '" + property.displayName()
@@ -305,6 +392,10 @@ public final class XamlLoader {
 
         private <T extends Widget> void feedSlot(T widget, SlotInfo<T> slot, UiProperty property, String shown,
                                                  ResourceScope scope, int depth) {
+            if (slot.template() != null) {
+                feedTemplate(widget, slot, property, shown, scope);
+                return;
+            }
             UiValue value = property.value();
             if (value instanceof UiValue.Elements elements) {
                 for (UiContent item : elements.content()) {
@@ -321,6 +412,63 @@ public final class XamlLoader {
                 }
             } else if (!(value instanceof UiValue.Literal literal) || !literal.text().isBlank()) {
                 throw fail(property.location(), "Property element '" + shown + "' cannot contain text content.");
+            }
+        }
+
+        // -------------------------------------------------------------- шаблоны
+
+        /**
+         * Передаёт слоту шаблон вместо готового виджета. Шаблон сразу пробно создаётся один раз с пустой подстановкой
+         * {@code {Item}}, чтобы опечатки в нём находились при загрузке документа, а не при показе первой строки.
+         */
+        private <T extends Widget> void feedTemplate(T widget, SlotInfo<T> slot, UiProperty property, String shown,
+                                                     ResourceScope scope) {
+            UiNode templateNode = null;
+            if (property.value() instanceof UiValue.Elements elements) {
+                for (UiContent item : elements.content()) {
+                    if (item instanceof UiNode node) {
+                        if (templateNode != null) {
+                            throw fail(node.location(), "Property element '" + shown + "' takes exactly one element.");
+                        }
+                        templateNode = node;
+                    } else if (item instanceof UiContent.Text text && !text.blank()) {
+                        throw fail(property.location(), "Property element '" + shown + "' cannot contain text content.");
+                    }
+                }
+            }
+            if (templateNode == null) {
+                throw fail(property.location(), "Property element '" + shown + "' takes exactly one element.");
+            }
+            final UiNode node = templateNode;
+            Template template = new Template(node, property.location(), overrides -> {
+                MarkupExtensionRegistry registry = extensions.copy();
+                overrides.forEach(registry::replace);
+                return new Run(registry).instantiate(node, scope);
+            });
+            template.instantiate(Map.of("Item", ItemExtension.probe())).close();
+            try {
+                slot.template().accept(widget, template);
+            } catch (RuntimeException failure) {
+                throw fail(property.location(), failure.getMessage(), failure);
+            }
+        }
+
+        /**
+         * Создаёт виджет из узла шаблона; привязки экземпляра живут в сессии этого прогона.
+         */
+        Template.Instance instantiate(UiNode node, ResourceScope scope) {
+            InlineContentResolverScope inline = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
+                    (id, width, height) -> options.textureResolver().resolve(id, width, height, TextureOptions.defaults())));
+            TextureResolution.Scope textures = TextureResolution.push(options.textureResolver());
+            try {
+                Widget root = readNode(node, scope, 0);
+                return new Template.Instance(root, session::close);
+            } catch (RuntimeException failure) {
+                session.close();
+                throw failure;
+            } finally {
+                textures.close();
+                inline.close();
             }
         }
 
@@ -346,9 +494,10 @@ public final class XamlLoader {
             for (UiProperty property : node.properties()) {
                 if (!isElementForm(property) || !property.name().local().equals("Resources")) continue;
                 Map<String, String> entries = new LinkedHashMap<>();
+                Map<String, StyleDef> styles = new LinkedHashMap<>();
                 if (property.value() instanceof UiValue.Elements elements) {
                     for (UiContent item : elements.content()) {
-                        if (item instanceof UiNode entry) readResource(entry, entries);
+                        if (item instanceof UiNode entry) readResource(entry, entries, styles);
                         else if (item instanceof UiContent.Text text && !text.blank()) {
                             throw fail(property.location(), "Property element 'Resources' cannot contain text content.");
                         }
@@ -356,15 +505,23 @@ public final class XamlLoader {
                 } else if (!(property.value() instanceof UiValue.Literal literal) || !literal.text().isBlank()) {
                     throw fail(property.location(), "Property element 'Resources' cannot contain text content.");
                 }
-                return entries.isEmpty() ? parent : new ResourceScope(parent, entries);
+                return entries.isEmpty() && styles.isEmpty() ? parent : new ResourceScope(parent, entries, styles);
             }
             return parent;
         }
 
-        private void readResource(UiNode entry, Map<String, String> entries) {
+        private void readResource(UiNode entry, Map<String, String> entries, Map<String, StyleDef> styles) {
+            if (entry.type().local().equals("Style") && (entry.type().namespace().isEmpty()
+                    || entry.type().namespace().equals(Schema.UI_NAMESPACE))) {
+                StyleDef style = StyleDef.read(entry, XamlLoader::fail);
+                if (styles.putIfAbsent(style.key(), style) != null) {
+                    throw fail(entry.location(), "Duplicate resource key '" + style.key() + "'.");
+                }
+                return;
+            }
             if (!XamlNamespaces.isLanguage(entry.type().namespace())) {
                 throw fail(entry.location(), "Resources can only hold x: entries such as <x:String>, got '<"
-                        + entry.type().qualified() + ">'. Widget resources are not supported yet.");
+                        + entry.type().qualified() + ">'. Use <Style> for property sets and a component for reusable widgets.");
             }
             String key = null;
             for (UiProperty property : entry.properties()) {
@@ -406,7 +563,8 @@ public final class XamlLoader {
                     throw fail(property.location(), "Property element '" + shown + "' cannot be used inside Screen.");
                 }
                 switch (property.name().local()) {
-                    case "Resources" -> { }
+                    case "Resources" -> {
+                    }
                     case "ScaleProvider" -> config = config.merge(readScaleProvider(property));
                     case "Content" -> root = readScreenContent(property, root, scope);
                     default -> throw fail(property.location(), "Unknown property element '" + shown + "' on Screen.");
@@ -425,7 +583,8 @@ public final class XamlLoader {
             if (property.value() instanceof UiValue.Elements elements) {
                 for (UiContent item : elements.content()) {
                     if (item instanceof UiNode child) {
-                        if (root != null) throw fail(child.location(), "Screen element must contain exactly one root widget.");
+                        if (root != null)
+                            throw fail(child.location(), "Screen element must contain exactly one root widget.");
                         root = readNode(child, scope, 0);
                     } else if (item instanceof UiContent.Text text && !text.blank()) {
                         throw fail(property.location(), "Property element 'Screen.Content' cannot contain text content.");
@@ -437,7 +596,9 @@ public final class XamlLoader {
             return root;
         }
 
-        /** {@code <Screen.ScaleProvider><Mutable scale="3"/></Screen.ScaleProvider>}. */
+        /**
+         * {@code <Screen.ScaleProvider><Mutable scale="3"/></Screen.ScaleProvider>}.
+         */
         private ScreenConfig readScaleProvider(UiProperty property) {
             UiNode provider = null;
             if (property.value() instanceof UiValue.Elements elements) {
@@ -486,6 +647,110 @@ public final class XamlLoader {
             return values;
         }
 
+        // -------------------------------------------------------------- возможности для расширений
+
+        /**
+         * Даёт расширениям вычислять вложенные значения и привязывать параметры к командам.
+         */
+        private final class Host implements ExtensionHost {
+            private final ResourceScope scope;
+
+            private Host(ResourceScope scope) {
+                this.scope = scope;
+            }
+
+            @Override
+            public Object evaluate(UiValue value) {
+                if (value instanceof UiValue.Literal literal) return literal.text();
+                if (!(value instanceof UiValue.Extension extension)) {
+                    throw new IllegalArgumentException("The value cannot contain nested elements");
+                }
+                if (extension.name().local().equals("Binding")) {
+                    throw new IllegalArgumentException(
+                            "A live Binding cannot be used here; use {Item ...}, {Param ...} or {StaticResource ...}");
+                }
+                MarkupExtension handler = extensions.find(extension.name()).orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Unknown markup extension '" + extension.name().qualified() + "'."));
+                Capture capture = new Capture();
+                handler.apply(new ExtensionContext(scope, bindings, session, this), extension, capture);
+                return capture.value;
+            }
+
+            @Override
+            public String bindCommand(String command, Object parameter) {
+                XamlCommand base = load.commands().command(command).orElseThrow(
+                        () -> new IllegalArgumentException("Unknown XML command '" + command + "'"));
+                if (!(base instanceof XamlParameterCommand withParameter)) {
+                    throw new IllegalArgumentException("Command '" + command + "' does not take a parameter; "
+                            + "register it as a XamlParameterCommand");
+                }
+                if (commandLayer == null) {
+                    XamlCommandRegistry layer = XamlCommandRegistry.empty();
+                    for (String name : load.commands().names()) {
+                        layer.register(name, load.commands().command(name).orElseThrow());
+                    }
+                    commandLayer = layer;
+                    load = new LoadContext(options.textureResolver(), layer);
+                }
+                String bound = command + "#" + (++boundCommands);
+                commandLayer.register(bound, (source, event) -> withParameter.execute(source, event, parameter));
+                return bound;
+            }
+        }
+
+        /**
+         * Цель, которая не пишет в виджет, а запоминает значение: так вычисляются вложенные расширения.
+         */
+        private static final class Capture implements PropertyTarget {
+            private Object value;
+
+            @Override
+            public Widget widget() {
+                return null;
+            }
+
+            @Override
+            public String name() {
+                return "Parameter";
+            }
+
+            @Override
+            public String describe() {
+                return "command parameter";
+            }
+
+            @Override
+            public boolean bindable() {
+                return true;
+            }
+
+            @Override
+            public Class<?> valueType() {
+                return Object.class;
+            }
+
+            @Override
+            public Class<?> bindingType() {
+                return Object.class;
+            }
+
+            @Override
+            public void setText(String text) {
+                this.value = text;
+            }
+
+            @Override
+            public void setValue(Object value) {
+                this.value = value;
+            }
+
+            @Override
+            public dev.sixik.unigui.api.event.EventSubscription observe(java.util.function.Consumer<Object> onChange) {
+                return null;
+            }
+        }
+
         // -------------------------------------------------------------- цель для расширений
 
         private final class Target<T extends Widget> implements PropertyTarget {
@@ -520,6 +785,11 @@ public final class XamlLoader {
             }
 
             @Override
+            public Class<?> valueType() {
+                return info.valueType();
+            }
+
+            @Override
             public Class<?> bindingType() {
                 return info.bindingType();
             }
@@ -532,6 +802,11 @@ public final class XamlLoader {
             @Override
             public void setValue(Object value) {
                 info.set(widget, value, load);
+            }
+
+            @Override
+            public dev.sixik.unigui.api.event.EventSubscription observe(java.util.function.Consumer<Object> onChange) {
+                return info.observe(widget, onChange);
             }
         }
     }

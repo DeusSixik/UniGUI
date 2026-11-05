@@ -29,29 +29,35 @@ public final class XamlMutableObservableValue<T> implements XamlObservableValue<
     /**
      * Создаёт observable-значение.
      *
-     * @param name имя/path источника в binding context
+     * @param name      имя/path источника в binding context
      * @param valueType runtime-тип значения
-     * @param value начальное значение
-     * @param <T> тип значения
+     * @param value     начальное значение
+     * @param <T>       тип значения
      * @return новый mutable observable
      */
     public static <T> XamlMutableObservableValue<T> of(String name, Class<T> valueType, T value) {
         return new XamlMutableObservableValue<>(name, valueType, value);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String name() {
         return name;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Class<T> valueType() {
         return valueType;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public T get() {
         return value;
@@ -76,7 +82,9 @@ public final class XamlMutableObservableValue<T> implements XamlObservableValue<
         return this;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public EventSubscription onChanged(XamlBindingListener<T> listener) {
         if (listener == null) throw new IllegalArgumentException("XML binding listener must not be null");

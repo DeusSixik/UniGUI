@@ -13,7 +13,7 @@ This is an isolated CleanroomGradle build because CleanroomGradle requires a new
 From the repository root, build the shared core and portable demo first:
 
 ```powershell
-./gradlew.bat :core:jar :demo:jar
+./gradlew.bat :core:jar :editor:jar :demo:jar
 ```
 
 Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this directory:

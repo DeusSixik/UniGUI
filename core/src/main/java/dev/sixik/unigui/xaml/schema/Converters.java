@@ -138,7 +138,9 @@ public final class Converters {
 
     // ------------------------------------------------------------------ запись значений
 
-    /** Самое короткое представление, которое {@code Float.parseFloat} разберёт в то же число. */
+    /**
+     * Самое короткое представление, которое {@code Float.parseFloat} разберёт в то же число.
+     */
     static String number(float value) {
         if (Float.isNaN(value) || Float.isInfinite(value)) return Float.toString(value);
         if (value == Math.rint(value) && Math.abs(value) < 1.0e7f) return Long.toString((long) value);
@@ -232,7 +234,9 @@ public final class Converters {
         return SizeValue.px(Float.parseFloat(normalized));
     }
 
-    /** Парсит grid template: треки через пробел, {@code repeat(n, track)} разворачивается. */
+    /**
+     * Парсит grid template: треки через пробел, {@code repeat(n, track)} разворачивается.
+     */
     private static List<GridTrack> parseGridTracks(String value) {
         String normalized = required(value).trim();
         List<GridTrack> output = new ArrayList<>();
@@ -267,7 +271,9 @@ public final class Converters {
         output.add(GridTrack.parse(normalized));
     }
 
-    /** Парсит {@code marginAuto}: набор из left/top/right/bottom/horizontal/vertical/all/none. */
+    /**
+     * Парсит {@code marginAuto}: набор из left/top/right/bottom/horizontal/vertical/all/none.
+     */
     private static AutoMargins parseAutoMargins(String value) {
         String normalized = required(value).trim().toLowerCase(Locale.ROOT);
         if (normalized.isEmpty() || normalized.equals("none")) return AutoMargins.NONE;
@@ -316,7 +322,9 @@ public final class Converters {
                 Float.parseFloat(parts[2]), Float.parseFloat(parts[3]));
     }
 
-    /** Парсит CSS-подобные отступы: одно значение, вертикаль/горизонталь или верх/право/низ/лево. */
+    /**
+     * Парсит CSS-подобные отступы: одно значение, вертикаль/горизонталь или верх/право/низ/лево.
+     */
     private static EdgeInsets parseInsets(String value) {
         String[] parts = required(value).trim().split("\\s+");
         if (parts.length == 1) return EdgeInsets.all(parseInset(parts[0]));
@@ -341,7 +349,9 @@ public final class Converters {
         return Float.parseFloat(normalized);
     }
 
-    /** Парсит nine-slice рамки: одно значение, горизонталь/вертикаль или left/top/right/bottom. */
+    /**
+     * Парсит nine-slice рамки: одно значение, горизонталь/вертикаль или left/top/right/bottom.
+     */
     private static SliceBorders parseSliceBorders(String value) {
         String[] parts = required(value).trim().split("\\s+");
         if (parts.length == 1) return SliceBorders.all(parseInset(parts[0]));

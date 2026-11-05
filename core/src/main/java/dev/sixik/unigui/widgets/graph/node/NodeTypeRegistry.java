@@ -42,6 +42,16 @@ public class NodeTypeRegistry {
     }
 
     /**
+     * Убирает все типы. Редактор по нему подменяет набор типов, когда меняется контракт компонента.
+     *
+     * @return этот реестр
+     */
+    public NodeTypeRegistry clear() {
+        types.clear();
+        return this;
+    }
+
+    /**
      * @param id id типа
      * @return тип или {@code null}
      */

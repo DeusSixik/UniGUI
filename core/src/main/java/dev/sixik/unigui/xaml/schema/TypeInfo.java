@@ -34,12 +34,14 @@ public final class TypeInfo<T extends Widget> {
     private final Map<String, PropertyInfo<? super T, ?>> properties;
     private final Map<String, Integer> order;
     private final ChildSink<T> content;
+    private final BiConsumer<? super T, LoadContext> afterLoad;
     private final Function<? super T, List<Widget>> childSource;
     private final boolean childrenNotExportable;
     private final Map<String, SlotInfo<T>> slots;
 
     private TypeInfo(Builder<T> builder, Map<String, PropertyInfo<? super T, ?>> properties) {
         this.childSource = builder.childSource;
+        this.afterLoad = builder.afterLoad;
         this.childrenNotExportable = builder.childrenNotExportable;
         Map<String, Integer> positions = new java.util.HashMap<>(properties.size() * 2);
         for (String propertyName : properties.keySet()) positions.put(propertyName, positions.size());
@@ -69,27 +71,37 @@ public final class TypeInfo<T extends Widget> {
         return new Builder<>(name, javaType, factory);
     }
 
-    /** @return имя типа в документе */
+    /**
+     * @return имя типа в документе
+     */
     public UiName name() {
         return name;
     }
 
-    /** @return runtime-класс виджета */
+    /**
+     * @return runtime-класс виджета
+     */
     public Class<T> javaType() {
         return javaType;
     }
 
-    /** @return заголовок для палитры редактора */
+    /**
+     * @return заголовок для палитры редактора
+     */
     public String displayName() {
         return displayName;
     }
 
-    /** @return категория для палитры редактора */
+    /**
+     * @return категория для палитры редактора
+     */
     public String category() {
         return category;
     }
 
-    /** @return описание типа */
+    /**
+     * @return описание типа
+     */
     public String description() {
         return description;
     }
@@ -103,7 +115,9 @@ public final class TypeInfo<T extends Widget> {
         return factory.get();
     }
 
-    /** @return все свойства типа в порядке: общие, из аннотаций, ручные */
+    /**
+     * @return все свойства типа в порядке: общие, из аннотаций, ручные
+     */
     public Collection<PropertyInfo<? super T, ?>> properties() {
         return properties.values();
     }
@@ -132,7 +146,9 @@ public final class TypeInfo<T extends Widget> {
         return index == null ? -1 : index;
     }
 
-    /** @return {@code true}, если тип принимает вложенные виджеты напрямую (без property-элемента) */
+    /**
+     * @return {@code true}, если тип принимает вложенные виджеты напрямую (без property-элемента)
+     */
     public boolean acceptsChildren() {
         return content != null;
     }
@@ -160,7 +176,9 @@ public final class TypeInfo<T extends Widget> {
         return widget.children();
     }
 
-    /** @return все слоты типа */
+    /**
+     * @return все слоты типа
+     */
     public Collection<SlotInfo<T>> slots() {
         return slots.values();
     }
@@ -190,6 +208,16 @@ public final class TypeInfo<T extends Widget> {
         content.add(parent, child);
     }
 
+    /**
+     * Завершает загрузку виджета этого типа.
+     *
+     * @param widget  загруженный виджет
+     * @param context контекст загрузки
+     */
+    public void finishLoad(T widget, LoadContext context) {
+        if (afterLoad != null) afterLoad.accept(widget, context);
+    }
+
     private static String defaultCategory(String typeName) {
         return switch (typeName) {
             case "Panel", "Box", "VBox", "HBox", "StackPanel", "WrapPanel", "ScrollView" -> "Containers";
@@ -217,9 +245,11 @@ public final class TypeInfo<T extends Widget> {
         private final Map<String, PropertyInfo<? super T, ?>> manual = new LinkedHashMap<>();
         private final List<String> bindable = new ArrayList<>();
         private ChildSink<T> content;
+        private BiConsumer<? super T, LoadContext> afterLoad;
         private Function<? super T, List<Widget>> childSource;
         private boolean childrenNotExportable;
         private final Map<String, Function<? super T, ?>> getters = new LinkedHashMap<>();
+        private final Map<String, ChangeNotifier<? super T>> notifiers = new LinkedHashMap<>();
         private final Map<String, SlotInfo<T>> slots = new LinkedHashMap<>();
 
         private Builder(UiName name, Class<T> javaType, Supplier<T> factory) {
@@ -334,6 +364,19 @@ public final class TypeInfo<T extends Widget> {
         }
 
         /**
+         * Сообщает, как узнать, что пользователь изменил значение свойства в виджете. Такое свойство можно
+         * привязать в обе стороны.
+         *
+         * @param propertyName имя существующего свойства
+         * @param notifier     подписка на правки
+         * @return этот билдер
+         */
+        public Builder<T> notifies(String propertyName, ChangeNotifier<? super T> notifier) {
+            notifiers.put(propertyName, notifier);
+            return this;
+        }
+
+        /**
          * Задаёт, как прочитать с виджета уже объявленное свойство (аннотацией или таблицей общих свойств).
          * Нужно там, где одноимённого геттера нет и значение берётся из другого места.
          *
@@ -393,6 +436,18 @@ public final class TypeInfo<T extends Widget> {
         }
 
         /**
+         * Задаёт действие, которое загрузчик выполняет над виджетом, когда все его свойства и дети применены.
+         * Нужно типам, которые собирают своё содержимое из уже заданных свойств (компоненты).
+         *
+         * @param action действие; получает виджет и контекст загрузки
+         * @return этот билдер
+         */
+        public Builder<T> afterLoad(BiConsumer<? super T, LoadContext> action) {
+            this.afterLoad = action;
+            return this;
+        }
+
+        /**
          * Добавляет именованный слот {@code <Type.Slot>}.
          *
          * @param slot слот
@@ -440,7 +495,20 @@ public final class TypeInfo<T extends Widget> {
                 }
                 all.put(entry.getKey(), withGetter(property, entry.getValue()));
             }
+            for (Map.Entry<String, ChangeNotifier<? super T>> entry : notifiers.entrySet()) {
+                PropertyInfo<? super T, ?> property = all.get(entry.getKey());
+                if (property == null) {
+                    throw new IllegalArgumentException("Unknown property '" + entry.getKey() + "' on " + name.local());
+                }
+                all.put(entry.getKey(), withNotifier(property, entry.getValue()));
+            }
             return new TypeInfo<>(this, all);
+        }
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private PropertyInfo<? super T, ?> withNotifier(PropertyInfo<? super T, ?> property,
+                                                        ChangeNotifier<? super T> notifier) {
+            return ((PropertyInfo) property).withNotifier(notifier);
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -448,7 +516,9 @@ public final class TypeInfo<T extends Widget> {
             return ((PropertyInfo) property).withGetter(getter);
         }
 
-        /** Кладёт свойство; если такое имя уже есть, новое перекрывает старое, наследуя незаданные метаданные. */
+        /**
+         * Кладёт свойство; если такое имя уже есть, новое перекрывает старое, наследуя незаданные метаданные.
+         */
         private void putOverriding(Map<String, PropertyInfo<? super T, ?>> into, PropertyInfo<? super T, ?> property) {
             PropertyInfo<? super T, ?> previous = into.get(property.name());
             into.put(property.name(), previous == null ? property : property.overriding(previous));
