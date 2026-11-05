@@ -22,7 +22,7 @@ public final class XamlBindingStatus {
     private final List<UiDiagnostic> diagnostics;
 
     private XamlBindingStatus(State state, String path, Class<?> expectedType, Class<?> actualType,
-                             List<UiDiagnostic> diagnostics) {
+                              List<UiDiagnostic> diagnostics) {
         this.state = state == null ? State.ERROR : state;
         this.path = normalizePath(path);
         this.expectedType = expectedType;
@@ -33,7 +33,7 @@ public final class XamlBindingStatus {
     /**
      * Создаёт active status, когда ожидаемый и фактический тип совпадают.
      *
-     * @param path binding path или имя значения
+     * @param path      binding path или имя значения
      * @param valueType runtime-тип observable value
      * @return статус активной связи
      */
@@ -46,9 +46,9 @@ public final class XamlBindingStatus {
      *
      * <p>Метод нужен для случаев, когда source type assignable к target type, но не равен ему буквально.</p>
      *
-     * @param path binding path или имя значения
+     * @param path         binding path или имя значения
      * @param expectedType тип, который запросил target
-     * @param actualType фактический тип observable source
+     * @param actualType   фактический тип observable source
      * @return статус активной связи
      */
     public static XamlBindingStatus active(String path, Class<?> expectedType, Class<?> actualType) {
@@ -58,7 +58,7 @@ public final class XamlBindingStatus {
     /**
      * Создаёт closed status для связи, которую уже отписали.
      *
-     * @param path binding path или имя значения
+     * @param path      binding path или имя значения
      * @param valueType runtime-тип значения
      * @return статус закрытой связи
      */
@@ -69,7 +69,7 @@ public final class XamlBindingStatus {
     /**
      * Создаёт error status для отсутствующего observable value.
      *
-     * @param path binding path, который не удалось найти
+     * @param path         binding path, который не удалось найти
      * @param expectedType ожидаемый тип значения
      * @return статус ошибки с диагностикой missing value
      */
@@ -81,9 +81,9 @@ public final class XamlBindingStatus {
     /**
      * Создаёт error status для несовместимого runtime-типа.
      *
-     * @param path binding path или имя значения
+     * @param path         binding path или имя значения
      * @param expectedType тип, который запросил target
-     * @param actualType фактический тип source
+     * @param actualType   фактический тип source
      * @return статус ошибки с диагностикой type mismatch
      */
     public static XamlBindingStatus typeMismatch(String path, Class<?> expectedType, Class<?> actualType) {
@@ -95,10 +95,10 @@ public final class XamlBindingStatus {
     /**
      * Создаёт произвольный error status.
      *
-     * @param path binding path или имя значения
+     * @param path         binding path или имя значения
      * @param expectedType ожидаемый тип target-а
-     * @param actualType фактический тип source или {@code null}, если source отсутствует
-     * @param message текст диагностики; {@code null} заменяется дефолтным сообщением
+     * @param actualType   фактический тип source или {@code null}, если source отсутствует
+     * @param message      текст диагностики; {@code null} заменяется дефолтным сообщением
      * @return статус ошибки
      */
     public static XamlBindingStatus error(String path, Class<?> expectedType, Class<?> actualType, String message) {
@@ -203,11 +203,17 @@ public final class XamlBindingStatus {
      * Состояние lifecycle-а XML binding-а.
      */
     public enum State {
-        /** Binding успешно подписан на observable source. */
+        /**
+         * Binding успешно подписан на observable source.
+         */
         ACTIVE,
-        /** Binding был закрыт и больше не получает изменения. */
+        /**
+         * Binding был закрыт и больше не получает изменения.
+         */
         CLOSED,
-        /** Binding не удалось создать из-за отсутствия source, несовместимого типа или другой ошибки. */
+        /**
+         * Binding не удалось создать из-за отсутствия source, несовместимого типа или другой ошибки.
+         */
         ERROR
     }
 

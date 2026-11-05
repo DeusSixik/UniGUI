@@ -100,12 +100,16 @@ public final class Structs {
                 "Unknown struct '" + name + "'. Registered: " + names() + ". Register it before the components that use it."));
     }
 
-    /** @return имена зарегистрированных структур */
+    /**
+     * @return имена зарегистрированных структур
+     */
     public static synchronized List<String> names() {
         return new ArrayList<>(BY_NAME.keySet());
     }
 
-    /** @return счётчик изменений реестра: по нему кэши скомпилированных графов узнают, что структуры сменились */
+    /**
+     * @return счётчик изменений реестра: по нему кэши скомпилированных графов узнают, что структуры сменились
+     */
     public static long version() {
         return VERSION.get();
     }

@@ -111,7 +111,7 @@ public final class UiEditor {
                 .statusBar(ToolbarSection.RIGHT, EditorChrome::documentStatus)
                 .panel(new HierarchyPanel())
                 .panel(new PalettePanel())
-                .panel(new InspectorPanel())
+                .panel(new InspectorPanel(componentView))
                 .panel(new ViewportPanel(previewOptions, componentView))
                 .panel(new CodePanel())
                 .panel(new DiagnosticsPanel());

@@ -31,11 +31,17 @@ import java.util.stream.Stream;
  * перезапуска служит {@link Live}: он следит за папкой и переустанавливает паки, когда файлы изменились.</p>
  */
 public final class PackLibrary {
-    /** Имя папки с готовыми паками. */
+    /**
+     * Имя папки с готовыми паками.
+     */
     public static final String PACKS = "packs";
-    /** Имя папки с проектами редактора. */
+    /**
+     * Имя папки с проектами редактора.
+     */
     public static final String PROJECTS = "projects";
-    /** Имя файла настроек. */
+    /**
+     * Имя файла настроек.
+     */
     public static final String SETTINGS = "settings.xaml";
 
     private final Path root;
@@ -70,27 +76,37 @@ public final class PackLibrary {
         return this;
     }
 
-    /** @return корневая папка библиотеки */
+    /**
+     * @return корневая папка библиотеки
+     */
     public Path root() {
         return root;
     }
 
-    /** @return папка готовых паков */
+    /**
+     * @return папка готовых паков
+     */
     public Path packs() {
         return root.resolve(PACKS);
     }
 
-    /** @return папка проектов редактора */
+    /**
+     * @return папка проектов редактора
+     */
     public Path projects() {
         return root.resolve(PROJECTS);
     }
 
-    /** @return файл настроек UI */
+    /**
+     * @return файл настроек UI
+     */
     public Path settingsFile() {
         return root.resolve(SETTINGS);
     }
 
-    /** @return настройки UI из {@code settings.xaml}; пустые, если файла нет */
+    /**
+     * @return настройки UI из {@code settings.xaml}; пустые, если файла нет
+     */
     public UiSettings settings() {
         return UiSettings.load(settingsFile());
     }
@@ -105,7 +121,9 @@ public final class PackLibrary {
      * @param problem  причина, если пак не открылся, иначе пустая строка
      */
     public record Found(Path file, PackManifest manifest, String problem) {
-        /** @return {@code true}, если пак открылся */
+        /**
+         * @return {@code true}, если пак открылся
+         */
         public boolean ok() {
             return manifest != null;
         }
@@ -138,23 +156,31 @@ public final class PackLibrary {
 
     // ------------------------------------------------------------------ установка
 
-    /** Результат установки всех паков библиотеки. */
+    /**
+     * Результат установки всех паков библиотеки.
+     */
     public static final class Installed implements AutoCloseable {
         private final List<PackInstallation> installations = new ArrayList<>();
         private final List<String> packs = new ArrayList<>();
         private final List<String> problems = new ArrayList<>();
 
-        /** @return идентификаторы установленных паков в порядке установки */
+        /**
+         * @return идентификаторы установленных паков в порядке установки
+         */
         public List<String> packs() {
             return List.copyOf(packs);
         }
 
-        /** @return проблемы: битые файлы, замены паков, ошибки документов внутри паков */
+        /**
+         * @return проблемы: битые файлы, замены паков, ошибки документов внутри паков
+         */
         public List<String> problems() {
             return List.copyOf(problems);
         }
 
-        /** @return {@code true}, если проблем нет */
+        /**
+         * @return {@code true}, если проблем нет
+         */
         public boolean clean() {
             return problems.isEmpty();
         }
@@ -229,7 +255,9 @@ public final class PackLibrary {
         }
     }
 
-    /** Сравнивает версии по числам через точку: {@code 1.10} новее {@code 1.9}; нечисловые части — как текст. */
+    /**
+     * Сравнивает версии по числам через точку: {@code 1.10} новее {@code 1.9}; нечисловые части — как текст.
+     */
     static int compareVersions(String a, String b) {
         String[] left = a.split("[.\\-+]");
         String[] right = b.split("[.\\-+]");
@@ -308,7 +336,9 @@ public final class PackLibrary {
             reload();
         }
 
-        /** @return текущая установка */
+        /**
+         * @return текущая установка
+         */
         public Installed installed() {
             return installed;
         }
@@ -338,7 +368,9 @@ public final class PackLibrary {
         }
     }
 
-    /** Подпись папки: имена, размеры и время изменения файлов; не читает содержимое. */
+    /**
+     * Подпись папки: имена, размеры и время изменения файлов; не читает содержимое.
+     */
     static String signatureOf(Path folder) {
         if (!Files.isDirectory(folder)) return "";
         StringBuilder text = new StringBuilder();

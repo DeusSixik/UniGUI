@@ -63,7 +63,9 @@ public interface UiFormat {
      * @param maxDepth максимальная глубина вложенности элементов (защита от переполнения стека)
      */
     record ReadOptions(int maxDepth) {
-        /** Значения по умолчанию: глубина 128, как у прежнего загрузчика. */
+        /**
+         * Значения по умолчанию: глубина 128, как у прежнего загрузчика.
+         */
         public static final ReadOptions DEFAULT = new ReadOptions(128);
 
         public ReadOptions {
@@ -74,12 +76,14 @@ public interface UiFormat {
     /**
      * Настройки записи.
      *
-     * @param indent         число пробелов на уровень вложенности
-     * @param declaration    писать ли {@code <?xml ...?>}
-     * @param maxLineLength  длина строки, после которой атрибуты переносятся по одному на строку
+     * @param indent        число пробелов на уровень вложенности
+     * @param declaration   писать ли {@code <?xml ...?>}
+     * @param maxLineLength длина строки, после которой атрибуты переносятся по одному на строку
      */
     record WriteOptions(int indent, boolean declaration, int maxLineLength) {
-        /** Читаемый вывод с отступом 4 и переносом длинных тегов. */
+        /**
+         * Читаемый вывод с отступом 4 и переносом длинных тегов.
+         */
         public static final WriteOptions PRETTY = new WriteOptions(4, false, 100);
 
         public WriteOptions {

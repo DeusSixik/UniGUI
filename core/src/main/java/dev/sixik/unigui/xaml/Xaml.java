@@ -36,7 +36,9 @@ import java.util.Set;
  */
 public final class Xaml {
     private static volatile Schema defaultSchema;
-    /** Версия {@link SchemaContributions}, на которой построен {@link #defaultSchema}. */
+    /**
+     * Версия {@link SchemaContributions}, на которой построен {@link #defaultSchema}.
+     */
     private static volatile long defaultSchemaVersion = Long.MIN_VALUE;
 
     private Xaml() {

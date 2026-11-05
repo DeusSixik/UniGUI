@@ -73,22 +73,30 @@ public final class GraphDefinition {
         this.wires = List.copyOf(wires);
     }
 
-    /** @return пустой граф */
+    /**
+     * @return пустой граф
+     */
     public static GraphDefinition empty() {
         return new GraphDefinition(List.of(), List.of());
     }
 
-    /** @return ноды по порядку документа */
+    /**
+     * @return ноды по порядку документа
+     */
     public List<Node> nodes() {
         return nodes;
     }
 
-    /** @return провода по порядку документа */
+    /**
+     * @return провода по порядку документа
+     */
     public List<Wire> wires() {
         return wires;
     }
 
-    /** @return {@code true}, если в графе нет нод */
+    /**
+     * @return {@code true}, если в графе нет нод
+     */
     public boolean isEmpty() {
         return nodes.isEmpty();
     }

@@ -17,9 +17,13 @@ import java.util.Map;
  * бесконечный цикл не раздувает память. Класс не знает ни об экране, ни о редакторе.</p>
  */
 public final class GraphTrace implements GraphExecutor.Trace {
-    /** Предел хранимых запусков. */
+    /**
+     * Предел хранимых запусков.
+     */
     public static final int MAX_RUNS = 50;
-    /** Предел шагов в одном запуске. */
+    /**
+     * Предел шагов в одном запуске.
+     */
     public static final int MAX_STEPS = 500;
 
     /**
@@ -42,9 +46,9 @@ public final class GraphTrace implements GraphExecutor.Trace {
     /**
      * Один запуск графа.
      *
-     * @param entry идентификатор ноды, с которой начался запуск
-     * @param steps шаги по порядку
-     * @param error ошибка запуска или пустая строка
+     * @param entry      идентификатор ноды, с которой начался запуск
+     * @param steps      шаги по порядку
+     * @param error      ошибка запуска или пустая строка
      * @param failedNode нода, на которой запуск упал, или пустая строка
      */
     public record Run(String entry, List<Step> steps, String error, String failedNode) {
@@ -101,23 +105,31 @@ public final class GraphTrace implements GraphExecutor.Trace {
         if (failedNode.isEmpty()) failedNode = node.id();
     }
 
-    /** Ключ поведения имеет вид {@code тип#идентификатор}; в записи нужен только тип. */
+    /**
+     * Ключ поведения имеет вид {@code тип#идентификатор}; в записи нужен только тип.
+     */
     private static String baseType(String behaviorKey) {
         int hash = behaviorKey.indexOf('#');
         return hash < 0 ? behaviorKey : behaviorKey.substring(0, hash);
     }
 
-    /** @return запуски от старых к новым */
+    /**
+     * @return запуски от старых к новым
+     */
     public List<Run> runs() {
         return List.copyOf(runs);
     }
 
-    /** @return последний завершённый запуск или {@code null} */
+    /**
+     * @return последний завершённый запуск или {@code null}
+     */
     public Run last() {
         return runs.isEmpty() ? null : runs.get(runs.size() - 1);
     }
 
-    /** Забывает все запуски. */
+    /**
+     * Забывает все запуски.
+     */
     public void clear() {
         runs.clear();
         steps = null;

@@ -28,13 +28,21 @@ public final class Anchoring {
     private Anchoring() {
     }
 
-    /** Способ размещения. */
+    /**
+     * Способ размещения.
+     */
     public enum Mode {
-        /** Якоря не применимы. */
+        /**
+         * Якоря не применимы.
+         */
         NONE,
-        /** Слот {@code StackPanel} или ячейка {@code GridBox}: выравнивания плюс {@code margin}. */
+        /**
+         * Слот {@code StackPanel} или ячейка {@code GridBox}: выравнивания плюс {@code margin}.
+         */
         SLOT,
-        /** {@code position="absolute"}. */
+        /**
+         * {@code position="absolute"}.
+         */
         ABSOLUTE
     }
 
@@ -102,7 +110,9 @@ public final class Anchoring {
                 && insets(session, node, false, vertical));
     }
 
-    /** Абсолютный якорь по оси: какие из двух отступов заданы; прежнее значение сохраняется, иначе 0. */
+    /**
+     * Абсолютный якорь по оси: какие из двух отступов заданы; прежнее значение сохраняется, иначе 0.
+     */
     private static boolean insets(EditorSession session, UiNode node, boolean horizontal, String alignment) {
         String first = horizontal ? "left" : "top";
         String last = horizontal ? "right" : "bottom";
@@ -162,7 +172,9 @@ public final class Anchoring {
                 && shift(session, node, "bottom", vertical.equals("start") ? 0 : -dy));
     }
 
-    /** Меняет заданный абсолютный отступ на величину; незаданный не трогает. */
+    /**
+     * Меняет заданный абсолютный отступ на величину; незаданный не трогает.
+     */
     private static boolean shift(EditorSession session, UiNode node, String property, float delta) {
         if (delta == 0.0f) return true;
         Optional<String> current = node.attributeText(property);

@@ -33,23 +33,39 @@ import java.util.function.Consumer;
  * <p>Класс не потокобезопасен: сессию ведёт поток интерфейса.</p>
  */
 public final class EditorSession {
-    /** Режим представления документа. */
+    /**
+     * Режим представления документа.
+     */
     public enum Mode {
-        /** Визуальный редактор. */
+        /**
+         * Визуальный редактор.
+         */
         VISUAL,
-        /** Текст документа. */
+        /**
+         * Текст документа.
+         */
         CODE,
-        /** Оба представления рядом. */
+        /**
+         * Оба представления рядом.
+         */
         SPLIT
     }
 
-    /** Источник диагностики. */
+    /**
+     * Источник диагностики.
+     */
     public enum Channel {
-        /** Синтаксические ошибки текста. */
+        /**
+         * Синтаксические ошибки текста.
+         */
         PARSE,
-        /** Проверка документа по схеме. */
+        /**
+         * Проверка документа по схеме.
+         */
         VALIDATION,
-        /** Причина, по которой последняя правка была отклонена. */
+        /**
+         * Причина, по которой последняя правка была отклонена.
+         */
         EDIT
     }
 
@@ -132,27 +148,37 @@ public final class EditorSession {
 
     // ------------------------------------------------------------------ состояние
 
-    /** @return последнее корректное дерево документа */
+    /**
+     * @return последнее корректное дерево документа
+     */
     public UiDocument document() {
         return document;
     }
 
-    /** @return текст документа; при ошибке разбора это то, что набрал пользователь */
+    /**
+     * @return текст документа; при ошибке разбора это то, что набрал пользователь
+     */
     public String text() {
         return text;
     }
 
-    /** @return {@code true}, если текст отличается от сохранённого */
+    /**
+     * @return {@code true}, если текст отличается от сохранённого
+     */
     public boolean dirty() {
         return !text.equals(savedText);
     }
 
-    /** @return реестр типов, по которому проверяется документ */
+    /**
+     * @return реестр типов, по которому проверяется документ
+     */
     public Schema schema() {
         return schema;
     }
 
-    /** @return текущий режим представления */
+    /**
+     * @return текущий режим представления
+     */
     public Mode mode() {
         return mode;
     }
@@ -170,12 +196,16 @@ public final class EditorSession {
 
     // ------------------------------------------------------------------ выбор
 
-    /** @return выбранный узел */
+    /**
+     * @return выбранный узел
+     */
     public Optional<UiNode> selected() {
         return Optional.ofNullable(selection);
     }
 
-    /** @return адрес выбранного узла */
+    /**
+     * @return адрес выбранного узла
+     */
     public Optional<NodePath> selectedPath() {
         return NodePath.find(document, selection);
     }
@@ -276,22 +306,30 @@ public final class EditorSession {
         return true;
     }
 
-    /** @return число шагов отмены */
+    /**
+     * @return число шагов отмены
+     */
     public int undoCount() {
         return history.undoCount();
     }
 
-    /** @return число шагов повтора */
+    /**
+     * @return число шагов повтора
+     */
     public int redoCount() {
         return history.redoCount();
     }
 
-    /** @return описание правки, которую отменит {@link #undo()} */
+    /**
+     * @return описание правки, которую отменит {@link #undo()}
+     */
     public Optional<String> undoLabel() {
         return history.undoLabel();
     }
 
-    /** @return описание правки, которую повторит {@link #redo()} */
+    /**
+     * @return описание правки, которую повторит {@link #redo()}
+     */
     public Optional<String> redoLabel() {
         return history.redoLabel();
     }
@@ -308,7 +346,9 @@ public final class EditorSession {
         }
     }
 
-    /** Если выбранный узел исчез из документа (удалён или откат вставки), выбор снимается. */
+    /**
+     * Если выбранный узел исчез из документа (удалён или откат вставки), выбор снимается.
+     */
     private void keepSelectionInDocument() {
         if (selection != null && NodePath.find(document, selection).isEmpty()) {
             selection = null;
@@ -361,7 +401,9 @@ public final class EditorSession {
 
     // ------------------------------------------------------------------ сохранение
 
-    /** @return {@code true}, если у сессии есть источник и он принимает запись */
+    /**
+     * @return {@code true}, если у сессии есть источник и он принимает запись
+     */
     public boolean canSave() {
         return source != null && source.writable();
     }
@@ -402,7 +444,9 @@ public final class EditorSession {
         return true;
     }
 
-    /** Считает текущий текст сохранённым, не обращаясь к источнику. */
+    /**
+     * Считает текущий текст сохранённым, не обращаясь к источнику.
+     */
     public void markClean() {
         savedText = text;
     }
@@ -419,7 +463,9 @@ public final class EditorSession {
         return diagnostics.get(channel);
     }
 
-    /** @return диагностика всех каналов в порядке: разбор, проверка, правка */
+    /**
+     * @return диагностика всех каналов в порядке: разбор, проверка, правка
+     */
     public List<UiDiagnostic> allDiagnostics() {
         List<UiDiagnostic> all = new ArrayList<>();
         for (Channel channel : Channel.values()) all.addAll(diagnostics.get(channel));

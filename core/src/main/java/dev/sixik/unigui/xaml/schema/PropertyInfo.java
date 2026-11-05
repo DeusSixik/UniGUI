@@ -25,7 +25,9 @@ public final class PropertyInfo<T extends Widget, V> {
     private final String defaultValue;
     private final String description;
     private final ValueKind kind;
-    /** Метаданные ровно в том виде, в каком их задали; нужны, чтобы отличить явное значение от выведенного. */
+    /**
+     * Метаданные ровно в том виде, в каком их задали; нужны, чтобы отличить явное значение от выведенного.
+     */
     private final Meta declared;
     private final ChangeNotifier<? super T> notifier;
 
@@ -64,57 +66,79 @@ public final class PropertyInfo<T extends Widget, V> {
         this.kind = resolved.kind() != null ? resolved.kind() : kindFor(this.name, converter);
     }
 
-    /** @return имя свойства в документе */
+    /**
+     * @return имя свойства в документе
+     */
     public String name() {
         return name;
     }
 
-    /** @return конвертер текста в значение */
+    /**
+     * @return конвертер текста в значение
+     */
     public ValueConverter<V> converter() {
         return converter;
     }
 
-    /** @return тип значения (боксированный) */
+    /**
+     * @return тип значения (боксированный)
+     */
     public Class<V> valueType() {
         return converter.type();
     }
 
-    /** @return заголовок для инспектора */
+    /**
+     * @return заголовок для инспектора
+     */
     public String displayName() {
         return displayName;
     }
 
-    /** @return категория для группировки в инспекторе */
+    /**
+     * @return категория для группировки в инспекторе
+     */
     public String category() {
         return category;
     }
 
-    /** @return значение по умолчанию в текстовой форме; пустая строка, если не задано */
+    /**
+     * @return значение по умолчанию в текстовой форме; пустая строка, если не задано
+     */
     public String defaultValue() {
         return defaultValue;
     }
 
-    /** @return описание для подсказки */
+    /**
+     * @return описание для подсказки
+     */
     public String description() {
         return description;
     }
 
-    /** @return тип редактора */
+    /**
+     * @return тип редактора
+     */
     public ValueKind kind() {
         return kind;
     }
 
-    /** @return тип источника для {@code {Binding}} или {@code null}, если привязка не поддерживается */
+    /**
+     * @return тип источника для {@code {Binding}} или {@code null}, если привязка не поддерживается
+     */
     public Class<?> bindingType() {
         return bindingType;
     }
 
-    /** @return {@code true}, если значение можно привязать через markup extension */
+    /**
+     * @return {@code true}, если значение можно привязать через markup extension
+     */
     public boolean bindable() {
         return bindingType != null;
     }
 
-    /** @return {@code true}, если значение можно прочитать с виджета (нужно для снимка дерева) */
+    /**
+     * @return {@code true}, если значение можно прочитать с виджета (нужно для снимка дерева)
+     */
     public boolean readable() {
         return getter != null;
     }
@@ -200,7 +224,9 @@ public final class PropertyInfo<T extends Widget, V> {
         return new PropertyInfo<>(name, converter, setter, getter, bindingType, declared, newNotifier);
     }
 
-    /** @return {@code true}, если виджет сообщает о правках пользователя и свойство можно привязать в обе стороны */
+    /**
+     * @return {@code true}, если виджет сообщает о правках пользователя и свойство можно привязать в обе стороны
+     */
     public boolean observable() {
         return notifier != null;
     }

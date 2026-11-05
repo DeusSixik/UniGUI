@@ -50,6 +50,7 @@ final class InspectorPanel extends SessionPanel {
 
     private static final String NOT_SET = "(default)";
 
+    private final ComponentView componentView;
     private final VBox content = new VBox();
     private final Map<String, TextField> fields = new LinkedHashMap<>();
     private final Map<String, ComboBox> combos = new LinkedHashMap<>();
@@ -60,6 +61,11 @@ final class InspectorPanel extends SessionPanel {
     /** Строки свойств с текстом, по которому их ищет поле поиска. */
     private final Map<Widget, String> searchable = new LinkedHashMap<>();
     private UiNode shown;
+    private ContractDetails details;
+
+    InspectorPanel(ComponentView componentView) {
+        this.componentView = componentView;
+    }
     private boolean syncing;
     private boolean applying;
 
@@ -103,6 +109,7 @@ final class InspectorPanel extends SessionPanel {
         root.addChild(EditorStyles.searchBar(search));
         root.addChild(scroll);
         root.applyQueuedMutations();
+        componentView.onEntry(this::rebuild);
         return root;
     }
 
@@ -114,9 +121,15 @@ final class InspectorPanel extends SessionPanel {
     @Override
     protected void changed(EditorSession current, SessionChange change) {
         switch (change.kind()) {
-            case SELECTION_CHANGED, REVERTED -> rebuild();
+            case SELECTION_CHANGED -> {
+                // Инспектор показывает либо узел, либо запись контракта.
+                if (current.selected().isPresent() && componentView.entry().isPresent()) componentView.entry(null);
+                else rebuild();
+            }
+            case REVERTED -> rebuild();
             case DOCUMENT_CHANGED -> {
                 // Свои же правки поля не пересобирают: иначе поле теряло бы фокус на каждой букве.
+                if (details != null && details.applying()) return;
                 if (applying) refreshProblems();
                 else rebuild();
             }
@@ -130,8 +143,17 @@ final class InspectorPanel extends SessionPanel {
         combos.clear();
         problems.clear();
         searchable.clear();
+        details = null;
         EditorSession session = session().orElse(null);
         shown = session == null ? null : session.selected().orElse(null);
+        ComponentView.Entry entry = componentView.entry().orElse(null);
+        if (session != null && shown == null && entry != null && ContractDetails.exists(session, entry)) {
+            details = new ContractDetails(session, componentView, entry, this::rebuild);
+            details.fill(content);
+            content.applyQueuedMutations();
+            EditorStyles.apply(content);
+            return;
+        }
         if (shown == null) {
             Label empty = EditorStyles.caption(session == null ? "No document" : "Select a widget");
             empty.layout(style -> style.margin(2.0f, 6.0f));
@@ -245,8 +267,9 @@ final class InspectorPanel extends SessionPanel {
         java.util.Set<String> done = new java.util.HashSet<>();
         for (Inspector.PropertyView property : properties) {
             if (!done.add(property.name())) continue;
+            // Имя привязки в половину строки не влезает, поэтому привязанная пара показывается двумя полными строками.
             Pair pair = PAIRS.stream().filter(candidate -> candidate.first().equals(property.name())
-                    && byName.containsKey(candidate.second())).findFirst().orElse(null);
+                    && byName.containsKey(candidate.second()) && !bound(candidate)).findFirst().orElse(null);
             if (pair == null) {
                 addRow(session, property, body);
             } else {
@@ -257,6 +280,11 @@ final class InspectorPanel extends SessionPanel {
         body.visibility(collapsed.contains(category) ? Visibility.COLLAPSED : Visibility.VISIBLE);
         body.applyQueuedMutations();
         content.addChild(body);
+    }
+
+    private boolean bound(Pair pair) {
+        return shown != null && (Promotions.binding(shown, pair.first()).isPresent()
+                || Promotions.binding(shown, pair.second()).isPresent());
     }
 
     private static HBox propertyRow() {
@@ -278,6 +306,7 @@ final class InspectorPanel extends SessionPanel {
         row.addChild(rowLabel(property.displayName(), property.valueText() != null));
         row.addChild(editor(session, property, row));
         row.applyQueuedMutations();
+        acceptDrop(row, property.name());
         into.addChild(row);
         searchable.put(row, property.displayName().toLowerCase());
         into.addChild(problemLabel(property));
@@ -306,7 +335,37 @@ final class InspectorPanel extends SessionPanel {
         cell.addChild(prefix);
         cell.addChild(editor(session, property, cell));
         cell.applyQueuedMutations();
+        acceptDrop(cell, property.name());
         return cell;
+    }
+
+    /** Запись контракта, брошенная на строку, привязывается к свойству: значение к значению, событие к действию. */
+    private void acceptDrop(HBox row, String property) {
+        dev.sixik.unigui.widgets.dnd.DropController.attach(row).accepts(ContractPanel.PAYLOAD_TYPE)
+                .onDrop(event -> dropped(event.payload().data(ComponentView.Entry.class), property));
+    }
+
+    /**
+     * Привязывает свойство выбранного узла к записи контракта.
+     *
+     * @param entry    запись
+     * @param property имя свойства
+     * @return {@code true}, если привязано
+     */
+    boolean dropped(ComponentView.Entry entry, String property) {
+        EditorSession session = session().orElse(null);
+        if (session == null || shown == null || entry == null) return false;
+        boolean done = switch (entry.kind()) {
+            case "Param" -> Promotions.bind(session, shown, property, Promotions.Kind.PARAM, entry.name());
+            case "Var" -> Promotions.bind(session, shown, property, Promotions.Kind.VARIABLE, entry.name());
+            case "Event" -> Promotions.raise(session, shown, property, entry.name());
+            default -> false;
+        };
+        if (!done) {
+            Label message = problems.get(property);
+            if (message != null) show(message, "'" + entry.name() + "' does not fit this property.");
+        }
+        return done;
     }
 
     private Label problemLabel(Inspector.PropertyView property) {

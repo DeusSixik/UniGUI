@@ -51,7 +51,7 @@ public final class ValueConverter<V> {
      * @return конвертер
      */
     public static <V> ValueConverter<V> of(Class<V> type, ValueKind kind, Function<String, V> parser,
-                                          Function<Object, String> formatter) {
+                                           Function<Object, String> formatter) {
         return new ValueConverter<>(type, kind, (text, context) -> parser.apply(text), formatter);
     }
 
@@ -66,8 +66,8 @@ public final class ValueConverter<V> {
      * @return конвертер
      */
     public static <V> ValueConverter<V> withContext(Class<V> type, ValueKind kind,
-                                                   BiFunction<String, LoadContext, V> parser,
-                                                   Function<Object, String> formatter) {
+                                                    BiFunction<String, LoadContext, V> parser,
+                                                    Function<Object, String> formatter) {
         return new ValueConverter<>(type, kind, parser, formatter);
     }
 
@@ -97,17 +97,23 @@ public final class ValueConverter<V> {
         return formatter.apply(value);
     }
 
-    /** @return {@code true}, если значения можно записать обратно в текст */
+    /**
+     * @return {@code true}, если значения можно записать обратно в текст
+     */
     public boolean canFormat() {
         return formatter != null;
     }
 
-    /** @return тип результата (боксированный) */
+    /**
+     * @return тип результата (боксированный)
+     */
     public Class<V> type() {
         return type;
     }
 
-    /** @return редакторская категория значений */
+    /**
+     * @return редакторская категория значений
+     */
     public ValueKind kind() {
         return kind;
     }

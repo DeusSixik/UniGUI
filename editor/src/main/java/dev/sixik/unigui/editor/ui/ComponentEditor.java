@@ -31,6 +31,8 @@ public final class ComponentEditor {
     public static final String CONTRACT = ContractPanel.ID;
     /** Идентификатор панели графа поведения. */
     public static final String GRAPH = GraphPanel.ID;
+    /** Идентификатор панели запуска: примерные значения, отправка событий, журнал. */
+    public static final String RUN = RunPanel.ID;
 
     private ComponentEditor() {
     }
@@ -60,12 +62,13 @@ public final class ComponentEditor {
         EditorShell.Builder builder = UiEditor.common(document.title(), previewOptions, theme, view)
                 .panel(new ContractPanel(view))
                 .panel(new GraphPanel(view))
+                .panel(new RunPanel(view))
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
                         // Контракт длинный и правится чаще всего, поэтому занимает верх колонки целиком.
                         .left(0.22f, CONTRACT)
                         .leftLower(0.7f, UiEditor.HIERARCHY, UiEditor.PALETTE)
                         .right(0.26f, UiEditor.INSPECTOR)
-                        .bottom(0.2f, UiEditor.DIAGNOSTICS)
+                        .bottom(0.2f, UiEditor.DIAGNOSTICS, RUN)
                         .center(UiEditor.VIEWPORT, GRAPH, UiEditor.CODE)
                         .active(UiEditor.VIEWPORT)
                         .build())

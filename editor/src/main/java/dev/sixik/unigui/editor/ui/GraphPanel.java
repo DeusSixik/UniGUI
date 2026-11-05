@@ -155,6 +155,15 @@ final class GraphPanel extends SessionPanel {
             }
         });
 
+        // Запись контракта с панели превращается в ноду: что именно создать, автор выбирает в меню у точки броска.
+        dev.sixik.unigui.widgets.dnd.DropController.attach(graph).accepts(ContractPanel.PAYLOAD_TYPE).onDrop(event -> {
+            var view = graph.viewport();
+            float x = (event.rootX() - graph.layoutBounds().x() - view.x()) / view.zoom();
+            float y = (event.rootY() - graph.layoutBounds().y() - view.y()) / view.zoom();
+            dev.sixik.unigui.editor.ContextMenus.open(context(), event.rootX(), event.rootY(),
+                    dropMenu(event.payload().data(ComponentView.Entry.class), x, y));
+        });
+
         HBox body = new HBox();
         body.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
         body.addChild(graph);
@@ -644,6 +653,38 @@ final class GraphPanel extends SessionPanel {
             if (key.length() > 0 && !value.isEmpty()) key.append('_').append(value.replaceAll("[^A-Za-z0-9_]", "_"));
         }
         return key.toString();
+    }
+
+    /**
+     * Меню броска записи контракта на полотно.
+     *
+     * @param entry запись
+     * @param x     положение ноды на полотне
+     * @param y     положение ноды на полотне
+     * @return пункты: Get и Set у значений, On и Raise у событий
+     */
+    List<dev.sixik.unigui.editor.ContextMenus.Entry> dropMenu(ComponentView.Entry entry, float x, float y) {
+        String name = entry.name();
+        Map<String, String> named = Map.of("Name", name);
+        return switch (entry.kind()) {
+            case "Param" -> List.of(spawnEntry("Get " + name, "Param.Get", named, x, y),
+                    spawnEntry("Set " + name, "Param.Set", named, x, y));
+            case "Var" -> List.of(spawnEntry("Get " + name, "Var.Get", named, x, y),
+                    spawnEntry("Set " + name, "Var.Set", named, x, y));
+            case "Event" -> List.of(spawnEntry("On " + name, "Event." + name, Map.of(), x, y),
+                    spawnEntry("Raise " + name, "Raise." + name, Map.of(), x, y));
+            default -> List.of(spawnEntry("Raise " + name, "Event.Call", named, x, y));
+        };
+    }
+
+    private dev.sixik.unigui.editor.ContextMenus.Entry spawnEntry(String title, String type, Map<String, String> attributes,
+                                                                  float x, float y) {
+        return dev.sixik.unigui.editor.ContextMenus.Entry.of(title, () -> {
+            UiNode root = root();
+            if (root != null && commit(GraphEdits.addNode(root, GraphEdits.freshId(root, type), type, attributes, x, y))) {
+                rebuild();
+            }
+        });
     }
 
     /** Палитра создала ноду на полотне: записываем её в документ. */

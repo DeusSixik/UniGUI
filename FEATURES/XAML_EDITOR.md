@@ -46,9 +46,14 @@ A project also has `pack.xaml`, the manifest (`id`, `version`, `name`, `descript
   queues it for the component itself. `{Raise Name}` in the body works for outgoing events only.
   `Args="name:type, …"` declares arguments; `Coalesce="true"` merges incoming events within a frame.
 * **Custom events** are declared by an `Event.Custom` node and stay inside the graph (`On Name`, `Raise Name`).
+* The Contract panel lists entries in groups like My Blueprint: click selects an entry and shows its details in the
+  inspector, right click renames or deletes it. Dragging an entry onto the graph offers Get/Set or On/Raise; dragging it
+  onto an inspector row binds the property, and an outgoing event dropped on an action becomes `{Raise Name}`.
 * In the editor a right click on an inspector row promotes the property to a variable or a parameter (`Promotions`): the
-  current value becomes the default and the property is bound to the new entry. Send buttons and the event log work
-  against the instance started by Play; the design preview never receives them.
+  current value becomes the default and the property is bound to the new entry. Numbers, booleans, colors and textures
+  keep their type; enums, sizes and insets become `string` entries written like the attribute (`auto`, `50%`, `Row`,
+  `4 8`), parsed by the property itself, so a wrong value fails the graph run. The Run panel holds preview values,
+  Send buttons and the event log; they work against the instance started by Play; the design preview never receives them.
 * Java creates instances with `Xaml.component(id).create(Args)`, sets params with `instance.set(...)`, listens with
   `instance.onEvent(...)` and sends events with `instance.send(...)`.
 

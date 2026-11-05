@@ -17,6 +17,8 @@ public final class FlatField extends TextField {
 
     private final Consumer<String> onCommit;
     private String committed;
+    private boolean reportUnchanged;
+    private boolean focusPending;
 
     /**
      * @param text     начальный текст
@@ -40,14 +42,52 @@ public final class FlatField extends TextField {
         on(FocusLostEvent.TYPE, event -> commit());
     }
 
+    /**
+     * Вид обычного поля ввода: для мест, где поле стоит в ряду других полей.
+     *
+     * @return это поле
+     */
+    public FlatField boxed() {
+        background().set(EditorStyles.BG_INPUT);
+        borderColor().set(EditorStyles.BORDER_INPUT);
+        textPaddingX(5.0f);
+        return this;
+    }
+
+    /**
+     * Сообщать о завершении правки, даже если текст не менялся: нужно, когда поле временное и должно закрыться.
+     *
+     * @return это поле
+     */
+    public FlatField reportUnchanged() {
+        this.reportUnchanged = true;
+        return this;
+    }
+
+    /** Просит фокус на ближайшем кадре: сейчас поле может быть ещё не в дереве окна. */
+    public void beginEdit() {
+        this.focusPending = true;
+    }
+
+    @Override
+    public void tick(dev.sixik.unigui.api.core.FrameContext frame) {
+        super.tick(frame);
+        if (!focusPending || uiContext() == null) return;
+        focusPending = false;
+        uiContext().focusManager().requestFocus(this);
+    }
+
     /** Применяет набранный текст. */
     public void commit() {
         String next = text().trim();
         if (next.isEmpty()) {
             text(committed);
+            next = committed;
+        }
+        if (next.equals(committed)) {
+            if (reportUnchanged) onCommit.accept(next);
             return;
         }
-        if (next.equals(committed)) return;
         committed = next;
         onCommit.accept(next);
     }

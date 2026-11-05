@@ -209,6 +209,7 @@ public final class EditorIcons {
         p.line(5, 5.5f, 8, 2.5f, 11, 5.5f);
         p.line(2.5f, 9.5f, 2.5f, 13.5f, 13.5f, 13.5f, 13.5f, 9.5f);
     });
+    public static final UiIcon BOLT = icon(p -> p.loop(9, 1.8f, 3.5f, 9, 7.5f, 9, 6.5f, 14.2f, 12.5f, 6.8f, 8.5f, 6.8f));
     public static final UiIcon ANCHOR_OFF = icon(p -> p.dot(8, 8, 1.6f));
     public static final UiIcon CHECK = icon(p -> p.line(3, 8.5f, 6.5f, 12, 13, 4.5f));
     public static final UiIcon ERROR = icon(p -> {

@@ -101,7 +101,9 @@ public final class StructEdits {
         return null;
     }
 
-    /** Правка с проверкой итога; причина отказа остаётся в диагностике правок сессии. */
+    /**
+     * Правка с проверкой итога; причина отказа остаётся в диагностике правок сессии.
+     */
     private static boolean run(EditorSession session, String label, java.util.function.BooleanSupplier change) {
         String[] why = {""};
         boolean done = session.transaction(label, () -> {
@@ -122,7 +124,9 @@ public final class StructEdits {
         return done;
     }
 
-    /** Кладёт причину в диагностику правок (откат транзакции её сбрасывает). */
+    /**
+     * Кладёт причину в диагностику правок (откат транзакции её сбрасывает).
+     */
     private static boolean refuse(EditorSession session, String reason) {
         session.apply(new dev.sixik.unigui.xaml.edit.Edit() {
             @Override

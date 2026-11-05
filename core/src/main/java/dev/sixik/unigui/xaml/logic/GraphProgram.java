@@ -16,7 +16,9 @@ import java.util.Map;
  * параметрами и событиями именно этого экземпляра.</p>
  */
 public final class GraphProgram {
-    /** Создаёт поведение ноды для конкретного экземпляра. */
+    /**
+     * Создаёт поведение ноды для конкретного экземпляра.
+     */
     @FunctionalInterface
     interface BehaviorFactory {
         NodeBehavior create(GraphRuntime runtime);
@@ -62,27 +64,37 @@ public final class GraphProgram {
         this.stamp = stamp;
     }
 
-    /** @return проверенная модель графа */
+    /**
+     * @return проверенная модель графа
+     */
     public GraphModel model() {
         return model;
     }
 
-    /** @return точки входа в порядке документа */
+    /**
+     * @return точки входа в порядке документа
+     */
     public List<Entry> entries() {
         return entries;
     }
 
-    /** @return предупреждения проверки (например, нода, до которой не доходит ни одно событие) */
+    /**
+     * @return предупреждения проверки (например, нода, до которой не доходит ни одно событие)
+     */
     public List<GraphIssue> warnings() {
         return warnings;
     }
 
-    /** @return пользовательские события графа по имени */
+    /**
+     * @return пользовательские события графа по имени
+     */
     public Map<String, CustomEvent> customEvents() {
         return customEvents;
     }
 
-    /** @return состояние реестров функций и компонентов, на котором собрана программа */
+    /**
+     * @return состояние реестров функций и компонентов, на котором собрана программа
+     */
     public long stamp() {
         return stamp;
     }

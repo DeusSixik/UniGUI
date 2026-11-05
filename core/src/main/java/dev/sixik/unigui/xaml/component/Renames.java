@@ -179,7 +179,9 @@ public final class Renames {
         return null;
     }
 
-    /** Ноды, у которых аргументы события видны как пины. */
+    /**
+     * Ноды, у которых аргументы события видны как пины.
+     */
     private static boolean ownsPins(UiNode node, String event) {
         String type = node.attributeText("Type", "");
         if (type.equals("Event." + event) || type.equals("Raise." + event)) return true;
@@ -218,7 +220,9 @@ public final class Renames {
         }
     }
 
-    /** @return новый конец провода или {@code null}, если пина больше нет */
+    /**
+     * @return новый конец провода или {@code null}, если пина больше нет
+     */
     private static String pin(String end, java.util.Set<String> owners, List<String> kept, String oldName, String newName) {
         int dot = end.indexOf('.');
         if (dot < 0 || !owners.contains(end.substring(0, dot))) return end;
@@ -297,7 +301,9 @@ public final class Renames {
                 }, null, null);
     }
 
-    /** Правки каждого свойства тела, значение которого — {@code {extension oldName}}. */
+    /**
+     * Правки каждого свойства тела, значение которого — {@code {extension oldName}}.
+     */
     private static List<Edit> bodyReferences(UiNode root, String extension, String oldName, String newName) {
         List<Edit> edits = new ArrayList<>();
         for (UiNode child : root.children()) collect(child, extension, oldName, newName, edits);
@@ -321,7 +327,9 @@ public final class Renames {
         for (UiNode child : node.children()) collect(child, extension, oldName, newName, edits);
     }
 
-    /** Одна правка графа: всё переименованное внутри заменяется разом. */
+    /**
+     * Одна правка графа: всё переименованное внутри заменяется разом.
+     */
     private static Edit rewriteGraph(UiNode root, String oldName, String newName, List<String> namedTypes,
                                      List<String> typePrefixes) {
         return ElementListEdit.of(root, "Component", "Graph", "Rename in graph", items -> {
@@ -346,7 +354,9 @@ public final class Renames {
         }, null, null);
     }
 
-    /** Итог должен разбираться и собираться; иначе транзакция откатывается. */
+    /**
+     * Итог должен разбираться и собираться; иначе транзакция откатывается.
+     */
     private static String verify(EditorSession session) {
         try {
             ComponentDefinition definition = ComponentDefinition.parse("rename", UiDocument.of(session.document().root()));
@@ -357,7 +367,9 @@ public final class Renames {
         }
     }
 
-    /** Правка-отказ: ничего не меняет, но кладёт причину в диагностику редактора. */
+    /**
+     * Правка-отказ: ничего не меняет, но кладёт причину в диагностику редактора.
+     */
     private record Refused(String reason) implements Edit {
         @Override
         public String label() {

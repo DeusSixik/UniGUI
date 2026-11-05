@@ -17,17 +17,24 @@ import java.util.Optional;
 
 /**
  * Превращает свойство виджета тела компонента в значение контракта: параметр ({@code {Param X}}) или переменную
- * ({@code {Var X}}), к которым можно обращаться из нод графа.
+ * ({@code {Var X}}), к которым можно обращаться из нод графа. Числа, логические значения, цвета и текстуры сохраняют
+ * свой тип; перечисления, размеры и отступы хранятся текстом в записи свойства ({@code auto}, {@code 50%}, {@code Row}).
  *
  * <p>Текущее значение свойства становится значением по умолчанию, поэтому вид компонента не меняется. Всё действие —
  * одна транзакция сессии: один шаг отмены.</p>
  */
 public final class Promotions {
-    /** Чем становится свойство. */
+    /**
+     * Чем становится свойство.
+     */
     public enum Kind {
-        /** Параметр: виден снаружи как свойство тега компонента. */
+        /**
+         * Параметр: виден снаружи как свойство тега компонента.
+         */
         PARAM("Param"),
-        /** Переменная: внутреннее состояние компонента. */
+        /**
+         * Переменная: внутреннее состояние компонента.
+         */
         VARIABLE("Var");
 
         private final String element;
@@ -36,13 +43,17 @@ public final class Promotions {
             this.element = element;
         }
 
-        /** @return имя элемента контракта и расширения разметки */
+        /**
+         * @return имя элемента контракта и расширения разметки
+         */
         public String element() {
             return element;
         }
     }
 
-    /** Типы, в которые можно превратить свойство; порядок важен: первым берётся самый точный. */
+    /**
+     * Типы, в которые можно превратить свойство; порядок важен: первым берётся самый точный.
+     */
     private static final List<ParamType> CANDIDATES = List.of(ParamType.BOOL, ParamType.INT, ParamType.FLOAT,
             ParamType.DOUBLE, ParamType.COLOR, ParamType.TEXTURE);
 
@@ -50,14 +61,15 @@ public final class Promotions {
     }
 
     /**
-     * @param session сессия
-     * @param node    узел документа
+     * @param session  сессия
+     * @param node     узел документа
      * @param property имя свойства
      * @return {@code true}, если свойство можно превратить: это значение виджета тела компонента, ещё не привязанное
      */
     public static boolean supported(EditorSession session, UiNode node, String property) {
         UiNode root = session.document().root();
-        if (!root.type().local().equals("Component") || node == root || binding(node, property).isPresent()) return false;
+        if (!root.type().local().equals("Component") || node == root || binding(node, property).isPresent())
+            return false;
         if (property.equals("id") || property.equals("class")) return false;
         return info(session, node, property).filter(found -> found.kind() != ValueKind.BINDING_OR_ACTION)
                 .flatMap(found -> typeFor(found.valueType())).isPresent();
@@ -98,6 +110,83 @@ public final class Promotions {
                     UiName.of(kind.element()), List.of(new UiValue.Literal(name)), Map.of())));
         });
         return done ? Optional.of(name) : Optional.empty();
+    }
+
+    /**
+     * @param session  сессия документа компонента
+     * @param node     узел тела
+     * @param property имя свойства
+     * @param kind     параметр или переменная
+     * @param name     имя записи контракта
+     * @return {@code true}, если значение этого типа можно записать в свойство
+     */
+    public static boolean canBind(EditorSession session, UiNode node, String property, Kind kind, String name) {
+        UiNode root = session.document().root();
+        if (!root.type().local().equals("Component") || node == root || property.equals("id") || property.equals("class")) {
+            return false;
+        }
+        PropertyInfo<?, ?> info = info(session, node, property).orElse(null);
+        UiNode entry = entry(root, kind.element(), name);
+        if (info == null || entry == null || info.kind() == ValueKind.BINDING_OR_ACTION) return false;
+        try {
+            ParamType type = ParamType.parse(entry.attributeText("Type", ""));
+            return type.fits(info.valueType()) || (type == ParamType.STRING && ParamType.needsText(info.valueType()));
+        } catch (IllegalArgumentException unknownType) {
+            return false;
+        }
+    }
+
+    /**
+     * Привязывает свойство к существующей записи контракта.
+     *
+     * @param session  сессия
+     * @param node     узел тела
+     * @param property имя свойства
+     * @param kind     параметр или переменная
+     * @param name     имя записи
+     * @return {@code true}, если привязано
+     */
+    public static boolean bind(EditorSession session, UiNode node, String property, Kind kind, String name) {
+        return canBind(session, node, property, kind, name) && session.apply(Edits.setProperty(node, null,
+                UiName.of(property), new UiValue.Extension(UiName.of(kind.element()), List.of(new UiValue.Literal(name)), Map.of())));
+    }
+
+    /**
+     * @param session  сессия
+     * @param node     узел тела
+     * @param property имя свойства-действия
+     * @param event    имя события
+     * @return {@code true}, если действие может поднимать это событие: только исходящее и только на свойстве-действии
+     */
+    public static boolean canRaise(EditorSession session, UiNode node, String property, String event) {
+        UiNode root = session.document().root();
+        if (!root.type().local().equals("Component") || node == root) return false;
+        UiNode entry = entry(root, "Event", event);
+        return entry != null && entry.attributeText("Direction", "Out").equals("Out")
+                && info(session, node, property).filter(found -> found.kind() == ValueKind.BINDING_OR_ACTION
+                && found.valueType() == String.class).isPresent();
+    }
+
+    /**
+     * Назначает действию свойства исходящее событие: {@code onClick="{Raise Buy}"}.
+     *
+     * @param session  сессия
+     * @param node     узел тела
+     * @param property имя свойства-действия
+     * @param event    имя события
+     * @return {@code true}, если назначено
+     */
+    public static boolean raise(EditorSession session, UiNode node, String property, String event) {
+        return canRaise(session, node, property, event) && session.apply(Edits.setProperty(node, null, UiName.of(property),
+                new UiValue.Extension(UiName.of("Raise"), List.of(new UiValue.Literal(event)), Map.of())));
+    }
+
+    private static UiNode entry(UiNode root, String element, String name) {
+        for (var item : dev.sixik.unigui.xaml.edit.ElementListEdit.items(root, "Component", "Contract")) {
+            if (item instanceof UiNode node && node.type().local().equals(element)
+                    && name.equals(node.attributeText("Name", ""))) return node;
+        }
+        return null;
     }
 
     /**
@@ -143,9 +232,11 @@ public final class Promotions {
         return Optional.empty();
     }
 
-    /** Тип контракта для класса значения свойства; перечисления и сложные значения не подходят. */
+    /**
+     * Тип контракта для класса значения свойства; значения без своего типа хранятся текстом ({@link ParamType#needsText}).
+     */
     private static Optional<ParamType> typeFor(Class<?> wanted) {
-        if (wanted == String.class) return Optional.of(ParamType.STRING);
+        if (wanted == String.class || ParamType.needsText(wanted)) return Optional.of(ParamType.STRING);
         if (wanted == Object.class) return Optional.empty();
         for (ParamType type : CANDIDATES) {
             if (type.javaType() == wanted || wanted.isAssignableFrom(type.javaType())) return Optional.of(type);
@@ -157,14 +248,17 @@ public final class Promotions {
         String text = node.attributeText(property).orElse(info.defaultValue());
         if (text == null || text.isEmpty()) return null;
         try {
-            type.parse(text, LoadContext.DEFAULT);
+            if (ParamType.needsText(info.valueType())) info.convert(text, LoadContext.DEFAULT);
+            else type.parse(text, LoadContext.DEFAULT);
             return text;
         } catch (RuntimeException notThisType) {
             return null;
         }
     }
 
-    /** Имя из идентификатора виджета и свойства: {@code volume} + {@code value} дают {@code VolumeValue}. */
+    /**
+     * Имя из идентификатора виджета и свойства: {@code volume} + {@code value} дают {@code VolumeValue}.
+     */
     private static String freshName(UiNode root, UiNode node, String property) {
         String owner = node.attributeText("id").filter(id -> !id.isBlank()).orElse(node.type().local());
         String base = capitalize(owner.replaceAll("[^A-Za-z0-9_]", "")) + capitalize(property);

@@ -15,7 +15,9 @@ import java.util.Map;
  * получает собственные привязки, а закрытие экземпляра освобождает их.</p>
  */
 public final class Template {
-    /** Создаёт экземпляр шаблона; реализует загрузчик, потому что он знает схему, ресурсы и настройки. */
+    /**
+     * Создаёт экземпляр шаблона; реализует загрузчик, потому что он знает схему, ресурсы и настройки.
+     */
     @FunctionalInterface
     public interface Instantiator {
         /**
@@ -55,12 +57,16 @@ public final class Template {
         this.instantiator = instantiator;
     }
 
-    /** @return поддерево разметки шаблона */
+    /**
+     * @return поддерево разметки шаблона
+     */
     public UiNode node() {
         return node;
     }
 
-    /** @return позиция слота в документе */
+    /**
+     * @return позиция слота в документе
+     */
     public SourceLocation location() {
         return location;
     }

@@ -29,7 +29,9 @@ record ScreenConfig(
             "minScale", "maxScale", "scaleRange", "viewportWidth", "viewportHeight", "viewport",
             "scaleWithMinecraftGui", "independentScale");
 
-    /** Атрибут с позицией, чтобы ошибки значения указывали на конкретное место. */
+    /**
+     * Атрибут с позицией, чтобы ошибки значения указывали на конкретное место.
+     */
     record Attr(String displayName, String value, SourceLocation location) {
     }
 
@@ -37,7 +39,9 @@ record ScreenConfig(
         scaleProvider = scaleProvider == null ? UIScaleProvider.IDENTITY : scaleProvider;
     }
 
-    /** Накладывает {@code other} поверх этой конфигурации: заданное в {@code other} побеждает. */
+    /**
+     * Накладывает {@code other} поверх этой конфигурации: заданное в {@code other} побеждает.
+     */
     ScreenConfig merge(ScreenConfig other) {
         if (other == null) return this;
         return new ScreenConfig(
@@ -180,7 +184,9 @@ record ScreenConfig(
                 value.location(), failure);
     }
 
-    /** Приводит имя к виду без регистра, дефисов, подчёркиваний и пробелов. */
+    /**
+     * Приводит имя к виду без регистра, дефисов, подчёркиваний и пробелов.
+     */
     static String normalize(String value) {
         if (value == null) return "";
         return value.trim().replace("-", "").replace("_", "").replace(" ", "").toLowerCase(Locale.ROOT);

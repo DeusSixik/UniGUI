@@ -18,6 +18,18 @@ public class SectionHeader extends Button {
         if (button instanceof SectionHeader header) header.paint(draw);
     });
 
+    private boolean banner;
+
+    /**
+     * Заголовок-полоса на всю ширину панели, как группы My Blueprint.
+     *
+     * @return этот заголовок
+     */
+    public SectionHeader banner() {
+        this.banner = true;
+        return this;
+    }
+
     /** @param text подпись, обычно с символом состояния */
     public SectionHeader(String text) {
         super(text);
@@ -35,7 +47,8 @@ public class SectionHeader extends Button {
         float w = b.width();
         float h = b.height();
         if (w <= 0.0f || h <= 0.0f) return;
-        if (hovered()) draw.roundedRectFilled(x, y, w, h, EditorStyles.RADIUS, EditorStyles.BG_HEADER);
+        if (banner) draw.rectFilled(x, y, w, h, hovered() ? EditorStyles.BG_HEADER_HOVER : EditorStyles.BG_HEADER);
+        else if (hovered()) draw.roundedRectFilled(x, y, w, h, EditorStyles.RADIUS, EditorStyles.BG_HEADER);
 
         String label = text() == null ? "" : text();
         boolean closed = label.startsWith("▸");
@@ -51,7 +64,7 @@ public class SectionHeader extends Button {
         draw.pushTextClip(x, y, w, h);
         try {
             TextEngine.drawInline(draw, rich, textX, y + Math.max(0.0f, h - textHeight) * 0.5f, textWidth, textHeight,
-                    Paint.fill(EditorStyles.TEXT_PRIMARY));
+                    Paint.fill(banner ? EditorStyles.TEXT_LABEL : EditorStyles.TEXT_PRIMARY));
         } finally {
             draw.popClip();
         }

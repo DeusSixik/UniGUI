@@ -51,17 +51,23 @@ public final class GraphFunction {
         return new Builder(name);
     }
 
-    /** @return имя в реестре */
+    /**
+     * @return имя в реестре
+     */
     public String name() {
         return name;
     }
 
-    /** @return параметры по порядку */
+    /**
+     * @return параметры по порядку
+     */
     public List<Param> params() {
         return params;
     }
 
-    /** @return тип результата или {@code null}, если функция ничего не возвращает */
+    /**
+     * @return тип результата или {@code null}, если функция ничего не возвращает
+     */
     public ParamType returns() {
         return returns;
     }
@@ -76,7 +82,9 @@ public final class GraphFunction {
         return pure;
     }
 
-    /** @return описание для редактора */
+    /**
+     * @return описание для редактора
+     */
     public String description() {
         return description;
     }
@@ -91,7 +99,9 @@ public final class GraphFunction {
         return body.apply(args);
     }
 
-    /** Билдер {@link GraphFunction}. */
+    /**
+     * Билдер {@link GraphFunction}.
+     */
     public static final class Builder {
         private final String name;
         private final List<Param> params = new ArrayList<>();

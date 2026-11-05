@@ -15,16 +15,26 @@ import java.util.Optional;
  * опечатка в имени параметра или несовпадение типа находятся сразу и с позицией в документе.</p>
  */
 public final class Contract {
-    /** Имя события жизненного цикла: компонент построен, значения параметров применены. */
+    /**
+     * Имя события жизненного цикла: компонент построен, значения параметров применены.
+     */
     public static final String CONSTRUCT = "Construct";
-    /** Имя события жизненного цикла: компонент освобождается. */
+    /**
+     * Имя события жизненного цикла: компонент освобождается.
+     */
     public static final String DESTRUCT = "Destruct";
 
-    /** Направление события относительно компонента. */
+    /**
+     * Направление события относительно компонента.
+     */
     public enum Direction {
-        /** Событие приходит в компонент (Java или внешний граф вызывает {@code send}). */
+        /**
+         * Событие приходит в компонент (Java или внешний граф вызывает {@code send}).
+         */
         IN,
-        /** Компонент сам сообщает наружу (кнопка нажата, товар куплен). */
+        /**
+         * Компонент сам сообщает наружу (кнопка нажата, товар куплен).
+         */
         OUT
     }
 
@@ -90,12 +100,16 @@ public final class Contract {
         for (Event event : events) this.events.put(event.name(), event);
     }
 
-    /** @return пустой контракт */
+    /**
+     * @return пустой контракт
+     */
     public static Contract empty() {
         return new Contract(List.of(), List.of());
     }
 
-    /** @return параметры по порядку объявления */
+    /**
+     * @return параметры по порядку объявления
+     */
     public List<Param> params() {
         return List.copyOf(params.values());
     }
@@ -118,7 +132,9 @@ public final class Contract {
         return Optional.ofNullable(vars.get(name));
     }
 
-    /** @return события по порядку объявления */
+    /**
+     * @return события по порядку объявления
+     */
     public List<Event> events() {
         return List.copyOf(events.values());
     }
@@ -139,12 +155,16 @@ public final class Contract {
         return Optional.ofNullable(events.get(name));
     }
 
-    /** @return имена параметров через запятую, для сообщений об ошибках */
+    /**
+     * @return имена параметров через запятую, для сообщений об ошибках
+     */
     public String paramNames() {
         return params.isEmpty() ? "none" : String.join(", ", params.keySet());
     }
 
-    /** @return имена событий через запятую, для сообщений об ошибках */
+    /**
+     * @return имена событий через запятую, для сообщений об ошибках
+     */
     public String eventNames() {
         return events.isEmpty() ? "none" : String.join(", ", events.keySet());
     }

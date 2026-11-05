@@ -29,7 +29,9 @@ import java.util.function.Function;
  * объявление предка.</p>
  */
 final class AnnotationScanner {
-    /** Что объявлено именно в этом классе, без учёта предков. */
+    /**
+     * Что объявлено именно в этом классе, без учёта предков.
+     */
     private static final ClassValue<Declared> DECLARED = new ClassValue<>() {
         @Override
         protected Declared computeValue(Class<?> type) {
@@ -136,7 +138,9 @@ final class AnnotationScanner {
         };
     }
 
-    /** Геттер по соглашению: метод без аргументов с тем же именем и совместимым типом результата. */
+    /**
+     * Геттер по соглашению: метод без аргументов с тем же именем и совместимым типом результата.
+     */
     private static Function<Widget, Object> getter(Method setter, Method candidate) {
         if (candidate == null) return null;
         Class<?> expected = boxed(setter.getParameterTypes()[0]);
@@ -157,7 +161,9 @@ final class AnnotationScanner {
         };
     }
 
-    /** Класс, затем его суперклассы, затем все интерфейсы без повторов. */
+    /**
+     * Класс, затем его суперклассы, затем все интерфейсы без повторов.
+     */
     private static List<Class<?>> hierarchy(Class<?> type) {
         List<Class<?>> result = new ArrayList<>();
         Set<Class<?>> interfaces = new LinkedHashSet<>();

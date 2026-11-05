@@ -46,11 +46,15 @@ import java.util.Set;
 public final class GraphCompiler {
     static final String EXEC = "exec";
     private static final String ANY = "any";
-    /** Ссылка на экземпляр компонента: результат {@code Component.Create}, цель {@code Dispatcher.Bind}. */
+    /**
+     * Ссылка на экземпляр компонента: результат {@code Component.Create}, цель {@code Dispatcher.Bind}.
+     */
     private static final String COMPONENT = "component";
     private static final Set<String> COMPARE_OPS = new java.util.LinkedHashSet<>(List.of("==", "!=", "<", "<=", ">", ">="));
 
-    /** @return операции ноды {@code Math.Compare} в порядке показа */
+    /**
+     * @return операции ноды {@code Math.Compare} в порядке показа
+     */
     public static List<String> compareOperators() {
         return List.copyOf(COMPARE_OPS);
     }
@@ -64,7 +68,9 @@ public final class GraphCompiler {
 
     private final String component;
     private final Contract contract;
-    /** {@code false} при правке: граф может быть недособран (обязательные входы без проводов), это не ошибка. */
+    /**
+     * {@code false} при правке: граф может быть недособран (обязательные входы без проводов), это не ошибка.
+     */
     private final boolean complete;
     private final Map<String, GraphProgram.CustomEvent> customEvents = new LinkedHashMap<>();
     private final Map<String, GraphDefinition.Node> allNodes = new LinkedHashMap<>();
@@ -112,7 +118,9 @@ public final class GraphCompiler {
      * @param required {@code true}, если без значения или провода нода не запустится
      */
     public record Pin(String id, boolean input, String type, boolean required) {
-        /** @return {@code true} для пина потока выполнения */
+        /**
+         * @return {@code true} для пина потока выполнения
+         */
         public boolean flow() {
             return EXEC.equals(type);
         }
@@ -240,7 +248,9 @@ public final class GraphCompiler {
         return new GraphProgram(model, entries, factories, warnings, stamp(), customEvents);
     }
 
-    /** Ключ поведения в исполнителе: тип плюс идентификатор ноды, чтобы две ноды одного типа не делили поведение. */
+    /**
+     * Ключ поведения в исполнителе: тип плюс идентификатор ноды, чтобы две ноды одного типа не делили поведение.
+     */
     private static String behaviorKey(GraphDefinition.Node node) {
         return node.type() + "#" + node.id();
     }
@@ -259,7 +269,9 @@ public final class GraphCompiler {
         return null;
     }
 
-    /** Данные совместимы, если типы совпадают, либо оба числовые, либо приёмник строка/любой (значение печатается). */
+    /**
+     * Данные совместимы, если типы совпадают, либо оба числовые, либо приёмник строка/любой (значение печатается).
+     */
     private static boolean compatible(String from, String to) {
         if (from.equals(to) || ANY.equals(from) || ANY.equals(to)) return true;
         if (COMPONENT.equals(from) || COMPONENT.equals(to)) {
@@ -399,7 +411,8 @@ public final class GraphCompiler {
             } catch (NumberFormatException failure) {
                 throw fail(node.location(), "Node '" + node.id() + "': Count must be a whole number.");
             }
-            if (count < 1 || count > 16) throw fail(node.location(), "Node '" + node.id() + "': Count must be 1 to 16.");
+            if (count < 1 || count > 16)
+                throw fail(node.location(), "Node '" + node.id() + "': Count must be 1 to 16.");
         }
         List<Port> ports = new ArrayList<>();
         ports.add(new Port("exec", true, EXEC, false));
@@ -439,7 +452,9 @@ public final class GraphCompiler {
         }), Map.of(), null);
     }
 
-    /** Число из значения: само число либо строка, которую можно прочитать как число (значение по умолчанию пина). */
+    /**
+     * Число из значения: само число либо строка, которую можно прочитать как число (значение по умолчанию пина).
+     */
     private static Double asNumber(Object value) {
         if (value instanceof Number number) return number.doubleValue();
         if (value instanceof String text) {
@@ -579,7 +594,8 @@ public final class GraphCompiler {
                         + GraphFunctions.all().stream().map(GraphFunction::name).toList() + "."));
         List<Port> ports = new ArrayList<>();
         if (!function.pure()) ports.add(new Port("exec", true, EXEC, false));
-        for (GraphFunction.Param param : function.params()) ports.add(new Port(param.name(), true, param.type().name(), true));
+        for (GraphFunction.Param param : function.params())
+            ports.add(new Port(param.name(), true, param.type().name(), true));
         if (function.returns() != null) ports.add(new Port("result", false, function.returns().name(), false));
         if (!function.pure()) ports.add(new Port("then", false, EXEC, false));
         return new Spec(ports, Set.of(), runtime -> {
@@ -612,8 +628,10 @@ public final class GraphCompiler {
     private Spec widgetSet(GraphDefinition.Node node) {
         String target = node.attributes().get("Target");
         String property = node.attributes().get("Property");
-        if (target == null || target.isEmpty()) throw fail(node.location(), "Node '" + node.id() + "' requires Target.");
-        if (property == null || property.isEmpty()) throw fail(node.location(), "Node '" + node.id() + "' requires Property.");
+        if (target == null || target.isEmpty())
+            throw fail(node.location(), "Node '" + node.id() + "' requires Target.");
+        if (property == null || property.isEmpty())
+            throw fail(node.location(), "Node '" + node.id() + "' requires Property.");
         List<Port> ports = List.of(new Port("exec", true, EXEC, false), new Port("value", true, ANY, true),
                 new Port("then", false, EXEC, false));
         return new Spec(ports, Set.of("Target", "Property"), runtime -> NodeBehavior.exec(context -> {
@@ -752,11 +770,12 @@ public final class GraphCompiler {
         String id = node.attributes().get("Component");
         if (id == null || id.isEmpty()) throw fail(node.location(), "Node '" + node.id() + "' requires Component.");
         Contract created = Components.find(id).orElseThrow(() -> fail(node.location(), "Node '" + node.id()
-                + "' creates component '" + id + "' which is not registered. Registered: " + Components.ids() + "."))
+                        + "' creates component '" + id + "' which is not registered. Registered: " + Components.ids() + "."))
                 .contract();
         List<Port> ports = new ArrayList<>();
         ports.add(new Port("exec", true, EXEC, false));
-        for (Contract.Param param : created.params()) ports.add(new Port(param.name(), true, param.type().name(), false));
+        for (Contract.Param param : created.params())
+            ports.add(new Port(param.name(), true, param.type().name(), false));
         ports.add(new Port("instance", false, COMPONENT, false));
         ports.add(new Port("then", false, EXEC, false));
         return new Spec(ports, Set.of("Component"), runtime -> NodeBehavior.exec(context -> {
@@ -825,7 +844,8 @@ public final class GraphCompiler {
     private Spec structMake(GraphDefinition.Node node) {
         StructType struct = declaredStruct(node);
         List<Port> ports = new ArrayList<>();
-        for (StructType.Field field : struct.fields()) ports.add(new Port(field.name(), true, field.type().name(), false));
+        for (StructType.Field field : struct.fields())
+            ports.add(new Port(field.name(), true, field.type().name(), false));
         ports.add(new Port("value", false, struct.paramType().name(), false));
         return new Spec(ports, Set.of("Struct"), runtime -> NodeBehavior.pure(context -> {
             Map<String, Object> values = new LinkedHashMap<>();
@@ -841,10 +861,12 @@ public final class GraphCompiler {
         StructType struct = declaredStruct(node);
         List<Port> ports = new ArrayList<>();
         ports.add(new Port("value", true, struct.paramType().name(), true));
-        for (StructType.Field field : struct.fields()) ports.add(new Port(field.name(), false, field.type().name(), false));
+        for (StructType.Field field : struct.fields())
+            ports.add(new Port(field.name(), false, field.type().name(), false));
         return new Spec(ports, Set.of("Struct"), runtime -> NodeBehavior.pure(context -> {
             Object value = context.input("value");
-            for (StructType.Field field : struct.fields()) context.output(field.name(), struct.read(value, field.name()));
+            for (StructType.Field field : struct.fields())
+                context.output(field.name(), struct.read(value, field.name()));
         }), Map.of(), null);
     }
 

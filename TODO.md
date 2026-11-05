@@ -45,6 +45,7 @@
   - Done: graph breakpoints with continue and step (resumable run in `GraphExecutor.Run`, `GraphDebugger`)
   - Done (third UI pass): new editor look: panel "islands" on a near-black base, one blue accent, vector icons (`EditorIcons`), tab icons, toolbar with document actions and Design/Code switch, status bar, compact inspector (paired X/Y and W/H, search, collapsed Grid group), viewport stage with dot grid and selection handles, type-colored pins and wires, graph minimap, offscreen snapshots of the editors (`EditorSnapshotsTest`, PNG in `demo/build/snapshots`)
   - Done: contract editing like Blueprint: types and node attributes picked from lists, names edited in place with reference updates, events grouped as incoming, outgoing and custom with argument lists, `On` and `Raise` nodes for every event, Send and the event log run only against the Play copy, inspector rows promote a property to a parameter or a variable (`{Param}`, `{Var}`)
+  - Done: Contract panel in the shape of My Blueprint (groups, one-line entries, search, Add menu), entry details in the inspector, drag and drop of entries onto the graph and onto properties, Run panel
   - Todo: rename dialogs in the project panel instead of the shared name field, visual polish after in-game review
   - Dogfooding: the editor is built with UniGUI itself, which doubles as a large-scale test of the library
 

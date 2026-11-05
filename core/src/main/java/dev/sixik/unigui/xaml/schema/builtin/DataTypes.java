@@ -17,9 +17,13 @@ import java.util.List;
 
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** Виртуализированные данные: списки и таблицы. */
+/**
+ * Виртуализированные данные: списки и таблицы.
+ */
 final class DataTypes {
-    /** Источник данных нельзя написать текстом: он приходит из привязки или из Java. */
+    /**
+     * Источник данных нельзя написать текстом: он приходит из привязки или из Java.
+     */
     @SuppressWarnings("rawtypes")
     private static final ValueConverter<List> ITEMS = ValueConverter.of(List.class, ValueKind.BINDING_OR_ACTION,
             text -> {

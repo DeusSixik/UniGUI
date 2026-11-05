@@ -26,7 +26,9 @@ public record LoadOptions(
         XamlBindingContext bindingContext,
         MarkupExtensionRegistry extensions,
         NodeObserver nodeObserver) {
-    /** Строгая загрузка, глубина 128, всё остальное по умолчанию. */
+    /**
+     * Строгая загрузка, глубина 128, всё остальное по умолчанию.
+     */
     public static final LoadOptions DEFAULT = new LoadOptions(true, 128, null, null, null, null, null);
 
     public LoadOptions {
@@ -36,12 +38,16 @@ public record LoadOptions(
         extensions = extensions == null ? MarkupExtensionRegistry.DEFAULT : extensions;
     }
 
-    /** @return строгие настройки по умолчанию */
+    /**
+     * @return строгие настройки по умолчанию
+     */
     public static LoadOptions strict() {
         return DEFAULT;
     }
 
-    /** @return настройки, при которых неизвестные атрибуты пропускаются */
+    /**
+     * @return настройки, при которых неизвестные атрибуты пропускаются
+     */
     public static LoadOptions lenient() {
         return DEFAULT.strictAttributes(false);
     }
@@ -81,7 +87,9 @@ public record LoadOptions(
         return new LoadOptions(strictAttributes, maxDepth, textureResolver, commands, bindingContext, extensions, value);
     }
 
-    /** Получает пары «узел разметки — созданный виджет» в порядке создания. */
+    /**
+     * Получает пары «узел разметки — созданный виджет» в порядке создания.
+     */
     @FunctionalInterface
     public interface NodeObserver {
         /**

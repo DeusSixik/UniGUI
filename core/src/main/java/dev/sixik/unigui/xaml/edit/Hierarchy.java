@@ -36,7 +36,9 @@ public final class Hierarchy {
      */
     public record Row(UiNode node, NodePath path, int depth, String typeName, String id, boolean known,
                       boolean structureEditable, int childCount) {
-        /** @return подпись строки: {@code Тип} или {@code Тип #id} */
+        /**
+         * @return подпись строки: {@code Тип} или {@code Тип #id}
+         */
         public String label() {
             return id.isEmpty() ? typeName : typeName + " #" + id;
         }
@@ -55,7 +57,9 @@ public final class Hierarchy {
         return rows;
     }
 
-    /** Контракт и граф компонента — данные, а не виджеты: у них свои панели, в дереве им делать нечего. */
+    /**
+     * Контракт и граф компонента — данные, а не виджеты: у них свои панели, в дереве им делать нечего.
+     */
     private static boolean shown(UiNode node, UiProperty property) {
         if (!(property.value() instanceof UiValue.Elements)) return false;
         String slot = property.name().local();
@@ -123,7 +127,9 @@ public final class Hierarchy {
         return Optional.ofNullable(Edits.parentOf(document.root(), node));
     }
 
-    /** {@code id}, {@code name}, {@code Name} или {@code x:Name} узла; пустая строка, если не задан. */
+    /**
+     * {@code id}, {@code name}, {@code Name} или {@code x:Name} узла; пустая строка, если не задан.
+     */
     static String idOf(UiNode node) {
         for (UiProperty property : node.properties()) {
             String local = property.name().local();

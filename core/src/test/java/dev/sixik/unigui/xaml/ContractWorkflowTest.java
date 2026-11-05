@@ -267,6 +267,159 @@ final class ContractWorkflowTest {
                 Promotions.promote(session, node(session, "title"), "text", Promotions.Kind.PARAM).orElseThrow());
     }
 
+    // ------------------------------------------------------------------ свойства без своего типа
+
+    private static final String PANEL = component("<Event Name=\"Go\" Direction=\"In\"/>",
+            "<VBox id=\"body\"><Box id=\"panel\" width=\"100\" height=\"20\"/><Label id=\"title\" text=\"Hi\"/></VBox>", "");
+
+    private static void layout(dev.sixik.unigui.api.widget.Widget root) {
+        root.measure(new dev.sixik.unigui.api.layout.LayoutContext(800.0f, 600.0f));
+        root.arrange(new dev.sixik.unigui.api.math.MutableRect(0.0f, 0.0f, 800.0f, 600.0f));
+    }
+
+    private static String wired(EditorSession session, String kind, String name, String value) {
+        return session.text().replace("</Component.Graph>", """
+                <Node Id="go" Type="Event.Go"/>
+                <Node Id="set" Type="%s.Set" Name="%s" value="%s"/>
+                <Wire From="go.then" To="set.exec"/>
+                </Component.Graph>""".formatted(kind, name, value));
+    }
+
+    @Test
+    void everyValuePropertyOfAWidgetCanBePromoted() {
+        EditorSession session = EditorSession.create(PANEL);
+        UiNode panel = node(session, "panel");
+        var info = session.schema().type(panel.type()).orElseThrow();
+        List<String> refused = new ArrayList<>();
+        for (var property : info.properties()) {
+            boolean action = property.kind() == dev.sixik.unigui.xaml.schema.ValueKind.BINDING_OR_ACTION;
+            boolean identity = property.name().equals("id") || property.name().equals("class");
+            if (!action && !identity && !Promotions.supported(session, panel, property.name())) refused.add(property.name());
+        }
+        assertEquals(List.of(), refused);
+    }
+
+    @Test
+    void aSizeBecomesAVariableAndTheGraphResizesTheWidget() {
+        EditorSession session = EditorSession.create(PANEL);
+        String name = Promotions.promote(session, node(session, "panel"), "width", Promotions.Kind.VARIABLE).orElseThrow();
+        assertEquals("PanelWidth", name);
+        assertTrue(session.text().contains("<Var Name=\"PanelWidth\" Type=\"string\" Default=\"100\"/>"), session.text());
+        assertTrue(clean(session.text()), session.text());
+
+        ComponentPreview preview = show(wired(session, "Var", name, "240"));
+        var host = preview.host().orElseThrow();
+        var panel = find(host, "panel");
+        layout(host);
+        assertEquals(100.0f, panel.layoutBounds().width(), 0.5f, "the default keeps the look");
+        preview.send("Go", Args.empty());
+        layout(host);
+        assertEquals(240.0f, panel.layoutBounds().width(), 0.5f, "the graph resized the widget");
+    }
+
+    private static void settle(dev.sixik.unigui.api.widget.Widget widget) {
+        if (widget instanceof dev.sixik.unigui.impl.widget.WidgetBase base) {
+            base.clearInvalidationDirect(dev.sixik.unigui.api.core.InvalidationFlags.ALL);
+        }
+        for (dev.sixik.unigui.api.widget.Widget child : widget.children()) settle(child);
+    }
+
+    /** Экран перекладывает окно только по флагу LAYOUT, поэтому сам вызов measure в тесте ничего не доказывает. */
+    private static void assertRequestsLayout(String property, String value) {
+        EditorSession session = EditorSession.create(PANEL);
+        String name = Promotions.promote(session, node(session, "panel"), property, Promotions.Kind.VARIABLE).orElseThrow();
+        ComponentPreview preview = show(wired(session, "Var", name, value));
+        var host = preview.host().orElseThrow();
+        layout(host);
+        settle(host);
+        assertFalse(dev.sixik.unigui.api.core.InvalidationFlags.has(host.subtreeInvalidationFlags(),
+                dev.sixik.unigui.api.core.InvalidationFlags.LAYOUT), "the tree starts clean");
+        preview.send("Go", Args.empty());
+        assertTrue(dev.sixik.unigui.api.core.InvalidationFlags.has(host.subtreeInvalidationFlags(),
+                dev.sixik.unigui.api.core.InvalidationFlags.LAYOUT), property + " must ask the screen for a new layout");
+    }
+
+    @Test
+    void changesFromTheGraphReachTheRealLayoutPass() {
+        assertRequestsLayout("width", "240");
+        assertRequestsLayout("padding", "4 8");
+        assertRequestsLayout("visibility", "Collapsed");
+        assertRequestsLayout("alignSelf", "End");
+    }
+
+    @Test
+    void anEnumBecomesAParameterAndTheGraphChangesIt() {
+        EditorSession session = EditorSession.create(PANEL);
+        UiNode title = node(session, "title");
+        String name = Promotions.promote(session, title, "visibility", Promotions.Kind.PARAM).orElseThrow();
+        assertTrue(clean(session.text()), session.text());
+
+        ComponentPreview preview = show(wired(session, "Param", name, "Collapsed"));
+        var label = find(preview.host().orElseThrow(), "title");
+        assertEquals(dev.sixik.unigui.api.widget.Visibility.VISIBLE, label.visibility());
+        preview.send("Go", Args.empty());
+        assertEquals(dev.sixik.unigui.api.widget.Visibility.COLLAPSED, label.visibility());
+    }
+
+    @Test
+    void insetsBecomeAVariable() {
+        EditorSession session = EditorSession.create(PANEL);
+        String name = Promotions.promote(session, node(session, "panel"), "padding", Promotions.Kind.VARIABLE).orElseThrow();
+        ComponentPreview preview = show(wired(session, "Var", name, "4 8"));
+        preview.send("Go", Args.empty());
+        var style = ((dev.sixik.unigui.impl.widget.WidgetBase) find(preview.host().orElseThrow(), "panel")).layoutStyle();
+        assertEquals(8.0f, style.padding().left(), 0.01f, style.padding().toString());
+    }
+
+    @Test
+    void aWrongTextValueFailsTheRunAndNamesTheVariable() {
+        EditorSession session = EditorSession.create(PANEL);
+        String name = Promotions.promote(session, node(session, "title"), "visibility", Promotions.Kind.VARIABLE).orElseThrow();
+        ComponentPreview preview = show(wired(session, "Var", name, "Sideways"));
+        var label = find(preview.host().orElseThrow(), "title");
+        RuntimeException failure = assertThrows(RuntimeException.class, () -> preview.send("Go", Args.empty()));
+        assertTrue(String.valueOf(failure.getMessage()).contains(name), failure.toString());
+        assertEquals(dev.sixik.unigui.api.widget.Visibility.VISIBLE, label.visibility(), "the widget keeps its value");
+    }
+
+    @Test
+    void aWrongDefaultIsReportedByTheValidator() {
+        String text = component("<Param Name=\"Mode\" Type=\"string\" Default=\"Sideways\"/>",
+                "<Label visibility=\"{Param Mode}\"/>", "");
+        assertFalse(clean(text));
+    }
+
+    @Test
+    void aStringStillDoesNotFitANumberProperty() {
+        String text = component("<Param Name=\"Title\" Type=\"string\"/>", "<Slider value=\"{Param Title}\"/>", "");
+        assertFalse(clean(text), "typed properties keep their check");
+        assertFalse(ParamType.needsText(Float.class));
+        assertFalse(ParamType.needsText(Boolean.class));
+        assertFalse(ParamType.needsText(String.class));
+    }
+
+    @Test
+    void anExistingEntryBindsOnlyToAPropertyOfItsType() {
+        EditorSession session = EditorSession.create(component(
+                "<Param Name=\"Size\" Type=\"int\"/><Var Name=\"Mode\" Type=\"string\"/>"
+                        + "<Event Name=\"Sell\" Direction=\"Out\"/><Event Name=\"Go\" Direction=\"In\"/>",
+                "<VBox><Label id=\"title\" text=\"x\"/><Slider id=\"bar\"/><Button id=\"buy\"/></VBox>", ""));
+        assertTrue(Promotions.canBind(session, node(session, "bar"), "value", Promotions.Kind.PARAM, "Size"));
+        assertTrue(Promotions.canBind(session, node(session, "title"), "visibility", Promotions.Kind.VARIABLE, "Mode"),
+                "text entries fit properties without a type of their own");
+        assertFalse(Promotions.canBind(session, node(session, "bar"), "value", Promotions.Kind.VARIABLE, "Mode"),
+                "a string does not fit a number");
+        assertFalse(Promotions.canBind(session, node(session, "title"), "id", Promotions.Kind.VARIABLE, "Mode"));
+        assertFalse(Promotions.canBind(session, node(session, "title"), "text", Promotions.Kind.PARAM, "Missing"));
+
+        assertTrue(Promotions.bind(session, node(session, "bar"), "value", Promotions.Kind.PARAM, "Size"));
+        assertTrue(session.text().contains("value=\"{Param Size}\""), session.text());
+        assertTrue(Promotions.raise(session, node(session, "buy"), "onClick", "Sell"));
+        assertTrue(session.text().contains("onClick=\"{Raise Sell}\""), session.text());
+        assertFalse(Promotions.raise(session, node(session, "buy"), "onClick", "Go"), "incoming events are not raised by the body");
+        assertTrue(clean(session.text()), session.text());
+    }
+
     @Test
     void theHierarchyOfAComponentShowsOnlyWidgets() {
         EditorSession session = EditorSession.create(component("<Param Name=\"Title\" Type=\"string\"/>",

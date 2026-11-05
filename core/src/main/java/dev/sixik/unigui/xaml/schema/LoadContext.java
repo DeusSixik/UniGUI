@@ -14,7 +14,9 @@ import dev.sixik.unigui.xaml.load.XamlTextureResolver;
  * перенесены в пакет {@code xaml} на этапе удаления legacy.</p>
  */
 public final class LoadContext {
-    /** Контекст по умолчанию: простой резолвер текстур и пустой набор команд. */
+    /**
+     * Контекст по умолчанию: простой резолвер текстур и пустой набор команд.
+     */
     public static final LoadContext DEFAULT =
             new LoadContext(XamlTextureResolver.DEFAULT, XamlCommandRegistry.none());
 

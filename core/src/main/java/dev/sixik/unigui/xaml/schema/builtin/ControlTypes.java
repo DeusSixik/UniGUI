@@ -53,7 +53,9 @@ import dev.sixik.unigui.xaml.schema.ValueKind;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.singleContent;
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** Интерактивные элементы и оверлеи: кнопки, поля ввода, переключатели, слайдеры, окна, всплывающие слои. */
+/**
+ * Интерактивные элементы и оверлеи: кнопки, поля ввода, переключатели, слайдеры, окна, всплывающие слои.
+ */
 final class ControlTypes {
     private ControlTypes() {
     }

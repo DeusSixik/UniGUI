@@ -92,7 +92,9 @@ public final class Preview implements AutoCloseable {
         }
     }
 
-    /** Убирает показанное дерево. */
+    /**
+     * Убирает показанное дерево.
+     */
     public void clear() {
         if (screen != null) screen.close();
         screen = null;
@@ -101,12 +103,16 @@ public final class Preview implements AutoCloseable {
         error = "";
     }
 
-    /** @return корень показанного дерева или пусто, если ничего не показано */
+    /**
+     * @return корень показанного дерева или пусто, если ничего не показано
+     */
     public Optional<Widget> root() {
         return screen == null ? Optional.empty() : Optional.of(screen.root());
     }
 
-    /** @return причина последней неудачи или пустая строка, если последняя попытка удалась */
+    /**
+     * @return причина последней неудачи или пустая строка, если последняя попытка удалась
+     */
     public String error() {
         return error;
     }
@@ -141,12 +147,16 @@ public final class Preview implements AutoCloseable {
         return Optional.ofNullable(hit);
     }
 
-    /** @return состояние привязок показанного дерева: какие источники найдены, какие нет и почему */
+    /**
+     * @return состояние привязок показанного дерева: какие источники найдены, какие нет и почему
+     */
     public List<XamlBindingStatus> bindings() {
         return screen == null ? List.of() : screen.bindingSession().statuses();
     }
 
-    /** @return {@code true} после {@link #close()} */
+    /**
+     * @return {@code true} после {@link #close()}
+     */
     public boolean closed() {
         return closed;
     }

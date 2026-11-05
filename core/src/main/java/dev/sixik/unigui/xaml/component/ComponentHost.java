@@ -15,6 +15,7 @@ import dev.sixik.unigui.xaml.load.LoadOptions;
 import dev.sixik.unigui.xaml.load.LoadedScreen;
 import dev.sixik.unigui.xaml.load.MarkupExtension;
 import dev.sixik.unigui.xaml.load.MarkupExtensionRegistry;
+import dev.sixik.unigui.xaml.load.PropertyTarget;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.load.XamlLoader;
 import dev.sixik.unigui.xaml.logic.GraphDebugger;
@@ -36,10 +37,14 @@ import java.util.function.Consumer;
  * резолвер текстур вызывающего документа.</p>
  */
 public final class ComponentHost extends PanelWidget {
-    /** Предел вложенности компонентов друг в друга; защита от компонента, который содержит сам себя. */
+    /**
+     * Предел вложенности компонентов друг в друга; защита от компонента, который содержит сам себя.
+     */
     private static final int MAX_NESTING = 32;
     private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[1]);
-    /** Префикс служебных команд, через которые {@code {Raise}} доходит до события экземпляра. */
+    /**
+     * Префикс служебных команд, через которые {@code {Raise}} доходит до события экземпляра.
+     */
     private static final String RAISE_PREFIX = "@raise:";
 
     private final ComponentDefinition definition;
@@ -58,7 +63,8 @@ public final class ComponentHost extends PanelWidget {
      * @param schema     схема, по которой загружается тело (в ней же ищутся вложенные компоненты)
      */
     public ComponentHost(ComponentDefinition definition, Schema schema) {
-        if (definition == null || schema == null) throw new IllegalArgumentException("definition and schema are required");
+        if (definition == null || schema == null)
+            throw new IllegalArgumentException("definition and schema are required");
         this.definition = definition;
         this.schema = schema;
         this.instance = new ComponentInstance(definition, this);
@@ -120,17 +126,23 @@ public final class ComponentHost extends PanelWidget {
         return this;
     }
 
-    /** @return экземпляр: параметры и события */
+    /**
+     * @return экземпляр: параметры и события
+     */
     public ComponentInstance instance() {
         return instance;
     }
 
-    /** @return определение компонента */
+    /**
+     * @return определение компонента
+     */
     public ComponentDefinition definition() {
         return definition;
     }
 
-    /** @return {@code true}, если тело уже построено */
+    /**
+     * @return {@code true}, если тело уже построено
+     */
     public boolean built() {
         return body != null;
     }
@@ -139,7 +151,7 @@ public final class ComponentHost extends PanelWidget {
      * Строит тело из документа компонента. Повторный вызов ничего не делает.
      *
      * @param context текстуры и команды документа, в который вставлен компонент
-     * @throws XamlLoadException если тело не загружается; сообщение содержит имя компонента
+     * @throws XamlLoadException     если тело не загружается; сообщение содержит имя компонента
      * @throws IllegalStateException если компоненты вложены глубже {@value #MAX_NESTING} уровней
      */
     public void build(LoadContext context) {
@@ -161,7 +173,7 @@ public final class ComponentHost extends PanelWidget {
                     .commands(commandsFor(context.commands()))
                     .extensions(extensions);
             if (observer != null) options = options.nodeObserver(observer);
-            loaded =new XamlLoader(schema, options).loadScreen(UiDocument.of(definition.body()));
+            loaded = new XamlLoader(schema, options).loadScreen(UiDocument.of(definition.body()));
         } catch (XamlLoadException failure) {
             var location = failure.diagnostics().isEmpty()
                     ? definition.location() : failure.diagnostics().get(0).location();
@@ -184,7 +196,9 @@ public final class ComponentHost extends PanelWidget {
 
     // ------------------------------------------------------------------ расширения тела
 
-    /** {@code {Param Name}}: подставляет значение параметра и следит за его изменениями. */
+    /**
+     * {@code {Param Name}}: подставляет значение параметра и следит за его изменениями.
+     */
     private MarkupExtension paramExtension() {
         return (context, use, target) -> {
             requireOnlyName(use, "Param");
@@ -202,7 +216,9 @@ public final class ComponentHost extends PanelWidget {
         };
     }
 
-    /** {@code {Var Name}}: подставляет значение переменной графа и следит за её изменениями. */
+    /**
+     * {@code {Var Name}}: подставляет значение переменной графа и следит за её изменениями.
+     */
     private MarkupExtension varExtension() {
         return (context, use, target) -> {
             requireOnlyName(use, "Var");
@@ -219,9 +235,14 @@ public final class ComponentHost extends PanelWidget {
         };
     }
 
-    /** Проверяет совместимость типов и возвращает запись значения в свойство. */
-    private static Consumer<Object> binder(Contract.Param declared, dev.sixik.unigui.xaml.load.PropertyTarget target, String what) {
+    /**
+     * Проверяет совместимость типов и возвращает запись значения в свойство.
+     */
+    private static Consumer<Object> binder(Contract.Param declared, PropertyTarget target, String what) {
         Class<?> wanted = target.valueType();
+        if (declared.type() == ParamType.STRING && ParamType.needsText(wanted)) {
+            return value -> applyText(declared, target, what, value);
+        }
         if (!declared.type().fits(wanted)) {
             throw new IllegalArgumentException(what + " '" + declared.name() + "' is "
                     + declared.type().name() + " but '" + target.name() + "' expects "
@@ -232,7 +253,24 @@ public final class ComponentHost extends PanelWidget {
         };
     }
 
-    /** {@code {Raise Event}}: превращает действие свойства (например, клик) в исходящее событие компонента. */
+    /**
+     * Значение-текст разбирает конвертер свойства; пустая строка значит «не задано» и оставляет значение свойства.
+     */
+    private static void applyText(Contract.Param declared, PropertyTarget target, String what,
+                                  Object value) {
+        String text = value == null ? "" : String.valueOf(value);
+        if (text.isEmpty()) return;
+        try {
+            target.setText(text);
+        } catch (RuntimeException failure) {
+            throw new IllegalArgumentException(what + " '" + declared.name() + "': '" + text + "' is not a valid value of '"
+                    + target.name() + "': " + failure.getMessage(), failure);
+        }
+    }
+
+    /**
+     * {@code {Raise Event}}: превращает действие свойства (например, клик) в исходящее событие компонента.
+     */
     private MarkupExtension raiseExtension() {
         return (context, use, target) -> {
             requireOnlyName(use, "Raise");

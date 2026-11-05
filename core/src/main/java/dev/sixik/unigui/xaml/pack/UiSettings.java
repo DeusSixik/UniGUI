@@ -61,7 +61,9 @@ public final class UiSettings {
         return settings;
     }
 
-    /** @return причина, по которой файл не прочитан, или пустая строка */
+    /**
+     * @return причина, по которой файл не прочитан, или пустая строка
+     */
     public String problem() {
         return problem;
     }
@@ -137,7 +139,9 @@ public final class UiSettings {
         return this;
     }
 
-    /** @return все заданные ключи по алфавиту */
+    /**
+     * @return все заданные ключи по алфавиту
+     */
     public Map<String, String> all() {
         return Map.copyOf(values);
     }

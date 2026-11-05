@@ -10,7 +10,9 @@ import java.util.Objects;
  * Исходящее событие компонента, как его видят команды ({@code Buy="{Command BuyItem}"}).
  */
 public final class ComponentEvent extends BaseEvent {
-    /** Тип события для общей шины. */
+    /**
+     * Тип события для общей шины.
+     */
     public static final EventType<ComponentEvent> TYPE = EventType.create("component.event");
 
     private final Widget source;
@@ -35,17 +37,23 @@ public final class ComponentEvent extends BaseEvent {
         return TYPE;
     }
 
-    /** @return хост компонента, который сообщил о событии */
+    /**
+     * @return хост компонента, который сообщил о событии
+     */
     public Widget source() {
         return source;
     }
 
-    /** @return имя события из контракта */
+    /**
+     * @return имя события из контракта
+     */
     public String name() {
         return name;
     }
 
-    /** @return аргументы события */
+    /**
+     * @return аргументы события
+     */
     public Args args() {
         return args;
     }

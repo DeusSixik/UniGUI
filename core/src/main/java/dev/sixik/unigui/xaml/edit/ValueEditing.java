@@ -18,11 +18,15 @@ public final class ValueEditing {
     private ValueEditing() {
     }
 
-    /** Способ ввода значения. */
+    /**
+     * Способ ввода значения.
+     */
     public sealed interface Editor permits Text, Number, Toggle, Choice, Color, Insets, Size, Resource {
     }
 
-    /** Свободный текст (строки, привязки, команды). */
+    /**
+     * Свободный текст (строки, привязки, команды).
+     */
     public record Text() implements Editor {
     }
 
@@ -34,7 +38,9 @@ public final class ValueEditing {
     public record Number(boolean integer) implements Editor {
     }
 
-    /** Логическое значение. */
+    /**
+     * Логическое значение.
+     */
     public record Toggle() implements Editor {
     }
 
@@ -49,15 +55,21 @@ public final class ValueEditing {
         }
     }
 
-    /** Цвет: {@code #RRGGBB} или {@code #AARRGGBB}. */
+    /**
+     * Цвет: {@code #RRGGBB} или {@code #AARRGGBB}.
+     */
     public record Color() implements Editor {
     }
 
-    /** Четыре отступа: верх, право, низ, лево. */
+    /**
+     * Четыре отступа: верх, право, низ, лево.
+     */
     public record Insets() implements Editor {
     }
 
-    /** Размер: {@code auto}, пиксели или проценты. */
+    /**
+     * Размер: {@code auto}, пиксели или проценты.
+     */
     public record Size() implements Editor {
     }
 
@@ -116,7 +128,8 @@ public final class ValueEditing {
             case "int" -> new Number(true);
             case "float", "double" -> new Number(false);
             case "color" -> new Color();
-            case "texture" -> new Resource("textures/", (catalog == null ? ResourceCatalog.NONE : catalog).ids("textures/"));
+            case "texture" ->
+                    new Resource("textures/", (catalog == null ? ResourceCatalog.NONE : catalog).ids("textures/"));
             default -> new Text();
         };
     }
@@ -161,7 +174,8 @@ public final class ValueEditing {
         }
         if (!Double.isFinite(parsed)) throw new IllegalArgumentException("'" + value + "' is not a finite number.");
         if (editor.integer()) {
-            if (parsed != Math.rint(parsed)) throw new IllegalArgumentException("'" + value + "' must be a whole number.");
+            if (parsed != Math.rint(parsed))
+                throw new IllegalArgumentException("'" + value + "' must be a whole number.");
             return Long.toString((long) parsed);
         }
         return format(parsed);
@@ -186,7 +200,9 @@ public final class ValueEditing {
                 + resource.candidates() + ".");
     }
 
-    /** Число без хвоста {@code .0}. */
+    /**
+     * Число без хвоста {@code .0}.
+     */
     static String format(double value) {
         return value == Math.rint(value) && Math.abs(value) < 1e15 ? Long.toString((long) value)
                 : Double.toString(Math.round(value * 1000.0) / 1000.0);
@@ -219,7 +235,8 @@ public final class ValueEditing {
          */
         public static ColorValue parse(String text) {
             var matcher = HEX.matcher(text.trim());
-            if (!matcher.matches()) throw new IllegalArgumentException("'" + text + "' is not a color. Use #RRGGBB or #AARRGGBB.");
+            if (!matcher.matches())
+                throw new IllegalArgumentException("'" + text + "' is not a color. Use #RRGGBB or #AARRGGBB.");
             String digits = matcher.group(1);
             int offset = digits.length() == 8 ? 2 : 0;
             int alpha = digits.length() == 8 ? Integer.parseInt(digits.substring(0, 2), 16) : 255;
@@ -228,7 +245,9 @@ public final class ValueEditing {
                     Integer.parseInt(digits.substring(offset + 4, offset + 6), 16), alpha);
         }
 
-        /** @return {@code #RRGGBB} для непрозрачного цвета, иначе {@code #AARRGGBB}; буквы заглавные */
+        /**
+         * @return {@code #RRGGBB} для непрозрачного цвета, иначе {@code #AARRGGBB}; буквы заглавные
+         */
         public String format() {
             String rgb = String.format("%02X%02X%02X", red, green, blue);
             return alpha == 255 ? "#" + rgb : "#" + String.format("%02X", alpha) + rgb;
@@ -286,7 +305,9 @@ public final class ValueEditing {
             };
         }
 
-        /** @return самая короткая запись: одно число, если все равны, иначе четыре */
+        /**
+         * @return самая короткая запись: одно число, если все равны, иначе четыре
+         */
         public String format() {
             if (top == right && top == bottom && top == left) return ValueEditing.format(top);
             return ValueEditing.format(top) + " " + ValueEditing.format(right) + " " + ValueEditing.format(bottom) + " "
@@ -301,8 +322,10 @@ public final class ValueEditing {
      * @param value число; для {@code AUTO} не используется
      */
     public record SizeValue(Unit unit, double value) {
-        /** Единица размера. */
-        public enum Unit { AUTO, PIXELS, PERCENT }
+        /**
+         * Единица размера.
+         */
+        public enum Unit {AUTO, PIXELS, PERCENT}
 
         /**
          * Разбирает {@code auto}, {@code 120} (пиксели), {@code 50%}.
@@ -314,14 +337,17 @@ public final class ValueEditing {
             String value = text.trim().toLowerCase(Locale.ROOT);
             if (value.equals("auto")) return new SizeValue(Unit.AUTO, 0.0);
             try {
-                if (value.endsWith("%")) return new SizeValue(Unit.PERCENT, Double.parseDouble(value.substring(0, value.length() - 1)));
+                if (value.endsWith("%"))
+                    return new SizeValue(Unit.PERCENT, Double.parseDouble(value.substring(0, value.length() - 1)));
                 return new SizeValue(Unit.PIXELS, Double.parseDouble(value.endsWith("px") ? value.substring(0, value.length() - 2) : value));
             } catch (NumberFormatException failure) {
                 throw new IllegalArgumentException("'" + text + "' is not a size. Use auto, 120 or 50%.");
             }
         }
 
-        /** @return {@code auto}, {@code 120} или {@code 50%} */
+        /**
+         * @return {@code auto}, {@code 120} или {@code 50%}
+         */
         public String format() {
             return switch (unit) {
                 case AUTO -> "auto";

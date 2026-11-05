@@ -71,27 +71,37 @@ public final class TypeInfo<T extends Widget> {
         return new Builder<>(name, javaType, factory);
     }
 
-    /** @return имя типа в документе */
+    /**
+     * @return имя типа в документе
+     */
     public UiName name() {
         return name;
     }
 
-    /** @return runtime-класс виджета */
+    /**
+     * @return runtime-класс виджета
+     */
     public Class<T> javaType() {
         return javaType;
     }
 
-    /** @return заголовок для палитры редактора */
+    /**
+     * @return заголовок для палитры редактора
+     */
     public String displayName() {
         return displayName;
     }
 
-    /** @return категория для палитры редактора */
+    /**
+     * @return категория для палитры редактора
+     */
     public String category() {
         return category;
     }
 
-    /** @return описание типа */
+    /**
+     * @return описание типа
+     */
     public String description() {
         return description;
     }
@@ -105,7 +115,9 @@ public final class TypeInfo<T extends Widget> {
         return factory.get();
     }
 
-    /** @return все свойства типа в порядке: общие, из аннотаций, ручные */
+    /**
+     * @return все свойства типа в порядке: общие, из аннотаций, ручные
+     */
     public Collection<PropertyInfo<? super T, ?>> properties() {
         return properties.values();
     }
@@ -134,7 +146,9 @@ public final class TypeInfo<T extends Widget> {
         return index == null ? -1 : index;
     }
 
-    /** @return {@code true}, если тип принимает вложенные виджеты напрямую (без property-элемента) */
+    /**
+     * @return {@code true}, если тип принимает вложенные виджеты напрямую (без property-элемента)
+     */
     public boolean acceptsChildren() {
         return content != null;
     }
@@ -162,7 +176,9 @@ public final class TypeInfo<T extends Widget> {
         return widget.children();
     }
 
-    /** @return все слоты типа */
+    /**
+     * @return все слоты типа
+     */
     public Collection<SlotInfo<T>> slots() {
         return slots.values();
     }
@@ -500,7 +516,9 @@ public final class TypeInfo<T extends Widget> {
             return ((PropertyInfo) property).withGetter(getter);
         }
 
-        /** Кладёт свойство; если такое имя уже есть, новое перекрывает старое, наследуя незаданные метаданные. */
+        /**
+         * Кладёт свойство; если такое имя уже есть, новое перекрывает старое, наследуя незаданные метаданные.
+         */
         private void putOverriding(Map<String, PropertyInfo<? super T, ?>> into, PropertyInfo<? super T, ?> property) {
             PropertyInfo<? super T, ?> previous = into.get(property.name());
             into.put(property.name(), previous == null ? property : property.overriding(previous));

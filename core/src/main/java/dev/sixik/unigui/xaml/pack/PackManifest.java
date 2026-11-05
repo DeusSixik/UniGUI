@@ -24,7 +24,9 @@ import java.util.regex.Pattern;
  * @param description описание
  */
 public record PackManifest(String id, String version, String name, String description) {
-    /** Имя файла паспорта в корне архива. */
+    /**
+     * Имя файла паспорта в корне архива.
+     */
     public static final String FILE = "pack.xaml";
     private static final Pattern ID = Pattern.compile("[a-z0-9][a-z0-9_.:\\-]*");
     private static final Set<String> ATTRIBUTES = Set.of("Id", "Version", "Name", "Description");
@@ -83,7 +85,9 @@ public record PackManifest(String id, String version, String name, String descri
         }
     }
 
-    /** @return паспорт как текст {@code pack.xaml} */
+    /**
+     * @return паспорт как текст {@code pack.xaml}
+     */
     public String toXaml() {
         return "<Pack Id=\"" + escape(id) + "\" Version=\"" + escape(version) + "\" Name=\"" + escape(name)
                 + "\" Description=\"" + escape(description) + "\"/>\n";

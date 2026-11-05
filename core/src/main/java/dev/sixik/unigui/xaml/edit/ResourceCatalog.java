@@ -7,7 +7,9 @@ import java.util.List;
  */
 @FunctionalInterface
 public interface ResourceCatalog {
-    /** Каталог без ресурсов. */
+    /**
+     * Каталог без ресурсов.
+     */
     ResourceCatalog NONE = folder -> List.of();
 
     /**

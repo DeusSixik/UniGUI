@@ -19,7 +19,9 @@ import java.util.Set;
  * <p>Отладчик принадлежит редактору, а не экземпляру: точки останова переживают пересборку предпросмотра.</p>
  */
 public final class GraphDebugger {
-    /** Что делает отладчик с остановленным запуском: исполняется на стороне среды исполнения графа. */
+    /**
+     * Что делает отладчик с остановленным запуском: исполняется на стороне среды исполнения графа.
+     */
     interface Control {
         void resume();
 
@@ -73,14 +75,18 @@ public final class GraphDebugger {
         if (breakpoints.add(nodeId)) changed();
     }
 
-    /** Снимает все точки останова. */
+    /**
+     * Снимает все точки останова.
+     */
     public void clearBreakpoints() {
         if (breakpoints.isEmpty()) return;
         breakpoints.clear();
         changed();
     }
 
-    /** @return идентификаторы нод с точками останова в порядке постановки */
+    /**
+     * @return идентификаторы нод с точками останова в порядке постановки
+     */
     public Set<String> breakpoints() {
         return Set.copyOf(breakpoints);
     }
@@ -96,17 +102,23 @@ public final class GraphDebugger {
 
     // ------------------------------------------------------------------ остановка
 
-    /** @return остановка или пусто, если запуск не стоит */
+    /**
+     * @return остановка или пусто, если запуск не стоит
+     */
     public Optional<Pause> paused() {
         return Optional.ofNullable(pause);
     }
 
-    /** Продолжает остановленный запуск до следующей точки останова или до конца. */
+    /**
+     * Продолжает остановленный запуск до следующей точки останова или до конца.
+     */
     public void resume() {
         if (control != null && pause != null) control.resume();
     }
 
-    /** Исполняет одну ноду остановленного запуска и останавливается перед следующей. */
+    /**
+     * Исполняет одну ноду остановленного запуска и останавливается перед следующей.
+     */
     public void step() {
         if (control != null && pause != null) control.step();
     }

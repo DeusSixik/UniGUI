@@ -19,7 +19,9 @@ public final class Args {
         this.values = values;
     }
 
-    /** @return пустой набор */
+    /**
+     * @return пустой набор
+     */
     public static Args empty() {
         return EMPTY;
     }
@@ -55,7 +57,9 @@ public final class Args {
         return values.isEmpty() ? EMPTY : new Args(Collections.unmodifiableMap(new LinkedHashMap<>(values)));
     }
 
-    /** @return {@code true}, если набор пуст */
+    /**
+     * @return {@code true}, если набор пуст
+     */
     public boolean isEmpty() {
         return values.isEmpty();
     }
@@ -89,7 +93,9 @@ public final class Args {
         return type.cast(values.get(name));
     }
 
-    /** @return неизменяемое отображение */
+    /**
+     * @return неизменяемое отображение
+     */
     public Map<String, Object> asMap() {
         return values;
     }

@@ -348,6 +348,12 @@ final class ViewportPanel extends SessionPanel {
         holder.visibility(value ? Visibility.COLLAPSED : Visibility.VISIBLE);
         playHolder.visibility(value ? Visibility.VISIBLE : Visibility.COLLAPSED);
         info.text(value ? "Playing (a copy: your document is not affected)" : "");
+        // Отправка событий и журнал живут на панели запуска: при старте она сразу на виду.
+        if (value && context() != null) {
+            for (var command : context().commands().all()) {
+                if (command.id().equals("window.open." + RunPanel.ID)) command.run(context());
+            }
+        }
     }
 
     /**

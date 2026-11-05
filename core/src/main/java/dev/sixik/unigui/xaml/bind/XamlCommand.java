@@ -15,7 +15,7 @@ public interface XamlCommand {
      * Выполняет команду для widget source и исходного события.
      *
      * @param source widget, который инициировал команду
-     * @param event событие UI, если оно доступно
+     * @param event  событие UI, если оно доступно
      */
     void execute(Widget source, Event event);
 }

@@ -27,7 +27,9 @@ public class ToolButton extends Button {
         /** Залита акцентом: главное действие экрана. */
         ACCENT,
         /** Залита цветом запуска. */
-        RUN
+        RUN,
+        /** Продолжает полосу заголовка группы: квадратная, цвета полосы. */
+        BANNER
     }
 
     private static final float ICON_SIZE = 12.0f;
@@ -138,21 +140,34 @@ public class ToolButton extends Button {
     }
 
     /**
-     * Доступность проверяется при каждой отрисовке: кнопки Undo и Save следуют за состоянием документа без подписок.
+     * Доступность проверяется каждый кадр: кнопки Undo и Save следуют за состоянием документа без подписок.
      *
      * @param value условие доступности
      * @return эта кнопка
      */
     public ToolButton availableWhen(BooleanSupplier value) {
         this.availability = value;
+        refreshAvailability();
         return this;
     }
 
+    /**
+     * Доступность проверяется на кадре, а не при отрисовке: отрисовка листовых виджетов кэшируется, и без изменений она
+     * не повторяется, поэтому выключенная кнопка никогда не включилась бы сама.
+     */
+    @Override
+    public void tick(dev.sixik.unigui.api.core.FrameContext frame) {
+        super.tick(frame);
+        refreshAvailability();
+    }
+
+    private void refreshAvailability() {
+        if (availability == null) return;
+        boolean available = availability.getAsBoolean();
+        if (available != enabled()) enabled(available);
+    }
+
     private void paint(DrawScope draw) {
-        if (availability != null) {
-            boolean available = availability.getAsBoolean();
-            if (available != enabled()) enabled(available);
-        }
         RectView b = layoutBounds();
         float x = b.x();
         float y = b.y();
@@ -162,13 +177,14 @@ public class ToolButton extends Button {
         boolean on = enabled();
         boolean hover = on && hovered();
         boolean press = on && pressed();
-        float radius = EditorStyles.RADIUS;
+        float radius = variant == Variant.BANNER ? 0.0f : EditorStyles.RADIUS;
 
         ColorView fill = switch (variant) {
             case GHOST -> active ? EditorStyles.ACCENT_SOFT : null;
             case SOLID -> EditorStyles.BG_BUTTON;
             case ACCENT -> EditorStyles.TAB_ACCENT;
             case RUN -> EditorStyles.PLAY_GREEN;
+            case BANNER -> EditorStyles.BG_HEADER;
         };
         if (fill != null) draw.roundedRectFilled(x, y, w, h, radius, fill);
         if (variant == Variant.SOLID) draw.roundedRectStroke(x, y, w, h, radius, EditorStyles.BORDER_SUBTLE, 1.0f);

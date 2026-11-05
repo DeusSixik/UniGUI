@@ -9,7 +9,9 @@ import dev.sixik.unigui.xaml.schema.SlotInfo;
 
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** IDE-подобный docking. */
+/**
+ * IDE-подобный docking.
+ */
 final class DockingTypes {
     private DockingTypes() {
     }

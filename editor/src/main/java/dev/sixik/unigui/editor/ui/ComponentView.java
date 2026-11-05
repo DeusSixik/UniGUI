@@ -12,7 +12,22 @@ import java.util.Optional;
  * примерные значения. Связывающего объекта не пересоздают, поэтому панели не зависят от порядка своего создания.
  */
 final class ComponentView {
+    /** Вид записи пользовательского события; остальные совпадают с именами элементов контракта. */
+    static final String CUSTOM = "Custom";
+
+    /**
+     * Запись панели контракта.
+     *
+     * @param kind {@code Param}, {@code Var}, {@code Event} или {@link #CUSTOM}
+     * @param name имя
+     */
+    record Entry(String kind, String name) {
+    }
+
     private final List<Runnable> listeners = new ArrayList<>();
+    private final List<Runnable> entryListeners = new ArrayList<>();
+    private Entry entry;
+    private String problem = "";
     private ComponentPreview preview;
     private ComponentPreview running;
 
@@ -29,6 +44,44 @@ final class ComponentView {
     void preview(ComponentPreview next) {
         this.preview = next;
         changed();
+    }
+
+    /** @return запись контракта, показанная в инспекторе */
+    Optional<Entry> entry() {
+        return Optional.ofNullable(entry);
+    }
+
+    /**
+     * Выбирает запись контракта; прежняя причина отказа забывается.
+     *
+     * @param next запись или {@code null}
+     */
+    void entry(Entry next) {
+        this.entry = next;
+        this.problem = "";
+        for (Runnable listener : List.copyOf(entryListeners)) listener.run();
+    }
+
+    /** @return причина последней отклонённой правки контракта или пустая строка */
+    String problem() {
+        return problem;
+    }
+
+    /**
+     * Показывает причину отказа в панели контракта.
+     *
+     * @param reason причина
+     */
+    void problem(String reason) {
+        this.problem = reason == null ? "" : reason;
+        for (Runnable listener : List.copyOf(entryListeners)) listener.run();
+    }
+
+    /**
+     * @param listener вызывается при смене выбранной записи
+     */
+    void onEntry(Runnable listener) {
+        entryListeners.add(listener);
     }
 
     /** @return копия, запущенная по Play, или пусто: только в неё отправляются события */

@@ -18,7 +18,9 @@ import java.util.zip.ZipOutputStream;
  * файлов всегда даёт побайтно одинаковый архив (удобно для хешей и диффов).</p>
  */
 public final class AssetPackWriter {
-    /** Фиксированное время записей: 1980-01-01, самое раннее, которое умеет zip. */
+    /**
+     * Фиксированное время записей: 1980-01-01, самое раннее, которое умеет zip.
+     */
     private static final long FIXED_TIME = 315_532_800_000L;
 
     private final PackManifest manifest;
@@ -42,7 +44,8 @@ public final class AssetPackWriter {
      */
     public AssetPackWriter add(String path, byte[] data) {
         String name = AssetPack.normalize(path);
-        if (name.equals(PackManifest.FILE)) throw new IllegalArgumentException(PackManifest.FILE + " is written from the manifest");
+        if (name.equals(PackManifest.FILE))
+            throw new IllegalArgumentException(PackManifest.FILE + " is written from the manifest");
         files.put(name, data.clone());
         return this;
     }

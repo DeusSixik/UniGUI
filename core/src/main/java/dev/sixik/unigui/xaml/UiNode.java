@@ -1,5 +1,7 @@
 package dev.sixik.unigui.xaml;
 
+import dev.sixik.unigui.xaml.format.MarkupExtensions;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -151,7 +153,7 @@ public final class UiNode implements UiContent {
             if (property.owner() == null && property.name().namespace().isEmpty()
                     && property.name().local().equals(name)) {
                 if (property.value() instanceof UiValue.Elements) return Optional.empty();
-                return Optional.of(dev.sixik.unigui.xaml.format.MarkupExtensions.write(property.value()));
+                return Optional.of(MarkupExtensions.write(property.value()));
             }
         }
         return Optional.empty();

@@ -24,7 +24,9 @@ final class VirtualItems {
     private static final Map<VirtualListView, VirtualItems> BY_VIEW =
             Collections.synchronizedMap(new WeakHashMap<>());
 
-    /** Слабая ссылка: иначе значение в {@link WeakHashMap} удерживало бы свой же ключ и запись не исчезала бы. */
+    /**
+     * Слабая ссылка: иначе значение в {@link WeakHashMap} удерживало бы свой же ключ и запись не исчезала бы.
+     */
     private final java.lang.ref.WeakReference<VirtualListView> viewRef;
     private List<?> source;
     private Template template;
@@ -38,12 +40,16 @@ final class VirtualItems {
         return BY_VIEW.computeIfAbsent(view, VirtualItems::new);
     }
 
-    /** @return текущий список данных или {@code null} */
+    /**
+     * @return текущий список данных или {@code null}
+     */
     List<?> source() {
         return source;
     }
 
-    /** @return текущий шаблон или {@code null} */
+    /**
+     * @return текущий шаблон или {@code null}
+     */
     Template template() {
         return template;
     }

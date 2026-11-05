@@ -23,7 +23,9 @@ import java.util.WeakHashMap;
 
 import static dev.sixik.unigui.xaml.schema.builtin.Types.type;
 
-/** Навигация: вкладки, страницы, аккордеон, карусель, деревья. */
+/**
+ * Навигация: вкладки, страницы, аккордеон, карусель, деревья.
+ */
 final class NavigationTypes {
     // Выбор индекса приходит до детей, поэтому запоминаем его и применяем после каждого добавления страницы.
     private static final Map<TabControl, Integer> PENDING_TAB_SELECTION = Collections.synchronizedMap(new WeakHashMap<>());

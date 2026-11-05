@@ -142,7 +142,7 @@ public final class XamlBindingContext {
      * @return active binding или inactive binding со статусом ошибки
      */
     public <T> XamlBinding<T> bind(String path, Class<T> targetType,
-                                  Consumer<? super T> target, String targetName) {
+                                   Consumer<? super T> target, String targetName) {
         if (targetType == null) throw new IllegalArgumentException("XML binding target type must not be null");
         if (target == null) throw new IllegalArgumentException("XML binding target must not be null");
         String normalized = normalizePath(path);

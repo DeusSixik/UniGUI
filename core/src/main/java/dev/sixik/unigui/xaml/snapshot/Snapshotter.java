@@ -59,7 +59,9 @@ public final class Snapshotter {
             diagnostics = List.copyOf(diagnostics);
         }
 
-        /** @return {@code true}, если снимок не заметил потерь */
+        /**
+         * @return {@code true}, если снимок не заметил потерь
+         */
         public boolean clean() {
             return diagnostics.isEmpty();
         }
@@ -152,7 +154,9 @@ public final class Snapshotter {
             return node;
         }
 
-        /** Записывает слоты-шаблоны ({@code <VirtualListView.ItemTemplate>}): шаблон хранится как разметка. */
+        /**
+         * Записывает слоты-шаблоны ({@code <VirtualListView.ItemTemplate>}): шаблон хранится как разметка.
+         */
         private <T extends Widget> void writeTemplates(UiNode node, TypeInfo<T> type, T widget) {
             for (SlotInfo<T> slot : type.slots()) {
                 if (slot.template() == null) continue;
@@ -170,7 +174,9 @@ public final class Snapshotter {
             for (UiNode child : node.children()) noteNamespaces(child);
         }
 
-        /** Тексты свойств у свежесозданного виджета типа: всё, что совпало с ними, в документ не пишется. */
+        /**
+         * Тексты свойств у свежесозданного виджета типа: всё, что совпало с ними, в документ не пишется.
+         */
         private <T extends Widget> Map<String, String> defaultsOf(TypeInfo<T> type) {
             return defaults.computeIfAbsent(type, key -> {
                 Map<String, String> texts = new HashMap<>();
@@ -200,7 +206,9 @@ public final class Snapshotter {
             if (!name.prefix().isEmpty()) usedNamespaces.putIfAbsent(name.prefix(), name.namespace());
         }
 
-        /** Объявляет на корне префиксы всех namespace, которые встретились в документе. */
+        /**
+         * Объявляет на корне префиксы всех namespace, которые встретились в документе.
+         */
         void declareNamespaces(UiNode root) {
             usedNamespaces.forEach(root::declareNamespace);
         }

@@ -186,7 +186,9 @@ public final class ContractEdits {
         return ElementListEdit.of(root, OWNER, MEMBER, label, change, ContractEdits::verify, null);
     }
 
-    /** После правки контракт должен читаться загрузчиком без ошибок. */
+    /**
+     * После правки контракт должен читаться загрузчиком без ошибок.
+     */
     private static Optional<String> verify(UiNode root) {
         try {
             ComponentDefinition.parse("edit", UiDocument.of(root));

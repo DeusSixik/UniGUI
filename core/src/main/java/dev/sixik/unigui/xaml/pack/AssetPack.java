@@ -44,14 +44,22 @@ import java.util.zip.ZipInputStream;
  * компонента может вызвать лишь функции, которые зарегистрировал сам мод.</p>
  */
 public final class AssetPack {
-    /** Предел числа файлов в архиве. */
+    /**
+     * Предел числа файлов в архиве.
+     */
     public static final int MAX_ENTRIES = 10_000;
-    /** Предел размера одного файла после распаковки, байт. */
+    /**
+     * Предел размера одного файла после распаковки, байт.
+     */
     public static final long MAX_ENTRY_BYTES = 32L * 1024 * 1024;
-    /** Предел суммарного размера после распаковки, байт. */
+    /**
+     * Предел суммарного размера после распаковки, байт.
+     */
     public static final long MAX_TOTAL_BYTES = 256L * 1024 * 1024;
 
-    /** Превращает байты текстуры из пака в рабочий handle; реализует бэкенд. */
+    /**
+     * Превращает байты текстуры из пака в рабочий handle; реализует бэкенд.
+     */
     @FunctionalInterface
     public interface TextureDecoder {
         /**
@@ -64,7 +72,9 @@ public final class AssetPack {
          */
         TextureHandle decode(String id, byte[] data, int width, int height, TextureOptions options);
 
-        /** @return декодер без бэкенда: handle без нативной текстуры (тесты, предпросмотр без игры) */
+        /**
+         * @return декодер без бэкенда: handle без нативной текстуры (тесты, предпросмотр без игры)
+         */
         static TextureDecoder simple() {
             return (id, data, width, height, options) -> new SimpleTextureHandle(id, width, height, null, options);
         }
@@ -130,11 +140,14 @@ public final class AssetPack {
             throw new XamlLoadException("Cannot read the pack archive: " + failure.getMessage(), dev.sixik.unigui.xaml.SourceLocation.UNKNOWN, failure);
         }
         byte[] manifestBytes = files.get(PackManifest.FILE);
-        if (manifestBytes == null) throw new XamlLoadException("The archive has no " + PackManifest.FILE + " in its root.");
+        if (manifestBytes == null)
+            throw new XamlLoadException("The archive has no " + PackManifest.FILE + " in its root.");
         return new AssetPack(PackManifest.parse(new String(manifestBytes, StandardCharsets.UTF_8)), files);
     }
 
-    /** Приводит имя записи к виду {@code a/b/c.ext} и отвергает пути, выходящие из архива. */
+    /**
+     * Приводит имя записи к виду {@code a/b/c.ext} и отвергает пути, выходящие из архива.
+     */
     static String normalize(String raw) {
         String name = raw.replace('\\', '/');
         if (name.startsWith("/") || name.matches("^[A-Za-z]:.*")) {
@@ -166,12 +179,16 @@ public final class AssetPack {
 
     // ------------------------------------------------------------------ содержимое
 
-    /** @return паспорт */
+    /**
+     * @return паспорт
+     */
     public PackManifest manifest() {
         return manifest;
     }
 
-    /** @return пути всех файлов по алфавиту */
+    /**
+     * @return пути всех файлов по алфавиту
+     */
     public List<String> names() {
         return List.copyOf(files.keySet());
     }
@@ -259,7 +276,9 @@ public final class AssetPack {
         };
     }
 
-    /** @return файлы по путям; нужен записи пака обратно */
+    /**
+     * @return файлы по путям; нужен записи пака обратно
+     */
     Map<String, byte[]> files() {
         return files;
     }
@@ -269,7 +288,9 @@ public final class AssetPack {
         return "AssetPack[" + manifest.id() + " " + manifest.version() + ", " + files.size() + " files]";
     }
 
-    /** @return копия содержимого, сгруппированная по папкам верхнего уровня (для отчётов и редактора) */
+    /**
+     * @return копия содержимого, сгруппированная по папкам верхнего уровня (для отчётов и редактора)
+     */
     public Map<String, Integer> summary() {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (String name : files.keySet()) {

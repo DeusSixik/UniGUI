@@ -34,7 +34,9 @@ import java.util.function.Supplier;
  * <p>Класс потокобезопасен: определения можно добавлять и читать из разных потоков.</p>
  */
 public final class Schema {
-    /** Пространство имён встроенных виджетов UniGUI; пустой namespace в документе трактуется как оно. */
+    /**
+     * Пространство имён встроенных виджетов UniGUI; пустой namespace в документе трактуется как оно.
+     */
     public static final String UI_NAMESPACE = "https://unigui.dev/ui";
 
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();
@@ -343,7 +345,9 @@ public final class Schema {
         return key.substring(key.indexOf('\u0000') + 1);
     }
 
-    /** Ленивая ячейка: схема строится один раз, повторные обращения читают готовое значение. */
+    /**
+     * Ленивая ячейка: схема строится один раз, повторные обращения читают готовое значение.
+     */
     private static final class Entry {
         private final Supplier<TypeInfo<?>> definition;
         private volatile TypeInfo<?> value;

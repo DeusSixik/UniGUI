@@ -93,7 +93,8 @@ public final class GraphEdits {
     public static Edit addNode(UiNode componentRoot, String id, String type, Map<String, String> attributes,
                                float x, float y) {
         return edit(componentRoot, "Add node " + type, items -> {
-            if (indexOfNode(items, id) >= 0) throw new IllegalArgumentException("Graph node '" + id + "' already exists.");
+            if (indexOfNode(items, id) >= 0)
+                throw new IllegalArgumentException("Graph node '" + id + "' already exists.");
             UiNode node = UiNode.of("Node").set("Id", id).set("Type", type);
             attributes.forEach(node::set);
             node.set("X", number(x)).set("Y", number(y));
@@ -156,7 +157,8 @@ public final class GraphEdits {
             }
             int index = indexOfNode(items, oldId);
             if (index < 0) throw new IllegalArgumentException("No graph node '" + oldId + "'.");
-            if (indexOfNode(items, newId) >= 0) throw new IllegalArgumentException("Graph node '" + newId + "' already exists.");
+            if (indexOfNode(items, newId) >= 0)
+                throw new IllegalArgumentException("Graph node '" + newId + "' already exists.");
             for (int i = 0; i < items.size(); i++) {
                 if (!(items.get(i) instanceof UiNode item)) continue;
                 if (item.type().local().equals("Node")) {
@@ -244,7 +246,9 @@ public final class GraphEdits {
         return ElementListEdit.of(root, OWNER, MEMBER, label, change, verify ? GraphEdits::verify : null, mergeKey);
     }
 
-    /** После правки граф должен компилироваться в мягком режиме. */
+    /**
+     * После правки граф должен компилироваться в мягком режиме.
+     */
     private static Optional<String> verify(UiNode root) {
         try {
             ComponentDefinition definition = ComponentDefinition.parse("edit", UiDocument.of(root));
@@ -271,7 +275,9 @@ public final class GraphEdits {
         return value == Math.rint(value) ? Long.toString((long) value) : Float.toString(value);
     }
 
-    /** Вход данных? Решается по компиляции текущего графа; если он ещё не собирается, вход считается входом данных. */
+    /**
+     * Вход данных? Решается по компиляции текущего графа; если он ещё не собирается, вход считается входом данных.
+     */
     private static boolean isDataInput(UiNode root, String endpoint) {
         int dot = endpoint.indexOf('.');
         if (dot <= 0) return true;

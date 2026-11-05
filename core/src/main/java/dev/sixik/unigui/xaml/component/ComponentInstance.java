@@ -24,7 +24,9 @@ import java.util.function.Consumer;
  * <p>Объект рассчитан на поток интерфейса и не потокобезопасен: как и остальные виджеты, он живёт в одном потоке.</p>
  */
 public final class ComponentInstance {
-    /** Предел «цепочек» входящих событий за один сброс очереди: защита от события, которое вечно вызывает себя. */
+    /**
+     * Предел «цепочек» входящих событий за один сброс очереди: защита от события, которое вечно вызывает себя.
+     */
     private static final int MAX_FLUSH_ROUNDS = 100;
 
     private final ComponentDefinition definition;
@@ -45,12 +47,16 @@ public final class ComponentInstance {
         }
     }
 
-    /** @return описание компонента */
+    /**
+     * @return описание компонента
+     */
     public ComponentDefinition definition() {
         return definition;
     }
 
-    /** @return виджет-хост, который вставляется в дерево интерфейса */
+    /**
+     * @return виджет-хост, который вставляется в дерево интерфейса
+     */
     public Widget widget() {
         return widget;
     }
@@ -224,7 +230,9 @@ public final class ComponentInstance {
         }
     }
 
-    /** @return сколько входящих событий ждёт выполнения */
+    /**
+     * @return сколько входящих событий ждёт выполнения
+     */
     public int pendingEvents() {
         return queue.size();
     }
@@ -262,7 +270,9 @@ public final class ComponentInstance {
         dispatch(Contract.CONSTRUCT, Args.empty());
     }
 
-    /** Освобождает экземпляр: вызывает {@code Destruct}, сбрасывает очередь и обработчики. */
+    /**
+     * Освобождает экземпляр: вызывает {@code Destruct}, сбрасывает очередь и обработчики.
+     */
     public void dispose() {
         if (disposed) return;
         if (constructed) dispatch(Contract.DESTRUCT, Args.empty());
@@ -272,7 +282,9 @@ public final class ComponentInstance {
         tickers.clear();
     }
 
-    /** @return {@code true} после {@link #dispose()} */
+    /**
+     * @return {@code true} после {@link #dispose()}
+     */
     public boolean disposed() {
         return disposed;
     }
@@ -314,7 +326,9 @@ public final class ComponentInstance {
         return direction == Contract.Direction.IN ? "incoming" : "outgoing";
     }
 
-    /** Проверяет имена и типы аргументов по контракту и приводит значения. */
+    /**
+     * Проверяет имена и типы аргументов по контракту и приводит значения.
+     */
     private Args check(Contract.Event event, Args args) {
         Args given = args == null ? Args.empty() : args;
         Map<String, Object> checked = new LinkedHashMap<>();

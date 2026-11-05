@@ -73,8 +73,18 @@ final class ComponentEditorTest {
         return null;
     }
 
+    /** Поиск виджета там, где живёт всё, что относится к контракту: список, инспектор и панель запуска. */
     private Widget contract(String id) {
-        return findId(content(ComponentEditor.CONTRACT), id);
+        for (String panel : List.of(ComponentEditor.CONTRACT, UiEditor.INSPECTOR, ComponentEditor.RUN)) {
+            Widget found = findId(content(panel), id);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    /** Выбирает запись: её детали появляются в инспекторе. */
+    private void select(String kind, String name) {
+        button("entry." + kind + "." + name).click();
     }
 
     private TextField field(String id) {
@@ -88,29 +98,28 @@ final class ComponentEditorTest {
     }
 
     /** Правит имя на месте и применяет его, как по Enter. */
-    private void rename(String id, String next) {
+    private void commitField(String id, String next) {
         dev.sixik.unigui.editor.style.FlatField name = (dev.sixik.unigui.editor.style.FlatField) requireNonNull(contract(id), id);
         name.text(next);
         name.commit();
+    }
+
+    /** Переименование через меню строки; новая запись уже стоит в режиме переименования. */
+    private void rename(String kind, String name, String next) {
+        if (contract("name." + kind + "." + name) == null) chooseFromMenu(kind, name, "Rename");
+        commitField("name." + kind + "." + name, next);
     }
 
     private Button button(String id) {
         return (Button) requireNonNull(contract(id), id);
     }
 
-    /** Открывает меню записи контракта кнопкой «⋯» и выбирает пункт. */
+    /** Выбирает пункт меню, которое открывается правой кнопкой по записи контракта. */
     private void chooseFromMenu(String kind, String name, String item) {
-        button("menu." + kind + "." + name).click();
-        for (dev.sixik.unigui.widgets.feedback.ContextMenu menu : all(shell.overlay(),
-                dev.sixik.unigui.widgets.feedback.ContextMenu.class)) {
-            for (Widget entry : menu.itemWidgets()) {
-                if (entry instanceof Button button && button.text().startsWith(item)) {
-                    button.click();
-                    return;
-                }
-            }
-        }
-        throw new AssertionError("no menu item '" + item + "'");
+        content(ComponentEditor.CONTRACT);
+        ContractPanel panel = (ContractPanel) shell.panel(ComponentEditor.CONTRACT).orElseThrow();
+        panel.menuOf(new ComponentView.Entry(kind, name)).stream().filter(entry -> item.equals(entry.title())).findFirst()
+                .orElseThrow(() -> new AssertionError("no menu item '" + item + "'")).action().run();
     }
 
     private static Widget requireNonNull(Widget widget, String id) {
@@ -168,11 +177,13 @@ final class ComponentEditorTest {
 
     @Test
     void thePanelListsTheDeclaredParametersAndEvents() {
+        select("Param", "Title");
         assertEquals("string", ((ComboBox) contract("param.Title.Type")).selectedItem());
         assertEquals("idle", field("param.Title.Default").text());
+        select("Event", "Buy");
         assertEquals("id", field("arg.Buy.id.name").text());
         assertEquals("string", ((ComboBox) contract("arg.Buy.id.type")).selectedItem());
-        assertNotNull(contract("menu.Event.Refresh"));
+        assertNotNull(contract("entry.Event.Refresh"));
     }
 
     @Test
@@ -189,6 +200,7 @@ final class ComponentEditorTest {
 
     @Test
     void editingADefaultUpdatesThePreviewAndKeepsTheField() {
+        select("Param", "Title");
         TextField before = field("param.Title.Default");
         before.text("hello");
         assertSame(before, field("param.Title.Default"), "typing does not rebuild the field");
@@ -197,11 +209,11 @@ final class ComponentEditorTest {
 
     @Test
     void aRejectedEditShowsTheReasonAndLeavesTheDocument() {
-        rename("name.Param.Title", "Buy");
+        rename("Param", "Title", "Buy");
         assertTrue(session.text().contains("<Param Name=\"Title\""), session.text());
         assertTrue(session.text().contains("{Param Title}"), session.text());
         assertFalse(contractProblem().isEmpty(), "the reason is shown under the table");
-        assertEquals("Title", field("name.Param.Title").text(), "the name goes back");
+        assertNotNull(contract("entry.Param.Title"), "the name goes back");
     }
 
     @Test
@@ -217,8 +229,9 @@ final class ComponentEditorTest {
     }
 
     @Test
-    void anEventMovesBetweenIncomingAndOutgoingFromItsMenu() {
-        chooseFromMenu("Event", "Buy", "Make incoming");
+    void anEventMovesBetweenIncomingAndOutgoingInTheInspector() {
+        select("Event", "Buy");
+        choose("event.Buy.Direction", "Incoming");
         assertTrue(session.text().contains("Name=\"Buy\" Direction=\"In\""), session.text());
         assertNotNull(contract("event.Buy.Coalesce"), "an incoming event offers the per-frame option");
     }
@@ -244,7 +257,7 @@ final class ComponentEditorTest {
         assertEquals(1, received.size());
 
         host.instance().emit("Buy", Args.of("id", "sword"));
-        assertTrue(all(content(ComponentEditor.CONTRACT), Label.class).stream()
+        assertTrue(all(content(ComponentEditor.RUN), Label.class).stream()
                 .anyMatch(label -> label.text().equals("Buy(id=sword)")), "the log shows the event");
     }
 
@@ -252,6 +265,7 @@ final class ComponentEditorTest {
 
     @Test
     void theTypeIsPickedFromTheRegisteredTypes() {
+        select("Param", "Title");
         ComboBox type = (ComboBox) contract("param.Title.Type");
         assertTrue(type.items().containsAll(List.of("string", "int", "float", "bool", "color")), type.items().toString());
         choose("param.Title.Type", "int");
@@ -261,36 +275,67 @@ final class ComponentEditorTest {
 
     @Test
     void aNameIsEditedInPlaceAndReferencesFollow() {
-        rename("name.Param.Title", "Caption");
+        rename("Param", "Title", "Caption");
         assertTrue(session.text().contains("{Param Caption}"), session.text());
-        assertNotNull(contract("name.Param.Caption"), "the panel shows the new name");
+        assertNotNull(contract("entry.Param.Caption"), "the panel shows the new name");
         document.undo();
         assertTrue(session.text().contains("{Param Title}"), "a rename is one undo step");
 
-        rename("name.Event.Buy", "Purchase");
+        rename("Event", "Buy", "Purchase");
         assertTrue(session.text().contains("Name=\"Purchase\""), session.text());
     }
 
     @Test
-    void eventsAreGroupedByMeaningInsteadOfDirectionCodes() {
-        List<String> texts = all(content(ComponentEditor.CONTRACT), Label.class).stream().map(Label::text).toList();
-        assertTrue(texts.containsAll(List.of("Incoming events", "Outgoing events", "Custom events")), texts.toString());
-        assertNull(contract("event.Buy.Direction"), "no In/Out list");
+    void entriesAreGroupedAndTheirDetailsLiveInTheInspector() {
+        for (String group : List.of("GRAPHS", "PARAMETERS", "VARIABLES", "INCOMING EVENTS", "OUTGOING EVENTS", "CUSTOM EVENTS")) {
+            assertNotNull(findId(content(ComponentEditor.CONTRACT), "group." + group), group);
+        }
+        assertNull(findId(content(ComponentEditor.CONTRACT), "param.Title.Type"), "the list only shows names and types");
+        select("Event", "Refresh");
+        assertNotNull(findId(content(UiEditor.INSPECTOR), "event.Refresh.Coalesce"));
+        select("Event", "Buy");
         assertNull(contract("event.Buy.Coalesce"), "the option only applies to incoming events");
-        assertNotNull(contract("event.Refresh.Coalesce"));
+    }
+
+    @Test
+    void aGroupCollapsesAndSearchNarrowsTheList() {
+        button("group.PARAMETERS").click();
+        assertNull(contract("entry.Param.Title"));
+        button("group.PARAMETERS").click();
+        assertNotNull(contract("entry.Param.Title"));
+        field("contract.search").text("ref");
+        assertNull(contract("entry.Param.Title"));
+        assertNotNull(contract("entry.Event.Refresh"));
+    }
+
+    @Test
+    void selectingAWidgetReplacesTheEntryInTheInspector() {
+        select("Param", "Title");
+        assertNotNull(contract("param.Title.Type"));
+        session.select(session.document().root().children().get(0));
+        assertNull(contract("param.Title.Type"));
+    }
+
+    @Test
+    void aNewEntryIsSelectedAndReadyToBeNamed() {
+        button("add.Var").click();
+        assertNotNull(contract("name.Var.Var1"), "the row turns into a name field");
+        assertNotNull(contract("var.Var1.Type"), "the inspector shows it");
     }
 
     @Test
     void theCoalesceOptionIsACheckbox() {
+        select("Event", "Refresh");
         ((dev.sixik.unigui.widgets.interaction.Checkbox) contract("event.Refresh.Coalesce")).checked(true);
         assertTrue(session.text().contains("Coalesce=\"true\""), session.text());
     }
 
     @Test
     void argumentsAreAddedRenamedAndRemovedFromTheList() {
+        select("Event", "Buy");
         button("arg.add.Buy").click();
         assertTrue(session.text().contains("id:string, arg1:string"), session.text());
-        rename("arg.Buy.arg1.name", "count");
+        commitField("arg.Buy.arg1.name", "count");
         choose("arg.Buy.count.type", "int");
         assertTrue(session.text().contains("id:string, count:int"), session.text());
         button("arg.Buy.count.remove").click();
@@ -301,7 +346,7 @@ final class ComponentEditorTest {
     void customEventsAreCreatedAndRenamedInThePanel() {
         button("add.Custom").click();
         assertTrue(session.text().contains("Type=\"Event.Custom\""), session.text());
-        rename("name.Custom.CustomEvent1", "Ready");
+        rename(ComponentView.CUSTOM, "CustomEvent1", "Ready");
         assertTrue(session.text().contains("Name=\"Ready\""), session.text());
         assertNotNull(contract("arg.add.Ready"), "a custom event has arguments too");
     }
@@ -345,6 +390,108 @@ final class ComponentEditorTest {
         assertEquals("Sword", ((ComponentHost) viewport().playRoot()).instance().get("Title"));
     }
 
+    /** Кадр как на экране: tick, затем раскладка; область прокрутки не тикает то, что лежит вне её видимой части. */
+    private void frame() {
+        Widget root = shell.root();
+        for (int i = 0; i < 2; i++) {
+            root.tick(new dev.sixik.unigui.api.core.FrameContext(i, 0.016f, 0.0f,
+                    dev.sixik.unigui.api.core.FramePhase.ANIMATION));
+            root.measure(new dev.sixik.unigui.api.layout.LayoutContext(1280.0f, 720.0f));
+            root.arrange(new dev.sixik.unigui.api.math.MutableRect(0.0f, 0.0f, 1280.0f, 720.0f));
+            applyAll(root);
+        }
+        root.tick(new dev.sixik.unigui.api.core.FrameContext(2L, 0.016f, 0.0f,
+                dev.sixik.unigui.api.core.FramePhase.ANIMATION));
+    }
+
+    /** Отрисовка листовых виджетов кэшируется, поэтому доступность обязана обновляться на кадре, а не в paint. */
+    @Test
+    void sendBecomesAvailableOnTheFrameAfterPlayStarts() {
+        content(UiEditor.VIEWPORT);
+        Button send = button("send.Refresh");
+        shell.dock().selectPane(ComponentEditor.RUN);
+        applyAll(shell.root());
+        frame();
+        assertFalse(send.enabled(), "nothing is running");
+
+        viewport().playing(true);
+        applyAll(shell.root());
+        frame();
+        assertTrue(send.enabled(), "Play makes it clickable without any repaint");
+
+        viewport().playing(false);
+        frame();
+        assertFalse(send.enabled());
+    }
+
+    @Test
+    void playBringsTheRunPanelForward() {
+        content(UiEditor.VIEWPORT);
+        viewport().playing(true);
+        assertEquals(ComponentEditor.RUN, shell.dock().findPane(ComponentEditor.RUN).id());
+        assertTrue(shell.isOpen(ComponentEditor.RUN));
+    }
+
+    @Test
+    void anUndoButtonFollowsTheHistoryWithoutARepaint() {
+        var undo = (dev.sixik.unigui.editor.style.ToolButton) findId(shell.root(), "toolbar.edit.undo");
+        applyAll(shell.root());
+        frame();
+        assertFalse(undo.enabled());
+        session.apply(dev.sixik.unigui.xaml.edit.Edits.setProperty(session.document().root().children().get(0)
+                .children().get(0), "id", "renamed"));
+        frame();
+        assertTrue(undo.enabled());
+    }
+
+    // ------------------------------------------------------------------ перетаскивание записей
+
+    private GraphPanel graphPanel() {
+        content(ComponentEditor.GRAPH);
+        return (GraphPanel) shell.panel(ComponentEditor.GRAPH).orElseThrow();
+    }
+
+    private void drop(ComponentView.Entry entry, String item) {
+        graphPanel().dropMenu(entry, 40.0f, 60.0f).stream().filter(option -> item.equals(option.title())).findFirst()
+                .orElseThrow(() -> new AssertionError("no drop option " + item)).action().run();
+    }
+
+    @Test
+    void droppingAParameterOnTheGraphOffersGetAndSet() {
+        assertEquals(List.of("Get Title", "Set Title"), graphPanel().dropMenu(new ComponentView.Entry("Param", "Title"), 0, 0)
+                .stream().map(dev.sixik.unigui.editor.ContextMenus.Entry::title).toList());
+        drop(new ComponentView.Entry("Param", "Title"), "Get Title");
+        assertTrue(session.text().contains("Type=\"Param.Get\" Name=\"Title\" X=\"40\" Y=\"60\""), session.text());
+        assertEquals(1, graphPanel().view().items().size(), "the node is on the canvas");
+    }
+
+    @Test
+    void droppingAnEventOnTheGraphOffersOnAndRaise() {
+        assertEquals(List.of("On Buy", "Raise Buy"), graphPanel().dropMenu(new ComponentView.Entry("Event", "Buy"), 0, 0)
+                .stream().map(dev.sixik.unigui.editor.ContextMenus.Entry::title).toList());
+        drop(new ComponentView.Entry("Event", "Buy"), "Raise Buy");
+        assertTrue(session.text().contains("Type=\"Raise.Buy\""), session.text());
+    }
+
+    @Test
+    void droppingOnAPropertyBindsIt() {
+        UiNode button = session.document().root().children().get(0).children().get(1);
+        session.select(button);
+        assertTrue(inspector().dropped(new ComponentView.Entry("Param", "Title"), "text"));
+        assertTrue(session.text().contains("text=\"{Param Title}\""), session.text());
+        assertNotNull(findId(content(UiEditor.INSPECTOR), "inspector.bound.text"));
+    }
+
+    @Test
+    void droppingAnEventOnAnActionRaisesIt() {
+        UiNode button = session.document().root().children().get(0).children().get(1);
+        session.select(button);
+        assertTrue(inspector().dropped(new ComponentView.Entry("Event", "Buy"), "onClick"));
+        assertTrue(session.text().contains("onClick=\"{Raise Buy}\""), session.text());
+        assertFalse(inspector().dropped(new ComponentView.Entry("Event", "Refresh"), "onClick"), "only outgoing events");
+        assertFalse(inspector().dropped(new ComponentView.Entry("Event", "Buy"), "text"), "an event is not a value");
+    }
+
     // ------------------------------------------------------------------ свойства как значения контракта
 
     private InspectorPanel inspector() {
@@ -366,7 +513,7 @@ final class ComponentEditorTest {
         UiNode button = session.document().root().children().get(0).children().get(1);
         session.select(button);
         assertTrue(inspector().promote("text", dev.sixik.unigui.xaml.component.Promotions.Kind.VARIABLE));
-        assertNotNull(contract("name.Var.BuyText"), "the new variable is listed");
+        assertNotNull(contract("entry.Var.BuyText"), "the new variable is listed");
         assertNotNull(findId(content(UiEditor.INSPECTOR), "inspector.bound.text"), "the row links to it");
         assertTrue(session.text().contains("{Var BuyText}"), session.text());
     }
@@ -401,7 +548,7 @@ final class ComponentEditorTest {
         choose("param.Param2.Type", "int");
         field("param.Param2.Default").text("1.5");
         assertFalse(session.text().contains("Default=\"1.5\""), "a fractional default for an int is refused");
-        assertTrue(all(content(ComponentEditor.CONTRACT), Label.class).stream()
+        assertTrue(all(content(UiEditor.INSPECTOR), Label.class).stream()
                 .anyMatch(label -> label.text().contains("whole number")), "the reason is shown");
     }
 }

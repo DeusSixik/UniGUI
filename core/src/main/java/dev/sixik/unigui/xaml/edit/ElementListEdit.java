@@ -23,7 +23,9 @@ public final class ElementListEdit {
     private ElementListEdit() {
     }
 
-    /** Изменение списка: бросает {@link IllegalArgumentException}, если предусловие не выполнено. */
+    /**
+     * Изменение списка: бросает {@link IllegalArgumentException}, если предусловие не выполнено.
+     */
     @FunctionalInterface
     public interface Change {
         /**
@@ -32,7 +34,9 @@ public final class ElementListEdit {
         void apply(List<UiContent> items);
     }
 
-    /** Проверка документа с уже поставленной правкой. */
+    /**
+     * Проверка документа с уже поставленной правкой.
+     */
     @FunctionalInterface
     public interface Check {
         /**
@@ -59,13 +63,13 @@ public final class ElementListEdit {
     /**
      * Создаёт правку.
      *
-     * @param root      корневой узел документа
-     * @param owner     локальное имя владельца свойства
-     * @param member    имя свойства
-     * @param label     подпись шага отмены
-     * @param change    изменение списка
-     * @param check     проверка результата; {@code null} — не проверять
-     * @param mergeKey  ключ слияния подряд идущих правок (перетаскивание) или {@code null}
+     * @param root     корневой узел документа
+     * @param owner    локальное имя владельца свойства
+     * @param member   имя свойства
+     * @param label    подпись шага отмены
+     * @param change   изменение списка
+     * @param check    проверка результата; {@code null} — не проверять
+     * @param mergeKey ключ слияния подряд идущих правок (перетаскивание) или {@code null}
      * @return правка; если предусловие не выполнено, правка, которая отклоняется с причиной
      */
     public static Edit of(UiNode root, String owner, String member, String label, Change change, Check check,
@@ -91,7 +95,9 @@ public final class ElementListEdit {
         return Optional.empty();
     }
 
-    /** Правка, которую нельзя применить: причина доходит до диагностики редактора. */
+    /**
+     * Правка, которую нельзя применить: причина доходит до диагностики редактора.
+     */
     private record Rejected(String label, String reason) implements Edit {
         @Override
         public Optional<String> check(Schema schema) {

@@ -18,7 +18,9 @@ import java.util.Map;
  * с префиксом {@code {}}: {@code {}{не расширение}}.</p>
  */
 public final class MarkupExtensions {
-    /** Разрешает префикс namespace в URI во время разбора имён расширений. */
+    /**
+     * Разрешает префикс namespace в URI во время разбора имён расширений.
+     */
     @FunctionalInterface
     public interface PrefixResolver {
         /**
@@ -141,7 +143,9 @@ public final class MarkupExtensions {
         return i;
     }
 
-    /** Позиционный разбор одного значения. */
+    /**
+     * Позиционный разбор одного значения.
+     */
     private static final class Cursor {
         private final String text;
         private final int end;

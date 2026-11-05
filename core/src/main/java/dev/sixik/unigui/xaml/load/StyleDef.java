@@ -113,7 +113,9 @@ public record StyleDef(String key, UiName targetType, String basedOn, List<Sette
         throw fail.apply(property.location(), "'" + property.displayName() + "' must be plain text.");
     }
 
-    /** Ключ базового стиля: простой текст {@code Base} либо {@code {StaticResource Base}}. */
+    /**
+     * Ключ базового стиля: простой текст {@code Base} либо {@code {StaticResource Base}}.
+     */
     private static String reference(UiProperty property, BiFunction<SourceLocation, String, RuntimeException> fail) {
         if (property.value() instanceof UiValue.Literal literal) return literal.text().trim();
         if (property.value() instanceof UiValue.Extension extension && extension.name().local().equals("StaticResource")

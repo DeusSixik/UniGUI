@@ -134,12 +134,16 @@ public final class XamlLoader {
         return value instanceof UiValue.Elements ? "<elements>" : MarkupExtensions.write(value);
     }
 
-    /** Один прогон загрузки: всё изменяемое состояние живёт здесь. */
+    /**
+     * Один прогон загрузки: всё изменяемое состояние живёт здесь.
+     */
     private final class Run {
         private final XamlBindingSession session = new XamlBindingSession();
         private final XamlBindingContext bindings = options.bindingContext() == null
                 ? XamlBindingContext.empty() : options.bindingContext();
-        /** Не final: параметризованная команда подменяет реестр команд на слой с привязанными копиями. */
+        /**
+         * Не final: параметризованная команда подменяет реестр команд на слой с привязанными копиями.
+         */
         private LoadContext load = new LoadContext(options.textureResolver(), options.commands());
         private XamlCommandRegistry commandLayer;
         private int boundCommands;
@@ -150,7 +154,9 @@ public final class XamlLoader {
             this(options.extensions());
         }
 
-        /** Прогон с особым набором расширений: шаблон получает {@code Item} конкретного элемента. */
+        /**
+         * Прогон с особым набором расширений: шаблон получает {@code Item} конкретного элемента.
+         */
         Run(MarkupExtensionRegistry extensions) {
             this.extensions = extensions;
         }
@@ -264,7 +270,7 @@ public final class XamlLoader {
          * заменяют одноимённые значения стиля.
          */
         private <T extends Widget> Iterable<UiProperty> attributesWithStyle(UiNode node, TypeInfo<T> type, T widget,
-                                                                           ResourceScope scope) {
+                                                                            ResourceScope scope) {
             UiProperty reference = null;
             List<UiProperty> own = new ArrayList<>();
             for (UiProperty property : node.properties()) {
@@ -305,7 +311,9 @@ public final class XamlLoader {
             return merged.values();
         }
 
-        /** Находит свойство типа для записи в документе; {@code null}, если такого нет. */
+        /**
+         * Находит свойство типа для записи в документе; {@code null}, если такого нет.
+         */
         private <T extends Widget> PropertyInfo<? super T, ?> resolve(TypeInfo<T> type, UiProperty property) {
             if (property.owner() != null) {
                 // Owner.Prop: либо свойство самого типа, либо attached-свойство (Grid.Row на потомке сетки).
@@ -445,7 +453,9 @@ public final class XamlLoader {
             }
         }
 
-        /** Создаёт виджет из узла шаблона; привязки экземпляра живут в сессии этого прогона. */
+        /**
+         * Создаёт виджет из узла шаблона; привязки экземпляра живут в сессии этого прогона.
+         */
         Template.Instance instantiate(UiNode node, ResourceScope scope) {
             InlineContentResolverScope inline = InlineContentResolvers.push(InlineContentResolvers.textureMarkers(
                     (id, width, height) -> options.textureResolver().resolve(id, width, height, TextureOptions.defaults())));
@@ -553,7 +563,8 @@ public final class XamlLoader {
                     throw fail(property.location(), "Property element '" + shown + "' cannot be used inside Screen.");
                 }
                 switch (property.name().local()) {
-                    case "Resources" -> { }
+                    case "Resources" -> {
+                    }
                     case "ScaleProvider" -> config = config.merge(readScaleProvider(property));
                     case "Content" -> root = readScreenContent(property, root, scope);
                     default -> throw fail(property.location(), "Unknown property element '" + shown + "' on Screen.");
@@ -572,7 +583,8 @@ public final class XamlLoader {
             if (property.value() instanceof UiValue.Elements elements) {
                 for (UiContent item : elements.content()) {
                     if (item instanceof UiNode child) {
-                        if (root != null) throw fail(child.location(), "Screen element must contain exactly one root widget.");
+                        if (root != null)
+                            throw fail(child.location(), "Screen element must contain exactly one root widget.");
                         root = readNode(child, scope, 0);
                     } else if (item instanceof UiContent.Text text && !text.blank()) {
                         throw fail(property.location(), "Property element 'Screen.Content' cannot contain text content.");
@@ -584,7 +596,9 @@ public final class XamlLoader {
             return root;
         }
 
-        /** {@code <Screen.ScaleProvider><Mutable scale="3"/></Screen.ScaleProvider>}. */
+        /**
+         * {@code <Screen.ScaleProvider><Mutable scale="3"/></Screen.ScaleProvider>}.
+         */
         private ScreenConfig readScaleProvider(UiProperty property) {
             UiNode provider = null;
             if (property.value() instanceof UiValue.Elements elements) {
@@ -635,7 +649,9 @@ public final class XamlLoader {
 
         // -------------------------------------------------------------- возможности для расширений
 
-        /** Даёт расширениям вычислять вложенные значения и привязывать параметры к командам. */
+        /**
+         * Даёт расширениям вычислять вложенные значения и привязывать параметры к командам.
+         */
         private final class Host implements ExtensionHost {
             private final ResourceScope scope;
 
@@ -683,7 +699,9 @@ public final class XamlLoader {
             }
         }
 
-        /** Цель, которая не пишет в виджет, а запоминает значение: так вычисляются вложенные расширения. */
+        /**
+         * Цель, которая не пишет в виджет, а запоминает значение: так вычисляются вложенные расширения.
+         */
         private static final class Capture implements PropertyTarget {
             private Object value;
 

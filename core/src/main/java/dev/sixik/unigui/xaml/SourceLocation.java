@@ -9,7 +9,9 @@ package dev.sixik.unigui.xaml;
  * @param column номер колонки или {@code -1}, если позиция неизвестна
  */
 public record SourceLocation(int line, int column) {
-    /** Позиция у программно созданных узлов. */
+    /**
+     * Позиция у программно созданных узлов.
+     */
     public static final SourceLocation UNKNOWN = new SourceLocation(-1, -1);
 
     /**

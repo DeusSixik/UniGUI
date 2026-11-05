@@ -13,8 +13,9 @@ final class DemoAppsCategory extends DemoCategory {
     private static final List<Control> CONTROLS = List.of(
             new Control("solar-navigation", "Solar Navigation", "Fly through a seeded star system, locate stations, and dock at your targets."),
             new Control("retro-terminal", "Retro Terminal", "Explore a CRT-style command terminal with interactive output and post-processing."),
-            new Control("unity", "Unity", "Open a Unity-inspired editor interface with hierarchy, scene, project, and inspector panels."),
-            new Control("ui-editor", "UI Editor", "Edit a XAML interface: hierarchy, widget palette, property inspector, live preview, XAML text and problems, with undo and save."));
+            new Control("unity", "Unity", "Open a Unity-inspired editor interface with hierarchy, scene, project, and inspector panels.")
+//            new Control("ui-editor", "UI Editor", "Edit a XAML interface: hierarchy, widget palette, property inspector, live preview, XAML text and problems, with undo and save.")
+    );
 
     @Override
     String title() {

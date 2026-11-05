@@ -53,7 +53,9 @@ public final class Inspector {
             options = List.copyOf(options);
         }
 
-        /** @return {@code true}, если свойство явно задано в документе */
+        /**
+         * @return {@code true}, если свойство явно задано в документе
+         */
         public boolean set() {
             return valueText != null;
         }
@@ -174,7 +176,9 @@ public final class Inspector {
                 type.description(), properties, slots, unknown);
     }
 
-    /** Допустимые значения: константы перечисления в записи документа или {@code true}/{@code false}. */
+    /**
+     * Допустимые значения: константы перечисления в записи документа или {@code true}/{@code false}.
+     */
     private static List<String> options(PropertyInfo<?, ?> info) {
         Class<?> type = info.valueType();
         if (type == Boolean.class) return List.of("true", "false");
@@ -201,7 +205,9 @@ public final class Inspector {
         return null;
     }
 
-    /** Некорректное значение находится тем же конвертером, что и при загрузке, но без создания виджета. */
+    /**
+     * Некорректное значение находится тем же конвертером, что и при загрузке, но без создания виджета.
+     */
     private static String problem(PropertyInfo<?, ?> info, UiProperty current) {
         if (!(current.value() instanceof UiValue.Literal literal) || info.name().equals("id")) return null;
         try {

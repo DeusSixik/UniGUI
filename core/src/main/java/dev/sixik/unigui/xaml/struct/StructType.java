@@ -187,12 +187,16 @@ public final class StructType {
 
     // ------------------------------------------------------------------ доступ
 
-    /** @return имя структуры */
+    /**
+     * @return имя структуры
+     */
     public String name() {
         return name;
     }
 
-    /** @return поля по порядку объявления */
+    /**
+     * @return поля по порядку объявления
+     */
     public List<Field> fields() {
         return fields;
     }
@@ -206,17 +210,23 @@ public final class StructType {
         return Optional.empty();
     }
 
-    /** @return тип параметра, которым структура используется в контрактах и пинах ({@code struct:Имя}) */
+    /**
+     * @return тип параметра, которым структура используется в контрактах и пинах ({@code struct:Имя})
+     */
     public ParamType paramType() {
         return paramType;
     }
 
-    /** @return Java-класс значений: record либо {@link StructValue} */
+    /**
+     * @return Java-класс значений: record либо {@link StructValue}
+     */
     public Class<?> valueClass() {
         return recordClass == null ? StructValue.class : recordClass;
     }
 
-    /** @return {@code true}, если структура описана Java-record */
+    /**
+     * @return {@code true}, если структура описана Java-record
+     */
     public boolean isRecord() {
         return recordClass != null;
     }
@@ -266,7 +276,9 @@ public final class StructType {
         }
     }
 
-    /** Приводит число к узкому примитиву record (short, byte) и подставляет нули вместо null для примитивов. */
+    /**
+     * Приводит число к узкому примитиву record (short, byte) и подставляет нули вместо null для примитивов.
+     */
     private static Object narrow(Object value, Class<?> target) {
         if (value == null) {
             if (target == boolean.class) return false;

@@ -37,7 +37,9 @@ import java.util.Optional;
  * цепочку, при продолжении сохраняются.</p>
  */
 public final class GraphRuntime {
-    /** Предел вложенности вызовов пользовательских событий: защита от события, которое вызывает само себя. */
+    /**
+     * Предел вложенности вызовов пользовательских событий: защита от события, которое вызывает само себя.
+     */
     private static final int MAX_CALL_DEPTH = 64;
 
     private record Pending(double remaining, Args args, Object sender) {
@@ -88,7 +90,8 @@ public final class GraphRuntime {
             // Исходящее событие тоже можно обработать в графе: нода On срабатывает, когда компонент его поднимает.
             boolean outgoing = instance.definition().contract().event(entry.event())
                     .filter(event -> event.direction() == Contract.Direction.OUT).isPresent();
-            if (outgoing) instance.onEvent(entry.event(), args -> runtime.fireGuarded(entry.nodeId(), entry.event(), args));
+            if (outgoing)
+                instance.onEvent(entry.event(), args -> runtime.fireGuarded(entry.nodeId(), entry.event(), args));
             else instance.handle(entry.event(), args -> runtime.fire(entry.nodeId(), args, null));
         }
         instance.onTick(seconds -> runtime.advance(seconds));
@@ -107,7 +110,9 @@ public final class GraphRuntime {
         return eventArgs;
     }
 
-    /** @return отправитель события, которое запустило пользовательское событие: источник подписки или пусто */
+    /**
+     * @return отправитель события, которое запустило пользовательское событие: источник подписки или пусто
+     */
     Object sender() {
         return sender;
     }
@@ -127,16 +132,22 @@ public final class GraphRuntime {
         instance.publishVariable(name, stored);
     }
 
-    /** @return значение переменной графа; нужно тестам и отладке */
+    /**
+     * @return значение переменной графа; нужно тестам и отладке
+     */
     public Object variableValue(String name) {
         return variables.get(name);
     }
 
-    /** Запуск графа с входа: что выполнять и с какими данными события. */
+    /**
+     * Запуск графа с входа: что выполнять и с какими данными события.
+     */
     private record Fire(String nodeId, Args args, Object sender) {
     }
 
-    /** Остановленный запуск: ждёт продолжения, данные события нужны, пока он не закончится. */
+    /**
+     * Остановленный запуск: ждёт продолжения, данные события нужны, пока он не закончится.
+     */
     private record Paused(GraphExecutor.Run run, Fire fire) {
     }
 
@@ -276,7 +287,9 @@ public final class GraphRuntime {
         executor.trace(value);
     }
 
-    /** Запуск от синхронного события: нода, которая поднимает своё же событие, не должна уйти в бесконечную рекурсию. */
+    /**
+     * Запуск от синхронного события: нода, которая поднимает своё же событие, не должна уйти в бесконечную рекурсию.
+     */
     private void fireGuarded(String nodeId, String event, Args args) {
         if (++depth > MAX_CALL_DEPTH) {
             depth = 0;
@@ -388,7 +401,8 @@ public final class GraphRuntime {
         GraphProgram.CustomEvent custom = program.customEvents().get(handler);
         EventSubscription subscription = source.onEvent(event, args -> {
             Map<String, Object> values = new LinkedHashMap<>();
-            for (Contract.Arg arg : custom.args()) if (args.has(arg.name())) values.put(arg.name(), args.get(arg.name()));
+            for (Contract.Arg arg : custom.args())
+                if (args.has(arg.name())) values.put(arg.name(), args.get(arg.name()));
             callCustom(handler, Args.of(values), source);
         });
         bindings.add(new Binding(source, event, subscription));

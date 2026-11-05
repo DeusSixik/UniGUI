@@ -36,7 +36,9 @@ import java.util.Optional;
  * {@link #error()}.</p>
  */
 public final class ComponentPreview implements AutoCloseable {
-    /** Предел записей журнала событий: старые отбрасываются. */
+    /**
+     * Предел записей журнала событий: старые отбрасываются.
+     */
     public static final int MAX_EVENTS = 200;
 
     private final Schema schema;
@@ -118,7 +120,9 @@ public final class ComponentPreview implements AutoCloseable {
         }
     }
 
-    /** Заданные значения подставляются в параметры, которые ещё есть в контракте и подходят по типу. */
+    /**
+     * Заданные значения подставляются в параметры, которые ещё есть в контракте и подходят по типу.
+     */
     private void applySamples(ComponentHost target, Contract contract) {
         for (Map.Entry<String, Object> sample : new ArrayList<>(samples.entrySet())) {
             if (contract.param(sample.getKey()).isEmpty()) continue;
@@ -175,12 +179,16 @@ public final class ComponentPreview implements AutoCloseable {
         samples.put(param, value);
     }
 
-    /** Забывает все примерные значения: параметры возвращаются к значениям по умолчанию при следующей сборке. */
+    /**
+     * Забывает все примерные значения: параметры возвращаются к значениям по умолчанию при следующей сборке.
+     */
     public void resetSamples() {
         samples.clear();
     }
 
-    /** @return примерные значения, заданные автором */
+    /**
+     * @return примерные значения, заданные автором
+     */
     public Map<String, Object> samples() {
         return Map.copyOf(samples);
     }
@@ -208,27 +216,37 @@ public final class ComponentPreview implements AutoCloseable {
         if (host != null) host.instance().advance(seconds);
     }
 
-    /** @return запись хода графа показанного экземпляра; очищается при каждой пересборке */
+    /**
+     * @return запись хода графа показанного экземпляра; очищается при каждой пересборке
+     */
     public GraphTrace trace() {
         return trace;
     }
 
-    /** @return отладчик графа: точки останова переживают пересборку предпросмотра */
+    /**
+     * @return отладчик графа: точки останова переживают пересборку предпросмотра
+     */
     public GraphDebugger debugger() {
         return debugger;
     }
 
-    /** @return журнал исходящих событий, старые записи первыми */
+    /**
+     * @return журнал исходящих событий, старые записи первыми
+     */
     public List<String> events() {
         return List.copyOf(events);
     }
 
-    /** Очищает журнал событий. */
+    /**
+     * Очищает журнал событий.
+     */
     public void clearEvents() {
         events.clear();
     }
 
-    /** Убирает показанный экземпляр. Примерные значения и журнал остаются. */
+    /**
+     * Убирает показанный экземпляр. Примерные значения и журнал остаются.
+     */
     public void clear() {
         if (host != null) host.dispose();
         host = null;
@@ -238,22 +256,30 @@ public final class ComponentPreview implements AutoCloseable {
         error = "";
     }
 
-    /** @return хост показанного компонента или пусто, если ничего не показано */
+    /**
+     * @return хост показанного компонента или пусто, если ничего не показано
+     */
     public Optional<ComponentHost> host() {
         return Optional.ofNullable(host);
     }
 
-    /** @return корневой виджет показанного компонента (его хост) */
+    /**
+     * @return корневой виджет показанного компонента (его хост)
+     */
     public Optional<Widget> root() {
         return Optional.ofNullable(host);
     }
 
-    /** @return определение показанного компонента */
+    /**
+     * @return определение показанного компонента
+     */
     public Optional<ComponentDefinition> definition() {
         return host == null ? Optional.empty() : Optional.of(host.definition());
     }
 
-    /** @return причина последней неудачи или пустая строка */
+    /**
+     * @return причина последней неудачи или пустая строка
+     */
     public String error() {
         return error;
     }
@@ -286,7 +312,9 @@ public final class ComponentPreview implements AutoCloseable {
         return Optional.ofNullable(hit);
     }
 
-    /** @return {@code true} после {@link #close()} */
+    /**
+     * @return {@code true} после {@link #close()}
+     */
     public boolean closed() {
         return closed;
     }

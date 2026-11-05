@@ -19,7 +19,9 @@ import java.util.Optional;
  * {@link #builtIns()}.</p>
  */
 public final class MarkupExtensionRegistry {
-    /** Общий набор встроенных расширений; не меняйте его, используйте {@link #builtIns()}. */
+    /**
+     * Общий набор встроенных расширений; не меняйте его, используйте {@link #builtIns()}.
+     */
     public static final MarkupExtensionRegistry DEFAULT = builtIns();
 
     private final Map<String, MarkupExtension> extensions = new HashMap<>();

@@ -32,7 +32,9 @@ public final class PackInstallation implements AutoCloseable {
         return installation;
     }
 
-    /** Структуры ссылаются друг на друга, поэтому ставятся проходами, пока что-то ещё удаётся поставить. */
+    /**
+     * Структуры ссылаются друг на друга, поэтому ставятся проходами, пока что-то ещё удаётся поставить.
+     */
     private void installStructs() {
         List<String> pending = new ArrayList<>(pack.names("structs/"));
         pending.removeIf(name -> !name.endsWith(".xaml"));
@@ -71,27 +73,37 @@ public final class PackInstallation implements AutoCloseable {
         }
     }
 
-    /** @return пак, который установлен */
+    /**
+     * @return пак, который установлен
+     */
     public AssetPack pack() {
         return pack;
     }
 
-    /** @return имена установленных структур */
+    /**
+     * @return имена установленных структур
+     */
     public List<String> structs() {
         return List.copyOf(structs);
     }
 
-    /** @return идентификаторы установленных компонентов ({@code packId/файл}) */
+    /**
+     * @return идентификаторы установленных компонентов ({@code packId/файл})
+     */
     public List<String> components() {
         return List.copyOf(components);
     }
 
-    /** @return проблемы: файл и причина; пусто, если всё поставилось */
+    /**
+     * @return проблемы: файл и причина; пусто, если всё поставилось
+     */
     public List<String> problems() {
         return List.copyOf(problems);
     }
 
-    /** @return {@code true}, если проблем нет */
+    /**
+     * @return {@code true}, если проблем нет
+     */
     public boolean clean() {
         return problems.isEmpty();
     }
@@ -111,7 +123,9 @@ public final class PackInstallation implements AutoCloseable {
         return this;
     }
 
-    /** Снимает регистрацию установленных компонентов и структур. */
+    /**
+     * Снимает регистрацию установленных компонентов и структур.
+     */
     @Override
     public void close() {
         if (closed) return;

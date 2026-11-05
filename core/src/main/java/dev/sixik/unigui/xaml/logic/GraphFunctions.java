@@ -52,12 +52,16 @@ public final class GraphFunctions {
         return Optional.ofNullable(FUNCTIONS.get(name));
     }
 
-    /** @return зарегистрированные функции по порядку регистрации */
+    /**
+     * @return зарегистрированные функции по порядку регистрации
+     */
     public static synchronized List<GraphFunction> all() {
         return new ArrayList<>(FUNCTIONS.values());
     }
 
-    /** @return счётчик изменений реестра: по нему кэши скомпилированных графов узнают, что функции сменились */
+    /**
+     * @return счётчик изменений реестра: по нему кэши скомпилированных графов узнают, что функции сменились
+     */
     public static long version() {
         return VERSION.get();
     }

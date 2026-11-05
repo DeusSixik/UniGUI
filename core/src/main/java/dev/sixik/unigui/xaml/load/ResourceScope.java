@@ -11,7 +11,9 @@ import java.util.Optional;
  * попали. Поэтому один и тот же ресурс может быть и цветом, и размером.</p>
  */
 public final class ResourceScope {
-    /** Пустая область без ресурсов; корень цепочки. */
+    /**
+     * Пустая область без ресурсов; корень цепочки.
+     */
     public static final ResourceScope EMPTY = new ResourceScope(null, Map.of());
 
     private final ResourceScope parent;

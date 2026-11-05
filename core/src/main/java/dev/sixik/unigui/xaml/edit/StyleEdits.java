@@ -124,7 +124,8 @@ public final class StyleEdits {
                     found = setter;
                 }
             }
-            if (found == null) throw new IllegalArgumentException("Style '" + key + "' has no setter for '" + property + "'.");
+            if (found == null)
+                throw new IllegalArgumentException("Style '" + key + "' has no setter for '" + property + "'.");
             style.remove(found);
             items.set(index, style);
         });
@@ -164,7 +165,8 @@ public final class StyleEdits {
 
     private static int indexOf(List<UiContent> items, String key) {
         for (int i = 0; i < items.size(); i++) {
-            if (items.get(i) instanceof UiNode node && node.type().local().equals("Style") && key.equals(keyOf(node))) return i;
+            if (items.get(i) instanceof UiNode node && node.type().local().equals("Style") && key.equals(keyOf(node)))
+                return i;
         }
         return -1;
     }

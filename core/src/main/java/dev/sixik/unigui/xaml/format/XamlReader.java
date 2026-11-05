@@ -192,7 +192,9 @@ final class XamlReader {
         }
     }
 
-    /** Превращает дочерний {@code <Owner.Member>} в свойство родителя. */
+    /**
+     * Превращает дочерний {@code <Owner.Member>} в свойство родителя.
+     */
     private void appendPropertyElement(UiNode parent, UiNode child, Scope scope) {
         UiName full = child.type();
         int dot = full.local().indexOf('.');
@@ -353,7 +355,9 @@ final class XamlReader {
         text.setLength(0);
     }
 
-    /** Если рядом с текстом есть элементы или комментарии, пробельный текст между ними — это форматирование. */
+    /**
+     * Если рядом с текстом есть элементы или комментарии, пробельный текст между ними — это форматирование.
+     */
     private static void dropFormattingWhitespace(UiNode node, boolean structural) {
         if (!structural) return;
         List<UiContent> blank = new ArrayList<>();
@@ -399,7 +403,8 @@ final class XamlReader {
         SourceLocation at = location();
         while (!eof()) {
             char c = peek();
-            if (Character.isWhitespace(c) || c == '/' || c == '>' || c == '=' || c == '<' || c == '"' || c == '\'') break;
+            if (Character.isWhitespace(c) || c == '/' || c == '>' || c == '=' || c == '<' || c == '"' || c == '\'')
+                break;
             advance();
         }
         if (pos == begin) throw fail("Expected " + what, at);
@@ -453,7 +458,9 @@ final class XamlReader {
     private record RawAttribute(String name, String value, SourceLocation location) {
     }
 
-    /** Цепочка объявлений namespace. */
+    /**
+     * Цепочка объявлений namespace.
+     */
     private static final class Scope {
         static final Scope ROOT = new Scope(null, Map.of("xml", XML_NAMESPACE));
 

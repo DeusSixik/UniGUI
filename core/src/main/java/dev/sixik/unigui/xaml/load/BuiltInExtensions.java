@@ -78,7 +78,9 @@ final class BuiltInExtensions {
         }
     };
 
-    /** {@code {StaticResource Key}}: подставляет текст ресурса и разбирает его конвертером свойства. */
+    /**
+     * {@code {StaticResource Key}}: подставляет текст ресурса и разбирает его конвертером свойства.
+     */
     static final MarkupExtension STATIC_RESOURCE = (context, use, target) -> {
         String key = literal(use.argument("ResourceKey", 0), "StaticResource key");
         if (key == null || key.isBlank()) {

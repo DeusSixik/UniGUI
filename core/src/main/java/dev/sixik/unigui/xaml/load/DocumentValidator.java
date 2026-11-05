@@ -47,7 +47,9 @@ public final class DocumentValidator {
     private final Schema schema;
     private final MarkupExtensionRegistry extensions;
     private final boolean strictAttributes;
-    /** Контракт компонента, чьё тело проверяется; {@code null} вне документа компонента. */
+    /**
+     * Контракт компонента, чьё тело проверяется; {@code null} вне документа компонента.
+     */
     private Contract contract;
 
     /**
@@ -61,12 +63,16 @@ public final class DocumentValidator {
             diagnostics = List.copyOf(diagnostics);
         }
 
-        /** @return {@code true}, если документ разобран и проблем нет */
+        /**
+         * @return {@code true}, если документ разобран и проблем нет
+         */
         public boolean valid() {
             return document != null && diagnostics.isEmpty();
         }
 
-        /** @return {@code true}, если есть хотя бы одна проблема */
+        /**
+         * @return {@code true}, если есть хотя бы одна проблема
+         */
         public boolean hasDiagnostics() {
             return !diagnostics.isEmpty();
         }
@@ -150,9 +156,12 @@ public final class DocumentValidator {
             return problems;
         }
         MarkupExtensionRegistry inside = extensions.copy()
-                .replace("Param", (context, use, target) -> { })
-                .replace("Var", (context, use, target) -> { })
-                .replace("Raise", (context, use, target) -> { });
+                .replace("Param", (context, use, target) -> {
+                })
+                .replace("Var", (context, use, target) -> {
+                })
+                .replace("Raise", (context, use, target) -> {
+                });
         DocumentValidator body = new DocumentValidator(schema, inside, strictAttributes);
         body.contract = definition.contract();
         Run run = body.new Run();
@@ -197,7 +206,9 @@ public final class DocumentValidator {
             check(node, type, scope);
         }
 
-        /** У неизвестного типа проверить нечего, но вложенные виджеты всё равно проверяются. */
+        /**
+         * У неизвестного типа проверить нечего, но вложенные виджеты всё равно проверяются.
+         */
         private void descendUnknown(UiNode node, ResourceScope scope) {
             for (UiProperty property : node.properties()) {
                 if (property.value() instanceof UiValue.Elements elements) {
@@ -313,7 +324,9 @@ public final class DocumentValidator {
             }
         }
 
-        /** {@code {Param X}} и {@code {Raise X}} в теле компонента должны ссылаться на объявленное в контракте. */
+        /**
+         * {@code {Param X}} и {@code {Raise X}} в теле компонента должны ссылаться на объявленное в контракте.
+         */
         private void checkComponentUse(String kind, UiValue.Extension use, PropertyInfo<?, ?> info,
                                        UiProperty property, String where) {
             if (use.positional().size() > 1 || !use.named().isEmpty()) {
@@ -332,6 +345,12 @@ public final class DocumentValidator {
                 if (declared == null) {
                     add(property.location(), where + "the component has no " + (parameter ? "parameter" : "variable")
                             + " '" + name + "'." + (parameter ? " Declared: " + contract.paramNames() + "." : ""));
+                } else if (declared.type() == dev.sixik.unigui.xaml.component.ParamType.STRING
+                        && dev.sixik.unigui.xaml.component.ParamType.needsText(info.valueType())) {
+                    // Значение проверит конвертер свойства; значение по умолчанию известно уже сейчас.
+                    if (declared.defaultText() != null && !declared.defaultText().isEmpty()) {
+                        convert(info, declared.defaultText(), property, where);
+                    }
                 } else if (!declared.type().fits(info.valueType())) {
                     add(property.location(), where + (parameter ? "parameter" : "variable") + " '" + name + "' is " + declared.type().name()
                             + " but '" + property.displayName() + "' expects " + info.valueType().getSimpleName() + ".");
@@ -428,7 +447,9 @@ public final class DocumentValidator {
             return parent;
         }
 
-        /** Ошибка разбора стиля вместе с позицией: проверка собирает все проблемы, а не останавливается на первой. */
+        /**
+         * Ошибка разбора стиля вместе с позицией: проверка собирает все проблемы, а не останавливается на первой.
+         */
         private static final class StyleProblem extends RuntimeException {
             private final SourceLocation at;
 
@@ -472,7 +493,9 @@ public final class DocumentValidator {
             }
         }
 
-        /** Сеттеры стиля должны называть существующее свойство и нести значение, которое оно принимает. */
+        /**
+         * Сеттеры стиля должны называть существующее свойство и нести значение, которое оно принимает.
+         */
         private void checkSetters(StyleDef style) {
             TypeInfo<?> target = style.targetType() == null ? null : schema.type(style.targetType()).orElse(null);
             if (style.targetType() != null && target == null) {
@@ -524,7 +547,8 @@ public final class DocumentValidator {
                 if (!isElementForm(property)) continue;
                 String shown = node.type().local() + "." + property.name().local();
                 switch (property.name().local()) {
-                    case "Resources" -> { }
+                    case "Resources" -> {
+                    }
                     case "ScaleProvider" -> scaleProvider(property);
                     case "Content" -> {
                         if (property.value() instanceof UiValue.Elements elements) {
@@ -581,7 +605,8 @@ public final class DocumentValidator {
                     add(property.location(), "Screen attribute '" + property.name().local() + "' must be plain text.");
                 }
             }
-            if (owner.equals("Screen") || SCREEN_NAMES.contains(ScreenConfig.normalize(owner))) readScreenConfig(values);
+            if (owner.equals("Screen") || SCREEN_NAMES.contains(ScreenConfig.normalize(owner)))
+                readScreenConfig(values);
             return values;
         }
 

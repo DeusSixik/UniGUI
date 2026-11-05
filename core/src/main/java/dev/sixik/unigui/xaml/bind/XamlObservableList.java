@@ -20,15 +20,25 @@ import java.util.function.Consumer;
  * @param <T> тип элемента
  */
 public final class XamlObservableList<T> extends AbstractList<T> {
-    /** Что произошло со списком. */
+    /**
+     * Что произошло со списком.
+     */
     public enum Kind {
-        /** Вставлены элементы: {@code count} штук, начиная с {@code index}. */
+        /**
+         * Вставлены элементы: {@code count} штук, начиная с {@code index}.
+         */
         ADDED,
-        /** Удалены элементы: {@code count} штук, начиная с {@code index}. */
+        /**
+         * Удалены элементы: {@code count} штук, начиная с {@code index}.
+         */
         REMOVED,
-        /** Заменены элементы: {@code count} штук, начиная с {@code index}. */
+        /**
+         * Заменены элементы: {@code count} штук, начиная с {@code index}.
+         */
         REPLACED,
-        /** Содержимое изменилось целиком; индексы не имеют смысла. */
+        /**
+         * Содержимое изменилось целиком; индексы не имеют смысла.
+         */
         RESET
     }
 
@@ -45,7 +55,9 @@ public final class XamlObservableList<T> extends AbstractList<T> {
     private final List<T> items = new ArrayList<>();
     private final List<Consumer<Change>> listeners = new CopyOnWriteArrayList<>();
 
-    /** Создаёт пустой список. */
+    /**
+     * Создаёт пустой список.
+     */
     public XamlObservableList() {
     }
 

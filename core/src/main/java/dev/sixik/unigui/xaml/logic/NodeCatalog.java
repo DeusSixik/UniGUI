@@ -112,7 +112,8 @@ public final class NodeCatalog {
                 }
             });
         }
-        for (String id : Components.ids()) entries.add(entry("Component.Create", "Create " + id, "Components", "Component", id));
+        for (String id : Components.ids())
+            entries.add(entry("Component.Create", "Create " + id, "Components", "Component", id));
         return entries;
     }
 

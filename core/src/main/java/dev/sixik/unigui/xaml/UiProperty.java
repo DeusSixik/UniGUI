@@ -14,11 +14,17 @@ package dev.sixik.unigui.xaml;
  * @param location позиция имени свойства в исходном тексте
  */
 public record UiProperty(UiName name, UiName owner, UiValue value, Form form, SourceLocation location) {
-    /** Форма записи свойства. */
+    /**
+     * Форма записи свойства.
+     */
     public enum Form {
-        /** {@code <Type Prop="value"/>}. */
+        /**
+         * {@code <Type Prop="value"/>}.
+         */
         ATTRIBUTE,
-        /** {@code <Type><Type.Prop>value</Type.Prop></Type>}. */
+        /**
+         * {@code <Type><Type.Prop>value</Type.Prop></Type>}.
+         */
         ELEMENT
     }
 

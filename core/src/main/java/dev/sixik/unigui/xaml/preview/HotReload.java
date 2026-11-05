@@ -57,7 +57,9 @@ public final class HotReload {
         return Optional.of(preview.show(document));
     }
 
-    /** @return источник, за которым идёт наблюдение */
+    /**
+     * @return источник, за которым идёт наблюдение
+     */
     public DocumentSource source() {
         return source;
     }

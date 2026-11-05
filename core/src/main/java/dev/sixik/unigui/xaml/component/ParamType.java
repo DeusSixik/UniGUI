@@ -21,21 +21,37 @@ import java.util.Map;
 public final class ParamType {
     private static final Map<String, ParamType> BY_NAME = new LinkedHashMap<>();
 
-    /** Строка; значение по умолчанию — пустая строка. */
+    /**
+     * Строка; значение по умолчанию — пустая строка.
+     */
     public static final ParamType STRING = register("string", Converters.STRING, "");
-    /** Целое; значение по умолчанию — 0. */
+    /**
+     * Целое; значение по умолчанию — 0.
+     */
     public static final ParamType INT = register("int", Converters.INT, 0);
-    /** Число с плавающей точкой; значение по умолчанию — 0. */
+    /**
+     * Число с плавающей точкой; значение по умолчанию — 0.
+     */
     public static final ParamType FLOAT = register("float", Converters.FLOAT, 0.0f);
-    /** Число двойной точности; значение по умолчанию — 0. */
+    /**
+     * Число двойной точности; значение по умолчанию — 0.
+     */
     public static final ParamType DOUBLE = register("double", Converters.DOUBLE, 0.0d);
-    /** Логическое; значение по умолчанию — {@code false}. */
+    /**
+     * Логическое; значение по умолчанию — {@code false}.
+     */
     public static final ParamType BOOL = register("bool", Converters.BOOLEAN, false);
-    /** Цвет; значение по умолчанию отсутствует. */
+    /**
+     * Цвет; значение по умолчанию отсутствует.
+     */
     public static final ParamType COLOR = register("color", Converters.COLOR, null);
-    /** Текстура; значение по умолчанию отсутствует. */
+    /**
+     * Текстура; значение по умолчанию отсутствует.
+     */
     public static final ParamType TEXTURE = register("texture", Converters.TEXTURE, null);
-    /** Любое Java-значение; текстом не задаётся. */
+    /**
+     * Любое Java-значение; текстом не задаётся.
+     */
     public static final ParamType OBJECT = register("object", ValueConverter.of(Object.class, ValueKind.STRING,
             text -> {
                 throw new IllegalArgumentException("An object parameter cannot be set from text; "
@@ -69,7 +85,9 @@ public final class ParamType {
         return new ParamType("struct:" + struct.name(), converter, null, struct);
     }
 
-    /** @return описание структуры для типов {@code struct:Имя}, иначе {@code null} */
+    /**
+     * @return описание структуры для типов {@code struct:Имя}, иначе {@code null}
+     */
     public StructType structType() {
         return structType;
     }
@@ -113,34 +131,46 @@ public final class ParamType {
         return names;
     }
 
-    /** @return имена типов, значение которых задаётся текстом: они годятся для литералов графа */
+    /**
+     * @return имена типов, значение которых задаётся текстом: они годятся для литералов графа
+     */
     public static java.util.List<String> textualNames() {
         java.util.List<String> names = new java.util.ArrayList<>();
         for (ParamType type : BY_NAME.values()) if (type.textual()) names.add(type.name());
         return names;
     }
 
-    /** @return имя типа в документе */
+    /**
+     * @return имя типа в документе
+     */
     public String name() {
         return name;
     }
 
-    /** @return конвертер текста; для {@code object} он всегда отказывает */
+    /**
+     * @return конвертер текста; для {@code object} он всегда отказывает
+     */
     public ValueConverter<?> converter() {
         return converter;
     }
 
-    /** @return Java-класс значения */
+    /**
+     * @return Java-класс значения
+     */
     public Class<?> javaType() {
         return converter.type();
     }
 
-    /** @return {@code true}, если значение можно задать текстом */
+    /**
+     * @return {@code true}, если значение можно задать текстом
+     */
     public boolean textual() {
         return this != OBJECT && structType == null;
     }
 
-    /** @return значение, которое параметр имеет без явного {@code Default}; может быть {@code null} */
+    /**
+     * @return значение, которое параметр имеет без явного {@code Default}; может быть {@code null}
+     */
     public Object defaultValue() {
         return defaultValue;
     }
@@ -194,6 +224,22 @@ public final class ParamType {
         if (target.isAssignableFrom(own)) return true;
         boolean ownNumber = Number.class.isAssignableFrom(own);
         return ownNumber && (target == Float.class || target == Double.class || target == Integer.class);
+    }
+
+    /**
+     * Свойство без подходящего типа контракта (перечисление, размер, отступы) привязывается строкой: текст разбирает
+     * конвертер самого свойства. Свойства с настоящим типом этого пути не получают, поэтому {@code string} на числовом
+     * свойстве остаётся ошибкой.
+     *
+     * @param target класс значения свойства
+     * @return {@code true}, если значение задаётся только текстом
+     */
+    public static boolean needsText(Class<?> target) {
+        if (target == String.class || target == Object.class) return false;
+        for (ParamType type : BY_NAME.values()) {
+            if (type != STRING && type != OBJECT && type.fits(target)) return false;
+        }
+        return true;
     }
 
     /**

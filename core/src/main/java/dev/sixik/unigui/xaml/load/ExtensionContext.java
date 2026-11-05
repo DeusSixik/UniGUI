@@ -12,7 +12,9 @@ import dev.sixik.unigui.xaml.bind.XamlBindingSession;
  */
 public record ExtensionContext(ResourceScope resources, XamlBindingContext bindings, XamlBindingSession session,
                                ExtensionHost host) {
-    /** Контекст без возможностей загрузчика (для тестов расширений). */
+    /**
+     * Контекст без возможностей загрузчика (для тестов расширений).
+     */
     public ExtensionContext(ResourceScope resources, XamlBindingContext bindings, XamlBindingSession session) {
         this(resources, bindings, session, null);
     }

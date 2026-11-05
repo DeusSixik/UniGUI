@@ -20,12 +20,16 @@ public final class Component {
         this.definition = definition;
     }
 
-    /** @return определение компонента */
+    /**
+     * @return определение компонента
+     */
     public ComponentDefinition definition() {
         return definition;
     }
 
-    /** @return контракт компонента */
+    /**
+     * @return контракт компонента
+     */
     public Contract contract() {
         return definition.contract();
     }

@@ -88,10 +88,45 @@ class EditorSnapshotsTest {
         UiNode buy = find(document.session().document().root(), "buy");
         dev.sixik.unigui.xaml.component.Promotions.promote(document.session(), buy, "text",
                 dev.sixik.unigui.xaml.component.Promotions.Kind.VARIABLE).orElseThrow();
+        dev.sixik.unigui.xaml.component.Promotions.promote(document.session(), buy, "width",
+                dev.sixik.unigui.xaml.component.Promotions.Kind.VARIABLE).orElseThrow();
+        dev.sixik.unigui.xaml.component.Promotions.promote(document.session(), buy, "padding",
+                dev.sixik.unigui.xaml.component.Promotions.Kind.PARAM).orElseThrow();
+        dev.sixik.unigui.xaml.component.Promotions.promote(document.session(), buy, "flexDirection",
+                dev.sixik.unigui.xaml.component.Promotions.Kind.VARIABLE).orElseThrow();
         document.session().select(buy);
         SnapshotRenderer renderer = new SnapshotRenderer(editor.root(), WIDTH, 900.0f, SCALE);
         renderer.settle(4);
         renderer.write(OUT.resolve("component-tall.png"));
+    }
+
+    private static Widget byId(Widget widget, String id) {
+        if (id.equals(widget.id())) return widget;
+        for (Widget child : widget.children()) {
+            Widget found = byId(child, id);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static void snapEntry(String entry, String name, String... panes) throws IOException {
+        Widget root = UiEditorScreen.createComponentScreen().root();
+        SnapshotRenderer renderer = new SnapshotRenderer(root, WIDTH, HEIGHT, SCALE);
+        renderer.settle(3);
+        ((dev.sixik.unigui.widgets.interaction.Button) byId(root, entry)).click();
+        for (String pane : panes) dock(root).selectPane(pane);
+        renderer.settle(3);
+        renderer.write(OUT.resolve(name + ".png"));
+    }
+
+    @Test
+    void contractVariable() throws IOException {
+        snapEntry("entry.Param.Title", "contract-param", "run");
+    }
+
+    @Test
+    void contractEvent() throws IOException {
+        snapEntry("entry.Event.Buy", "contract-event", "graph");
     }
 
     @Test

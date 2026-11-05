@@ -89,7 +89,9 @@ public final class TextureResolution {
         return value;
     }
 
-    /** Область действия резолвера. */
+    /**
+     * Область действия резолвера.
+     */
     public static final class Scope implements AutoCloseable {
         private final XamlTextureResolver previous;
 

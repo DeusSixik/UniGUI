@@ -108,27 +108,37 @@ public final class ComponentDefinition {
         return new Reader(id).read(document.root());
     }
 
-    /** @return идентификатор регистрации */
+    /**
+     * @return идентификатор регистрации
+     */
     public String id() {
         return id;
     }
 
-    /** @return имя тега, под которым компонент доступен в документах */
+    /**
+     * @return имя тега, под которым компонент доступен в документах
+     */
     public UiName tag() {
         return tag;
     }
 
-    /** @return описание из документа или пустая строка */
+    /**
+     * @return описание из документа или пустая строка
+     */
     public String description() {
         return description;
     }
 
-    /** @return контракт */
+    /**
+     * @return контракт
+     */
     public Contract contract() {
         return contract;
     }
 
-    /** @return корень тела; не изменяется загрузчиком */
+    /**
+     * @return корень тела; не изменяется загрузчиком
+     */
     public UiNode body() {
         return body;
     }
@@ -151,7 +161,9 @@ public final class ComponentDefinition {
         for (var behavior : behaviors) behavior.accept(instance);
     }
 
-    /** @return граф поведения из {@code Component.Graph}; пустой, если его нет */
+    /**
+     * @return граф поведения из {@code Component.Graph}; пустой, если его нет
+     */
     public GraphDefinition graph() {
         return graph;
     }
@@ -170,7 +182,9 @@ public final class ComponentDefinition {
         return program;
     }
 
-    /** @return позиция корня в документе */
+    /**
+     * @return позиция корня в документе
+     */
     public SourceLocation location() {
         return location;
     }
@@ -180,7 +194,9 @@ public final class ComponentDefinition {
         return "Component[" + id + " <" + tag.local() + ">]";
     }
 
-    /** Читатель одного документа: хранит идентификатор для сообщений. */
+    /**
+     * Читатель одного документа: хранит идентификатор для сообщений.
+     */
     private static final class Reader {
         private final String id;
 
@@ -220,15 +236,18 @@ public final class ComponentDefinition {
                 }
                 switch (property.name().local()) {
                     case "Contract" -> {
-                        if (contractProperty != null) throw fail(property.location(), "Component.Contract is set more than once.");
+                        if (contractProperty != null)
+                            throw fail(property.location(), "Component.Contract is set more than once.");
                         contractProperty = property;
                     }
                     case "Content" -> {
-                        if (contentProperty != null) throw fail(property.location(), "Component.Content is set more than once.");
+                        if (contentProperty != null)
+                            throw fail(property.location(), "Component.Content is set more than once.");
                         contentProperty = property;
                     }
                     case "Graph" -> {
-                        if (graphProperty != null) throw fail(property.location(), "Component.Graph is set more than once.");
+                        if (graphProperty != null)
+                            throw fail(property.location(), "Component.Graph is set more than once.");
                         graphProperty = property;
                     }
                     default -> throw fail(property.location(), "Unknown property element 'Component."
@@ -479,7 +498,9 @@ public final class ComponentDefinition {
             return new XamlLoadException("Component '" + id + "': " + message, at, null);
         }
 
-        /** Атрибуты одного элемента контракта с позициями. */
+        /**
+         * Атрибуты одного элемента контракта с позициями.
+         */
         private final class Attributes {
             private final UiNode node;
             private final java.util.Map<String, String> values = new java.util.LinkedHashMap<>();

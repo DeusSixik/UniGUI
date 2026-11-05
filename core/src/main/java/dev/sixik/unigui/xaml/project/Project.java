@@ -44,17 +44,29 @@ import java.util.stream.Stream;
 public final class Project {
     private static final Pattern NAME = Pattern.compile("[A-Za-z][A-Za-z0-9_]*");
 
-    /** Вид файла проекта; определяется папкой. */
+    /**
+     * Вид файла проекта; определяется папкой.
+     */
     public enum Kind {
-        /** Экран: корень — виджет. */
+        /**
+         * Экран: корень — виджет.
+         */
         SCREEN("screens/"),
-        /** Компонент: корень {@code <Component>}. */
+        /**
+         * Компонент: корень {@code <Component>}.
+         */
         COMPONENT("components/"),
-        /** Структура данных: корень {@code <Struct>}. */
+        /**
+         * Структура данных: корень {@code <Struct>}.
+         */
         STRUCT("structs/"),
-        /** Текстура и другие бинарные ресурсы. */
+        /**
+         * Текстура и другие бинарные ресурсы.
+         */
         TEXTURE("textures/"),
-        /** Любой другой файл. */
+        /**
+         * Любой другой файл.
+         */
         OTHER("");
 
         private final String folder;
@@ -63,12 +75,16 @@ public final class Project {
             this.folder = folder;
         }
 
-        /** @return папка вида с завершающим {@code /} */
+        /**
+         * @return папка вида с завершающим {@code /}
+         */
         public String folder() {
             return folder;
         }
 
-        /** @return {@code true}, если файлы этого вида — документы XAML */
+        /**
+         * @return {@code true}, если файлы этого вида — документы XAML
+         */
         public boolean document() {
             return this == SCREEN || this == COMPONENT || this == STRUCT;
         }
@@ -110,10 +126,14 @@ public final class Project {
     private final java.util.ArrayDeque<Snapshot> undoStack = new java.util.ArrayDeque<>();
     private final java.util.ArrayDeque<Snapshot> redoStack = new java.util.ArrayDeque<>();
 
-    /** Глубина истории структурных правок проекта. */
+    /**
+     * Глубина истории структурных правок проекта.
+     */
     public static final int HISTORY_LIMIT = 50;
 
-    /** Состояние проекта до структурной правки: паспорт и файлы (массивы не меняются на месте, поэтому копируются ссылки). */
+    /**
+     * Состояние проекта до структурной правки: паспорт и файлы (массивы не меняются на месте, поэтому копируются ссылки).
+     */
     private record Snapshot(String label, PackManifest manifest, Map<String, byte[]> files) {
     }
 
@@ -134,22 +154,30 @@ public final class Project {
         redoStack.clear();
     }
 
-    /** @return {@code true}, если есть структурная правка, которую можно отменить */
+    /**
+     * @return {@code true}, если есть структурная правка, которую можно отменить
+     */
     public boolean canUndo() {
         return !undoStack.isEmpty();
     }
 
-    /** @return {@code true}, если есть отменённая правка, которую можно вернуть */
+    /**
+     * @return {@code true}, если есть отменённая правка, которую можно вернуть
+     */
     public boolean canRedo() {
         return !redoStack.isEmpty();
     }
 
-    /** @return описание правки, которую отменит {@link #undo()} */
+    /**
+     * @return описание правки, которую отменит {@link #undo()}
+     */
     public Optional<String> undoLabel() {
         return Optional.ofNullable(undoStack.peek()).map(Snapshot::label);
     }
 
-    /** @return описание правки, которую вернёт {@link #redo()} */
+    /**
+     * @return описание правки, которую вернёт {@link #redo()}
+     */
     public Optional<String> redoLabel() {
         return Optional.ofNullable(redoStack.peek()).map(Snapshot::label);
     }
@@ -301,7 +329,9 @@ public final class Project {
 
     // ------------------------------------------------------------------ содержимое
 
-    /** @return паспорт проекта */
+    /**
+     * @return паспорт проекта
+     */
     public PackManifest manifest() {
         return manifest;
     }
@@ -318,7 +348,9 @@ public final class Project {
         changed();
     }
 
-    /** @return все файлы по алфавиту */
+    /**
+     * @return все файлы по алфавиту
+     */
     public List<Entry> entries() {
         List<Entry> entries = new ArrayList<>();
         for (String path : files.keySet()) entries.add(entry(path));
@@ -413,7 +445,9 @@ public final class Project {
         for (EditorSession session : sessions.values()) if (session.dirty()) session.save();
     }
 
-    /** @return {@code true}, если есть несохранённые правки документов или структурные изменения */
+    /**
+     * @return {@code true}, если есть несохранённые правки документов или структурные изменения
+     */
     public boolean dirty() {
         if (structureDirty) return true;
         for (EditorSession session : sessions.values()) if (session.dirty()) return true;
@@ -431,7 +465,9 @@ public final class Project {
      * @param conflicts документы с несохранёнными правками, которые на диске тоже изменились: они не тронуты
      */
     public record Refresh(List<String> added, List<String> changed, List<String> removed, List<String> conflicts) {
-        /** @return {@code true}, если проект изменился */
+        /**
+         * @return {@code true}, если проект изменился
+         */
         public boolean any() {
             return !added.isEmpty() || !changed.isEmpty() || !removed.isEmpty();
         }
@@ -606,7 +642,9 @@ public final class Project {
         return kind.folder() + fileName(name, kind);
     }
 
-    /** Файл компонента и структуры носит имя в нижнем регистре, как принято в паке; экран — как введено. */
+    /**
+     * Файл компонента и структуры носит имя в нижнем регистре, как принято в паке; экран — как введено.
+     */
     private static String fileName(String name, Kind kind) {
         String base = kind == Kind.SCREEN ? name : name.substring(0, 1).toLowerCase(Locale.ROOT) + name.substring(1);
         return base + ".xaml";
@@ -651,7 +689,8 @@ public final class Project {
             sync();
             oldTag = tagOf(path);
             if (oldTag == null) return "The component document cannot be read.";
-            if (!oldTag.equals(newName) && isTagUsedOrDeclared(newName)) return "The tag '" + newName + "' is already in use.";
+            if (!oldTag.equals(newName) && isTagUsedOrDeclared(newName))
+                return "The tag '" + newName + "' is already in use.";
         }
 
         record("Rename " + path + " to " + target);
@@ -710,12 +749,14 @@ public final class Project {
     private static void scan(UiNode node, Kind kind, String key, String path, List<Usage> found) {
         String label = node.type().local() + node.attributeText("id").map(id -> " #" + id)
                 .or(() -> node.attributeText("Id").map(id -> " #" + id)).orElse("");
-        if (kind == Kind.COMPONENT && node.type().local().equals(key)) found.add(new Usage(path, "<" + label.trim() + ">"));
+        if (kind == Kind.COMPONENT && node.type().local().equals(key))
+            found.add(new Usage(path, "<" + label.trim() + ">"));
         for (var property : node.properties()) {
             if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Literal literal && mentions(kind, key, literal.text())) {
                 if (kind != Kind.COMPONENT) found.add(new Usage(path, label + "." + property.name().local()));
             } else if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Elements elements) {
-                for (var item : elements.content()) if (item instanceof UiNode nested) scan(nested, kind, key, path, found);
+                for (var item : elements.content())
+                    if (item instanceof UiNode nested) scan(nested, kind, key, path, found);
             }
         }
         for (UiNode child : node.children()) scan(child, kind, key, path, found);
@@ -772,7 +813,9 @@ public final class Project {
         return "";
     }
 
-    /** Переименовывает структуру: файл, {@code x:Name}, типы {@code struct:Имя} и атрибуты {@code Struct} нод. */
+    /**
+     * Переименовывает структуру: файл, {@code x:Name}, типы {@code struct:Имя} и атрибуты {@code Struct} нод.
+     */
     private String renameStruct(String path, String newName) {
         sync();
         String oldName = structName(path);
@@ -798,7 +841,8 @@ public final class Project {
             boolean[] changed = {false};
             boolean self = entry.path().equals(path);
             retype(document.root(), oldName, newName, self, changed);
-            if (changed[0]) files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
+            if (changed[0])
+                files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
             sessions.remove(entry.path());
         }
         byte[] data = files.remove(path);
@@ -820,7 +864,8 @@ public final class Project {
      * @return пустая строка при успехе или причина отказа
      */
     public String renameStructField(String path, String oldField, String newField) {
-        if (!files.containsKey(path) || entry(path).kind() != Kind.STRUCT) return "'" + path + "' is not a struct document.";
+        if (!files.containsKey(path) || entry(path).kind() != Kind.STRUCT)
+            return "'" + path + "' is not a struct document.";
         String struct = structName(path);
         if (struct == null) return "The struct document cannot be read.";
         record("Rename field " + oldField + " to " + newField);
@@ -940,7 +985,9 @@ public final class Project {
         return false;
     }
 
-    /** Меняет {@code x:Name} компонента и тег во всех документах проекта. */
+    /**
+     * Меняет {@code x:Name} компонента и тег во всех документах проекта.
+     */
     private void retag(String componentPath, String oldTag, String newTag) {
         for (Entry entry : entries()) {
             if (!entry.kind().document() || entry.kind() == Kind.STRUCT) continue;
@@ -964,7 +1011,8 @@ public final class Project {
                 }
             }
             visit(document.root(), oldTag, newTag, changed);
-            if (changed[0]) files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
+            if (changed[0])
+                files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
             sessions.remove(entry.path());
         }
     }
@@ -976,7 +1024,8 @@ public final class Project {
         }
         for (var property : node.properties()) {
             if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Elements elements) {
-                for (var item : elements.content()) if (item instanceof UiNode nested) visit(nested, oldTag, newTag, changed);
+                for (var item : elements.content())
+                    if (item instanceof UiNode nested) visit(nested, oldTag, newTag, changed);
             }
         }
         for (UiNode child : node.children()) visit(child, oldTag, newTag, changed);
@@ -1036,7 +1085,9 @@ public final class Project {
         return installation;
     }
 
-    /** Снимает установку проекта, если она есть. */
+    /**
+     * Снимает установку проекта, если она есть.
+     */
     public void uninstall() {
         if (installation != null) installation.close();
         installation = null;

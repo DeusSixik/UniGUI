@@ -50,9 +50,11 @@ final class CommonProperties {
         List<PropertyInfo<WidgetBase, ?>> out = new ArrayList<>(64);
 
         // --- Состояние и стиль
-        add(out, "class", Converters.STRING, (widget, value) -> { }, null, null, "Common", "",
+        add(out, "class", Converters.STRING, (widget, value) -> {
+                }, null, null, "Common", "",
                 "Optional style class alias preserved for editor/theme integration.");
-        add(out, "styleClass", Converters.STRING, (widget, value) -> { }, null, null, "Common", "",
+        add(out, "styleClass", Converters.STRING, (widget, value) -> {
+                }, null, null, "Common", "",
                 "Optional style class name preserved for editor/theme integration.");
         add(out, "enabled", Converters.BOOLEAN, WidgetBase::enabled, WidgetBase::enabled, Boolean.class, "Behavior", "true",
                 "Whether the widget can receive user interaction.");
@@ -192,7 +194,9 @@ final class CommonProperties {
         return Collections.unmodifiableList(out);
     }
 
-    /** Свойство layout: читается из {@link LayoutStyle}; {@code getter == null} — сокращение без состояния. */
+    /**
+     * Свойство layout: читается из {@link LayoutStyle}; {@code getter == null} — сокращение без состояния.
+     */
     private static <V> void layout(List<PropertyInfo<WidgetBase, ?>> out, String name, ValueConverter<V> converter,
                                    BiConsumer<WidgetBase, V> setter, Function<LayoutStyle, ?> getter,
                                    String defaultValue, String description) {

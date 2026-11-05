@@ -19,7 +19,9 @@ public final class StructValue {
         this.values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
     }
 
-    /** @return тип структуры */
+    /**
+     * @return тип структуры
+     */
     public StructType type() {
         return type;
     }
@@ -51,7 +53,9 @@ public final class StructValue {
         return new StructValue(type, next);
     }
 
-    /** @return значения полей по именам */
+    /**
+     * @return значения полей по именам
+     */
     public Map<String, Object> asMap() {
         return values;
     }

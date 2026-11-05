@@ -53,7 +53,9 @@ public final class ItemExtension {
         };
     }
 
-    /** Заглушка для проверки шаблона при загрузке документа: ничего не подставляет, но разбирает путь. */
+    /**
+     * Заглушка для проверки шаблона при загрузке документа: ничего не подставляет, но разбирает путь.
+     */
     public static MarkupExtension probe() {
         return (context, use, target) -> {
             if (use.positional().size() > 1 || use.named().keySet().stream().anyMatch(key -> !key.equals("Path"))) {

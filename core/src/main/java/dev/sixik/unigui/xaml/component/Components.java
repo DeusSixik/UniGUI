@@ -123,12 +123,16 @@ public final class Components {
         return Optional.empty();
     }
 
-    /** @return идентификаторы зарегистрированных компонентов */
+    /**
+     * @return идентификаторы зарегистрированных компонентов
+     */
     public static synchronized List<String> ids() {
         return new ArrayList<>(ENTRIES.keySet());
     }
 
-    /** @return сообщения о компонентах, которые не удалось добавить в схему при её построении */
+    /**
+     * @return сообщения о компонентах, которые не удалось добавить в схему при её построении
+     */
     public static List<String> failures() {
         return new ArrayList<>(FAILURES);
     }

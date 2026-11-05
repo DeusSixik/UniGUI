@@ -126,7 +126,9 @@ public final class Edits {
 
     // ------------------------------------------------------------------ вспомогательное
 
-    /** Ищет родителя среди прямых детей; {@code null} для корня и содержимого property-элементов. */
+    /**
+     * Ищет родителя среди прямых детей; {@code null} для корня и содержимого property-элементов.
+     */
     static UiNode parentOf(UiNode current, UiNode target) {
         for (UiNode child : current.children()) {
             if (child == target) return current;
@@ -149,7 +151,9 @@ public final class Edits {
         return false;
     }
 
-    /** Позиция в {@code content()}, перед которой окажется ребёнок с индексом {@code index} среди узлов. */
+    /**
+     * Позиция в {@code content()}, перед которой окажется ребёнок с индексом {@code index} среди узлов.
+     */
     private static int contentIndex(UiNode parent, int index) {
         List<UiContent> content = parent.content();
         int seen = 0;

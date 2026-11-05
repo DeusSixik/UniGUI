@@ -26,7 +26,8 @@ public record SlotInfo<T extends Widget>(
     public SlotInfo {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("slot name must not be blank");
         if (name.indexOf('.') >= 0) throw new IllegalArgumentException("slot name must not contain '.': " + name);
-        if (sink == null && template == null) throw new IllegalArgumentException("slot '" + name + "' needs a child sink");
+        if (sink == null && template == null)
+            throw new IllegalArgumentException("slot '" + name + "' needs a child sink");
         name = name.trim();
         displayName = displayName == null || displayName.isBlank() ? name : displayName.trim();
         category = category == null || category.isBlank() ? "Content" : category.trim();
