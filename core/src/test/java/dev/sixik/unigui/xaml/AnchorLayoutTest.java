@@ -79,4 +79,18 @@ final class AnchorLayoutTest {
         assertEquals(392.0f, bounds.x() + bounds.width(), 0.5f);
         assertEquals(294.0f, bounds.y() + bounds.height(), 0.5f);
     }
+
+    @Test
+    void gridCellsHonourTheSameAnchorsInsideTheirCell() {
+        Widget root = Xaml.load("<GridBox id=\"root\" gridTemplateColumns=\"200 200\" gridTemplateRows=\"100\">"
+                + "<Box id=\"box\" gridColumn=\"2\" gridRow=\"1\" width=\"40\" height=\"20\" "
+                + "horizontalAlignment=\"end\" verticalAlignment=\"end\" margin=\"0 5 7 0\"/></GridBox>");
+        apply(root);
+        root.measure(new LayoutContext(400, 100));
+        root.arrange(new MutableRect(0.0f, 0.0f, 400, 100));
+        apply(root);
+        RectView bounds = boxOf(root);
+        assertEquals(395.0f, bounds.x() + bounds.width(), 0.5f, "right edge of the second cell minus the margin");
+        assertEquals(93.0f, bounds.y() + bounds.height(), 0.5f);
+    }
 }

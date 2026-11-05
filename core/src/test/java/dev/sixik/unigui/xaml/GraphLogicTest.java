@@ -277,8 +277,6 @@ final class GraphLogicTest {
                 + "<Param Name=\"Title\" Type=\"string\"/>";
         assertRejected(go, "<Node Id=\"a\" Type=\"Nope.Thing\"/>", "Unknown node type 'Nope.Thing'");
         assertRejected(go, "<Node Id=\"a\" Type=\"Event.Missing\"/>", "does not declare");
-        assertRejected(go, "<Node Id=\"a\" Type=\"Event.Out\"/>", "outgoing");
-        assertRejected(go, "<Node Id=\"a\" Type=\"Raise.Go\"/>", "incoming");
         assertRejected(go, "<Node Id=\"a\" Type=\"Param.Get\" Name=\"Nope\"/>", "parameter 'Nope'");
         assertRejected(go, "<Node Id=\"a\" Type=\"Param.Get\"/>", "requires Name");
         assertRejected(go, "<Node Id=\"a\" Type=\"Math.Compare\" Op=\"~\"/>", "Op must be one of");

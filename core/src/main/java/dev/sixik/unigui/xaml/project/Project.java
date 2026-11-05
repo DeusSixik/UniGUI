@@ -106,9 +106,98 @@ public final class Project {
     private final List<Runnable> listeners = new ArrayList<>();
     private PackInstallation installation;
     private boolean structureDirty;
+    private String lastSignature = "";
+    private final java.util.ArrayDeque<Snapshot> undoStack = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<Snapshot> redoStack = new java.util.ArrayDeque<>();
+
+    /** Глубина истории структурных правок проекта. */
+    public static final int HISTORY_LIMIT = 50;
+
+    /** Состояние проекта до структурной правки: паспорт и файлы (массивы не меняются на месте, поэтому копируются ссылки). */
+    private record Snapshot(String label, PackManifest manifest, Map<String, byte[]> files) {
+    }
 
     private Project(PackManifest manifest) {
         this.manifest = manifest;
+    }
+
+    // ------------------------------------------------------------------ отмена структурных правок
+
+    /**
+     * Запоминает состояние перед структурной правкой. Правки внутри документов в историю проекта не входят: у каждого
+     * документа своя история в его сессии.
+     */
+    private void record(String label) {
+        sync();
+        undoStack.push(new Snapshot(label, manifest, new TreeMap<>(files)));
+        while (undoStack.size() > HISTORY_LIMIT) undoStack.removeLast();
+        redoStack.clear();
+    }
+
+    /** @return {@code true}, если есть структурная правка, которую можно отменить */
+    public boolean canUndo() {
+        return !undoStack.isEmpty();
+    }
+
+    /** @return {@code true}, если есть отменённая правка, которую можно вернуть */
+    public boolean canRedo() {
+        return !redoStack.isEmpty();
+    }
+
+    /** @return описание правки, которую отменит {@link #undo()} */
+    public Optional<String> undoLabel() {
+        return Optional.ofNullable(undoStack.peek()).map(Snapshot::label);
+    }
+
+    /** @return описание правки, которую вернёт {@link #redo()} */
+    public Optional<String> redoLabel() {
+        return Optional.ofNullable(redoStack.peek()).map(Snapshot::label);
+    }
+
+    /**
+     * Отменяет последнюю структурную правку: создание, удаление и переименование файлов, добавление ресурса, смену
+     * паспорта. Проект возвращается к состоянию до неё целиком; правки документов, сделанные после неё и не
+     * сохранённые, попадают в состояние для {@link #redo()}, но в откатываемом состоянии их нет. Открытые сессии
+     * затронутых файлов закрываются: их надо открыть заново.
+     *
+     * @return {@code true}, если было что отменять
+     */
+    public boolean undo() {
+        Snapshot previous = undoStack.peek();
+        if (previous == null) return false;
+        sync();
+        undoStack.pop();
+        redoStack.push(new Snapshot(previous.label(), manifest, new TreeMap<>(files)));
+        restore(previous);
+        return true;
+    }
+
+    /**
+     * Возвращает последнюю отменённую структурную правку.
+     *
+     * @return {@code true}, если было что возвращать
+     */
+    public boolean redo() {
+        Snapshot next = redoStack.peek();
+        if (next == null) return false;
+        sync();
+        redoStack.pop();
+        undoStack.push(new Snapshot(next.label(), manifest, new TreeMap<>(files)));
+        restore(next);
+        return true;
+    }
+
+    private void restore(Snapshot snapshot) {
+        manifest = snapshot.manifest();
+        files.clear();
+        files.putAll(snapshot.files());
+        // Сессии файлов, чьё содержимое изменилось или которых больше нет, устарели.
+        sessions.entrySet().removeIf(entry -> {
+            byte[] now = files.get(entry.getKey());
+            return now == null || !java.util.Arrays.equals(now, entry.getValue().text().getBytes(StandardCharsets.UTF_8));
+        });
+        structureDirty = true;
+        changed();
     }
 
     // ------------------------------------------------------------------ создание и открытие
@@ -177,6 +266,7 @@ public final class Project {
             Files.write(target, file.getValue());
         }
         structureDirty = false;
+        lastSignature = signatureOf(folder);
     }
 
     /**
@@ -185,10 +275,28 @@ public final class Project {
      * @return пак
      */
     public AssetPack toPack() {
+        return AssetPack.read(toArchive());
+    }
+
+    /**
+     * Собирает архив пака (с несохранёнными правками документов) в виде байтов, готовых к записи в файл.
+     *
+     * @return содержимое zip; один и тот же проект всегда даёт одни и те же байты
+     */
+    public byte[] toArchive() {
         sync();
         AssetPackWriter writer = new AssetPackWriter(manifest);
         files.forEach(writer::add);
-        return AssetPack.read(writer.toBytes());
+        return writer.toBytes();
+    }
+
+    /**
+     * @param path путь документа
+     * @return {@code true}, если у открытого документа есть несохранённые правки
+     */
+    public boolean dirty(String path) {
+        EditorSession session = sessions.get(path);
+        return session != null && session.dirty();
     }
 
     // ------------------------------------------------------------------ содержимое
@@ -204,6 +312,7 @@ public final class Project {
      * @param next новый паспорт
      */
     public void manifest(PackManifest next) {
+        record("Change manifest");
         this.manifest = next;
         structureDirty = true;
         changed();
@@ -392,6 +501,34 @@ public final class Project {
         return result;
     }
 
+    /**
+     * Дешёвая проверка папки на изменения: сравнивает имена, размеры и время изменения файлов, содержимое не читает, и
+     * только при отличии вызывает {@link #refreshFrom}. Подходит для вызова раз в секунду из тика игры.
+     *
+     * @param folder папка проекта
+     * @return что изменилось или пусто, если папка не менялась с прошлого вызова
+     * @throws IOException если папка не читается
+     */
+    public Optional<Refresh> poll(Path folder) throws IOException {
+        String now = signatureOf(folder);
+        if (now.equals(lastSignature)) return Optional.empty();
+        Refresh refresh = refreshFrom(folder);
+        lastSignature = now;
+        return Optional.of(refresh);
+    }
+
+    private static String signatureOf(Path folder) throws IOException {
+        StringBuilder text = new StringBuilder();
+        try (Stream<Path> walk = Files.walk(folder)) {
+            for (Path file : (Iterable<Path>) walk.filter(Files::isRegularFile)
+                    .sorted(java.util.Comparator.comparing(Path::toString))::iterator) {
+                text.append(folder.relativize(file)).append('|').append(Files.size(file)).append('|')
+                        .append(Files.getLastModifiedTime(file).toMillis()).append(';');
+            }
+        }
+        return text.toString();
+    }
+
     // ------------------------------------------------------------------ создание, переименование, удаление
 
     /**
@@ -438,6 +575,7 @@ public final class Project {
         if (normalized.startsWith("/") || normalized.contains("..") || normalized.equals(PackManifest.FILE)) {
             throw new IllegalArgumentException("'" + path + "' is not a valid resource path.");
         }
+        record("Add " + normalized);
         files.put(normalized, data.clone());
         structureDirty = true;
         changed();
@@ -450,10 +588,22 @@ public final class Project {
         }
         String path = kind.folder() + fileName(name, kind);
         if (files.containsKey(path)) throw new IllegalArgumentException("'" + path + "' already exists.");
+        record("Create " + path);
         files.put(path, text.getBytes(StandardCharsets.UTF_8));
         structureDirty = true;
         changed();
         return entry(path);
+    }
+
+    /**
+     * Путь файла документа по виду и имени.
+     *
+     * @param kind вид документа
+     * @param name имя
+     * @return путь, под которым проект хранит такой документ
+     */
+    public static String pathOf(Kind kind, String name) {
+        return kind.folder() + fileName(name, kind);
     }
 
     /** Файл компонента и структуры носит имя в нижнем регистре, как принято в паке; экран — как введено. */
@@ -469,7 +619,9 @@ public final class Project {
      * @return {@code true}, если файл был
      */
     public boolean delete(String path) {
-        if (files.remove(path) == null) return false;
+        if (!files.containsKey(path)) return false;
+        record("Delete " + path);
+        files.remove(path);
         sessions.remove(path);
         structureDirty = true;
         changed();
@@ -502,7 +654,7 @@ public final class Project {
             if (!oldTag.equals(newName) && isTagUsedOrDeclared(newName)) return "The tag '" + newName + "' is already in use.";
         }
 
-        sync();
+        record("Rename " + path + " to " + target);
         byte[] data = files.remove(path);
         sessions.remove(path);
         files.put(target, data);
@@ -634,6 +786,7 @@ public final class Project {
         String target = Kind.STRUCT.folder() + fileName(newName, Kind.STRUCT);
         if (!target.equals(path) && files.containsKey(target)) return "'" + target + "' already exists.";
 
+        record("Rename struct " + oldName + " to " + newName);
         for (Entry entry : entries()) {
             if (!entry.kind().document()) continue;
             UiDocument document;
@@ -654,6 +807,91 @@ public final class Project {
         structureDirty = true;
         changed();
         return "";
+    }
+
+    /**
+     * Переименовывает поле структуры и обновляет граф каждого компонента проекта: ноды {@code Struct.Make} и
+     * {@code Struct.Break} этой структуры (провода и значения по умолчанию на пинах поля) и {@code Struct.With}
+     * (атрибут {@code Field}).
+     *
+     * @param path     путь документа структуры
+     * @param oldField прежнее имя поля
+     * @param newField новое имя поля
+     * @return пустая строка при успехе или причина отказа
+     */
+    public String renameStructField(String path, String oldField, String newField) {
+        if (!files.containsKey(path) || entry(path).kind() != Kind.STRUCT) return "'" + path + "' is not a struct document.";
+        String struct = structName(path);
+        if (struct == null) return "The struct document cannot be read.";
+        record("Rename field " + oldField + " to " + newField);
+        EditorSession session = session(path);
+        if (!dev.sixik.unigui.xaml.struct.StructEdits.renameField(session, oldField, newField)) {
+            undoStack.pop(); // правка не состоялась: запись в истории не нужна
+            var found = session.diagnostics(EditorSession.Channel.EDIT);
+            return found.isEmpty() ? "The field cannot be renamed." : found.get(0).message();
+        }
+        session.save();
+        for (Entry entry : entries(Kind.COMPONENT)) {
+            UiDocument document;
+            try {
+                document = XamlFormat.INSTANCE.read(text(entry.path()).orElse(""));
+            } catch (RuntimeException failure) {
+                continue;
+            }
+            boolean[] changed = {false};
+            for (var property : document.root().properties()) {
+                if (property.value() instanceof dev.sixik.unigui.xaml.UiValue.Elements elements
+                        && property.name().local().equals("Graph")) {
+                    renameFieldInGraph(elements.content(), struct, oldField, newField, changed);
+                }
+            }
+            if (changed[0]) {
+                files.put(entry.path(), XamlFormat.INSTANCE.write(document).getBytes(StandardCharsets.UTF_8));
+                sessions.remove(entry.path());
+            }
+        }
+        structureDirty = true;
+        changed();
+        return "";
+    }
+
+    private static void renameFieldInGraph(List<dev.sixik.unigui.xaml.UiContent> items, String struct, String oldField,
+                                           String newField, boolean[] changed) {
+        java.util.Map<String, String> byId = new java.util.HashMap<>(); // нода структуры -> тип
+        for (var item : items) {
+            if (item instanceof UiNode node && node.type().local().equals("Node")
+                    && struct.equals(node.attributeText("Struct", ""))) {
+                byId.put(node.attributeText("Id", ""), node.attributeText("Type", ""));
+            }
+        }
+        for (var item : items) {
+            if (!(item instanceof UiNode node)) continue;
+            if (node.type().local().equals("Node") && byId.containsKey(node.attributeText("Id", ""))) {
+                String type = node.attributeText("Type", "");
+                if (type.equals("Struct.With") && oldField.equals(node.attributeText("Field", ""))) {
+                    node.set("Field", newField);
+                    changed[0] = true;
+                } else if (type.equals("Struct.Make") && node.attributeText(oldField).isPresent()) {
+                    String value = node.attributeText(oldField).orElse("");
+                    node.remove(null, UiName.of(oldField));
+                    node.set(newField, value);
+                    changed[0] = true;
+                }
+            } else if (node.type().local().equals("Wire")) {
+                for (String end : new String[]{"From", "To"}) {
+                    String value = node.attributeText(end, "");
+                    int dot = value.indexOf('.');
+                    if (dot <= 0 || !byId.containsKey(value.substring(0, dot))) continue;
+                    String type = byId.get(value.substring(0, dot));
+                    boolean makeInput = end.equals("To") && type.equals("Struct.Make");
+                    boolean breakOutput = end.equals("From") && type.equals("Struct.Break");
+                    if ((makeInput || breakOutput) && value.substring(dot + 1).equals(oldField)) {
+                        node.set(end, value.substring(0, dot + 1) + newField);
+                        changed[0] = true;
+                    }
+                }
+            }
+        }
     }
 
     private static void retype(UiNode node, String oldName, String newName, boolean declaration, boolean[] changed) {

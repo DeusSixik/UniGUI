@@ -245,4 +245,155 @@ final class ProjectTest {
         assertTrue(project.text("screens/main.xaml").orElseThrow().contains("mine"));
 
     }
+
+    @Test
+    void renamingAStructFieldUpdatesTheNodesAndWiresThatUseIt() {
+        project.createStruct("Product");
+        project.createComponent("Card");
+        project.session("structs/product.xaml").replaceText("""
+                <Struct x:Name="Product" xmlns:x="https://unigui.dev/xaml">
+                  <Field Name="title" Type="string"/>
+                </Struct>""");
+        project.session("structs/product.xaml").save();
+        EditorSession card = project.session("components/card.xaml");
+        card.replaceText("""
+                <Component x:Name="Card" xmlns:x="https://unigui.dev/xaml">
+                  <Component.Contract>
+                    <Param Name="Item" Type="struct:Product"/>
+                    <Param Name="Caption" Type="string"/>
+                    <Event Name="Go" Direction="In"/>
+                  </Component.Contract>
+                  <Label text="x"/>
+                  <Component.Graph>
+                    <Node Id="in" Type="Event.Go"/>
+                    <Node Id="get" Type="Param.Get" Name="Item"/>
+                    <Node Id="break" Type="Struct.Break" Struct="Product"/>
+                    <Node Id="make" Type="Struct.Make" Struct="Product" title="hi"/>
+                    <Node Id="with" Type="Struct.With" Struct="Product" Field="title"/>
+                    <Node Id="set" Type="Param.Set" Name="Caption"/>
+                    <Wire From="get.value" To="break.value"/>
+                    <Wire From="break.title" To="set.value"/>
+                    <Wire From="in.then" To="set.exec"/>
+                  </Component.Graph>
+                </Component>""");
+        card.save();
+        assertEquals(List.of(), project.check(), "the document is valid before the rename");
+
+        assertEquals("", project.renameStructField("structs/product.xaml", "title", "name"));
+        String text = project.text("components/card.xaml").orElseThrow();
+        assertTrue(text.contains("From=\"break.name\""), text);
+        assertTrue(text.contains("Field=\"name\""), text);
+        assertTrue(text.contains("name=\"hi\""), text);
+        assertFalse(text.contains("title"), text);
+        assertEquals(List.of(), project.check(), "the graph still compiles after the rename");
+
+        assertFalse(project.renameStructField("structs/product.xaml", "missing", "x").isEmpty());
+        assertFalse(project.renameStructField("components/card.xaml", "a", "b").isEmpty());
+    }
+
+    @Test
+    void pollingReadsTheFolderOnlyWhenItsFilesChanged(@TempDir Path folder) throws IOException {
+        project.createScreen("main");
+        project.save(folder);
+        assertTrue(project.poll(folder).isEmpty(), "saving the project does not count as an outside change");
+
+        Path file = folder.resolve("screens/main.xaml");
+        java.nio.file.Files.writeString(file, "<VBox><Label text=\"outside\"/></VBox>");
+        java.nio.file.Files.setLastModifiedTime(file,
+                java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() + 5_000));
+        Project.Refresh refresh = project.poll(folder).orElseThrow();
+        assertEquals(List.of("screens/main.xaml"), refresh.changed());
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("outside"));
+        assertTrue(project.poll(folder).isEmpty(), "the next poll sees no change");
+    }
+
+    // ------------------------------------------------------------------ отмена структурных правок
+
+    @Test
+    void creatingAndDeletingFilesCanBeUndoneAndRedone() {
+        assertFalse(project.canUndo());
+        project.createScreen("main");
+        project.createComponent("Card");
+        assertEquals("Create components/card.xaml", project.undoLabel().orElseThrow());
+
+        assertTrue(project.undo());
+        assertFalse(project.has("components/card.xaml"));
+        assertTrue(project.has("screens/main.xaml"));
+        assertTrue(project.undo());
+        assertFalse(project.has("screens/main.xaml"));
+        assertFalse(project.undo(), "nothing left to undo");
+
+        assertTrue(project.redo());
+        assertTrue(project.has("screens/main.xaml"));
+        assertTrue(project.redo());
+        assertTrue(project.has("components/card.xaml"));
+        assertFalse(project.redo());
+    }
+
+    @Test
+    void aNewEditAfterAnUndoDropsTheRedoHistory() {
+        project.createScreen("main");
+        project.undo();
+        assertTrue(project.canRedo());
+        project.createScreen("other");
+        assertFalse(project.canRedo());
+    }
+
+    @Test
+    void deletingAFileAndUndoingBringsBackItsEditedContent() {
+        project.createScreen("main");
+        EditorSession main = project.session("screens/main.xaml");
+        main.replaceText("<VBox><Label text=\"keep me\"/></VBox>");
+        assertTrue(project.dirty("screens/main.xaml"));
+
+        assertEquals("", project.deleteIfUnused("screens/main.xaml"));
+        assertFalse(project.has("screens/main.xaml"));
+        assertTrue(project.undo());
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("keep me"), "unsaved edits were synced before the delete");
+        assertEquals(List.of(), project.check());
+    }
+
+    @Test
+    void aComponentRenameAndItsTagUpdatesAreUndoneTogether() {
+        project.createComponent("Card");
+        project.createScreen("main");
+        EditorSession screen = project.session("screens/main.xaml");
+        screen.replaceText("<VBox><Card id=\"c\"/></VBox>");
+        screen.save();
+
+        assertEquals("", project.rename("components/card.xaml", "ProductCard"));
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("<ProductCard"));
+        assertTrue(project.undo());
+        assertTrue(project.has("components/card.xaml"));
+        assertFalse(project.has("components/productCard.xaml"));
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("<Card"), "the tag in the screen is back too");
+        assertEquals(List.of(), project.check());
+        assertTrue(project.redo());
+        assertTrue(project.text("screens/main.xaml").orElseThrow().contains("<ProductCard"));
+    }
+
+    @Test
+    void refusedOperationsLeaveNoHistoryAndTheManifestIsUndoable() {
+        project.createScreen("main");
+        int before = (int) java.util.stream.Stream.iterate(0, n -> n + 1).limit(1).count();
+        project.rename("screens/main.xaml", "bad name");
+        project.rename("screens/missing.xaml", "x");
+        assertThrows(IllegalArgumentException.class, () -> project.createScreen("main"));
+        assertEquals("Create screens/main.xaml", project.undoLabel().orElseThrow(), "refused operations did not record steps");
+        assertEquals(1, before);
+
+        PackManifest old = project.manifest();
+        project.manifest(new PackManifest("shop", "2.0", "Shop", "changed"));
+        assertEquals("2.0", project.manifest().version());
+        assertTrue(project.undo());
+        assertEquals(old, project.manifest());
+    }
+
+    @Test
+    void theHistoryIsBounded() {
+        for (int i = 0; i < Project.HISTORY_LIMIT + 10; i++) project.createScreen("s" + i);
+        int undone = 0;
+        while (project.undo()) undone++;
+        assertEquals(Project.HISTORY_LIMIT, undone);
+    }
 }

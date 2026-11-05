@@ -55,6 +55,18 @@ class UiEditorScreenTest {
         assertEquals("Refreshed", host.instance().get("Title"), "the graph reacts to the incoming event");
     }
 
+    @Test
+    void theProjectDemoIsCleanAndItsScreenHasTheProjectPanel() {
+        dev.sixik.unigui.xaml.project.Project project = UiEditorScreen.sampleProject();
+        assertEquals(java.util.List.of(), project.check());
+        assertEquals(3, project.entries().size());
+
+        Widget root = UiEditorScreen.createProjectScreen().root();
+        DockingRoot dock = find(root, DockingRoot.class);
+        assertNotNull(dock.findPane("project"), "the project editor has a project panel");
+        assertNotNull(dock.findPane("graph"));
+    }
+
     private static void applyAll(Widget widget) {
         if (widget instanceof PanelWidget panel) panel.applyQueuedMutations();
         for (Widget child : widget.children()) applyAll(child);

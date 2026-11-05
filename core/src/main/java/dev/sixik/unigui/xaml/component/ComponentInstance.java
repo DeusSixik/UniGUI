@@ -31,6 +31,7 @@ public final class ComponentInstance {
     private final ComponentHost widget;
     private final Map<String, XamlMutableObservableValue<Object>> params = new LinkedHashMap<>();
     private final Map<String, List<Consumer<Args>>> handlers = new LinkedHashMap<>();
+    private final Map<String, List<Consumer<Object>>> variableListeners = new java.util.HashMap<>();
     private final List<Queued> queue = new ArrayList<>();
     private final List<Consumer<Float>> tickers = new ArrayList<>();
     private boolean constructed;
@@ -122,6 +123,34 @@ public final class ComponentInstance {
     }
 
     // ------------------------------------------------------------------ события
+
+    /**
+     * Следит за переменной графа: так к ней привязываются свойства тела через {@code {Var Имя}}.
+     *
+     * @param name     имя переменной
+     * @param listener получает новое значение
+     * @return подписка
+     */
+    public EventSubscription onVariableChanged(String name, Consumer<Object> listener) {
+        if (listener == null) throw new IllegalArgumentException("listener must not be null");
+        variableListeners.computeIfAbsent(name, key -> new ArrayList<>()).add(listener);
+        return () -> {
+            List<Consumer<Object>> list = variableListeners.get(name);
+            if (list != null) list.remove(listener);
+        };
+    }
+
+    /**
+     * Сообщает слушателям новое значение переменной; вызывает среда исполнения графа.
+     *
+     * @param name  имя переменной
+     * @param value значение
+     */
+    public void publishVariable(String name, Object value) {
+        List<Consumer<Object>> list = variableListeners.get(name);
+        if (list == null) return;
+        for (Consumer<Object> listener : List.copyOf(list)) listener.accept(value);
+    }
 
     /**
      * Слушает исходящее событие.

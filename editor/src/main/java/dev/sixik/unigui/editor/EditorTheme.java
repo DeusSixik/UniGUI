@@ -44,6 +44,11 @@ public interface EditorTheme {
     /** @return высота панели инструментов */
     float toolbarHeight();
 
+    /** @return высота строки состояния */
+    default float statusBarHeight() {
+        return 20.0f;
+    }
+
     /** @return ширина выпадающего меню */
     float menuWidth();
 

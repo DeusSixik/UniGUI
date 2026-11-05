@@ -102,6 +102,24 @@ public final class ParamType {
         return type;
     }
 
+    /**
+     * Все типы, которые автор может выбрать: встроенные и зарегистрированные структуры.
+     *
+     * @return имена в записи документа
+     */
+    public static java.util.List<String> names() {
+        java.util.List<String> names = new java.util.ArrayList<>(BY_NAME.keySet());
+        for (String struct : Structs.names()) names.add("struct:" + struct);
+        return names;
+    }
+
+    /** @return имена типов, значение которых задаётся текстом: они годятся для литералов графа */
+    public static java.util.List<String> textualNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (ParamType type : BY_NAME.values()) if (type.textual()) names.add(type.name());
+        return names;
+    }
+
     /** @return имя типа в документе */
     public String name() {
         return name;

@@ -1,47 +1,70 @@
 package dev.sixik.unigui.editor;
 
-import dev.sixik.unigui.api.layout.Align;
-import dev.sixik.unigui.api.layout.EdgeInsets;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.editor.style.EditorStyles;
 import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.docking.DockColor;
 import dev.sixik.unigui.widgets.docking.DockTheme;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.interaction.Button;
 
 /**
- * Нейтральная тёмная тема каркаса. Использует тему докинга {@link DockTheme#editor()} и обычные стили виджетов.
+ * Тема каркаса редакторов по умолчанию. Весь вид берётся из {@link EditorStyles}.
  */
 final class DefaultEditorTheme implements EditorTheme {
-    private static final MutableColor WORKSPACE = MutableColor.rgba255(32, 32, 36, 255);
-    private static final MutableColor SEPARATOR = MutableColor.rgba255(18, 18, 20, 255);
-    private static final MutableColor TEXT = MutableColor.rgba255(224, 224, 228, 255);
-    private static final MutableColor TEXT_MUTED = MutableColor.rgba255(150, 150, 158, 255);
-    private static final MutableColor MENU_BACKGROUND = MutableColor.rgba255(36, 36, 40, 255);
-    private static final MutableColor MENU_BORDER = MutableColor.rgba255(60, 60, 66, 255);
+    private static final float TAB_HEIGHT = 22.0f;
+    private static final float SPLIT = 4.0f;
 
     @Override
     public MutableColor workspaceBackground() {
-        return WORKSPACE;
+        return EditorStyles.BG_WORKSPACE;
     }
 
     @Override
     public void styleDock(DockingRoot dock) {
-        dock.theme(DockTheme.editor());
+        DockTheme theme = DockTheme.editor();
+        theme.color(DockColor.STRIP_BACKGROUND).set(EditorStyles.BG_TAB_INACTIVE);
+        theme.color(DockColor.STRIP_BORDER).set(EditorStyles.BG_TAB_INACTIVE);
+        theme.color(DockColor.TAB_BACKGROUND).set(EditorStyles.BG_TAB_INACTIVE);
+        theme.color(DockColor.TAB_HOVER).set(EditorStyles.BG_PANEL);
+        theme.color(DockColor.TAB_PRESSED).set(EditorStyles.BG_TAB_ACTIVE);
+        theme.color(DockColor.TAB_SEPARATOR).set(EditorStyles.BG_TAB_INACTIVE);
+        theme.color(DockColor.TAB_SELECTED).set(EditorStyles.BG_TAB_ACTIVE);
+        theme.color(DockColor.TAB_SELECTED_INACTIVE).set(EditorStyles.BG_TAB_ACTIVE);
+        theme.color(DockColor.TAB_ACCENT).set(EditorStyles.TAB_ACCENT);
+        theme.color(DockColor.TAB_ACCENT_INACTIVE).set(EditorStyles.BORDER_BUTTON);
+        theme.color(DockColor.TAB_TEXT).set(EditorStyles.TEXT_PRIMARY);
+        theme.color(DockColor.TAB_TEXT_MUTED).set(EditorStyles.TEXT_MUTED);
+        theme.color(DockColor.CONTENT_BACKGROUND).set(EditorStyles.BG_WINDOW);
+        theme.color(DockColor.CLOSE_GLYPH).set(EditorStyles.TEXT_MUTED);
+        theme.color(DockColor.CLOSE_GLYPH_HOVER).set(EditorStyles.TEXT_BOLD);
+        theme.color(DockColor.CLOSE_HOVER_BACKGROUND).set(EditorStyles.BG_BUTTON_HOVER);
+        // Панели лежат островами: разделитель того же цвета, что и фон под ними, поэтому читается как зазор.
+        theme.color(DockColor.PANE_BORDER).set(EditorStyles.BG_WORKSPACE);
+        theme.color(DockColor.SPLIT).set(EditorStyles.BG_WORKSPACE);
+        theme.color(DockColor.SPLIT_HOVER).set(EditorStyles.TAB_ACCENT);
+        theme.color(DockColor.SPLIT_PRESSED).set(EditorStyles.TAB_ACCENT);
+        theme.splitStyle(DockingRoot.SplitHandleStyle.SEAM);
+        theme.splitThickness(SPLIT);
+        theme.tabHeight(TAB_HEIGHT);
+        theme.iconSize(11.0f);
+        theme.closeSize(11.0f);
+        theme.tabPaddingX(7.0f);
+        theme.tabRadius(0.0f);
+        theme.accentThickness(1.5f);
+
+        dock.theme(theme);
+        dock.tabHeight(TAB_HEIGHT);
+        dock.splitHandleThickness(SPLIT);
+        dock.splitHandleStyle(DockingRoot.SplitHandleStyle.SEAM);
         dock.tearOffOnDragOut(true);
     }
 
     @Override
     public Widget separator() {
-        Box line = new Box();
-        line.themeEnabled(false);
-        line.backgroundVisible(true);
-        line.background().set(SEPARATOR);
-        line.borderVisible(false);
-        line.layout(style -> style.widthPercent(100.0f).height(1.0f).flexGrow(0.0f).flexShrink(0.0f));
-        return line;
+        return EditorStyles.separatorLine();
     }
 
     @Override
@@ -51,22 +74,24 @@ final class DefaultEditorTheme implements EditorTheme {
         button.boxVisualEnabled(false);
         button.focusRingVisible(false);
         button.focusable(false);
-        button.textColor().set(TEXT);
-        button.layout(style -> style.height(20.0f).padding(6.0f, 0.0f));
+        button.textColor().set(EditorStyles.TEXT_PRIMARY);
+        button.textPaddingX(7.0f);
+        button.hoverBackground().set(EditorStyles.BG_HEADER);
+        button.layout(style -> style.height(20.0f));
         return button;
     }
 
     @Override
     public Widget title(String text) {
-        Label label = new Label(text);
-        label.color(TEXT_MUTED);
-        label.layout(style -> style.height(20.0f).padding(16.0f, 0.0f));
-        return label;
+        Label title = new Label(text);
+        title.color(EditorStyles.TEXT_MUTED);
+        title.layout(style -> style.height(20.0f).padding(16.0f, 0.0f));
+        return title;
     }
 
     @Override
     public float menuBarHeight() {
-        return 22.0f;
+        return 26.0f;
     }
 
     @Override
@@ -76,37 +101,23 @@ final class DefaultEditorTheme implements EditorTheme {
 
     @Override
     public float menuWidth() {
-        return 160.0f;
+        return 170.0f;
     }
 
     @Override
     public void styleMenu(ContextMenu menu) {
-        menu.themeEnabled(false);
-        menu.backgroundVisible(true);
-        menu.background().set(MENU_BACKGROUND);
-        menu.borderVisible(true);
-        menu.borderColor().set(MENU_BORDER);
-        menu.borderWidth(1.0f);
-        menu.radius(3.0f);
-        menu.padding(EdgeInsets.all(3.0f));
+        EditorStyles.styleContextMenu(menu);
     }
 
     @Override
     public void addMenuItem(ContextMenu menu, String text, String shortcut, boolean enabled, float width,
                             Runnable action) {
-        String label = shortcut == null || shortcut.isEmpty() ? text : text + "    " + shortcut;
-        Button item = new Button(label);
-        item.themeEnabled(false);
-        item.enabled(enabled);
-        item.focusRingVisible(false);
-        item.textColor().set(enabled ? TEXT : TEXT_MUTED);
-        if (action != null) item.onClick(event -> action.run());
-        menu.item(item);
-        item.layout(style -> style.size(width, 19.0f).alignItems(Align.CENTER).flexGrow(0.0f).flexShrink(0.0f));
+        EditorStyles.addContextMenuItem(menu, text, shortcut == null || shortcut.isEmpty() ? null : shortcut,
+                enabled, width, action);
     }
 
     @Override
     public void addMenuSeparator(ContextMenu menu, float width) {
-        menu.separator();
+        EditorStyles.addContextMenuSeparator(menu, width);
     }
 }

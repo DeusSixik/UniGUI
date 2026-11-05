@@ -1,5 +1,8 @@
 package dev.sixik.unigui.editor.ui;
 
+import dev.sixik.unigui.editor.style.EditorIcons;
+import dev.sixik.unigui.editor.style.EditorStyles;
+import dev.sixik.unigui.editor.style.ToolButton;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
@@ -57,17 +60,19 @@ final class Anchors {
      */
     static Widget picker(EditorSession session, UiNode node, Runnable changed) {
         VBox box = new VBox();
-        box.spacing(2.0f);
+        box.spacing(1.0f);
+        box.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f).padding(15.0f, 2.0f, 0.0f, 6.0f));
         String currentH = alignment(session, node, true);
         String currentV = alignment(session, node, false);
         for (int row = 0; row < 3; row++) {
             HBox line = new HBox();
-            line.spacing(2.0f);
+            line.spacing(1.0f);
             for (int column = 0; column < 3; column++) {
                 String h = ALIGNMENTS.get(column);
                 String v = ALIGNMENTS.get(row);
                 boolean active = h.equals(currentH) && v.equals(currentV);
-                Button cell = new Button(active ? "●" : "○");
+                ToolButton cell = new ToolButton(active ? EditorIcons.BREAKPOINT : EditorIcons.ANCHOR_OFF, "Anchor");
+                cell.active(active);
                 cell.id("anchor." + ROW_NAMES.get(row) + "." + COLUMN_NAMES.get(column));
                 cell.onClick(click -> {
                     anchor(session, node, h, v);
@@ -85,14 +90,14 @@ final class Anchors {
         stretch.addChild(stretchButton(session, node, "Height", currentH.equals("stretch") ? "start" : currentH, "stretch", changed));
         stretch.applyQueuedMutations();
         box.addChild(stretch);
-        box.addChild(new Label("Anchor " + currentH + " / " + currentV));
+        box.addChild(EditorStyles.caption(currentH + " / " + currentV));
         box.applyQueuedMutations();
         return box;
     }
 
     private static Button stretchButton(EditorSession session, UiNode node, String title, String h, String v,
                                         Runnable changed) {
-        Button button = new Button(title);
+        ToolButton button = new ToolButton(null, title, ToolButton.Variant.SOLID);
         button.id("anchor." + title);
         button.onClick(click -> {
             anchor(session, node, h, v);

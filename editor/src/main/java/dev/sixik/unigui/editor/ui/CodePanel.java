@@ -26,6 +26,11 @@ final class CodePanel extends SessionPanel {
     }
 
     @Override
+    public dev.sixik.unigui.api.render.UiIcon icon() {
+        return dev.sixik.unigui.editor.style.EditorIcons.CODE;
+    }
+
+    @Override
     public PanelSlot slot() {
         return PanelSlot.CENTER;
     }
@@ -33,6 +38,14 @@ final class CodePanel extends SessionPanel {
     @Override
     protected Widget build(EditorContext context) {
         editor.layout(style -> style.sizePercent(100.0f, 100.0f));
+        // Поле рисует свой фон поверх номеров строк и подсветки ошибок; подложкой служит фон панели.
+        editor.themeEnabled(false);
+        editor.borderVisible(false);
+        editor.background().set(dev.sixik.unigui.api.math.MutableColor.rgba255(0, 0, 0, 0));
+        editor.borderColor().set(dev.sixik.unigui.api.math.MutableColor.rgba255(0, 0, 0, 0));
+        editor.textColor().set(dev.sixik.unigui.editor.style.EditorStyles.TEXT_PRIMARY);
+        editor.gutterColor().set(dev.sixik.unigui.editor.style.EditorStyles.BG_PANEL);
+        editor.lineNumberColor().set(dev.sixik.unigui.editor.style.EditorStyles.TEXT_LABEL);
         editor.onTextChanged(event -> {
             if (syncing) return;
             session().ifPresent(session -> session.replaceText(editor.text()));

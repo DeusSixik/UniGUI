@@ -6,8 +6,10 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.PanelSlot;
+import dev.sixik.unigui.editor.style.EditorIcons;
+import dev.sixik.unigui.editor.style.EditorStyles;
+import dev.sixik.unigui.editor.style.ToolButton;
 import dev.sixik.unigui.widgets.containers.HBox;
-import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.graph.NodeGraph;
@@ -21,19 +23,21 @@ import dev.sixik.unigui.widgets.graph.NodeGraphPortRef;
 import dev.sixik.unigui.widgets.graph.node.NodeBuilder;
 import dev.sixik.unigui.widgets.graph.node.NodeType;
 import dev.sixik.unigui.widgets.graph.node.ValueEditors;
-import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextField;
 import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.component.ComponentDefinition;
 import dev.sixik.unigui.xaml.component.Contract;
 import dev.sixik.unigui.xaml.edit.Edit;
+import dev.sixik.unigui.xaml.edit.ValueEditing;
 import dev.sixik.unigui.xaml.edit.EditorSession;
 import dev.sixik.unigui.xaml.edit.SessionChange;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.logic.GraphCompiler;
 import dev.sixik.unigui.xaml.logic.GraphDefinition;
+import dev.sixik.unigui.xaml.logic.GraphDebugger;
 import dev.sixik.unigui.xaml.logic.GraphEdits;
 import dev.sixik.unigui.xaml.logic.NodeCatalog;
+import dev.sixik.unigui.xaml.preview.ComponentPreview;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -59,8 +63,10 @@ final class GraphPanel extends SessionPanel {
     /** Идентификатор панели в каркасе. */
     static final String ID = "graph";
 
-    private static final MutableColor PROBLEM = MutableColor.rgba255(235, 100, 100, 255);
     private static final int ERROR_LEVEL = 2;
+    private static final String FLOW = "flow";
+    /** Типы данных графа: пины и провода окрашиваются одинаково, цвет совпадает с записями контракта. */
+    private static final List<String> DATA_TYPES = List.of("bool", "int", "float", "double", "string", "color", "widget");
 
     private final NodeGraph graph = new NodeGraph();
     /** Записи каталога по идентификаторам типов во встроенной палитре полотна. */
@@ -68,7 +74,7 @@ final class GraphPanel extends SessionPanel {
     /** Запись, по которой палитра только что создала ноду; к событию добавления она превращается в правку. */
     private final Map<String, NodeCatalog.Entry> spawned = new LinkedHashMap<>();
     private final Label problem = new Label("");
-    private static final String NO_RUNS = "No runs yet: send an event from the Contract panel or use the preview";
+    private static final String NO_RUNS = "No runs yet";
 
     private final Label debugStatus = new Label(NO_RUNS);
     private final ComponentView componentView;
@@ -94,6 +100,11 @@ final class GraphPanel extends SessionPanel {
     }
 
     @Override
+    public dev.sixik.unigui.api.render.UiIcon icon() {
+        return dev.sixik.unigui.editor.style.EditorIcons.GRAPH;
+    }
+
+    @Override
     public PanelSlot slot() {
         return PanelSlot.CENTER;
     }
@@ -104,6 +115,7 @@ final class GraphPanel extends SessionPanel {
         root.layout(style -> style.sizePercent(100.0f, 100.0f));
 
         graph.id("graph.view");
+        styleCanvas();
         graph.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).heightPercent(100.0f));
         // Документ — источник истины: собственная история, палитра и копирование полотна с ним разошлись бы.
         graph.keyboardEditingEnabled(false);
@@ -132,9 +144,13 @@ final class GraphPanel extends SessionPanel {
             if (!syncing) valueChanged(event.itemId(), event.portId(), event.serialized());
         });
         graph.on(KeyPressedEvent.TYPE, event -> {
-            if (event.target() != graph) return;
+            // Клавиши от виджетов внутри нод тоже относятся к графу, кроме полей, где идёт ввод текста.
+            if (event.phase() == dev.sixik.unigui.api.event.EventPhase.CAPTURE || typing(event.target())) return;
             if (event.keyCode() == KeyCodes.DELETE || event.keyCode() == KeyCodes.BACKSPACE) {
                 deleteSelection();
+                event.cancel();
+            } else if (event.keyCode() == KeyCodes.F9) {
+                toggleBreakpoints();
                 event.cancel();
             }
         });
@@ -144,13 +160,20 @@ final class GraphPanel extends SessionPanel {
         body.addChild(graph);
         body.applyQueuedMutations();
 
-        problem.color(PROBLEM);
-        problem.layout(style -> style.flexShrink(0.0f));
+        problem.color(EditorStyles.ERROR_RED);
+        problem.layout(style -> style.flexShrink(0.0f).margin(6.0f, 2.0f));
+        problem.visibility(dev.sixik.unigui.api.widget.Visibility.COLLAPSED);
+        // Полотно получает размер только при отрисовке: подгонка вида под ноды откладывается до неё.
+        dev.sixik.unigui.widgets.display.CanvasWidget probe = new dev.sixik.unigui.widgets.display.CanvasWidget();
+        probe.layout(style -> style.size(0.0f, 0.0f).flexShrink(0.0f));
+        probe.onDraw(draw -> frameOnce());
+        root.addChild(debugBar());
         root.addChild(body);
         root.addChild(problem);
-        root.addChild(debugBar());
+        root.addChild(probe);
         componentView.subscribe(this::refreshDebug);
         root.applyQueuedMutations();
+        EditorStyles.apply(root);
         return root;
     }
 
@@ -180,18 +203,37 @@ final class GraphPanel extends SessionPanel {
 
     private Widget debugBar() {
         HBox bar = new HBox();
-        bar.spacing(4.0f);
-        bar.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
-        Button previous = new Button("◀ Step");
+        bar.spacing(1.0f);
+        bar.layout(style -> style.widthPercent(100.0f).height(26.0f).flexShrink(0.0f).padding(4.0f, 3.0f, 6.0f, 3.0f)
+                .alignItems(dev.sixik.unigui.api.layout.Align.CENTER));
+        ToolButton resume = new ToolButton(EditorIcons.PLAY, "Continue", ToolButton.Variant.GHOST);
+        resume.iconColor(EditorStyles.PLAY_GREEN);
+        resume.id("graph.debug.continue");
+        resume.onClick(click -> debugger().ifPresent(GraphDebugger::resume));
+        ToolButton stepNode = new ToolButton(EditorIcons.STEP, "Step node", ToolButton.Variant.GHOST);
+        stepNode.id("graph.debug.stepnode");
+        stepNode.onClick(click -> debugger().ifPresent(GraphDebugger::step));
+        ToolButton breakpoint = new ToolButton(EditorIcons.BREAKPOINT, "Breakpoint", ToolButton.Variant.GHOST);
+        breakpoint.iconColor(EditorStyles.ERROR_RED);
+        breakpoint.id("graph.debug.break");
+        breakpoint.onClick(click -> toggleBreakpoints());
+        ToolButton previous = new ToolButton(EditorIcons.STEP_BACK, "Previous step");
         previous.id("graph.debug.prev");
         previous.onClick(click -> step(-1));
-        Button next = new Button("Step ▶");
+        ToolButton next = new ToolButton(EditorIcons.STEP, "Next step");
         next.id("graph.debug.next");
         next.onClick(click -> step(1));
-        Button clear = new Button("Clear");
+        ToolButton clear = new ToolButton(EditorIcons.CLEAR, "Clear runs");
         clear.id("graph.debug.clear");
-        clear.onClick(click -> componentView.preview().ifPresent(preview -> preview.trace().clear()));
-        debugStatus.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
+        clear.onClick(click -> componentView.active().ifPresent(preview -> preview.trace().clear()));
+        debugStatus.color(EditorStyles.TEXT_MUTED);
+        debugStatus.textAlignment(dev.sixik.unigui.api.layout.Alignment.END);
+        debugStatus.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).width(10.0f).minWidth(0.0f)
+                .height(EditorStyles.ROW_HEIGHT));
+        bar.addChild(resume);
+        bar.addChild(stepNode);
+        bar.addChild(breakpoint);
+        bar.addChild(EditorChrome.divider());
         bar.addChild(previous);
         bar.addChild(next);
         bar.addChild(clear);
@@ -202,13 +244,53 @@ final class GraphPanel extends SessionPanel {
     }
 
     private dev.sixik.unigui.xaml.logic.GraphTrace.Run lastRun() {
-        return componentView.preview().map(preview -> preview.trace().last()).orElse(null);
+        return componentView.active().map(preview -> preview.trace().last()).orElse(null);
     }
 
-    /** Новый запуск графа сбрасывает шаги; ошибка сразу показывается и выделяет ноду, на которой запуск упал. */
+    private java.util.Optional<GraphDebugger> debugger() {
+        return componentView.preview().map(ComponentPreview::debugger);
+    }
+
+    /** Ставит или снимает точку останова на выбранных нодах (клавиша F9 делает то же). */
+    void toggleBreakpoints() {
+        GraphDebugger debugger = debugger().orElse(null);
+        if (debugger == null) return;
+        for (String id : graph.selectedItemIds()) debugger.toggle(id);
+    }
+
+    /** Отмечает на полотне ноды с точками останова; рамка предупреждения не трогает ноды с ошибками. */
+    private void markBreakpoints(GraphDebugger debugger) {
+        for (NodeGraphItem item : graph.items()) {
+            if (item.issueLevel() >= ERROR_LEVEL) continue;
+            boolean marked = debugger != null && debugger.isBreakpoint(item.id());
+            item.issues(marked ? 1 : 0, marked ? List.of("Breakpoint") : List.of());
+        }
+    }
+
+    private boolean showingPause;
+    private boolean framePending = true;
+
+    /**
+     * Показывает остановку запуска, а без неё — итог последнего запуска. Остановка выделяет ноду, перед которой
+     * запуск стоит; новый запуск сбрасывает шаги; ошибка сразу выделяет ноду, на которой запуск упал.
+     */
     private void refreshDebug() {
+        GraphDebugger debugger = debugger().orElse(null);
+        markBreakpoints(debugger);
+        if (debugger != null) {
+            var pause = debugger.paused();
+            if (pause.isPresent()) {
+                showingPause = true;
+                debugStatus.text("Paused before " + pause.get().type() + " " + pause.get().nodeId()
+                        + ". Continue or Step node");
+                if (graph.item(pause.get().nodeId()) != null) graph.selectItem(pause.get().nodeId());
+                return;
+            }
+        }
+        boolean leavingPause = showingPause;
+        showingPause = false;
         var run = lastRun();
-        if (run == shownRun) return;
+        if (run == shownRun && !leavingPause) return;
         shownRun = run;
         stepIndex = -1;
         if (run == null) {
@@ -245,6 +327,67 @@ final class GraphPanel extends SessionPanel {
         return debugStatus.text();
     }
 
+    private static boolean typing(Widget target) {
+        return target instanceof dev.sixik.unigui.widgets.interaction.TextInput
+                || target instanceof dev.sixik.unigui.widgets.interaction.TextArea
+                || target instanceof dev.sixik.unigui.widgets.interaction.NumberField;
+    }
+
+    // ------------------------------------------------------------------ вид полотна
+
+    /** Цвета полотна: тёмный стол, еле заметная сетка, выбор и провода в цветах редактора. */
+    private void styleCanvas() {
+        graph.backgroundColor().set(EditorStyles.BG_STAGE);
+        graph.gridColor().set(MutableColor.rgba255(255, 255, 255, 7));
+        graph.majorGridColor().set(MutableColor.rgba255(255, 255, 255, 14));
+        graph.itemBorderColor().set(MutableColor.rgba255(0, 0, 0, 200));
+        graph.hoveredItemBorderColor().set(EditorStyles.BORDER_BUTTON);
+        graph.selectedItemBorderColor().set(EditorStyles.TAB_ACCENT);
+        graph.hoveredPortColor().set(EditorStyles.TEXT_BOLD);
+        graph.connectionColor().set(EditorStyles.TEXT_LABEL);
+        graph.selectedConnectionColor().set(EditorStyles.TAB_ACCENT);
+        graph.connectionPreviewColor().set(EditorStyles.TAB_ACCENT);
+        graph.selectionBoxFillColor().set(EditorStyles.ACCENT_SOFT);
+        graph.selectionBoxBorderColor().set(EditorStyles.TAB_ACCENT);
+        graph.minimapBackgroundColor().set(EditorStyles.BG_PANEL);
+        graph.minimapBorderColor().set(EditorStyles.BORDER_SUBTLE);
+        graph.minimapViewportColor().set(EditorStyles.TEXT_MUTED);
+        graph.minimapEnabled(true);
+        graph.minimapSize(120.0f, 76.0f);
+        // Поток — белая стрелка, как в Blueprint: сразу отличается от круглых пинов данных.
+        graph.portTypes().register(dev.sixik.unigui.widgets.graph.node.PortType.flow("flow", 0xFFE6E7EB)
+                .shape(dev.sixik.unigui.widgets.graph.node.PortShape.TRIANGLE));
+        for (String type : DATA_TYPES) {
+            graph.portTypes().register(dev.sixik.unigui.widgets.graph.node.PortType.data(type, EditorStyles.pinColor(type)));
+        }
+    }
+
+    /** Вид ноды: приглушённая шапка, тело чуть светлее стола, строки плотнее значений по умолчанию. */
+    private static dev.sixik.unigui.widgets.graph.node.NodeStyle nodeStyle() {
+        return new dev.sixik.unigui.widgets.graph.node.NodeStyle()
+                .bodyColor(0xF21D1E22)
+                .cornerRadius(5.0f)
+                .headerHeight(22.0f)
+                .rowHeight(21.0f)
+                .padding(7.0f)
+                .minWidth(130.0f);
+    }
+
+    /** Подгоняет вид под ноды один раз после того, как полотно получило размер. */
+    private void frameOnce() {
+        if (!framePending || graph.layoutBounds().width() <= 0.0f || graph.items().isEmpty()) return;
+        framePending = false;
+        graph.frameAll();
+        // Небольшой граф не раздувается на всё полотно: один к одному читается лучше всего.
+        var view = graph.viewport();
+        if (view.zoom() > 1.0f) {
+            var bounds = graph.layoutBounds();
+            float scale = 1.0f / view.zoom();
+            graph.viewport(bounds.width() * 0.5f - (bounds.width() * 0.5f - view.x()) * scale,
+                    bounds.height() * 0.5f - (bounds.height() * 0.5f - view.y()) * scale, 1.0f);
+        }
+    }
+
     // ------------------------------------------------------------------ документ → полотно
 
     private UiNode root() {
@@ -268,19 +411,20 @@ final class GraphPanel extends SessionPanel {
     }
 
     private void rebuild() {
+        UiNode root = root();
+        Contract contract = root != null && isComponent() ? contract() : null;
+        if (root != null && isComponent() && contract == null) {
+            // Документ временно не разбирается (правка текста, нет тела): прежнее полотно остаётся, ноды не пропадают.
+            showProblem("The component is not valid yet; fix it to edit the graph");
+            return;
+        }
         syncing = true;
         try {
             graph.clearItems();
             typeEntries.clear();
             graph.nodeTypes().clear(); // встроенные reroute-ноды в документе не хранятся
-            UiNode root = root();
-            if (root == null || !isComponent()) {
-                problem.text(root == null ? "" : "Not a component document");
-                return;
-            }
-            Contract contract = contract();
-            if (contract == null) {
-                problem.text("The contract is not valid yet; fix it to edit the graph");
+            if (root == null || contract == null) {
+                showProblem(root == null ? "" : "Not a component document");
                 return;
             }
             GraphDefinition definition = GraphEdits.read(root);
@@ -301,8 +445,15 @@ final class GraphPanel extends SessionPanel {
                             + wire.toPort() + ": " + failure.getMessage());
                 }
             }
-            problem.text(errors.isEmpty() ? rejection : errors.get(0));
+            showProblem(errors.isEmpty() ? rejection : errors.get(0));
             graph.history().clear();
+            // Точки останова живут в отладчике редактора: у удалённых нод они пропадают, у остальных отмечаются.
+            debugger().ifPresent(debugger -> {
+                java.util.Set<String> ids = new java.util.HashSet<>();
+                for (GraphDefinition.Node node : definition.nodes()) ids.add(node.id());
+                debugger.retain(ids);
+            });
+            markBreakpoints(debugger().orElse(null));
         } finally {
             syncing = false;
         }
@@ -317,17 +468,17 @@ final class GraphPanel extends SessionPanel {
         } catch (XamlLoadException failure) {
             // Нода, которую нельзя разобрать, остаётся на полотне с причиной, чтобы её можно было увидеть и удалить.
             NodeGraphItem broken = NodeBuilder.node(node.id()).at(node.x(), node.y()).type(node.type())
-                    .color(0xFFB03A3A).header(title).build();
+                    .style(nodeStyle()).color(0xFF8E3434).header(title).build();
             broken.issues(ERROR_LEVEL, List.of(failure.getMessage()));
             errors.add(failure.getMessage());
             return broken;
         }
         NodeBuilder builder = NodeBuilder.node(node.id()).at(node.x(), node.y()).type(node.type())
-                .color(colorOf(node.type())).header(title);
+                .style(nodeStyle()).color(colorOf(node.type())).header(title);
 
         for (String attribute : shape.attributes()) {
             if (shape.pins().stream().anyMatch(pin -> pin.input() && pin.id().equals(attribute))) continue;
-            builder.widget("attr:" + attribute, attributeRow(node, attribute));
+            builder.widget("attr:" + attribute, attributeRow(contract, definition, node, attribute));
         }
 
         GraphCompiler.Pin execIn = null;
@@ -337,24 +488,86 @@ final class GraphPanel extends SessionPanel {
             if (pin.input()) execIn = pin;
             else execOut.add(pin);
         }
-        if (execIn != null || !execOut.isEmpty()) {
+        if (execOut.size() > 1) {
+            // Несколько выходов потока различаются только подписью: у Branch это true и false.
+            builder.row(execIn == null ? null : execIn.id(), "", FLOW, execOut.get(0).id(), execOut.get(0).id(), FLOW);
+            for (int i = 1; i < execOut.size(); i++) {
+                builder.row(null, "", null, execOut.get(i).id(), execOut.get(i).id(), FLOW);
+            }
+        } else if (execIn != null || !execOut.isEmpty()) {
             builder.flowRow(execIn == null ? null : execIn.id(), execOut.isEmpty() ? null : execOut.get(0).id());
-            for (int i = 1; i < execOut.size(); i++) builder.flowRow(null, execOut.get(i).id());
         }
         for (GraphCompiler.Pin pin : shape.pins()) {
             if (pin.flow() || !pin.input()) continue;
-            builder.input(pin.id(), pin.id(), pin.type(), ValueEditors.text(node.attributes().getOrDefault(pin.id(), "")));
+            builder.input(pin.id(), pin.id(), pin.type(), pinEditor(pin.type(), node.attributes().get(pin.id())));
         }
         for (GraphCompiler.Pin pin : shape.pins()) {
             if (!pin.flow() && !pin.input()) builder.output(pin.id(), pin.id(), pin.type());
         }
-        return builder.build();
+        NodeGraphItem built = builder.build();
+        for (var module : built.modules()) for (Widget child : module.widgets()) EditorStyles.apply(child);
+        return built;
     }
 
-    private Widget attributeRow(GraphDefinition.Node node, String attribute) {
+    /** Редактор значения пина по его типу: флажок, целое, число, цвет или текст. */
+    private static dev.sixik.unigui.widgets.graph.node.ValueEditor pinEditor(String type, String text) {
+        try {
+            return switch (type) {
+                case "bool" -> ValueEditors.bool(text != null && Boolean.parseBoolean(text.trim()));
+                case "int" -> ValueEditors.integer(text == null || text.isBlank() ? 0 : Integer.parseInt(text.trim()),
+                        Integer.MIN_VALUE, Integer.MAX_VALUE);
+                case "float", "double" -> ValueEditors.number(text == null || text.isBlank() ? 0.0 : Double.parseDouble(text.trim()));
+                case "color" -> {
+                    if (text == null || text.isBlank()) yield ValueEditors.color(0xFFFFFFFF);
+                    ValueEditing.ColorValue color = ValueEditing.ColorValue.parse(text);
+                    yield ValueEditors.color((color.alpha() << 24) | (color.red() << 16) | (color.green() << 8) | color.blue());
+                }
+                default -> ValueEditors.text(text == null ? "" : text);
+            };
+        } catch (RuntimeException notTyped) {
+            return ValueEditors.text(text == null ? "" : text); // привязка или запись, которую типовой редактор не читает
+        }
+    }
+
+    /** Атрибут с известным набором значений выбирается из списка, остальные вводятся текстом. */
+    private Widget attributeRow(Contract contract, GraphDefinition definition, GraphDefinition.Node node, String attribute) {
+        List<String> options = NodeCatalog.attributeOptions(contract, node.type(), attribute, node.attributes(),
+                widgetIds(), customEvents(definition));
+        return options.isEmpty() ? attributeField(node, attribute) : attributeChoice(node, attribute, options);
+    }
+
+    private Widget attributeChoice(GraphDefinition.Node node, String attribute, List<String> options) {
         HBox row = new HBox();
         row.spacing(4.0f);
         Label name = new Label(attribute);
+        name.color(EditorStyles.TEXT_LABEL);
+        name.layout(style -> style.height(EditorStyles.ROW_HEIGHT));
+        List<String> items = new ArrayList<>(options);
+        String current = node.attributes().getOrDefault(attribute, "");
+        // Значение, которого уже нет в списке, остаётся видимым: автор сам решает, чем его заменить.
+        if (!current.isEmpty() && !items.contains(current)) items.add(0, current);
+        dev.sixik.unigui.widgets.interaction.ComboBox combo = new dev.sixik.unigui.widgets.interaction.ComboBox();
+        combo.id("graph.attr." + node.id() + "." + attribute);
+        combo.items(items);
+        combo.silentSelectedIndex(Math.max(0, items.indexOf(current)));
+        combo.layout(style -> style.width(70.0f));
+        combo.onSelectionChanged(event -> {
+            int index = combo.selectedIndex();
+            if (syncing || index < 0) return;
+            attributeChosen(node.id(), attribute, items.get(index));
+        });
+        row.addChild(name);
+        row.addChild(combo);
+        row.applyQueuedMutations();
+        return row;
+    }
+
+    private Widget attributeField(GraphDefinition.Node node, String attribute) {
+        HBox row = new HBox();
+        row.spacing(4.0f);
+        Label name = new Label(attribute);
+        name.color(EditorStyles.TEXT_LABEL);
+        name.layout(style -> style.height(EditorStyles.ROW_HEIGHT));
         TextField field = new TextField(node.attributes().getOrDefault(attribute, ""));
         field.id("graph.attr." + node.id() + "." + attribute);
         field.layout(style -> style.width(70.0f));
@@ -370,13 +583,13 @@ final class GraphPanel extends SessionPanel {
     private static int colorOf(String type) {
         String group = type.contains(".") ? type.substring(0, type.indexOf('.')) : type;
         return switch (group) {
-            case "Event" -> 0xFFD9534F;
-            case "Flow" -> 0xFF5D6B7A;
-            case "Math", "Logic", "Text", "Value" -> 0xFF8E44AD;
-            case "Param", "Var" -> 0xFF3B6EA5;
-            case "Raise" -> 0xFFE08A2E;
-            case "Call" -> 0xFF2E8B57;
-            default -> 0xFF4F6D7A;
+            case "Event" -> 0xFF8E3A3A;
+            case "Flow" -> 0xFF3F4650;
+            case "Math", "Logic", "Text", "Value" -> 0xFF4F3F78;
+            case "Param", "Var" -> 0xFF2C4F80;
+            case "Raise" -> 0xFF8A5A22;
+            case "Call" -> 0xFF2C6B4C;
+            default -> 0xFF35525E;
         };
     }
 
@@ -384,7 +597,7 @@ final class GraphPanel extends SessionPanel {
 
     /** Наполняет встроенную палитру полотна записями каталога для текущего контракта. */
     private void registerTypes(Contract contract, GraphDefinition definition) {
-        for (NodeCatalog.Entry entry : NodeCatalog.entries(contract)) {
+        for (NodeCatalog.Entry entry : NodeCatalog.entries(contract, widgetIds(), customEvents(definition))) {
             String key = typeKey(entry);
             typeEntries.put(key, entry);
             graph.nodeTypes().register(NodeType.of(key, entry.title(), entry.category(), proposed -> {
@@ -400,10 +613,37 @@ final class GraphPanel extends SessionPanel {
         }
     }
 
+    /** Идентификаторы виджетов тела компонента: цели для нод {@code Widget.*}. */
+    private List<String> widgetIds() {
+        List<String> ids = new ArrayList<>();
+        UiNode root = root();
+        if (root != null) for (UiNode child : root.children()) collectIds(child, ids);
+        return ids;
+    }
+
+    private static void collectIds(UiNode node, List<String> ids) {
+        node.attributeText("id").filter(id -> !id.isBlank()).ifPresent(ids::add);
+        for (UiNode child : node.children()) collectIds(child, ids);
+    }
+
+    /** Пользовательские события, которые уже объявлены нодами графа. */
+    private static List<String> customEvents(GraphDefinition definition) {
+        List<String> names = new ArrayList<>();
+        for (GraphDefinition.Node node : definition.nodes()) {
+            if (node.type().equals("Event.Custom") && node.attributes().containsKey("Name")) {
+                names.add(node.attributes().get("Name"));
+            }
+        }
+        return names;
+    }
+
     /** Идентификатор типа в палитре без точек: из него NodeGraph строит идентификаторы нод, а точка разделяет ноду и пин. */
     private static String typeKey(NodeCatalog.Entry entry) {
-        String name = entry.attributes().get("Name");
-        return entry.type().replace('.', '_') + (name == null ? "" : "_" + name);
+        StringBuilder key = new StringBuilder(entry.type().replace('.', '_'));
+        for (String value : entry.attributes().values()) {
+            if (key.length() > 0 && !value.isEmpty()) key.append('_').append(value.replaceAll("[^A-Za-z0-9_]", "_"));
+        }
+        return key.toString();
     }
 
     /** Палитра создала ноду на полотне: записываем её в документ. */
@@ -463,6 +703,14 @@ final class GraphPanel extends SessionPanel {
         UiNode root = root();
         if (root == null) return;
         if (!commit(GraphEdits.removeNode(root, itemId))) rebuild();
+        else retainBreakpoints(root);
+    }
+
+    /** У удалённой ноды точка останова пропадает вместе с ней. */
+    private void retainBreakpoints(UiNode root) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (GraphDefinition.Node node : GraphEdits.read(root).nodes()) ids.add(node.id());
+        debugger().ifPresent(debugger -> debugger.retain(ids));
     }
 
     private void moved(String itemId) {
@@ -475,7 +723,19 @@ final class GraphPanel extends SessionPanel {
     private void valueChanged(String itemId, String pin, String text) {
         UiNode root = root();
         if (root == null) return;
-        commit(GraphEdits.setAttribute(root, itemId, pin, text == null || text.isEmpty() ? null : text));
+        // Значение приводится к записи по типу пина: 5.0 → 5, #80ff8800 → #80FF8800, чтобы в документе не было шума.
+        NodeGraphItem item = graph.item(itemId);
+        NodeGraphPort port = item == null ? null : item.port(pin);
+        String value = text;
+        if (port != null && text != null && !text.isEmpty()) {
+            try {
+                value = ValueEditing.normalize(ValueEditing.editorForType(port.type(), null), text);
+            } catch (IllegalArgumentException invalid) {
+                showProblem(invalid.getMessage());
+                return;
+            }
+        }
+        commit(GraphEdits.setAttribute(root, itemId, pin, value == null || value.isEmpty() ? null : value));
     }
 
     /** Атрибут ноды изменён. Если от него зависят пины, полотно перестраивается. */
@@ -485,6 +745,29 @@ final class GraphPanel extends SessionPanel {
         String before = pinSignature(root, itemId);
         if (!commit(GraphEdits.setAttribute(root, itemId, attribute, text.isEmpty() ? null : text))) return;
         if (!before.equals(pinSignature(root, itemId))) rebuild();
+    }
+
+    /** Значение из списка: подпись и пины ноды могут зависеть от него, поэтому полотно перестраивается. */
+    private void attributeChosen(String itemId, String attribute, String value) {
+        UiNode root = root();
+        if (root == null) return;
+        if (attribute.equals("ValueType")) resetLiteral(root, itemId, value);
+        if (commit(GraphEdits.setAttribute(root, itemId, attribute, value))) rebuild();
+    }
+
+    /** Значение литерала, которое не читается новым типом, сбрасывается: иначе нода перестала бы собираться. */
+    private void resetLiteral(UiNode root, String itemId, String type) {
+        for (GraphDefinition.Node node : GraphEdits.read(root).nodes()) {
+            if (!node.id().equals(itemId)) continue;
+            String value = node.attributes().get("Value");
+            if (value == null) return;
+            try {
+                dev.sixik.unigui.xaml.component.ParamType.parse(type)
+                        .parse(value, dev.sixik.unigui.xaml.schema.LoadContext.DEFAULT);
+            } catch (RuntimeException notThisType) {
+                commit(GraphEdits.setAttribute(root, itemId, "Value", null));
+            }
+        }
     }
 
     private String pinSignature(UiNode root, String itemId) {
@@ -546,8 +829,14 @@ final class GraphPanel extends SessionPanel {
             var found = session.diagnostics(EditorSession.Channel.EDIT);
             rejection = found.isEmpty() ? "The edit was rejected" : found.get(0).message();
         }
-        problem.text(rejection);
+        showProblem(rejection);
         return done;
+    }
+
+    private void showProblem(String text) {
+        problem.text(text == null ? "" : text);
+        problem.visibility(text == null || text.isEmpty() ? dev.sixik.unigui.api.widget.Visibility.COLLAPSED
+                : dev.sixik.unigui.api.widget.Visibility.VISIBLE);
     }
 
     /** Подсказка для автоматизации: сколько проводов и нод сейчас на полотне. */

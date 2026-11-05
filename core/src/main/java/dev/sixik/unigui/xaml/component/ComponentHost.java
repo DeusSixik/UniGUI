@@ -17,6 +17,7 @@ import dev.sixik.unigui.xaml.load.MarkupExtension;
 import dev.sixik.unigui.xaml.load.MarkupExtensionRegistry;
 import dev.sixik.unigui.xaml.load.XamlLoadException;
 import dev.sixik.unigui.xaml.load.XamlLoader;
+import dev.sixik.unigui.xaml.logic.GraphDebugger;
 import dev.sixik.unigui.xaml.logic.GraphRuntime;
 import dev.sixik.unigui.xaml.logic.GraphTrace;
 import dev.sixik.unigui.xaml.schema.LoadContext;
@@ -48,6 +49,7 @@ public final class ComponentHost extends PanelWidget {
     private String key = "";
     private LoadOptions.NodeObserver observer;
     private GraphTrace trace;
+    private GraphDebugger debugger;
 
     /**
      * Создаёт хост без тела.
@@ -107,6 +109,17 @@ public final class ComponentHost extends PanelWidget {
         return this;
     }
 
+    /**
+     * Подключает отладчик графа. Вызывается до {@link #build}.
+     *
+     * @param value отладчик или {@code null}
+     * @return этот хост
+     */
+    public ComponentHost debugTo(GraphDebugger value) {
+        this.debugger = value;
+        return this;
+    }
+
     /** @return экземпляр: параметры и события */
     public ComponentInstance instance() {
         return instance;
@@ -141,6 +154,7 @@ public final class ComponentHost extends PanelWidget {
         try {
             MarkupExtensionRegistry extensions = MarkupExtensionRegistry.builtIns()
                     .register("Param", paramExtension())
+                    .register("Var", varExtension())
                     .register("Raise", raiseExtension());
             LoadOptions options = LoadOptions.DEFAULT
                     .textureResolver(context.textures())
@@ -163,6 +177,7 @@ public final class ComponentHost extends PanelWidget {
         if (!definition.graph().isEmpty()) {
             GraphRuntime runtime = GraphRuntime.attach(instance, definition.program(), schema, context);
             if (trace != null) runtime.trace(trace);
+            if (debugger != null) runtime.debugger(debugger);
         }
         instance.construct();
     }
@@ -181,17 +196,39 @@ public final class ComponentHost extends PanelWidget {
                     () -> new IllegalArgumentException("Component " + definition.tag().local()
                             + " has no parameter '" + name.trim() + "'. Declared: "
                             + definition.contract().paramNames() + "."));
-            Class<?> wanted = target.valueType();
-            if (!declared.type().fits(wanted)) {
-                throw new IllegalArgumentException("Parameter '" + declared.name() + "' is "
-                        + declared.type().name() + " but '" + target.name() + "' expects "
-                        + wanted.getSimpleName());
-            }
-            Consumer<Object> apply = value -> {
-                if (value != null) target.setValue(ParamType.adapt(value, wanted));
-            };
+            Consumer<Object> apply = binder(declared, target, "Parameter");
             apply.accept(instance.get(declared.name()));
             instance.onParamChanged(declared.name(), apply);
+        };
+    }
+
+    /** {@code {Var Name}}: подставляет значение переменной графа и следит за её изменениями. */
+    private MarkupExtension varExtension() {
+        return (context, use, target) -> {
+            requireOnlyName(use, "Var");
+            String name = literal(use.argument("Name", 0));
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Var requires a variable name, for example {Var Count}");
+            }
+            Contract.Param declared = definition.contract().var(name.trim()).orElseThrow(
+                    () -> new IllegalArgumentException("Component " + definition.tag().local()
+                            + " has no variable '" + name.trim() + "'."));
+            Consumer<Object> apply = binder(declared, target, "Variable");
+            apply.accept(declared.value());
+            instance.onVariableChanged(declared.name(), apply);
+        };
+    }
+
+    /** Проверяет совместимость типов и возвращает запись значения в свойство. */
+    private static Consumer<Object> binder(Contract.Param declared, dev.sixik.unigui.xaml.load.PropertyTarget target, String what) {
+        Class<?> wanted = target.valueType();
+        if (!declared.type().fits(wanted)) {
+            throw new IllegalArgumentException(what + " '" + declared.name() + "' is "
+                    + declared.type().name() + " but '" + target.name() + "' expects "
+                    + wanted.getSimpleName());
+        }
+        return value -> {
+            if (value != null) target.setValue(ParamType.adapt(value, wanted));
         };
     }
 

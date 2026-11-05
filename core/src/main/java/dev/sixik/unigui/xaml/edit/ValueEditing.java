@@ -87,7 +87,7 @@ public final class ValueEditing {
         ValueKind kind = view.kind();
         if (kind == null) return new Text();
         return switch (kind) {
-            case NUMBER -> new Number(isInteger(view.defaultValue()));
+            case NUMBER -> new Number(false); // целочисленность проверяет конвертер свойства при загрузке
             case BOOLEAN -> new Toggle();
             case ENUM -> view.options().isEmpty() ? new Text() : new Choice(view.options());
             case COLOR -> new Color();
@@ -101,8 +101,24 @@ public final class ValueEditing {
         };
     }
 
-    private static boolean isInteger(String defaultValue) {
-        return defaultValue != null && defaultValue.matches("-?\\d+");
+    /**
+     * Редактор по типу значения контракта или пина графа ({@code string}, {@code int}, {@code float}, {@code double},
+     * {@code bool}, {@code color}, {@code texture}…).
+     *
+     * @param type    имя типа
+     * @param catalog ресурсы проекта для текстур; {@code null} — их нет
+     * @return редактор; для остальных типов свободный текст
+     */
+    public static Editor editorForType(String type, ResourceCatalog catalog) {
+        String name = type == null ? "" : type.trim().toLowerCase(Locale.ROOT);
+        return switch (name) {
+            case "bool" -> new Toggle();
+            case "int" -> new Number(true);
+            case "float", "double" -> new Number(false);
+            case "color" -> new Color();
+            case "texture" -> new Resource("textures/", (catalog == null ? ResourceCatalog.NONE : catalog).ids("textures/"));
+            default -> new Text();
+        };
     }
 
     private static String folderOf(String property) {

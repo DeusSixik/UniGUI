@@ -48,7 +48,12 @@ public final class GraphCompiler {
     private static final String ANY = "any";
     /** Ссылка на экземпляр компонента: результат {@code Component.Create}, цель {@code Dispatcher.Bind}. */
     private static final String COMPONENT = "component";
-    private static final Set<String> COMPARE_OPS = Set.of("==", "!=", "<", "<=", ">", ">=");
+    private static final Set<String> COMPARE_OPS = new java.util.LinkedHashSet<>(List.of("==", "!=", "<", "<=", ">", ">="));
+
+    /** @return операции ноды {@code Math.Compare} в порядке показа */
+    public static List<String> compareOperators() {
+        return List.copyOf(COMPARE_OPS);
+    }
 
     private record Port(String id, boolean input, String type, boolean required) {
     }
@@ -375,10 +380,6 @@ public final class GraphCompiler {
         Contract.Event event = contract.event(name).orElseThrow(() -> fail(node.location(),
                 "Node '" + node.id() + "' refers to event '" + name + "' which the contract does not declare. "
                         + "Declared: " + contract.events().stream().map(Contract.Event::name).toList() + "."));
-        if (event.direction() != Contract.Direction.IN) {
-            throw fail(node.location(), "Node '" + node.id() + "': event '" + name
-                    + "' is outgoing; a graph can only start from incoming events.");
-        }
         return entry(name, event.args());
     }
 
@@ -510,10 +511,11 @@ public final class GraphCompiler {
             throw fail(node.location(), "Node '" + node.id() + "': " + failure.getMessage());
         }
         if (!type.textual()) throw fail(node.location(), "Node '" + node.id() + "': a literal cannot be an object.");
-        String text = node.attributes().getOrDefault("Value", "");
+        String text = node.attributes().get("Value");
         Object value;
         try {
-            value = type.parse(text, LoadContext.DEFAULT);
+            // Литерал без значения равен значению типа по умолчанию: автор ещё не задал его или только что сменил тип.
+            value = text == null ? type.defaultValue() : type.parse(text, LoadContext.DEFAULT);
         } catch (RuntimeException failure) {
             throw fail(node.location(), "Node '" + node.id() + "': '" + text + "' is not a valid " + type.name()
                     + ": " + failure.getMessage());
@@ -556,18 +558,17 @@ public final class GraphCompiler {
     private Spec raise(GraphDefinition.Node node, String name) {
         Contract.Event event = contract.event(name).orElseThrow(() -> fail(node.location(),
                 "Node '" + node.id() + "' raises event '" + name + "' which the contract does not declare."));
-        if (event.direction() != Contract.Direction.OUT) {
-            throw fail(node.location(), "Node '" + node.id() + "': event '" + name
-                    + "' is incoming; only outgoing events can be raised.");
-        }
         List<Port> ports = new ArrayList<>();
         ports.add(new Port("exec", true, EXEC, false));
         for (Contract.Arg arg : event.args()) ports.add(new Port(arg.name(), true, arg.type().name(), false));
         ports.add(new Port("then", false, EXEC, false));
+        boolean outgoing = event.direction() == Contract.Direction.OUT;
         return new Spec(ports, Set.of(), runtime -> NodeBehavior.exec(context -> {
             Map<String, Object> values = new LinkedHashMap<>();
             for (Contract.Arg arg : event.args()) values.put(arg.name(), context.input(arg.name()));
-            runtime.instance().emit(name, Args.of(values));
+            // Входящее событие граф ставит в очередь самому себе: сработает его нода On, как при вызове снаружи.
+            if (outgoing) runtime.instance().emit(name, Args.of(values));
+            else runtime.instance().send(name, Args.of(values));
             context.continueWith("then");
         }), Map.of(), null);
     }

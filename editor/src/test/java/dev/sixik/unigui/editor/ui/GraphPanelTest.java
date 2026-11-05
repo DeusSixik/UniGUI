@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -241,5 +242,247 @@ final class GraphPanelTest {
         runRefresh();
         find(content, "graph.debug.clear").click();
         assertTrue(panel().debugText().startsWith("No runs yet"), panel().debugText());
+    }
+
+    // ------------------------------------------------------------------ точки останова
+
+    private dev.sixik.unigui.xaml.logic.GraphDebugger debugger() {
+        shell.dock().findPane(UiEditor.VIEWPORT).content();
+        var host = (dev.sixik.unigui.xaml.component.ComponentHost)
+                ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).previewRoot();
+        assertNotNull(host);
+        return componentPreviewOf(host);
+    }
+
+    /** Отладчик предпросмотра: его держит панель Viewport через общий ComponentView; достаём его по хосту. */
+    private dev.sixik.unigui.xaml.logic.GraphDebugger componentPreviewOf(dev.sixik.unigui.xaml.component.ComponentHost host) {
+        try {
+            var field = ViewportPanel.class.getDeclaredField("componentView");
+            field.setAccessible(true);
+            ComponentView view = (ComponentView) field.get(shell.panel(UiEditor.VIEWPORT).orElseThrow());
+            return view.preview().orElseThrow().debugger();
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError(failure);
+        }
+    }
+
+    @Test
+    void aBreakpointIsMarkedAndStopsTheRunBeforeItsNode() {
+        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
+        assertTrue(session.apply(GraphEdits.setAttribute(root(), "set", "value", "done")));
+        graph().selectItem("set");
+        find(content, "graph.debug.break").click();
+        assertEquals(1, graph().item("set").issueLevel(), "the node carries the breakpoint mark");
+        assertTrue(debugger().isBreakpoint("set"));
+
+        shell.dock().findPane(UiEditor.VIEWPORT).content();
+        var host = (dev.sixik.unigui.xaml.component.ComponentHost)
+                ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).previewRoot();
+        host.instance().send("Refresh", dev.sixik.unigui.xaml.component.Args.empty());
+        host.instance().flush();
+
+        assertEquals("idle", host.instance().get("Title"), "the node with the breakpoint has not run");
+        assertTrue(panel().debugText().startsWith("Paused before Param.Set set"), panel().debugText());
+        assertEquals(java.util.List.of("set"), graph().selectedItemIds());
+
+        find(content, "graph.debug.continue").click();
+        assertEquals("done", host.instance().get("Title"));
+        assertTrue(panel().debugText().startsWith("Run from refresh"), panel().debugText());
+    }
+
+    @Test
+    void stepNodeWalksOneNodeAtATime() {
+        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
+        assertTrue(session.apply(GraphEdits.setAttribute(root(), "set", "value", "done")));
+        graph().selectItem("refresh");
+        find(content, "graph.debug.break").click();
+
+        shell.dock().findPane(UiEditor.VIEWPORT).content();
+        var host = (dev.sixik.unigui.xaml.component.ComponentHost)
+                ((ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow()).previewRoot();
+        host.instance().send("Refresh", dev.sixik.unigui.xaml.component.Args.empty());
+        host.instance().flush();
+        assertTrue(panel().debugText().startsWith("Paused before Event.Refresh refresh"), panel().debugText());
+
+        find(content, "graph.debug.stepnode").click();
+        assertTrue(panel().debugText().startsWith("Paused before Param.Set set"), panel().debugText());
+        assertEquals("idle", host.instance().get("Title"));
+        find(content, "graph.debug.stepnode").click();
+        assertEquals("done", host.instance().get("Title"));
+        assertTrue(panel().debugText().startsWith("Run from refresh"), panel().debugText());
+    }
+
+    @Test
+    void deletingANodeDropsItsBreakpoint() {
+        Widget content = shell.dock().findPane(ComponentEditor.GRAPH).content();
+        // Без значения у обязательного входа граф не запускается и экземпляра нет: сначала делаем граф полным.
+        assertTrue(session.apply(GraphEdits.setAttribute(root(), "set", "value", "done")));
+        var debugger = debugger();
+        graph().selectItem("set");
+        find(content, "graph.debug.break").click();
+        assertTrue(debugger.isBreakpoint("set"));
+        graph().removeItem("set");
+        assertFalse(debugger.isBreakpoint("set"));
+    }
+
+    // ------------------------------------------------------------------ типизированные значения пинов
+
+    @Test
+    void pinValuesUseEditorsOfTheirTypeAndAreWrittenCanonically() {
+        assertTrue(session.apply(GraphEdits.addNode(root(), "add", "Math.Add", Map.of(), 0, 100)));
+        assertTrue(session.apply(GraphEdits.addNode(root(), "not", "Logic.Not", Map.of(), 200, 100)));
+
+        NodeGraphItem add = graph().item("add");
+        add.value("a", 3.0);
+        add.notifyValueChanged("a");
+        assertEquals("3", definition().nodes().stream().filter(n -> n.id().equals("add")).findFirst().orElseThrow()
+                .attributes().get("a"), "a float 3.0 is written as 3");
+        add.value("b", 2.5);
+        add.notifyValueChanged("b");
+        assertEquals("2.5", definition().nodes().stream().filter(n -> n.id().equals("add")).findFirst().orElseThrow()
+                .attributes().get("b"));
+
+        NodeGraphItem not = graph().item("not");
+        not.value("value", true);
+        not.notifyValueChanged("value");
+        assertEquals("true", definition().nodes().stream().filter(n -> n.id().equals("not")).findFirst().orElseThrow()
+                .attributes().get("value"));
+        assertTrue(graph().item("not").editor("value").widget() instanceof dev.sixik.unigui.widgets.interaction.Checkbox,
+                "a bool pin gets a checkbox, not a text field");
+    }
+
+    @Test
+    void savedValuesComeBackInTheirEditors() {
+        assertTrue(session.apply(GraphEdits.addNode(root(), "add", "Math.Add", Map.of("a", "4"), 0, 100)));
+        assertEquals(4.0, ((Number) graph().item("add").editor("a").value()).doubleValue());
+    }
+
+    // ------------------------------------------------------------------ атрибуты из списка
+
+    private static dev.sixik.unigui.api.widget.Widget findId(dev.sixik.unigui.api.widget.Widget widget, String id) {
+        if (id.equals(widget.id())) return widget;
+        for (dev.sixik.unigui.api.widget.Widget child : widget.children()) {
+            var found = findId(child, id);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private dev.sixik.unigui.widgets.interaction.ComboBox attribute(String node, String attribute) {
+        for (var widget : graph().item(node).allWidgets()) {
+            var found = findId(widget, "graph.attr." + node + "." + attribute);
+            if (found != null) return (dev.sixik.unigui.widgets.interaction.ComboBox) found;
+        }
+        throw new AssertionError("no attribute list " + node + "." + attribute);
+    }
+
+    private void addNode(String id, String type, java.util.Map<String, String> attributes) {
+        assertTrue(session.apply(GraphEdits.addNode(root(), id, type, attributes, 0.0f, 200.0f)));
+    }
+
+    @Test
+    void aComparisonOperatorIsPickedFromAList() {
+        addNode("cmp", "Math.Compare", java.util.Map.of("Op", "=="));
+        var op = attribute("cmp", "Op");
+        assertEquals(java.util.List.of("==", "!=", "<", "<=", ">", ">="), op.items());
+        assertEquals("==", op.selectedItem());
+        op.selectedIndex(op.items().indexOf(">="));
+        assertTrue(session.text().contains("Op=\"&gt;=\"") || session.text().contains("Op=\">=\""), session.text());
+    }
+
+    @Test
+    void aParameterNodePicksItsNameFromTheContract() {
+        addNode("get", "Param.Get", java.util.Map.of("Name", "Title"));
+        assertEquals(java.util.List.of("Title"), attribute("get", "Name").items());
+    }
+
+    @Test
+    void changingTheLiteralTypeDropsAValueThatNoLongerFits() {
+        addNode("lit", "Value.Literal", java.util.Map.of("ValueType", "string", "Value", "hello"));
+        var type = attribute("lit", "ValueType");
+        type.selectedIndex(type.items().indexOf("int"));
+        assertTrue(session.text().contains("ValueType=\"int\""), session.text());
+        assertTrue(!session.text().contains("hello"), session.text());
+    }
+
+    @Test
+    void runsInPlayAreShownByTheDebugBar() {
+        panel();
+        assertTrue(session.apply(GraphEdits.setAttribute(root(), "set", "value", "x")));
+        var viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        shell.dock().findPane(UiEditor.VIEWPORT).content();
+        viewport.playing(true);
+        var host = (dev.sixik.unigui.xaml.component.ComponentHost) viewport.playRoot();
+        host.instance().send("Refresh", dev.sixik.unigui.xaml.component.Args.empty());
+        host.instance().flush();
+        assertTrue(panel().debugText().startsWith("Run from"), panel().debugText());
+    }
+
+    // ------------------------------------------------------------------ клавиша Delete
+
+    private static void attach(dev.sixik.unigui.api.widget.Widget widget) {
+        if (widget instanceof dev.sixik.unigui.widgets.containers.PanelWidget panel) panel.applyQueuedMutations();
+        for (dev.sixik.unigui.api.widget.Widget child : widget.children()) attach(child);
+    }
+
+    /** Нажатие идёт настоящим маршрутом: корень окна, затем цель, затем обратно к корню. */
+    private void press(dev.sixik.unigui.api.widget.Widget target, int key) {
+        shell.dock().selectPane(ComponentEditor.GRAPH);
+        attach(shell.root());
+        dev.sixik.unigui.impl.event.DefaultRoutedEventDispatcher.INSTANCE.dispatch(
+                new dev.sixik.unigui.api.event.KeyPressedEvent(target, key, 0, 0));
+    }
+
+    @Test
+    void deleteInTheGraphRemovesTheNodeAndNotTheWidgetSelectedInTheDocument() {
+        session.select(root().children().get(0));
+        panel();
+        graph().selectItem("set");
+        press(graph(), dev.sixik.unigui.api.input.KeyCodes.DELETE);
+
+        assertEquals(1, definition().nodes().size(), session.text());
+        assertEquals("refresh", definition().nodes().get(0).id());
+        assertEquals(1, graph().items().size(), "only the selected node leaves the canvas");
+        assertTrue(session.text().contains("id=\"title\""), "the body widget stays: " + session.text());
+    }
+
+    @Test
+    void deleteWithAListInsideANodeFocusedStillActsOnTheGraph() {
+        addNode("cmp", "Math.Compare", java.util.Map.of("Op", "=="));
+        session.select(root().children().get(0));
+        graph().selectItem("cmp");
+        press(attribute("cmp", "Op"), dev.sixik.unigui.api.input.KeyCodes.DELETE);
+
+        assertEquals(2, definition().nodes().size(), session.text());
+        assertTrue(session.text().contains("id=\"title\""), session.text());
+    }
+
+    @Test
+    void aDocumentThatStopsParsingDoesNotWipeTheCanvas() {
+        panel();
+        int before = graph().items().size();
+        session.replaceText(session.text().replace("<Label id=\"title\" text=\"{Param Title}\"/>", ""));
+        assertEquals(before, graph().items().size(), "the nodes stay visible while the body is missing");
+        assertTrue(!panel().problemText().isEmpty(), "the reason is shown");
+    }
+
+    @Test
+    void theRootWidgetOfAComponentCannotBeDeleted() {
+        session.select(root().children().get(0));
+        assertTrue(!UiEdits.hasMovableSelection(session));
+        assertTrue(!UiEdits.deleteSelected(session), "a component must keep its body");
+        assertTrue(session.text().contains("id=\"title\""), session.text());
+    }
+
+    @Test
+    void deleteStillRemovesAWidgetWhenTheGraphIsNotFocused() {
+        session.replaceText(session.text().replace("<Label id=\"title\" text=\"{Param Title}\"/>",
+                "<VBox id=\"body\"><Label id=\"title\" text=\"{Param Title}\"/></VBox>"));
+        session.select(root().children().get(0).children().get(0));
+        var inspector = shell.dock().findPane(UiEditor.INSPECTOR).content();
+        attach(shell.root());
+        dev.sixik.unigui.impl.event.DefaultRoutedEventDispatcher.INSTANCE.dispatch(
+                new dev.sixik.unigui.api.event.KeyPressedEvent(inspector, dev.sixik.unigui.api.input.KeyCodes.DELETE, 0, 0));
+        assertTrue(!session.text().contains("id=\"title\""), "the shell shortcut still works elsewhere: " + session.text());
     }
 }

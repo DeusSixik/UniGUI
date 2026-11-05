@@ -5,8 +5,14 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.editor.UiEditorScreen;
+import dev.sixik.unigui.editor.EditorShell;
+import dev.sixik.unigui.editor.XamlEditorDocument;
+import dev.sixik.unigui.editor.ui.UiEditor;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.docking.DockingRoot;
+import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.xaml.edit.DocumentSource;
+import dev.sixik.unigui.xaml.edit.EditorSession;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -103,6 +109,45 @@ class UiEditorLayoutTest {
             assertTrue(widget.layoutBounds().width() > 0.0f && widget.layoutBounds().height() > 0.0f,
                     id + " has a real size: " + widget.layoutBounds());
         }
+    }
+
+    @Test
+    void nothingInTheInspectorLeavesThePanel() {
+        XamlEditorDocument document = new XamlEditorDocument("demo", "demo.xaml",
+                EditorSession.open(DocumentSource.memory("demo", "demo.xaml", UiEditorScreen.SAMPLE)));
+        EditorShell shell = UiEditor.shell(document);
+        document.session().select(document.session().document().root());
+        Widget root = shell.root();
+        layout(root);
+        layout(root);
+
+        Widget inspector = dock(root).findPane("inspector").content();
+        RectView panel = inspector.layoutBounds();
+        assertTrue(panel.width() > 150.0f, "the inspector is open: " + panel);
+        List<Widget> widgets = new ArrayList<>();
+        collect(inspector, widgets);
+        long fields = widgets.stream().filter(TextField.class::isInstance).count();
+        assertTrue(fields > 10, "the properties are shown, got " + fields);
+        for (Widget widget : widgets) {
+            RectView bounds = widget.layoutBounds();
+            if (bounds.width() <= 0.0f) continue;
+            assertTrue(bounds.x() + bounds.width() <= panel.x() + panel.width() + 0.5f,
+                    widget.getClass().getSimpleName() + " leaves the inspector: x=" + bounds.x() + " w=" + bounds.width()
+                            + " panel right=" + (panel.x() + panel.width()));
+        }
+    }
+
+    @Test
+    void thePaletteSharesTheLeftColumnSoThePreviewKeepsItsHeight() {
+        Widget root = UiEditorScreen.createScreen().root();
+        layout(root);
+        DockingRoot dock = dock(root);
+        RectView palette = dock.findPane("palette").content().layoutBounds();
+        RectView hierarchy = dock.findPane("hierarchy").content().layoutBounds();
+        RectView viewport = dock.findPane("viewport").content().layoutBounds();
+        assertTrue(palette.y() > hierarchy.y() + hierarchy.height() - 0.5f, "the palette lies under the hierarchy");
+        assertTrue(palette.x() + palette.width() <= viewport.x(), "the palette is left of the preview");
+        assertTrue(viewport.height() > HEIGHT * 0.5f, "the preview takes most of the height: " + viewport);
     }
 
     @Test

@@ -85,7 +85,11 @@ public final class GraphRuntime {
                                       LoadContext loadContext) {
         GraphRuntime runtime = new GraphRuntime(instance, program, schema, loadContext);
         for (GraphProgram.Entry entry : program.entries()) {
-            instance.handle(entry.event(), args -> runtime.fire(entry.nodeId(), args, null));
+            // Исходящее событие тоже можно обработать в графе: нода On срабатывает, когда компонент его поднимает.
+            boolean outgoing = instance.definition().contract().event(entry.event())
+                    .filter(event -> event.direction() == Contract.Direction.OUT).isPresent();
+            if (outgoing) instance.onEvent(entry.event(), args -> runtime.fireGuarded(entry.nodeId(), entry.event(), args));
+            else instance.handle(entry.event(), args -> runtime.fire(entry.nodeId(), args, null));
         }
         instance.onTick(seconds -> runtime.advance(seconds));
         // Последним: к моменту Destruct графа его собственные ноды уже отработали.
@@ -118,7 +122,9 @@ public final class GraphRuntime {
         if (value instanceof String text && declared.type().textual() && declared.type() != ParamType.STRING) {
             coerced = declared.type().parse(text, LoadContext.DEFAULT);
         }
-        variables.put(name, declared.type().coerce(coerced));
+        Object stored = declared.type().coerce(coerced);
+        variables.put(name, stored);
+        instance.publishVariable(name, stored);
     }
 
     /** @return значение переменной графа; нужно тестам и отладке */
@@ -126,15 +132,64 @@ public final class GraphRuntime {
         return variables.get(name);
     }
 
+    /** Запуск графа с входа: что выполнять и с какими данными события. */
+    private record Fire(String nodeId, Args args, Object sender) {
+    }
+
+    /** Остановленный запуск: ждёт продолжения, данные события нужны, пока он не закончится. */
+    private record Paused(GraphExecutor.Run run, Fire fire) {
+    }
+
+    private Paused paused;
+    private boolean running;
+    private final java.util.ArrayDeque<Fire> queued = new java.util.ArrayDeque<>();
+    private GraphDebugger debugger;
+
+    /**
+     * Подключает отладчик: он получает остановки и управляет ими. Без отладчика запуски идут до конца без пауз.
+     *
+     * @param value отладчик или {@code null}
+     */
+    public void debugger(GraphDebugger value) {
+        this.debugger = value;
+        if (value != null) {
+            value.bind(new GraphDebugger.Control() {
+                @Override
+                public void resume() {
+                    continuePaused(false);
+                }
+
+                @Override
+                public void step() {
+                    continuePaused(true);
+                }
+            });
+        }
+    }
+
     private void fire(String nodeId, Args args, Object eventSender) {
+        Fire request = new Fire(nodeId, args, eventSender);
+        if (running) {
+            // Вложенный запуск (пользовательское событие из ноды) идёт тут же и без остановок.
+            runNested(request);
+            return;
+        }
+        if (paused != null) {
+            queued.add(request); // запуск стоит: новые события ждут его конца
+            return;
+        }
+        start(request);
+    }
+
+    private void runNested(Fire request) {
         Args previousArgs = eventArgs;
         Object previousSender = sender;
-        eventArgs = args;
-        sender = eventSender;
-        if (trace != null) trace.begin(nodeId);
+        eventArgs = request.args();
+        sender = request.sender();
+        if (trace != null) trace.begin(request.nodeId());
         String error = null;
         try {
-            executor.fire(program.model(), nodeId);
+            executor.fire(program.model(), request.nodeId());
         } catch (RuntimeException failure) {
             error = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
             throw failure;
@@ -145,6 +200,72 @@ public final class GraphRuntime {
         }
     }
 
+    private void start(Fire request) {
+        GraphExecutor.Run run = executor.begin(program.model(), request.nodeId());
+        if (trace != null) trace.begin(request.nodeId());
+        drive(run, request, true, false);
+    }
+
+    /**
+     * Ведёт запуск до остановки или конца. Данные события выставляются на время хода и возвращаются после: пока запуск
+     * стоит, они не должны подменять данные других вызовов.
+     */
+    private void drive(GraphExecutor.Run run, Fire request, boolean checkFirst, boolean singleStep) {
+        Args previousArgs = eventArgs;
+        Object previousSender = sender;
+        eventArgs = request.args();
+        sender = request.sender();
+        running = true;
+        String error = null;
+        boolean stopped = false;
+        try {
+            if (singleStep) {
+                run.step();
+                stopped = !run.finished();
+            } else {
+                run.resume(node -> debugger != null && debugger.isBreakpoint(node.id()), checkFirst);
+                stopped = !run.finished();
+            }
+        } catch (RuntimeException failure) {
+            error = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+            throw failure;
+        } finally {
+            running = false;
+            eventArgs = previousArgs;
+            sender = previousSender;
+            if (stopped) {
+                paused = new Paused(run, request);
+                GraphModel.Node next = run.next();
+                if (debugger != null) {
+                    debugger.paused(new GraphDebugger.Pause(next.id(), request.nodeId(), typeOf(next)));
+                }
+            } else {
+                paused = null;
+                if (debugger != null) debugger.resumed();
+                if (trace != null) trace.end(error);
+            }
+        }
+        if (!stopped) drainQueue();
+    }
+
+    private static String typeOf(GraphModel.Node node) {
+        String key = node.typeId();
+        int hash = key.indexOf('#');
+        return hash < 0 ? key : key.substring(0, hash);
+    }
+
+    private void continuePaused(boolean singleStep) {
+        Paused current = paused;
+        if (current == null) return;
+        paused = null;
+        if (debugger != null) debugger.resumed();
+        drive(current.run(), current.fire(), false, singleStep);
+    }
+
+    private void drainQueue() {
+        while (paused == null && !running && !queued.isEmpty()) start(queued.poll());
+    }
+
     /**
      * Включает запись хода графа для отладчика.
      *
@@ -153,6 +274,20 @@ public final class GraphRuntime {
     public void trace(GraphTrace value) {
         this.trace = value;
         executor.trace(value);
+    }
+
+    /** Запуск от синхронного события: нода, которая поднимает своё же событие, не должна уйти в бесконечную рекурсию. */
+    private void fireGuarded(String nodeId, String event, Args args) {
+        if (++depth > MAX_CALL_DEPTH) {
+            depth = 0;
+            throw new IllegalStateException("Event '" + event + "' raises itself more than " + MAX_CALL_DEPTH
+                    + " levels deep; does its On node lead back to Raise?");
+        }
+        try {
+            fire(nodeId, args, null);
+        } finally {
+            if (depth > 0) depth--;
+        }
     }
 
     void callCustom(String name, Args args, Object eventSender) {
@@ -185,7 +320,7 @@ public final class GraphRuntime {
     }
 
     private void advance(float seconds) {
-        if (pending.isEmpty()) return;
+        if (pending.isEmpty() || paused != null) return; // пока запуск стоит, время графа заморожено
         List<Map.Entry<String, Pending>> due = new ArrayList<>();
         for (Iterator<Map.Entry<String, Pending>> it = pending.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Pending> entry = it.next();

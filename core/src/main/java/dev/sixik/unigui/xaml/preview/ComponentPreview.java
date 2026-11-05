@@ -10,6 +10,7 @@ import dev.sixik.unigui.xaml.component.ComponentHost;
 import dev.sixik.unigui.xaml.component.Contract;
 import dev.sixik.unigui.xaml.edit.NodePath;
 import dev.sixik.unigui.xaml.load.LoadOptions;
+import dev.sixik.unigui.xaml.logic.GraphDebugger;
 import dev.sixik.unigui.xaml.logic.GraphTrace;
 import dev.sixik.unigui.xaml.schema.LoadContext;
 import dev.sixik.unigui.xaml.schema.Schema;
@@ -43,6 +44,7 @@ public final class ComponentPreview implements AutoCloseable {
     private final Map<String, Object> samples = new LinkedHashMap<>();
     private final List<String> events = new ArrayList<>();
     private final GraphTrace trace = new GraphTrace();
+    private final GraphDebugger debugger;
     private ComponentHost host;
     private UiNode shownRoot;
     private java.util.function.Consumer<String> eventListener;
@@ -58,8 +60,21 @@ public final class ComponentPreview implements AutoCloseable {
      * @param options настройки загрузки: резолвер текстур и команды окружающего документа
      */
     public ComponentPreview(Schema schema, LoadOptions options) {
+        this(schema, options, new GraphDebugger());
+    }
+
+    /**
+     * Создаёт предпросмотр с общим отладчиком: запуск по Play и редактируемый предпросмотр делят точки останова.
+     *
+     * @param schema   схема типов
+     * @param options  настройки загрузки
+     * @param debugger отладчик графа
+     */
+    public ComponentPreview(Schema schema, LoadOptions options, GraphDebugger debugger) {
         if (schema == null) throw new IllegalArgumentException("schema must not be null");
+        if (debugger == null) throw new IllegalArgumentException("debugger must not be null");
         this.schema = schema;
+        this.debugger = debugger;
         LoadOptions effective = options == null ? LoadOptions.DEFAULT : options;
         this.context = new LoadContext(effective.textureResolver(), effective.commands());
     }
@@ -86,6 +101,7 @@ public final class ComponentPreview implements AutoCloseable {
             });
             trace.clear();
             next.traceTo(trace);
+            next.debugTo(debugger);
             applySamples(next, definition.contract());
             subscribe(next, definition.contract());
             next.build(context);
@@ -195,6 +211,11 @@ public final class ComponentPreview implements AutoCloseable {
     /** @return запись хода графа показанного экземпляра; очищается при каждой пересборке */
     public GraphTrace trace() {
         return trace;
+    }
+
+    /** @return отладчик графа: точки останова переживают пересборку предпросмотра */
+    public GraphDebugger debugger() {
+        return debugger;
     }
 
     /** @return журнал исходящих событий, старые записи первыми */

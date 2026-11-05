@@ -140,6 +140,37 @@ public final class ContractEdits {
         });
     }
 
+    /**
+     * Меняет тип параметра или переменной. Значение по умолчанию, которое новому типу не подходит, сбрасывается: иначе
+     * смена типа сорвалась бы из-за старого значения.
+     *
+     * @param componentRoot корневой узел документа компонента
+     * @param kind          {@code Param} или {@code Var}
+     * @param name          имя элемента
+     * @param type          новый тип
+     * @return правка
+     */
+    public static Edit setType(UiNode componentRoot, String kind, String name, String type) {
+        return edit(componentRoot, "Set type of " + name, items -> {
+            int index = indexOf(items, kind, name);
+            if (index < 0) throw new IllegalArgumentException("No " + kind + " '" + name + "' in the contract.");
+            UiNode copy = ((UiNode) items.get(index)).copy();
+            copy.set("Type", type);
+            String current = copy.attributeText("Default", "");
+            if (!current.isEmpty() && !fits(type, current)) copy.remove(null, UiName.of("Default"));
+            items.set(index, copy);
+        });
+    }
+
+    private static boolean fits(String type, String text) {
+        try {
+            ParamType.parse(type).parse(text, dev.sixik.unigui.xaml.schema.LoadContext.DEFAULT);
+            return true;
+        } catch (RuntimeException failure) {
+            return false;
+        }
+    }
+
     // ------------------------------------------------------------------ внутреннее
 
     private static Edit add(UiNode root, String kind, String name, String type, String defaultText) {

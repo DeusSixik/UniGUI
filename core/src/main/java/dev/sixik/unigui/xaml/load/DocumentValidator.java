@@ -151,6 +151,7 @@ public final class DocumentValidator {
         }
         MarkupExtensionRegistry inside = extensions.copy()
                 .replace("Param", (context, use, target) -> { })
+                .replace("Var", (context, use, target) -> { })
                 .replace("Raise", (context, use, target) -> { });
         DocumentValidator body = new DocumentValidator(schema, inside, strictAttributes);
         body.contract = definition.contract();
@@ -293,7 +294,7 @@ public final class DocumentValidator {
                     return;
                 }
                 String name = extension.name().local();
-                if (contract != null && (name.equals("Param") || name.equals("Raise"))) {
+                if (contract != null && (name.equals("Param") || name.equals("Var") || name.equals("Raise"))) {
                     checkComponentUse(name, extension, info, property, where);
                 } else if (name.equals("Binding") && !info.bindable()) {
                     add(property.location(), where + "Attribute '" + property.displayName()
@@ -325,13 +326,14 @@ public final class DocumentValidator {
                 return;
             }
             String name = literal.text().trim();
-            if (kind.equals("Param")) {
-                Contract.Param declared = contract.param(name).orElse(null);
+            if (kind.equals("Param") || kind.equals("Var")) {
+                boolean parameter = kind.equals("Param");
+                Contract.Param declared = (parameter ? contract.param(name) : contract.var(name)).orElse(null);
                 if (declared == null) {
-                    add(property.location(), where + "the component has no parameter '" + name + "'. Declared: "
-                            + contract.paramNames() + ".");
+                    add(property.location(), where + "the component has no " + (parameter ? "parameter" : "variable")
+                            + " '" + name + "'." + (parameter ? " Declared: " + contract.paramNames() + "." : ""));
                 } else if (!declared.type().fits(info.valueType())) {
-                    add(property.location(), where + "parameter '" + name + "' is " + declared.type().name()
+                    add(property.location(), where + (parameter ? "parameter" : "variable") + " '" + name + "' is " + declared.type().name()
                             + " but '" + property.displayName() + "' expects " + info.valueType().getSimpleName() + ".");
                 }
                 return;

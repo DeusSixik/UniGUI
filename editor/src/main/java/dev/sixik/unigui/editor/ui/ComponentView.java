@@ -14,6 +14,7 @@ import java.util.Optional;
 final class ComponentView {
     private final List<Runnable> listeners = new ArrayList<>();
     private ComponentPreview preview;
+    private ComponentPreview running;
 
     /** @return предпросмотр компонента или пусто, если открыт не компонент */
     Optional<ComponentPreview> preview() {
@@ -28,6 +29,26 @@ final class ComponentView {
     void preview(ComponentPreview next) {
         this.preview = next;
         changed();
+    }
+
+    /** @return копия, запущенная по Play, или пусто: только в неё отправляются события */
+    Optional<ComponentPreview> running() {
+        return Optional.ofNullable(running);
+    }
+
+    /**
+     * Запоминает копию, запущенную по Play.
+     *
+     * @param next копия или {@code null}, когда запуск остановлен
+     */
+    void running(ComponentPreview next) {
+        this.running = next;
+        changed();
+    }
+
+    /** @return то, что сейчас исполняется: запущенная копия, а без неё предпросмотр */
+    Optional<ComponentPreview> active() {
+        return running != null ? running() : preview();
     }
 
     /** Сообщает подписчикам, что предпросмотр показал другое состояние или журнал событий вырос. */

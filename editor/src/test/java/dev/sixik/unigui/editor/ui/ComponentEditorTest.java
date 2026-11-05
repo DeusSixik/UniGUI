@@ -81,6 +81,19 @@ final class ComponentEditorTest {
         return (TextField) requireNonNull(contract(id), id);
     }
 
+    /** Выбирает пункт выпадающего списка панели контракта. */
+    private void choose(String id, String item) {
+        ComboBox combo = (ComboBox) requireNonNull(contract(id), id);
+        combo.selectedIndex(combo.items().indexOf(item));
+    }
+
+    /** Правит имя на месте и применяет его, как по Enter. */
+    private void rename(String id, String next) {
+        dev.sixik.unigui.editor.style.FlatField name = (dev.sixik.unigui.editor.style.FlatField) requireNonNull(contract(id), id);
+        name.text(next);
+        name.commit();
+    }
+
     private Button button(String id) {
         return (Button) requireNonNull(contract(id), id);
     }
@@ -128,7 +141,8 @@ final class ComponentEditorTest {
 
     private String contractProblem() {
         return all(content(ComponentEditor.CONTRACT), Label.class).stream()
-                .map(Label::text).filter(text -> text.contains("integer")).findFirst().orElse("");
+                .map(Label::text).filter(text -> text.contains("already") || text.contains("declared")
+                        || text.contains("duplicate") || text.contains("Duplicate")).findFirst().orElse("");
     }
 
     // ------------------------------------------------------------------ предпросмотр
@@ -154,10 +168,10 @@ final class ComponentEditorTest {
 
     @Test
     void thePanelListsTheDeclaredParametersAndEvents() {
-        assertEquals("Title", field("param.Title.Type").id().isEmpty() ? "" : "Title");
-        assertEquals("string", field("param.Title.Type").text());
+        assertEquals("string", ((ComboBox) contract("param.Title.Type")).selectedItem());
         assertEquals("idle", field("param.Title.Default").text());
-        assertEquals("id:string", field("event.Buy.Args").text());
+        assertEquals("id", field("arg.Buy.id.name").text());
+        assertEquals("string", ((ComboBox) contract("arg.Buy.id.type")).selectedItem());
         assertNotNull(contract("menu.Event.Refresh"));
     }
 
@@ -183,10 +197,11 @@ final class ComponentEditorTest {
 
     @Test
     void aRejectedEditShowsTheReasonAndLeavesTheDocument() {
-        String before = session.text();
-        field("param.Title.Type").text("integer");
-        assertEquals(before, session.text());
+        rename("name.Param.Title", "Buy");
+        assertTrue(session.text().contains("<Param Name=\"Title\""), session.text());
+        assertTrue(session.text().contains("{Param Title}"), session.text());
         assertFalse(contractProblem().isEmpty(), "the reason is shown under the table");
+        assertEquals("Title", field("name.Param.Title").text(), "the name goes back");
     }
 
     @Test
@@ -202,10 +217,10 @@ final class ComponentEditorTest {
     }
 
     @Test
-    void theDirectionOfAnEventIsChosenFromAList() {
-        ComboBox direction = (ComboBox) contract("event.Buy.Direction");
-        direction.selectedIndex(1);
-        assertTrue(session.text().contains("Direction=\"In\""), session.text());
+    void anEventMovesBetweenIncomingAndOutgoingFromItsMenu() {
+        chooseFromMenu("Event", "Buy", "Make incoming");
+        assertTrue(session.text().contains("Name=\"Buy\" Direction=\"In\""), session.text());
+        assertNotNull(contract("event.Buy.Coalesce"), "an incoming event offers the per-frame option");
     }
 
     // ------------------------------------------------------------------ примерные значения и события
@@ -221,7 +236,8 @@ final class ComponentEditorTest {
     @Test
     void anIncomingEventCanBeSentAndAnOutgoingOneAppearsInTheLog() {
         content(UiEditor.VIEWPORT);
-        ComponentHost host = (ComponentHost) viewport().previewRoot();
+        viewport().playing(true);
+        ComponentHost host = (ComponentHost) viewport().playRoot();
         List<Args> received = new ArrayList<>();
         host.instance().handle("Refresh", received::add);
         button("send.Refresh").click();
@@ -230,6 +246,129 @@ final class ComponentEditorTest {
         host.instance().emit("Buy", Args.of("id", "sword"));
         assertTrue(all(content(ComponentEditor.CONTRACT), Label.class).stream()
                 .anyMatch(label -> label.text().equals("Buy(id=sword)")), "the log shows the event");
+    }
+
+    // ------------------------------------------------------------------ типы, имена и запуск
+
+    @Test
+    void theTypeIsPickedFromTheRegisteredTypes() {
+        ComboBox type = (ComboBox) contract("param.Title.Type");
+        assertTrue(type.items().containsAll(List.of("string", "int", "float", "bool", "color")), type.items().toString());
+        choose("param.Title.Type", "int");
+        assertTrue(session.text().contains("Name=\"Title\" Type=\"int\""), session.text());
+        assertFalse(session.text().contains("Default=\"idle\""), "a default that does not fit the new type is dropped");
+    }
+
+    @Test
+    void aNameIsEditedInPlaceAndReferencesFollow() {
+        rename("name.Param.Title", "Caption");
+        assertTrue(session.text().contains("{Param Caption}"), session.text());
+        assertNotNull(contract("name.Param.Caption"), "the panel shows the new name");
+        document.undo();
+        assertTrue(session.text().contains("{Param Title}"), "a rename is one undo step");
+
+        rename("name.Event.Buy", "Purchase");
+        assertTrue(session.text().contains("Name=\"Purchase\""), session.text());
+    }
+
+    @Test
+    void eventsAreGroupedByMeaningInsteadOfDirectionCodes() {
+        List<String> texts = all(content(ComponentEditor.CONTRACT), Label.class).stream().map(Label::text).toList();
+        assertTrue(texts.containsAll(List.of("Incoming events", "Outgoing events", "Custom events")), texts.toString());
+        assertNull(contract("event.Buy.Direction"), "no In/Out list");
+        assertNull(contract("event.Buy.Coalesce"), "the option only applies to incoming events");
+        assertNotNull(contract("event.Refresh.Coalesce"));
+    }
+
+    @Test
+    void theCoalesceOptionIsACheckbox() {
+        ((dev.sixik.unigui.widgets.interaction.Checkbox) contract("event.Refresh.Coalesce")).checked(true);
+        assertTrue(session.text().contains("Coalesce=\"true\""), session.text());
+    }
+
+    @Test
+    void argumentsAreAddedRenamedAndRemovedFromTheList() {
+        button("arg.add.Buy").click();
+        assertTrue(session.text().contains("id:string, arg1:string"), session.text());
+        rename("arg.Buy.arg1.name", "count");
+        choose("arg.Buy.count.type", "int");
+        assertTrue(session.text().contains("id:string, count:int"), session.text());
+        button("arg.Buy.count.remove").click();
+        assertTrue(session.text().contains("Args=\"id:string\""), session.text());
+    }
+
+    @Test
+    void customEventsAreCreatedAndRenamedInThePanel() {
+        button("add.Custom").click();
+        assertTrue(session.text().contains("Type=\"Event.Custom\""), session.text());
+        rename("name.Custom.CustomEvent1", "Ready");
+        assertTrue(session.text().contains("Name=\"Ready\""), session.text());
+        assertNotNull(contract("arg.add.Ready"), "a custom event has arguments too");
+    }
+
+    @Test
+    void sendingDoesNothingOutsidePlayMode() {
+        content(UiEditor.VIEWPORT);
+        ComponentHost preview = (ComponentHost) viewport().previewRoot();
+        List<Args> received = new ArrayList<>();
+        preview.instance().handle("Refresh", received::add);
+        button("send.Refresh").click();
+        assertTrue(received.isEmpty(), "the preview stays a blueprint");
+    }
+
+    @Test
+    void playModeEventsNeverTouchThePreview() {
+        content(UiEditor.VIEWPORT);
+        ComponentHost preview = (ComponentHost) viewport().previewRoot();
+        List<Args> onPreview = new ArrayList<>();
+        preview.instance().handle("Refresh", onPreview::add);
+
+        viewport().playing(true);
+        ComponentHost running = (ComponentHost) viewport().playRoot();
+        assertTrue(running != preview, "Play runs its own instance");
+        List<Args> onCopy = new ArrayList<>();
+        running.instance().handle("Refresh", onCopy::add);
+        button("send.Refresh").click();
+        assertEquals(1, onCopy.size());
+        assertTrue(onPreview.isEmpty());
+
+        viewport().playing(false);
+        button("send.Refresh").click();
+        assertEquals(1, onCopy.size(), "stopped means stopped");
+    }
+
+    @Test
+    void previewValuesCarryIntoPlay() {
+        field("sample.Title").text("Sword");
+        content(UiEditor.VIEWPORT);
+        viewport().playing(true);
+        assertEquals("Sword", ((ComponentHost) viewport().playRoot()).instance().get("Title"));
+    }
+
+    // ------------------------------------------------------------------ свойства как значения контракта
+
+    private InspectorPanel inspector() {
+        content(UiEditor.INSPECTOR);
+        return (InspectorPanel) shell.panel(UiEditor.INSPECTOR).orElseThrow();
+    }
+
+    @Test
+    void anInspectorRowOffersToPromoteItsProperty() {
+        UiNode button = session.document().root().children().get(0).children().get(1);
+        session.select(button);
+        assertTrue(inspector().menuOf("text").containsAll(List.of("Promote to Variable", "Promote to Parameter")),
+                inspector().menuOf("text").toString());
+        assertFalse(inspector().menuOf("id").contains("Promote to Variable"));
+    }
+
+    @Test
+    void promotingAPropertyAddsItToTheContractAndLinksTheRow() {
+        UiNode button = session.document().root().children().get(0).children().get(1);
+        session.select(button);
+        assertTrue(inspector().promote("text", dev.sixik.unigui.xaml.component.Promotions.Kind.VARIABLE));
+        assertNotNull(contract("name.Var.BuyText"), "the new variable is listed");
+        assertNotNull(findId(content(UiEditor.INSPECTOR), "inspector.bound.text"), "the row links to it");
+        assertTrue(session.text().contains("{Var BuyText}"), session.text());
     }
 
     // ------------------------------------------------------------------ палитра
@@ -249,5 +388,20 @@ final class ComponentEditorTest {
                 <Component x:Name="Bare" xmlns:x="https://unigui.dev/xaml"/>"""));
         UiEdits.insert(bare, bare.schema().type("VBox").orElseThrow());
         assertEquals("VBox", bare.document().root().children().get(0).type().local());
+    }
+
+    @Test
+    void aDefaultIsNormalizedByTheTypeOfItsParameter() {
+        button("add.Param").click();
+        choose("param.Param1.Type", "bool");
+        ((dev.sixik.unigui.widgets.interaction.Checkbox) contract("param.Param1.Default")).checked(true);
+        assertTrue(session.text().contains("Default=\"true\""), session.text());
+
+        button("add.Param").click();
+        choose("param.Param2.Type", "int");
+        field("param.Param2.Default").text("1.5");
+        assertFalse(session.text().contains("Default=\"1.5\""), "a fractional default for an int is refused");
+        assertTrue(all(content(ComponentEditor.CONTRACT), Label.class).stream()
+                .anyMatch(label -> label.text().contains("whole number")), "the reason is shown");
     }
 }

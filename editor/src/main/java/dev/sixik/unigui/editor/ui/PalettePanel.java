@@ -1,52 +1,42 @@
 package dev.sixik.unigui.editor.ui;
 
+import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.PanelSlot;
-import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.editor.style.EditorIcons;
+import dev.sixik.unigui.editor.style.EditorStyles;
 import dev.sixik.unigui.widgets.containers.ScrollView;
-import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.containers.VBox;
-import dev.sixik.unigui.widgets.containers.WrapPanel;
-import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.dnd.DragController;
 import dev.sixik.unigui.widgets.dnd.DragGhost;
 import dev.sixik.unigui.widgets.dnd.DragPayload;
-import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextField;
-import dev.sixik.unigui.xaml.UiDocument;
-import dev.sixik.unigui.xaml.UiNode;
+import dev.sixik.unigui.widgets.navigation.TreeView;
+import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 import dev.sixik.unigui.xaml.edit.EditorSession;
-import dev.sixik.unigui.xaml.load.LoadOptions;
-import dev.sixik.unigui.xaml.load.LoadedScreen;
-import dev.sixik.unigui.xaml.load.XamlLoader;
 import dev.sixik.unigui.xaml.schema.TypeInfo;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.Set;
 
 /**
- * Типы виджетов схемы по категориям. В режиме плиток у каждого типа живая миниатюра (настоящий виджет, созданный из
- * схемы), в режиме списка только название. Тип можно перетащить на предпросмотр или на строку иерархии, а щелчок
- * добавляет его в выбранный контейнер.
+ * Типы виджетов схемы списком по группам, как меню Create в Unity: группа раскрывается и сворачивается, внутри неё
+ * типы по алфавиту. Щелчок по типу добавляет его в выбранный контейнер, перетаскивание бросает его на предпросмотр или
+ * на строку иерархии. Поиск оставляет подходящие типы и раскрывает их группы.
  */
 final class PalettePanel extends SessionPanel {
     /** Тип данных перетаскивания: в {@link DragPayload#data} лежит {@link TypeInfo}. */
     static final String PAYLOAD_TYPE = "unigui.widget";
 
-    private static final float TILE_WIDTH = 74.0f;
-    private static final float PREVIEW_HEIGHT = 40.0f;
-
-    private final VBox entries = new VBox();
-    private final TextField filter = new TextField();
-    private final Button mode = new Button("List");
-    private final Map<TypeInfo<?>, Widget> previews = new IdentityHashMap<>();
-    private final List<LoadedScreen<Widget>> screens = new ArrayList<>();
-    private boolean tileMode = true;
+    private final TreeView tree = new TreeView();
+    private final TextField filter = EditorStyles.searchField();
+    /** Свёрнутые группы запоминаются между обновлениями. */
+    private final Set<String> collapsedGroups = new HashSet<>();
 
     @Override
     public String id() {
@@ -56,6 +46,11 @@ final class PalettePanel extends SessionPanel {
     @Override
     public String title() {
         return "Palette";
+    }
+
+    @Override
+    public dev.sixik.unigui.api.render.UiIcon icon() {
+        return dev.sixik.unigui.editor.style.EditorIcons.PALETTE;
     }
 
     @Override
@@ -71,29 +66,19 @@ final class PalettePanel extends SessionPanel {
     @Override
     protected Widget build(EditorContext editorContext) {
         VBox root = new VBox();
-        root.spacing(4.0f);
         root.layout(style -> style.sizePercent(100.0f, 100.0f));
-        filter.placeholder("Search widgets");
+        filter.id("palette.search");
+        filter.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
         filter.onTextChanged(event -> refresh());
-        mode.id("palette.mode");
-        mode.onClick(click -> {
-            tileMode = !tileMode;
-            mode.text(tileMode ? "List" : "Tiles");
-            refresh();
-        });
-        HBox bar = new HBox();
-        bar.spacing(4.0f);
-        bar.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
-        filter.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
-        bar.addChild(filter);
-        bar.addChild(mode);
-        bar.applyQueuedMutations();
 
-        entries.spacing(1.0f);
-        entries.layout(style -> style.widthPercent(100.0f));
-        ScrollView scroll = new ScrollView(entries);
+        EditorStyles.styleTreeView(tree);
+        tree.iconMode(TreeView.TreeIconMode.NONE);
+        tree.layout(style -> style.widthPercent(100.0f));
+        tree.onRowCreated(this::rowCreated);
+        ScrollView scroll = new ScrollView(tree);
+        EditorStyles.styleScroll(scroll);
         scroll.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
-        root.addChild(bar);
+        root.addChild(EditorStyles.searchBar(filter));
         root.addChild(scroll);
         root.applyQueuedMutations();
         return root;
@@ -101,107 +86,78 @@ final class PalettePanel extends SessionPanel {
 
     @Override
     protected void bound(EditorSession next) {
-        for (LoadedScreen<Widget> screen : screens) screen.close();
-        screens.clear();
-        previews.clear();
         refresh();
     }
 
     private void refresh() {
-        // Миниатюры живут до следующего обновления: виджет нельзя держать в двух плитках, поэтому создаются заново.
-        for (LoadedScreen<Widget> screen : screens) screen.close();
-        screens.clear();
-        previews.clear();
-        entries.clearChildren();
+        tree.beginBatch();
+        tree.clearRoots();
         EditorSession session = session().orElse(null);
-        if (session == null) {
-            entries.applyQueuedMutations();
-            return;
-        }
-        String query = filter.text().trim().toLowerCase(Locale.ROOT);
-        List<TypeInfo<?>> types = new ArrayList<>(session.schema().types());
-        types.sort(Comparator.comparing((TypeInfo<?> type) -> type.category().toLowerCase(Locale.ROOT))
-                .thenComparing(type -> type.name().local().toLowerCase(Locale.ROOT)));
-        String category = null;
-        WrapPanel group = null;
-        for (TypeInfo<?> type : types) {
-            String name = type.name().local();
-            if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) continue;
-            if (!type.category().equals(category)) {
-                category = type.category();
-                entries.addChild(new Label(category));
-                if (tileMode) {
-                    group = new WrapPanel();
-                    group.spacing(4.0f);
-                    group.lineSpacing(4.0f);
-                    group.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
-                    entries.addChild(group);
+        if (session != null) {
+            String query = filter.text().trim().toLowerCase(Locale.ROOT);
+            List<TypeInfo<?>> types = new ArrayList<>(session.schema().types());
+            types.sort(Comparator.comparing((TypeInfo<?> type) -> type.category().toLowerCase(Locale.ROOT))
+                    .thenComparing(type -> type.name().local().toLowerCase(Locale.ROOT)));
+            TreeViewNode group = null;
+            String category = null;
+            for (TypeInfo<?> type : types) {
+                String name = type.name().local();
+                if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) continue;
+                if (!type.category().equals(category)) {
+                    category = type.category();
+                    group = new TreeViewNode(category);
+                    group.folder(true);
+                    group.noIcon();
+                    group.userData(category);
+                    tree.addRoot(group);
                 }
+                TreeViewNode entry = new TreeViewNode(name);
+                entry.userData(type);
+                UiIcon icon = EditorIcons.forWidget(name);
+                entry.iconDraw((draw, owner, x, y, width, height) -> icon.draw(draw, x + 2.0f, y + 2.0f, width - 4.0f,
+                        EditorStyles.TEXT_LABEL));
+                group.addChild(entry);
             }
-            if (tileMode) group.addChild(tile(session, type));
-            else entries.addChild(listEntry(session, type));
+            for (TreeViewNode root : tree.roots()) {
+                // Поиск раскрывает все группы с совпадениями: короткий список не должен прятать найденное.
+                root.silentExpanded(!query.isEmpty() || !collapsedGroups.contains((String) root.userData()));
+            }
         }
-        if (tileMode) {
-            // Плитки добавляются в группы уже после того, как группы попали в список.
-            for (Widget child : entries.children()) if (child instanceof WrapPanel panel) panel.applyQueuedMutations();
-        }
-        entries.applyQueuedMutations();
+        tree.endBatch();
     }
 
-    private Widget listEntry(EditorSession session, TypeInfo<?> type) {
-        Button button = new Button("  " + type.name().local());
-        button.id("palette." + type.name().local());
-        button.onClick(event -> UiEdits.insert(session, type));
-        draggable(button, button, type);
-        return button;
-    }
-
-    private Widget tile(EditorSession session, TypeInfo<?> type) {
-        VBox tile = new VBox();
-        tile.spacing(2.0f);
-        tile.layout(style -> style.width(TILE_WIDTH).flexShrink(0.0f));
-
-        StackPanel frame = new StackPanel();
-        frame.layout(style -> style.width(TILE_WIDTH).height(PREVIEW_HEIGHT).flexShrink(0.0f)
-                .overflow(dev.sixik.unigui.api.layout.Overflow.HIDDEN));
-        Widget preview = previewOf(session, type);
-        if (preview != null) frame.addChild(preview);
-        frame.applyQueuedMutations();
-
-        Button name = new Button(type.name().local());
-        name.id("palette." + type.name().local());
-        name.layout(style -> style.width(TILE_WIDTH).flexShrink(0.0f));
-        name.onClick(event -> UiEdits.insert(session, type));
-        tile.addChild(frame);
-        tile.addChild(name);
-        tile.applyQueuedMutations();
-        draggable(name, tile, type);
-        draggable(frame, tile, type);
-        return tile;
-    }
-
-    private void draggable(Widget handle, Widget moving, TypeInfo<?> type) {
+    private void rowCreated(TreeView.TreeRowButton row) {
+        TreeViewNode node = row.node();
+        if (!(node.userData() instanceof TypeInfo<?> type)) return;
         String name = type.name().local();
-        DragController.attach(handle)
-                .dragged(moving)
-                .threshold(4.0f)
+        row.id("palette." + name);
+        row.onClick(click -> session().ifPresent(session -> UiEdits.insert(session, type)));
+        DragController.attach(row).dragged(row).threshold(4.0f)
                 .payload(() -> DragPayload.of(name, PAYLOAD_TYPE, name, type))
                 .ghost(DragGhost.text());
     }
 
-    /** Миниатюра типа: настоящий виджет по схеме; {@code null}, если тип без аргументов не создаётся. */
-    private Widget previewOf(EditorSession session, TypeInfo<?> type) {
-        try {
-            UiNode sample = new UiNode(type.name());
-            if (type.property("text").isPresent()) sample.set("text", type.name().local());
-            LoadedScreen<Widget> screen = new XamlLoader(session.schema(), LoadOptions.DEFAULT.strictAttributes(false))
-                    .loadScreen(UiDocument.of(sample));
-            screens.add(screen);
-            Widget widget = screen.root();
-            previews.put(type, widget);
-            return widget;
-        } catch (RuntimeException failure) {
-            return null;
+    /** Сворачивает или разворачивает группу по имени; нужно тестам и командам. */
+    void toggleGroup(String category) {
+        for (TreeViewNode root : tree.roots()) {
+            if (category.equals(root.userData())) {
+                boolean expand = !root.expanded();
+                if (expand) collapsedGroups.remove(category);
+                else collapsedGroups.add(category);
+                root.expanded(expand);
+            }
         }
+    }
+
+    /** @return группы палитры в порядке показа; нужно тестам */
+    List<String> groups() {
+        List<String> names = new ArrayList<>();
+        for (TreeViewNode root : tree.roots()) names.add((String) root.userData());
+        return names;
+    }
+
+    /** @return число видимых строк (группы и развёрнутые типы); нужно тестам */
+    int visibleRows() {
+        return tree.visibleNodes().size();
     }
 }

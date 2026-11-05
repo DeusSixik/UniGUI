@@ -28,6 +28,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -389,8 +390,11 @@ final class UiEditorInteractionTest {
     void thePreviewIsLaidOutInsideAFixedScreenFrame() {
         ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
         layout();
+        assertTrue(viewport.previewRoot().layoutBounds().width() < 1280.0f, "by default the preview fills the panel");
+        viewport.screen("1280x720");
+        layout();
         Widget root = viewport.previewRoot();
-        assertEquals(1280.0f, root.layoutBounds().width(), 0.5f, "the default screen is 1280x720");
+        assertEquals(1280.0f, root.layoutBounds().width(), 0.5f, "a fixed screen has exactly that size");
         assertEquals(720.0f, root.layoutBounds().height(), 0.5f);
 
         viewport.screen("854x480");
@@ -404,6 +408,7 @@ final class UiEditorInteractionTest {
     @Test
     void clickingAZoomedPreviewStillSelectsTheWidgetUnderThePointer() {
         ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
+        viewport.screen("1280x720");
         layout();
         viewport.zoom(0.5f);
         viewport.applyView();
@@ -421,22 +426,58 @@ final class UiEditorInteractionTest {
     }
 
     @Test
-    void playModeLetsTheLiveInterfaceReceiveClicks() {
+    void playModeRunsAnIndependentCopyAndLeavesTheEditedPreviewAlone() {
         ViewportPanel viewport = (ViewportPanel) shell.panel(UiEditor.VIEWPORT).orElseThrow();
         layout();
-        boolean[] pressed = {false};
-        ((dev.sixik.unigui.widgets.interaction.Button) find(viewport.previewRoot(), "ok")).onClick(event -> pressed[0] = true);
+        Widget design = viewport.previewRoot();
+        boolean[] designPressed = {false};
+        ((dev.sixik.unigui.widgets.interaction.Button) find(design, "ok")).onClick(event -> designPressed[0] = true);
 
         viewport.playing(true);
-        viewport.applyView();
         assertTrue(viewport.playing());
-        click(find(viewport.previewRoot(), "ok"));
-        assertTrue(pressed[0], "in Play mode the button gets the click");
+        Widget copy = viewport.playRoot();
+        assertNotNull(copy, "Play builds its own instance of the interface");
+        assertNotSame(design, copy);
+        boolean[] copyPressed = {false};
+        ((dev.sixik.unigui.widgets.interaction.Button) find(copy, "ok")).onClick(event -> copyPressed[0] = true);
+        layout();
+        click(find(copy, "ok"));
+        assertTrue(copyPressed[0], "the copy gets the click");
+        assertFalse(designPressed[0], "the edited preview does not");
         assertTrue(session.selected().isEmpty(), "and nothing is selected");
 
+        // Правка документа не попадает в уже запущенную копию.
+        session.apply(dev.sixik.unigui.xaml.edit.Edits.setProperty(node("title"), "text", "Changed"));
+        assertEquals("Hello", ((Label) find(viewport.playRoot(), "title")).text(), "the running copy keeps what it was started with");
+
         viewport.playing(false);
-        pressed[0] = false;
+        assertNull(viewport.playRoot(), "stopping throws the copy away");
+        assertEquals("Changed", ((Label) find(viewport.previewRoot(), "title")).text(), "the design preview followed the edit");
         click(find(viewport.previewRoot(), "ok"));
-        assertFalse(pressed[0], "back in design mode the click selects instead");
+        assertFalse(designPressed[0], "back in design mode a click selects instead of pressing");
+    }
+
+    @Test
+    void selectingARowFarDownScrollsTheHierarchyToIt() {
+        // Много строк: выбранная в Viewport должна оказаться видимой в иерархии.
+        UiNode root = session.document().root();
+        for (int i = 0; i < 60; i++) {
+            UiNode extra = new UiNode(dev.sixik.unigui.xaml.UiName.of("Label"));
+            extra.set("id", "extra" + i);
+            session.apply(dev.sixik.unigui.xaml.edit.Edits.addChild(root, root.children().size(), extra));
+        }
+        applyAll(shell.dock().findPane(UiEditor.HIERARCHY).content());
+        layout();
+        HierarchyPanel hierarchy = (HierarchyPanel) shell.panel(UiEditor.HIERARCHY).orElseThrow();
+        session.select(root.children().get(root.children().size() - 1));
+        applyAll(shell.dock().findPane(UiEditor.HIERARCHY).content());
+        layout();
+
+        assertTrue(hierarchy.revealSelected(), "the scroll was done when the layout was known");
+        RectView row = all(shell.dock().findPane(UiEditor.HIERARCHY).content(), dev.sixik.unigui.widgets.interaction.Button.class)
+                .stream().filter(button -> button.text().contains("#extra59")).findFirst().orElseThrow().layoutBounds();
+        RectView panel = shell.dock().findPane(UiEditor.HIERARCHY).content().layoutBounds();
+        assertTrue(row.y() >= panel.y() && row.y() + row.height() <= panel.y() + panel.height() + 1.0f,
+                "the selected row is inside the visible area: " + row + " in " + panel);
     }
 }

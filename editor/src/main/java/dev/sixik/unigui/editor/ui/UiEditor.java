@@ -6,6 +6,7 @@ import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.EditorLayout;
 import dev.sixik.unigui.editor.EditorShell;
 import dev.sixik.unigui.editor.EditorTheme;
+import dev.sixik.unigui.editor.ToolbarSection;
 import dev.sixik.unigui.editor.XamlEditorDocument;
 import dev.sixik.unigui.xaml.edit.EditorSession;
 import dev.sixik.unigui.xaml.edit.SessionChange;
@@ -70,11 +71,12 @@ public final class UiEditor {
      */
     public static EditorShell shell(XamlEditorDocument document, LoadOptions previewOptions, EditorTheme theme,
                                     Function<EditorShell.Builder, EditorShell.Builder> customize) {
-        EditorShell.Builder builder = common(document, previewOptions, theme, new ComponentView())
+        EditorShell.Builder builder = common(document.title(), previewOptions, theme, new ComponentView())
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
-                        .left(0.22f, HIERARCHY)
-                        .right(0.28f, INSPECTOR)
-                        .bottom(0.28f, PALETTE, DIAGNOSTICS)
+                        .left(0.2f, HIERARCHY)
+                        .leftLower(0.52f, PALETTE)
+                        .right(0.26f, INSPECTOR)
+                        .bottom(0.2f, DIAGNOSTICS)
                         .center(VIEWPORT, CODE)
                         .active(VIEWPORT)
                         .build())
@@ -91,17 +93,22 @@ public final class UiEditor {
      * Каркас с общими для экрана и компонента панелями и командами; раскладки и дополнительные панели добавляет
      * вызывающий.
      */
-    static EditorShell.Builder common(XamlEditorDocument document, LoadOptions previewOptions, EditorTheme theme,
+    static EditorShell.Builder common(String title, LoadOptions previewOptions, EditorTheme theme,
                                       ComponentView componentView) {
         return EditorShell.builder()
                 .theme(theme)
-                .title(document.title())
+                .title(title)
                 .menus("File", "Edit", "Window")
                 .standardCommands()
                 .command(editCommand("edit.delete", "Delete", "Delete", 10, UiEdits::deleteSelected))
                 .command(editCommand("edit.duplicate", "Duplicate", "Ctrl+D", 11, UiEdits::duplicateSelected))
                 .command(editCommand("edit.moveUp", "Move Up", "", 12, session -> UiEdits.moveSelected(session, -1)))
                 .command(editCommand("edit.moveDown", "Move Down", "", 13, session -> UiEdits.moveSelected(session, 1)))
+                .menuBarLeading(EditorChrome::logo)
+                .toolbar(ToolbarSection.LEFT, shell -> EditorChrome.documentActions(shell))
+                .toolbar(ToolbarSection.CENTER, EditorChrome::layoutSwitch)
+                .statusBar(ToolbarSection.LEFT, EditorChrome::selectionStatus)
+                .statusBar(ToolbarSection.RIGHT, EditorChrome::documentStatus)
                 .panel(new HierarchyPanel())
                 .panel(new PalettePanel())
                 .panel(new InspectorPanel())
@@ -113,7 +120,7 @@ public final class UiEditor {
     /** Завершает сборку: мост выбора и подключение документа. */
     static EditorShell finish(EditorShell shell, XamlEditorDocument document) {
         installSelectionBridge(shell.context());
-        shell.context().document(document);
+        if (document != null) shell.context().document(document);
         return shell;
     }
 

@@ -4,6 +4,8 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.editor.style.EditorIcons;
+import dev.sixik.unigui.editor.style.ToolButton;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
@@ -119,7 +121,7 @@ public final class ContextMenus {
      * @return кнопка
      */
     public static Button button(EditorContext context, Supplier<List<Entry>> entries) {
-        Button more = new Button("⋯");
+        ToolButton more = new ToolButton(EditorIcons.MORE, "More");
         more.onClick(click -> {
             RectView bounds = more.layoutBounds();
             open(context, bounds.x(), bounds.y() + bounds.height() + 2.0f, entries.get());

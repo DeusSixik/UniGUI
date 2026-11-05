@@ -122,8 +122,8 @@ final class UiEdits {
      * @return {@code true}, если узел удалён
      */
     static boolean deleteSelected(EditorSession session) {
-        UiNode node = session.selected().orElse(null);
-        if (node == null || node == session.document().root()) return false;
+        if (!hasMovableSelection(session)) return false;
+        UiNode node = session.selected().orElseThrow();
         UiNode parent = Hierarchy.parentOf(session.document(), node).orElse(null);
         boolean done = session.apply(Edits.remove(session.document(), node));
         if (done && parent != null) session.select(parent);
@@ -173,6 +173,9 @@ final class UiEdits {
      */
     static boolean hasMovableSelection(EditorSession session) {
         UiNode node = session.selected().orElse(null);
-        return node != null && node != session.document().root();
+        UiNode root = session.document().root();
+        if (node == null || node == root) return false;
+        // Единственный корневой виджет компонента обязателен: без него документ перестаёт разбираться.
+        return !(root.type().local().equals("Component") && root.children().contains(node));
     }
 }

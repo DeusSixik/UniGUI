@@ -57,13 +57,15 @@ public final class ComponentEditor {
     public static EditorShell shell(XamlEditorDocument document, LoadOptions previewOptions, EditorTheme theme,
                                     Function<EditorShell.Builder, EditorShell.Builder> customize) {
         ComponentView view = new ComponentView();
-        EditorShell.Builder builder = UiEditor.common(document, previewOptions, theme, view)
+        EditorShell.Builder builder = UiEditor.common(document.title(), previewOptions, theme, view)
                 .panel(new ContractPanel(view))
                 .panel(new GraphPanel(view))
                 .layout(EditorLayout.named(DESIGN_LAYOUT)
-                        .left(0.24f, CONTRACT, UiEditor.HIERARCHY)
-                        .right(0.28f, UiEditor.INSPECTOR)
-                        .bottom(0.28f, UiEditor.PALETTE, UiEditor.DIAGNOSTICS)
+                        // Контракт длинный и правится чаще всего, поэтому занимает верх колонки целиком.
+                        .left(0.22f, CONTRACT)
+                        .leftLower(0.7f, UiEditor.HIERARCHY, UiEditor.PALETTE)
+                        .right(0.26f, UiEditor.INSPECTOR)
+                        .bottom(0.2f, UiEditor.DIAGNOSTICS)
                         .center(UiEditor.VIEWPORT, GRAPH, UiEditor.CODE)
                         .active(UiEditor.VIEWPORT)
                         .build())

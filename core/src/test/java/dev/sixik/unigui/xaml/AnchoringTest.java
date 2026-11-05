@@ -21,10 +21,12 @@ final class AnchoringTest {
     @Test
     void theModeFollowsWhereTheWidgetLives() {
         EditorSession stack = EditorSession.create(STACK);
-        assertEquals(Anchoring.Mode.STACK, Anchoring.mode(stack, child(stack)));
+        assertEquals(Anchoring.Mode.SLOT, Anchoring.mode(stack, child(stack)));
         assertEquals(Anchoring.Mode.NONE, Anchoring.mode(stack, stack.document().root()));
         EditorSession absolute = EditorSession.create(ABSOLUTE);
         assertEquals(Anchoring.Mode.ABSOLUTE, Anchoring.mode(absolute, child(absolute)));
+        EditorSession grid = EditorSession.create("<GridBox><Button id=\"b\"/></GridBox>");
+        assertEquals(Anchoring.Mode.SLOT, Anchoring.mode(grid, child(grid)), "a grid cell anchors like a stack slot");
         EditorSession flow = EditorSession.create("<VBox><Button id=\"b\"/></VBox>");
         assertEquals(Anchoring.Mode.NONE, Anchoring.mode(flow, child(flow)));
         assertFalse(Anchoring.anchor(flow, child(flow), "end", "end"));

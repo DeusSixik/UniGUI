@@ -1,10 +1,13 @@
 package dev.sixik.unigui.editor;
 
+import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.KeyPressedEvent;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.editor.style.ToolButton;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.StackPanel;
@@ -16,6 +19,7 @@ import dev.sixik.unigui.widgets.docking.DockingRoot;
 import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.NumberField;
 import dev.sixik.unigui.widgets.interaction.TextArea;
 import dev.sixik.unigui.widgets.interaction.TextInput;
 
@@ -47,6 +51,7 @@ import java.util.function.Function;
  */
 public final class EditorShell {
     private static final String WINDOW_MENU = "Window";
+    private static final float GUTTER = 4.0f;
 
     private final EditorContext context;
     private final EditorTheme theme;
@@ -84,7 +89,7 @@ public final class EditorShell {
             panes.put(panel.id(), pane);
         }
 
-        dock.layout(style -> style.widthPercent(100.0f).heightPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
+        dock.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
         theme.styleDock(dock);
         if (!layouts.isEmpty()) applyLayout(layouts.get(0).name());
 
@@ -260,7 +265,7 @@ public final class EditorShell {
      * @return {@code true}, если команда нашлась, была доступна и выполнена
      */
     public boolean handleKey(int keyCode, int modifiers, Widget target) {
-        boolean typing = target instanceof TextInput || target instanceof TextArea;
+        boolean typing = typing(target);
         for (EditorCommand command : context.commands().all()) {
             EditorShortcut binding = command.binding();
             if (binding == null || !binding.matches(keyCode, modifiers)) continue;
@@ -268,6 +273,10 @@ public final class EditorShell {
             return command.run(context);
         }
         return false;
+    }
+
+    private static boolean typing(Widget target) {
+        return target instanceof TextInput || target instanceof TextArea || target instanceof NumberField;
     }
 
     // ------------------------------------------------------------------ меню
@@ -334,8 +343,11 @@ public final class EditorShell {
     private Widget assemble(Builder builder) {
         StackPanel viewport = new StackPanel();
         viewport.layout(style -> style.sizePercent(100.0f, 100.0f).overflow(Overflow.HIDDEN));
-        // Нажатия клавиш всплывают от сфокусированного виджета к корню окна редактора.
+        // Сочетания срабатывают на всплытии: сфокусированная панель решает первой. Иначе Delete в графе удалил бы
+        // виджет, выбранный в документе, а не ноду. Поля ввода могут поглощать клавиши, поэтому для них это делается
+        // на входе: handleKey сам пропускает сочетания, которые поле использует.
         viewport.on(KeyPressedEvent.TYPE, event -> {
+            if (event.phase() == EventPhase.CAPTURE && !typing(event.target())) return;
             if (handleKey(event.keyCode(), event.modifiers(), event.target())) event.cancel();
         });
 
@@ -353,12 +365,18 @@ public final class EditorShell {
         column.spacing(0.0f);
         column.layout(style -> style.sizePercent(100.0f, 100.0f));
         column.addChild(menuBar(builder));
-        column.addChild(theme.separator());
         if (builder.hasToolbar()) {
-            column.addChild(toolbar(builder));
             column.addChild(theme.separator());
+            column.addChild(toolbar(builder));
         }
-        column.addChild(dock);
+        // Зазор вокруг докинга: панели-острова не прилипают к краям окна.
+        HBox gutter = new HBox();
+        gutter.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f).minHeight(0.0f)
+                .padding(GUTTER, 0.0f, GUTTER, 0.0f));
+        gutter.addChild(dock);
+        gutter.applyQueuedMutations();
+        column.addChild(gutter);
+        if (builder.hasStatusBar()) column.addChild(statusBar(builder));
         column.applyQueuedMutations();
 
         overlay.content(column);
@@ -406,6 +424,40 @@ public final class EditorShell {
         return bar;
     }
 
+    private HBox statusBar(Builder builder) {
+        HBox bar = new HBox();
+        bar.spacing(12.0f);
+        bar.layout(style -> style.widthPercent(100.0f).height(theme.statusBarHeight())
+                .padding(8.0f, 0.0f, 8.0f, 0.0f).alignItems(Align.CENTER).flexGrow(0.0f).flexShrink(0.0f));
+        for (Function<EditorShell, Widget> factory : builder.statusBar.get(ToolbarSection.LEFT)) {
+            bar.addChild(factory.apply(this));
+        }
+        bar.addChild(spacer());
+        for (Function<EditorShell, Widget> factory : builder.statusBar.get(ToolbarSection.RIGHT)) {
+            bar.addChild(factory.apply(this));
+        }
+        bar.applyQueuedMutations();
+        return bar;
+    }
+
+    /**
+     * Кнопка панели инструментов, выполняющая команду: доступность следует за условием команды.
+     *
+     * @param id   идентификатор команды
+     * @param icon иконка
+     * @return кнопка
+     * @throws IllegalArgumentException если такой команды нет
+     */
+    public ToolButton commandButton(String id, UiIcon icon) {
+        EditorCommand command = context.commands().all().stream().filter(candidate -> candidate.id().equals(id))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Unknown command '" + id + "'"));
+        ToolButton button = new ToolButton(icon, command.title());
+        button.id("toolbar." + id);
+        button.availableWhen(() -> command.enabled(context));
+        button.onClick(event -> command.run(context));
+        return button;
+    }
+
     private static Box spacer() {
         Box spacer = new Box();
         spacer.themeEnabled(false);
@@ -429,9 +481,14 @@ public final class EditorShell {
         private final List<Function<EditorShell, Widget>> trailing = new ArrayList<>();
         private final Map<ToolbarSection, List<Function<EditorShell, Widget>>> toolbar =
                 new EnumMap<>(ToolbarSection.class);
+        private final Map<ToolbarSection, List<Function<EditorShell, Widget>>> statusBar =
+                new EnumMap<>(ToolbarSection.class);
 
         private Builder() {
-            for (ToolbarSection section : ToolbarSection.values()) toolbar.put(section, new ArrayList<>());
+            for (ToolbarSection section : ToolbarSection.values()) {
+                toolbar.put(section, new ArrayList<>());
+                statusBar.put(section, new ArrayList<>());
+            }
         }
 
         /**
@@ -557,9 +614,25 @@ public final class EditorShell {
             return this;
         }
 
+        /**
+         * Добавляет виджет в строку состояния внизу окна. Строка показывается, если в неё добавлен хотя бы один виджет.
+         *
+         * @param section {@link ToolbarSection#LEFT} или {@link ToolbarSection#RIGHT}
+         * @param factory создаёт виджет
+         * @return этот билдер
+         */
+        public Builder statusBar(ToolbarSection section, Function<EditorShell, Widget> factory) {
+            statusBar.get(section).add(factory);
+            return this;
+        }
+
         /** @return готовый каркас */
         public EditorShell build() {
             return new EditorShell(this);
+        }
+
+        private boolean hasStatusBar() {
+            return statusBar.values().stream().anyMatch(list -> !list.isEmpty());
         }
 
         private boolean hasToolbar() {

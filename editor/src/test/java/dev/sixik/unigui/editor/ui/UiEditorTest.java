@@ -105,7 +105,9 @@ final class UiEditorTest {
         List<String> rows = buttonTexts(UiEditor.HIERARCHY);
         assertEquals(3, rows.size(), rows.toString());
         assertTrue(rows.get(0).contains("VBox"));
-        assertTrue(rows.get(1).startsWith("  "), "children are indented");
+        HierarchyPanel panel = (HierarchyPanel) shell.panel(UiEditor.HIERARCHY).orElseThrow();
+        assertEquals(2, panel.treeNodeOf(session.document().root()).children().size(), "the children hang under the root");
+        assertEquals(3, panel.visibleRows());
 
         button(UiEditor.HIERARCHY, rows.get(1)).click();
         assertSame(node("title"), session.selected().orElseThrow());
@@ -222,11 +224,24 @@ final class UiEditorTest {
     }
 
     @Test
+    void paletteIsAListOfCollapsibleGroups() {
+        PalettePanel palette = (PalettePanel) shell.panel(UiEditor.PALETTE).orElseThrow();
+        content(UiEditor.PALETTE);
+        assertTrue(palette.groups().size() > 1, "types are grouped by category: " + palette.groups());
+        int open = palette.visibleRows();
+        palette.toggleGroup(palette.groups().get(0));
+        assertTrue(palette.visibleRows() < open, "collapsing a group hides its types");
+        palette.toggleGroup(palette.groups().get(0));
+        assertEquals(open, palette.visibleRows());
+    }
+
+    @Test
     void paletteSearchFiltersTypes() {
         TextField search = all(content(UiEditor.PALETTE), TextField.class).get(0);
         search.text("slid");
         List<String> texts = buttonTexts(UiEditor.PALETTE);
-        assertEquals(List.of("List", "Slider"), texts, "the mode toggle and the one matching tile");
+        assertEquals(2, texts.size(), "the group of the match and the match itself: " + texts);
+        assertTrue(texts.contains("Slider"), texts.toString());
     }
 
     // ------------------------------------------------------------------ предпросмотр

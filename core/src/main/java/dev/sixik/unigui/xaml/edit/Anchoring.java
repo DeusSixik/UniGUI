@@ -10,9 +10,10 @@ import java.util.Optional;
  * форме. Работают двумя способами в зависимости от того, где лежит виджет.
  *
  * <ul>
- *   <li><b>Слот стека</b> (ребёнок {@code StackPanel}): выравнивания {@code horizontalAlignment} и
- *       {@code verticalAlignment} (start, center, end, stretch) плюс {@code margin} как отступы. Все дети стека лежат
- *       в одном слоте, поэтому виджет держит угол, сторону или центр родителя при любом размере.</li>
+ *   <li><b>Слот стека или ячейка сетки</b> (ребёнок {@code StackPanel} или {@code GridBox}): выравнивания
+ *       {@code horizontalAlignment} и {@code verticalAlignment} (start, center, end, stretch) плюс {@code margin} как
+ *       отступы. Все дети стека лежат в одном слоте, ребёнок сетки — в своей ячейке, поэтому виджет держит угол,
+ *       сторону или центр слота при любом его размере.</li>
  *   <li><b>Абсолютное положение</b> ({@code position="absolute"} в любом родителе): якорь задают отступы
  *       {@code left}/{@code right}/{@code top}/{@code bottom}. Заданный {@code left} — привязка к левому краю,
  *       {@code right} — к правому, оба — растяжение. Центрирование здесь недоступно: положение по центру нужно
@@ -31,8 +32,8 @@ public final class Anchoring {
     public enum Mode {
         /** Якоря не применимы. */
         NONE,
-        /** Слот {@code StackPanel}. */
-        STACK,
+        /** Слот {@code StackPanel} или ячейка {@code GridBox}: выравнивания плюс {@code margin}. */
+        SLOT,
         /** {@code position="absolute"}. */
         ABSOLUTE
     }
@@ -51,7 +52,8 @@ public final class Anchoring {
         Optional<UiNode> parent = Hierarchy.parentOf(session.document(), node);
         if (parent.isEmpty()) return Mode.NONE;
         String name = parent.get().type().local();
-        return name.equals("StackPanel") || name.equals("Stack") ? Mode.STACK : Mode.NONE;
+        boolean slot = name.equals("StackPanel") || name.equals("Stack") || name.equals("GridBox") || name.equals("Grid");
+        return slot ? Mode.SLOT : Mode.NONE;
     }
 
     /**
@@ -89,7 +91,7 @@ public final class Anchoring {
         if (!ALIGNMENTS.contains(horizontal) || !ALIGNMENTS.contains(vertical)) {
             return refuse(session, "An anchor is start, center, end or stretch on each axis.");
         }
-        if (mode == Mode.STACK) {
+        if (mode == Mode.SLOT) {
             return session.transaction("Set anchor", () -> session.apply(Edits.setProperty(node, "horizontalAlignment", horizontal))
                     && session.apply(Edits.setProperty(node, "verticalAlignment", vertical)));
         }
@@ -130,7 +132,7 @@ public final class Anchoring {
         if (mode == Mode.NONE) return false;
         String horizontal = alignment(session, node, true);
         String vertical = alignment(session, node, false);
-        if (mode == Mode.STACK) {
+        if (mode == Mode.SLOT) {
             ValueEditing.InsetsValue margin;
             try {
                 margin = ValueEditing.InsetsValue.parse(node.attributeText("margin", "0"));

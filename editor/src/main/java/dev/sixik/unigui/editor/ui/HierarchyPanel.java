@@ -1,39 +1,54 @@
 package dev.sixik.unigui.editor.ui;
 
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.event.PointerEnteredEvent;
+import dev.sixik.unigui.api.event.PointerExitedEvent;
+import dev.sixik.unigui.api.render.UiIcon;
+import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.editor.ContextMenus;
 import dev.sixik.unigui.editor.EditorContext;
 import dev.sixik.unigui.editor.PanelSlot;
-import dev.sixik.unigui.widgets.containers.HBox;
+import dev.sixik.unigui.editor.style.EditorIcons;
+import dev.sixik.unigui.editor.style.EditorStyles;
 import dev.sixik.unigui.widgets.containers.ScrollView;
 import dev.sixik.unigui.widgets.containers.VBox;
-import dev.sixik.unigui.widgets.display.Label;
+import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.dnd.DragController;
 import dev.sixik.unigui.widgets.dnd.DragGhost;
 import dev.sixik.unigui.widgets.dnd.DragPayload;
 import dev.sixik.unigui.widgets.dnd.DropController;
-import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextField;
+import dev.sixik.unigui.widgets.navigation.TreeView;
+import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 import dev.sixik.unigui.xaml.UiNode;
 import dev.sixik.unigui.xaml.edit.EditorSession;
 import dev.sixik.unigui.xaml.edit.Hierarchy;
 import dev.sixik.unigui.xaml.edit.SessionChange;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Дерево узлов документа. Щелчок по строке выбирает узел; фильтр оставляет строки, в которых есть введённый текст.
+ * Дерево узлов документа в виде {@link TreeView}, как иерархия сцены в Unity: строки со стрелкой раскрытия, отступами
+ * по глубине и подсветкой выбора. Выбор строки выбирает узел во всех панелях, а выбор в предпросмотре раскрывает путь
+ * к узлу и прокручивает дерево к нему. Строки перетаскиваются и принимают перетаскиваемое (палитру и другие строки);
+ * правая кнопка открывает меню действий.
  */
 final class HierarchyPanel extends SessionPanel {
-    private static final MutableColor SELECTED = MutableColor.rgba255(90, 160, 255, 255);
-    private static final MutableColor HOVER = MutableColor.rgba255(170, 210, 255, 255);
-    private static final MutableColor NORMAL = MutableColor.rgba255(220, 220, 220, 255);
-    private static final MutableColor UNKNOWN = MutableColor.rgba255(235, 100, 100, 255);
-
-    private final VBox rows = new VBox();
-    private final TextField filter = new TextField();
-    private final Label empty = new Label("No document");
+    private final TreeView tree = new TreeView();
+    private final TextField filter = EditorStyles.searchField();
+    private final Map<UiNode, TreeViewNode> nodes = new IdentityHashMap<>();
+    /** Свёрнутые автором узлы; сравниваются по идентичности, потому что правка документа не создаёт узлы заново. */
+    private final Set<UiNode> collapsed = Collections.newSetFromMap(new IdentityHashMap<>());
+    private ScrollView scroll;
+    private boolean syncing;
+    private boolean scrollPending;
+    private UiNode revealed;
+    private boolean hoverBound;
 
     @Override
     public String id() {
@@ -43,6 +58,11 @@ final class HierarchyPanel extends SessionPanel {
     @Override
     public String title() {
         return "Hierarchy";
+    }
+
+    @Override
+    public dev.sixik.unigui.api.render.UiIcon icon() {
+        return dev.sixik.unigui.editor.style.EditorIcons.HIERARCHY;
     }
 
     @Override
@@ -58,16 +78,31 @@ final class HierarchyPanel extends SessionPanel {
     @Override
     protected Widget build(EditorContext editorContext) {
         VBox root = new VBox();
-        root.spacing(4.0f);
         root.layout(style -> style.sizePercent(100.0f, 100.0f));
-        filter.placeholder("Filter");
+        filter.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
         filter.onTextChanged(event -> refresh());
-        rows.spacing(1.0f);
-        ScrollView scroll = new ScrollView(rows);
+
+        EditorStyles.styleTreeView(tree);
+        tree.iconMode(TreeView.TreeIconMode.NONE);
+        tree.layout(style -> style.widthPercent(100.0f));
+        tree.onRowCreated(this::rowCreated);
+        tree.onSelectionChanged(event -> {
+            if (syncing) return;
+            TreeViewNode selected = tree.selectedNode();
+            EditorSession session = session().orElse(null);
+            if (session != null && selected != null && selected.userData() instanceof UiNode node) session.select(node);
+        });
+        scroll = new ScrollView(tree);
+        EditorStyles.styleScroll(scroll);
         scroll.layout(style -> style.widthPercent(100.0f).flexGrow(1.0f).flexShrink(1.0f));
-        root.addChild(filter);
+
+        // Раскладка строк известна только при отрисовке: прокрутка к выбранной строке откладывается до неё.
+        CanvasWidget probe = new CanvasWidget();
+        probe.layout(style -> style.size(0.0f, 0.0f).flexShrink(0.0f));
+        probe.onDraw(draw -> revealSelected());
+        root.addChild(EditorStyles.searchBar(filter));
         root.addChild(scroll);
-        root.addChild(empty);
+        root.addChild(probe);
         root.applyQueuedMutations();
         return root;
     }
@@ -80,107 +115,169 @@ final class HierarchyPanel extends SessionPanel {
     @Override
     protected void changed(EditorSession current, SessionChange change) {
         switch (change.kind()) {
-            case DOCUMENT_CHANGED, SELECTION_CHANGED, REVERTED -> refresh();
+            case DOCUMENT_CHANGED, REVERTED -> refresh();
+            case SELECTION_CHANGED -> showSelection();
             default -> { }
         }
     }
 
-    /** Узлы, свёрнутые автором; сравниваются по идентичности, потому что правка документа не создаёт узлы заново. */
-    private final java.util.Set<UiNode> collapsed = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-    private UiNode revealed;
+    // ------------------------------------------------------------------ построение дерева
 
-    private final java.util.Map<UiNode, Button> buttons = new java.util.IdentityHashMap<>();
-    private boolean hoverBound;
+    private void refresh() {
+        if (!hoverBound) hoverBound = true;
+        syncing = true;
+        try {
+            tree.beginBatch();
+            tree.clearRoots();
+            nodes.clear();
+            EditorSession session = session().orElse(null);
+            if (session != null) build(session);
+            tree.endBatch();
+        } finally {
+            syncing = false;
+        }
+        showSelection();
+    }
 
-    /** Подсвечивает строку узла, над которым указатель в другой панели, не перестраивая список. */
-    private void paintHover() {
-        UiNode hovered = hover().node();
+    private void build(EditorSession session) {
+        boolean filtering = !filter.text().isBlank();
+        List<Hierarchy.Row> rows = Hierarchy.filter(Hierarchy.rows(session.document(), session.schema()), filter.text());
+        List<TreeViewNode> stack = new ArrayList<>(); // последний узел на каждой глубине
+        for (Hierarchy.Row row : rows) {
+            TreeViewNode node = new TreeViewNode(rowText(row.label()));
+            node.userData(row.node());
+            UiIcon icon = EditorIcons.forWidget(row.node().type().local());
+            node.iconDraw((draw, owner, x, y, width, height) -> icon.draw(draw, x + 2.0f, y + 2.0f, width - 4.0f,
+                    row.node() == session.document().root() ? EditorStyles.INFO_BLUE : EditorStyles.TEXT_LABEL));
+            nodes.put(row.node(), node);
+            int depth = filtering ? 0 : row.depth();
+            while (stack.size() > depth) stack.remove(stack.size() - 1);
+            if (depth == 0 || stack.isEmpty()) {
+                tree.addRoot(node);
+                if (!filtering) stack.clear();
+            } else {
+                stack.get(stack.size() - 1).addChild(node);
+            }
+            stack.add(node);
+        }
+        for (Map.Entry<UiNode, TreeViewNode> entry : nodes.entrySet()) {
+            entry.getValue().silentExpanded(!collapsed.contains(entry.getKey()));
+        }
+    }
+
+    /** Подпись строки: тип обычным цветом, идентификатор приглушённым, потому что читается вторым. */
+    private static RichText rowText(String label) {
+        int mark = label.indexOf(" #");
+        if (mark < 0) return RichText.plain(label);
+        return RichText.builder().append(label.substring(0, mark)).color(EditorStyles.TEXT_SECONDARY)
+                .append(label.substring(mark)).build();
+    }
+
+    /** Подсвечивает выбранный узел сессии; путь к нему раскрывается, чтобы строка была видна. */
+    private void showSelection() {
         EditorSession session = session().orElse(null);
         UiNode selected = session == null ? null : session.selected().orElse(null);
-        buttons.forEach((node, button) -> {
-            if (node == selected) button.textColor().set(SELECTED);
-            else if (node == hovered) button.textColor().set(HOVER);
-            else button.textColor().set(NORMAL);
+        syncing = true;
+        try {
+            if (selected == null) {
+                tree.clearSelection();
+            } else {
+                TreeViewNode node = nodes.get(selected);
+                if (node != null) {
+                    if (selected != revealed) {
+                        for (TreeViewNode up = node.parent(); up != null; up = up.parent()) {
+                            if (up.userData() instanceof UiNode parentNode) collapsed.remove(parentNode);
+                            up.expanded(true);
+                        }
+                        scrollPending = true;
+                    }
+                    tree.silentSelect(node);
+                }
+            }
+            revealed = selected;
+        } finally {
+            syncing = false;
+        }
+    }
+
+    // ------------------------------------------------------------------ строки
+
+    private void rowCreated(TreeView.TreeRowButton row) {
+        TreeViewNode treeNode = row.node();
+        if (!(treeNode.userData() instanceof UiNode uiNode)) return;
+        EditorSession session = session().orElse(null);
+        if (session == null) return;
+
+        row.on(PointerEnteredEvent.TYPE, event -> hover().set(uiNode));
+        row.on(PointerExitedEvent.TYPE, event -> {
+            if (hover().node() == uiNode) hover().set(null);
+        });
+        DropController.attach(row).accepts(DropActions.ACCEPTED)
+                .onDrop(event -> DropActions.drop(session, event.payload(), uiNode));
+        if (uiNode != session.document().root()) {
+            String label = treeNode.text();
+            DragController.attach(row).dragged(row).threshold(4.0f)
+                    .payload(() -> DragPayload.of(label, DropActions.NODE_TYPE, label, uiNode))
+                    .ghost(DragGhost.text());
+        }
+        ContextMenus.onSecondaryClick(row, context(), () -> {
+            session.select(uiNode);
+            boolean movable = UiEdits.hasMovableSelection(session);
+            return List.of(
+                    ContextMenus.Entry.of("Duplicate", movable, () -> UiEdits.duplicateSelected(session)),
+                    ContextMenus.Entry.of("Delete", movable, () -> UiEdits.deleteSelected(session)),
+                    ContextMenus.Entry.separator(),
+                    ContextMenus.Entry.of("Move Up", movable, () -> UiEdits.moveSelected(session, -1)),
+                    ContextMenus.Entry.of("Move Down", movable, () -> UiEdits.moveSelected(session, 1)));
         });
     }
 
-    private void refresh() {
-        if (!hoverBound) {
-            hoverBound = true;
-            hover().subscribe(this::paintHover);
-        }
-        buttons.clear();
-        rows.clearChildren();
-        EditorSession session = session().orElse(null);
-        empty.text(session == null ? "No document" : "");
-        if (session == null) {
-            rows.applyQueuedMutations();
-            return;
-        }
-        UiNode selected = session.selected().orElse(null);
-        if (selected != revealed) {
-            // Выбор из другой панели (щелчок в Viewport) раскрывает путь к узлу, чтобы строка была видна.
-            revealed = selected;
-            for (UiNode up = selected; up != null; up = Hierarchy.parentOf(session.document(), up).orElse(null)) {
-                if (up != selected) collapsed.remove(up);
-            }
-        }
-        boolean filtering = !filter.text().isBlank();
-        List<Hierarchy.Row> list = Hierarchy.filter(Hierarchy.rows(session.document(), session.schema()), filter.text());
-        int hiddenBelow = Integer.MAX_VALUE; // глубина свёрнутого узла: всё глубже скрыто
-        for (Hierarchy.Row row : list) {
-            if (!filtering) {
-                if (row.depth() > hiddenBelow) continue;
-                hiddenBelow = Integer.MAX_VALUE;
-            }
-            boolean hasChildren = row.childCount() > 0;
-            boolean isCollapsed = hasChildren && collapsed.contains(row.node());
-            if (!filtering && isCollapsed) hiddenBelow = row.depth();
+    // ------------------------------------------------------------------ прокрутка
 
-            HBox line = new HBox();
-            line.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f));
-            Label twisty = new Label(hasChildren ? (isCollapsed ? "▸" : "▾") : " ");
-            twisty.layout(style -> style.width(14.0f).flexShrink(0.0f));
-            if (hasChildren && !filtering) {
-                twisty.on(PointerPressedEvent.TYPE, event -> {
-                    if (!collapsed.remove(row.node())) collapsed.add(row.node());
-                    refresh();
-                    event.cancel();
-                });
-            }
-            Button button = new Button("  ".repeat(row.depth()) + row.label());
-            button.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f));
-            if (row.node() == selected) button.textColor().set(SELECTED);
-            else if (!row.known()) button.textColor().set(UNKNOWN);
-            button.onClick(event -> session.select(row.node()));
-            button.on(dev.sixik.unigui.api.event.PointerEnteredEvent.TYPE, event -> hover().set(row.node()));
-            button.on(dev.sixik.unigui.api.event.PointerExitedEvent.TYPE, event -> {
-                if (hover().node() == row.node()) hover().set(null);
-            });
-            buttons.put(row.node(), button);
-            DropController.attach(button).accepts(DropActions.ACCEPTED)
-                    .onDragEnter(event -> button.textColor().set(HOVER))
-                    .onDragLeave(event -> paintHover())
-                    .onDrop(event -> {
-                        DropActions.drop(session, event.payload(), row.node());
-                        paintHover();
-                    });
-            if (row.node() != session.document().root()) {
-                DragController.attach(button).dragged(button).threshold(4.0f)
-                        .payload(() -> DragPayload.of(row.label(), DropActions.NODE_TYPE, row.label(), row.node()))
-                        .ghost(DragGhost.text());
-            }
-            line.addChild(twisty);
-            line.addChild(button);
-            line.applyQueuedMutations();
-            rows.addChild(line);
-        }
-        rows.applyQueuedMutations();
+    /**
+     * Прокручивает дерево так, чтобы выбранная строка была видна: строка уже в видимой части остаётся на месте, иначе
+     * ставится в середину. Вызывается при отрисовке, когда раскладка строк известна.
+     *
+     * @return {@code true}, если прокрутка выполнялась
+     */
+    boolean revealSelected() {
+        if (!scrollPending || scroll == null) return false;
+        TreeViewNode selected = tree.selectedNode();
+        if (selected == null || selected.rowButton() == null) return false;
+        var row = selected.rowButton().layoutBounds();
+        var content = tree.layoutBounds();
+        var view = scroll.layoutBounds();
+        if (view.height() <= 0.0f || row.height() <= 0.0f) return false; // раскладки ещё нет
+        scrollPending = false;
+        float top = row.y() - content.y();
+        float visibleTop = scroll.scrollY();
+        if (top >= visibleTop && top + row.height() <= visibleTop + view.height()) return true;
+        scroll.scrollTo(0.0f, Math.max(0.0f, top - view.height() / 2.0f));
+        return true;
     }
 
     /** Сворачивает или разворачивает узел; нужно тестам и командам. */
     void toggle(UiNode node) {
-        if (!collapsed.remove(node)) collapsed.add(node);
-        refresh();
+        TreeViewNode treeNode = nodes.get(node);
+        if (treeNode == null) return;
+        boolean expand = !treeNode.expanded();
+        if (expand) collapsed.remove(node);
+        else collapsed.add(node);
+        treeNode.expanded(expand);
+    }
+
+    /** @return число строк, которые сейчас видны (развёрнутые ветки считаются, свёрнутые нет) */
+    int visibleRows() {
+        return tree.visibleNodes().size();
+    }
+
+    /** @return дерево; нужно тестам */
+    TreeView tree() {
+        return tree;
+    }
+
+    /** @return узел дерева для узла документа; нужно тестам */
+    TreeViewNode treeNodeOf(UiNode node) {
+        return nodes.get(node);
     }
 }

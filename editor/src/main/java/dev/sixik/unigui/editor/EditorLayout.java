@@ -63,6 +63,8 @@ public final class EditorLayout {
         private List<String> left = List.of();
         private List<String> right = List.of();
         private List<String> bottom = List.of();
+        private List<String> leftLower = List.of();
+        private float leftUpperShare = 0.55f;
         private float leftShare = 0.2f;
         private float rightShare = 0.25f;
         private float bottomShare = 0.3f;
@@ -90,6 +92,19 @@ public final class EditorLayout {
         public Builder left(float share, String... ids) {
             this.leftShare = share;
             this.left = List.of(ids);
+            return this;
+        }
+
+        /**
+         * Делит левую колонку на две части: панели {@link #left} остаются сверху, эти ложатся под ними.
+         *
+         * @param upperShare доля высоты верхней части
+         * @param ids        панели нижней части левой колонки
+         * @return этот билдер
+         */
+        public Builder leftLower(float upperShare, String... ids) {
+            this.leftUpperShare = upperShare;
+            this.leftLower = List.of(ids);
             return this;
         }
 
@@ -130,6 +145,8 @@ public final class EditorLayout {
             List<String> leftIds = List.copyOf(left);
             List<String> rightIds = List.copyOf(right);
             List<String> bottomIds = List.copyOf(bottom);
+            List<String> leftLowerIds = List.copyOf(leftLower);
+            float leftUpperPart = leftUpperShare;
             float leftPart = leftShare;
             float rightPart = rightShare;
             float bottomPart = bottomShare;
@@ -143,7 +160,9 @@ public final class EditorLayout {
                     core = split(DockSplitOrientation.HORIZONTAL, complement(rightPart), core, leaf(rightIds));
                 }
                 if (!leftIds.isEmpty()) {
-                    core = split(DockSplitOrientation.HORIZONTAL, leftPart, leaf(leftIds), core);
+                    DockLayoutSnapshot.Node column = leftLowerIds.isEmpty() ? leaf(leftIds)
+                            : split(DockSplitOrientation.VERTICAL, leftUpperPart, leaf(leftIds), leaf(leftLowerIds));
+                    core = split(DockSplitOrientation.HORIZONTAL, leftPart, column, core);
                 }
                 return new DockLayoutSnapshot(core, activeId);
             });
