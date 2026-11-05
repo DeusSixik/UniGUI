@@ -32,7 +32,6 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
-import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -56,7 +55,6 @@ import java.util.Set;
 final class IsfVisualWidgetFactory {
     private static final Logger LOGGER = LogManager.getLogger(IsfVisualWidgetFactory.class);
     private static final float CELL = 18.0f;
-    private final Button recipePlus = new Button();
     /** Кегль подписи шанса: дефолтные 10px распирают колонку 22px («12.5%» налезает). */
     private static final float CHANCE_TEXT_SIZE = 7.0f;
     static final String SLOT_TEXTURE = "isf:textures/jei/atlas/gui/dark_slot.png";
@@ -153,15 +151,11 @@ final class IsfVisualWidgetFactory {
                         TextureOptions.nearest()))
                 .put(StyleKeys.BACKGROUND_TEXTURE, WidgetState.CHECKED,new MinecraftTextureHandle(ResourceLocation.tryBuild(IsfMod.MOD_ID, "textures/jei/atlas/gui/mark_hovered.png"), 11, 11,
                         TextureOptions.nearest())));
-        button.layout(style -> style.size(8,8));
+        button.layout(style -> style.size(11,11));
         ResourceLocation itemId = bookmarkItemId(node);
-        // Начальное состояние берём из уже собранных клеток закладок оверлея:
-        // если предмет там есть, кнопка рисуется в CHECKED (своя текстура).
         button.silentChecked(IsfClient.OVERLAY.bookmarkCells.containsKey(itemId));
         button.onCheckedChanged(event -> {
-            System.out.println(itemId);
-            // ToggleButton переключил checked до события, поэтому newValue —
-            // целевое состояние: true — добавить в закладки, false — убрать.
+            IsfClient.clickButtonSound();
             IsfNetwork.toggleBookmark(itemId, event.newValue());
         });
         return button;

@@ -1,9 +1,12 @@
 package dev.sixik.isf.client;
 
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -84,6 +87,10 @@ public final class IsfClient {
     /** Открыть окно с конкретными рецептами (пуш с сервера, вне R/U-запроса). */
     public static void openRecipes(java.util.List<ResourceLocation> recipeIds) {
         OVERLAY.showExplicitRecipes(recipeIds);
+    }
+
+    public static void clickButtonSound(){
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
 
     private static void mouseScrolled(ScreenEvent.MouseScrolled.Pre event) {

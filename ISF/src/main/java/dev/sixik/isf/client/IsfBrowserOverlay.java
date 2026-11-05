@@ -31,10 +31,13 @@ import dev.sixik.unigui.widgets.WidgetStyles;
 import dev.sixik.unigui.widgets.interaction.ToggleButton;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftZLayer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -869,13 +872,14 @@ final class IsfBrowserOverlay {
         HBox detailHeader = new HBox();
         detailHeader.spacing(2.0f);
         detailHeader.layout(style -> style.widthPercent(100.0f).height(16.0f).flexNone());
-        detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).left(1.0f).horizontalAlignment(Alignment.CENTER));
+        detailTitle.layout(style -> style.flexGrow(1.0f).flexShrink(1.0f).horizontalAlignment(Alignment.CENTER));
         detailTitle.background(0.5f, 0.5f, 0.5f, 0.5f);
 
-        sliceButtonBackground(detailPin, "textures/jei/atlas/gui/button_enabled.png", null,null,"textures/jei/atlas/gui/button_pressed.png",20, 20, 2.0f);
-        detailPin.text("P").textPadding(0.0f, 0.0f);
+        sliceButtonBackground(detailPin, "textures/jei/atlas/gui/pin_button.png", null,null,"textures/jei/atlas/gui/pin_button_checked.png",20, 20, 2.0f);
+        detailPin.themeEnabled(false);
         detailPin.layout(style -> style.size(16.0f, 16.0f).flexNone());
         detailPin.onCheckedChanged(event -> {
+            IsfClient.clickButtonSound();
             setDetailPinned(event.newValue());
             detailHeader.invalidate(InvalidationFlags.VISUAL);
         });
@@ -884,12 +888,13 @@ final class IsfBrowserOverlay {
         detailClose.themeEnabled(false);
         detailClose.text("X").textPadding(0.0f, 0.0f);
         detailClose.layout(style -> style.size(16.0f, 16.0f).flexNone());
-        detailClose.onClick(event ->
-            closeDetail()
-        );
+        detailClose.onClick(event ->{
+            IsfClient.clickButtonSound();
+            closeDetail();
+        });
 
-        detailHeader.addChild(detailTitle);
         detailHeader.addChild(detailPin);
+        detailHeader.addChild(detailTitle);
         detailHeader.addChild(detailClose);
 
 
@@ -900,10 +905,16 @@ final class IsfBrowserOverlay {
         detailPage.background(43 / 255f, 45 / 255f, 52 / 255f, 1.0f);
         sliceButtonBackground(detailPrevious, "textures/jei/atlas/gui/arrow_left.png", "textures/jei/atlas/gui/arrow_left_unclickable.png","textures/jei/atlas/gui/arrow_left_hovered.png",null,14, 14, 1.0f);
         detailPrevious.layout(style -> style.size(14.0f, 14.0f).flexNone());
-        detailPrevious.onClick(event -> changeRecipePage(-1));
+        detailPrevious.onClick(event -> {
+            IsfClient.clickButtonSound();
+            changeRecipePage(-1);
+        });
         sliceButtonBackground(detailNext, "textures/jei/atlas/gui/arrow_right.png", "textures/jei/atlas/gui/arrow_right_unclickable.png","textures/jei/atlas/gui/arrow_right_hovered.png",null,14, 14, 1.0f);
         detailNext.layout(style -> style.size(14.0f, 14.0f).flexNone());
-        detailNext.onClick(event -> changeRecipePage(1));
+        detailNext.onClick(event -> {
+            IsfClient.clickButtonSound();
+            changeRecipePage(1);
+        });
         pageRow.addChild(detailPrevious);
         pageRow.addChild(detailPage);
         pageRow.addChild(detailNext);
@@ -1447,7 +1458,10 @@ final class IsfBrowserOverlay {
 
         // ЛКМ по клетке = R: открываем из кэша и запрашиваем разблокировку на сервере,
         // иначе предметы, которые ещё ни разу не открывали, выглядели бы «без рецептов».
-        cell.onClick(event -> showRecipes(entry.id(), false));
+        cell.onClick(event -> {
+            IsfClient.clickButtonSound();
+            showRecipes(entry.id(), false);
+        });
 
         IsfItemIconWidget icon = new IsfItemIconWidget(entry.stack());
         // Иконка только рисуется. Hit-box и все pointer-события принадлежат Button-клетке.
@@ -1571,7 +1585,10 @@ final class IsfBrowserOverlay {
                 // Кнопка вкладки обязана обрабатывать клик сама: Button поглощает
                 // ЛКМ в widget-маршруте, и Forge-хук с bounds-проверкой уже не
                 // вызывается (как у detailClose/detailPin/пагинации).
-                tab.onClick(event -> selectType(typeId));
+                tab.onClick(event -> {
+                    IsfClient.clickButtonSound();
+                    selectType(typeId);
+                });
                 tabRow.addChild(tab);
                 tabs.add(new TypeTab(typeId, tab));
             }

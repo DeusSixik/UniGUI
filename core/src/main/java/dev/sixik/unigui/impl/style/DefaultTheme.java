@@ -89,6 +89,12 @@ public final class DefaultTheme implements Theme {
         register(StyleIds.Widget.SLIDER, rangeStyle());
         register(StyleIds.Widget.PROGRESS_BAR, progressStyle());
         register(StyleIds.Widget.SCROLL_BAR, scrollBarStyle());
+        // Display-примитивы textures/images не должны получать fallback-радиус 4px:
+        // у них скругление — часть самой картинки. Пустой стиль оставляет значение
+        // радиусу самого виджета, поэтому явный radius(...) продолжает работать,
+        // а дефолтное значение остаётся 0.
+        register(StyleIds.Widget.TEXTURE_WIDGET, new MutableStyle());
+        register(StyleIds.Widget.IMAGE_VIEW, new MutableStyle());
     }
 
     @Override

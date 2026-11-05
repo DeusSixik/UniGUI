@@ -278,6 +278,16 @@ public class TextureWidget extends WidgetBase {
         return this;
     }
 
+    /**
+     * Стиль ищется по стабильному типу, а не по имени класса: иначе подклассы
+     * (ImageView и пользовательские) промахиваются мимо правила темы и получают
+     * fallback-стиль, в котором задан радиус 4px — текстуры рисовались скруглёнными.
+     */
+    @Override
+    protected String styleType() {
+        return STYLE_TYPE;
+    }
+
     @Override
     public void render(RenderContext context) {
         if (styleValue(StyleKeys.BACKGROUND_TEXTURE, styleState(), texture) == null

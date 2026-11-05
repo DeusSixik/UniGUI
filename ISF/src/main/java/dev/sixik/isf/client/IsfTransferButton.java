@@ -27,7 +27,7 @@ import java.util.List;
  */
 final class IsfTransferButton extends Button {
     static final String KIND_CRAFTING_GRID = "crafting_grid";
-    private static final int ICON_PIXELS = 8;
+    private static final int ICON_PIXELS = 11;
 
     private final String kind;
     private final JsonElement pattern;
@@ -43,6 +43,7 @@ final class IsfTransferButton extends Button {
         on(PointerEnteredEvent.TYPE, event -> showMissing(true));
         on(PointerExitedEvent.TYPE, event -> showMissing(false));
         onClick(event -> {
+            IsfClient.clickButtonSound();
             if (transfer(Screen.hasShiftDown()) && onTransferred != null) onTransferred.run();
         });
     }
@@ -69,6 +70,7 @@ final class IsfTransferButton extends Button {
     }
 
     private ResourceLocation supportedTexture() {
+        enabled(supportedMenu());
         return ResourceLocation.tryBuild(IsfMod.MOD_ID, supportedMenu()
                 ? "textures/jei/atlas/gui/setup_grid_hovered.png"
                 : "textures/jei/atlas/gui/setup_grid.png");

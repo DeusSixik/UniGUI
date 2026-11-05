@@ -7,6 +7,8 @@ import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.render.DrawPoint;
 import dev.sixik.unigui.api.render.RenderContext;
@@ -120,6 +122,13 @@ final class IsfItemButton extends Button {
         if (event instanceof PointerEvent pointer
                 && (pointer.phase() == EventPhase.TARGET || pointer.phase() == EventPhase.CAPTURE)
                 && (event instanceof PointerPressedEvent || event instanceof PointerReleasedEvent)) {
+            // Звук клика: только на нажатии ЛКМ и только в TARGET, иначе
+            // получим дубль на CAPTURE-фазе.
+            if (event instanceof PointerPressedEvent
+                    && pointer.phase() == EventPhase.TARGET
+                    && (pointer.button() == PointerButton.PRIMARY || pointer.button() == PointerButton.SECONDARY)) {
+                IsfClient.clickButtonSound();
+            }
             return;
         }
         super.handle(event);

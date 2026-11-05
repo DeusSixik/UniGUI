@@ -294,7 +294,11 @@ public final class VanillaRecipeTypeSupports {
         return rootVisual(new IsfVisualNode("body", id("unigui:hbox"), Map.of(
                 "padding", literal(4),
                 "spacing", literal(4),
-                "alignItems", literal("center")), List.of(
+                "alignItems", literal("center"),
+                // Поперечная ось HBox — вертикаль, поэтому alignSelf у колонки
+                // результата её не двигает по горизонтали. Без justifyContent
+                // дети прижаты влево (START), и справа остаётся пустое место.
+                "justifyContent", literal("center")), List.of(
                 // Без "columns": ширина сетки выводится из pattern рецепта,
                 // иначе свойства узла перезаписывают форму крафта тройкой колонок.
                 new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
@@ -302,7 +306,6 @@ public final class VanillaRecipeTypeSupports {
                 arrow(),
                 new IsfVisualNode("result_column", id("unigui:vbox"), Map.of(
                         "spacing", literal(2),
-                        "paddingTop", literal(10),
                         "alignItems", literal("center"),
                         "alignSelf", literal("center")), List.of(
                         resultItem(),
@@ -334,7 +337,11 @@ public final class VanillaRecipeTypeSupports {
         return rootVisual(new IsfVisualNode("body", id("unigui:hbox"), Map.of(
                 "padding", literal(4),
                 "spacing", literal(4),
-                "alignItems", literal("center")), List.of(
+                "alignItems", literal("center"),
+                // Поперечная ось HBox — вертикаль, поэтому alignSelf у колонки
+                // результата её не двигает по горизонтали. Без justifyContent
+                // дети прижаты влево (START), и справа остаётся пустое место.
+                "justifyContent", literal("center")), List.of(
                 new IsfVisualNode("ingredient", id("isf:ingredient_grid"), Map.of(
                         "items", parameter("ingredients"),
                         "columns", literal(1),
@@ -353,7 +360,11 @@ public final class VanillaRecipeTypeSupports {
         return rootVisual(new IsfVisualNode("body", id("unigui:hbox"), Map.of(
                 "padding", literal(4),
                 "spacing", literal(4),
-                "alignItems", literal("center")), List.of(
+                "alignItems", literal("center"),
+                // Поперечная ось HBox — вертикаль, поэтому alignSelf у колонки
+                // результата её не двигает по горизонтали. Без justifyContent
+                // дети прижаты влево (START), и справа остаётся пустое место.
+                "justifyContent", literal("center")), List.of(
                 new IsfVisualNode("ingredients", id("isf:ingredient_grid"), Map.of(
                         "items", parameter("ingredients"),
                         "columns", literal(3),
@@ -373,8 +384,7 @@ public final class VanillaRecipeTypeSupports {
                 "width", literal(176),
                 "height", literal(80),
                 "background", literal("#11151DEB"),
-                "border", literal("#6A8FAEFF"),
-                "radius", literal(3)), List.of(body));
+                "border", literal("#6A8FAEFF")), List.of(body));
     }
 
     private static IsfVisualNode arrow() {
