@@ -11,7 +11,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** HUD hook для Minecraft 1.20.1. */
 @Mixin(Gui.class)
 public abstract class MixinHudRender {
-    @Inject(method = {"render(Lnet/minecraft/client/gui/GuiGraphics;F)V", "m_280421_(Lnet/minecraft/client/gui/GuiGraphics;F)V"}, at = @At("TAIL"))
+    /**
+     * Имена методов заданы явно и без refmap ({@code remap = false}): refmap для common собирается в intermediary
+     * ({@code method_1753}) и в dev/production Forge не находит цель. Перечислены имена для всех окружений:
+     * mojmap ({@code render}), SRG ({@code m_280421_}) и intermediary ({@code method_1753}). Дескриптор не указан,
+     * т.к. в Fabric production типы в нём тоже intermediary; в {@code Gui} метод {@code render} с таким именем один.
+     */
+    @Inject(method = {"render", "m_280421_", "method_1753"}, at = @At("TAIL"), remap = false)
     private void unigui$renderHud(GuiGraphics graphics, float partialTick, CallbackInfo callback) {
         HudRender.render(graphics, partialTick);
     }
