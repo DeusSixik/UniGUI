@@ -21,19 +21,25 @@ import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 
-/** Batches untextured UI primitives into one position-color draw call. */
+/**
+ * Batches untextured UI primitives into one position-color draw call.
+ */
 final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float MIN_SCREEN_STROKE_WIDTH = 1.0f;
-    /** Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого. */
+    /**
+     * Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого.
+     */
     private static final float CURVE_TOLERANCE_PIXELS = 0.05f;
     private static final int MIN_CURVE_SEGMENTS = 2;
     private static final int MAX_CURVE_SEGMENTS = 96;
     private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
     private final PathAntiAliasing pathAntiAliasing = new PathAntiAliasing();
     private final ColorVertexSink colorSink = new ColorVertexSink();
-    /** Физических пикселей на одну единицу GUI-координат текущего прохода; нужен для ширины AA-бахромы. */
+    /**
+     * Физических пикселей на одну единицу GUI-координат текущего прохода; нужен для ширины AA-бахромы.
+     */
     private float pixelsPerUnit = 1.0f;
 
     /**
@@ -293,7 +299,9 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return vertices + flushPath(points, command.paint(), false, fringe);
     }
 
-    /** Отправляет накопленный подконтур через AA-тесселятор: заливка выпуклая, обводка с miter-стыками. */
+    /**
+     * Отправляет накопленный подконтур через AA-тесселятор: заливка выпуклая, обводка с miter-стыками.
+     */
     private int flushPath(FloatPoints points, Paint paint, boolean closed, float fringe) {
         if (points.size() < 2) return 0;
         if (paint.isStroke()) {
@@ -372,7 +380,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     }
 
     private static FloatPoints roundedOutline(float x1, float y1, float x2, float y2,
-                                               float radius, int cornerSegments) {
+                                              float radius, int cornerSegments) {
         FloatPoints outline = new FloatPoints((cornerSegments + 1) * 4);
         appendArc(outline, x1 + radius, y1 + radius, radius, radius,
                 (float) Math.PI, (float) (Math.PI * 1.5), cornerSegments, true);

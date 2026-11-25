@@ -1,7 +1,8 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
@@ -12,23 +13,27 @@ import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.PathAntiAliasing;
 import org.joml.Matrix4f;
-import dev.sixik.unigui.api.backend.UniGuiLogger;
-import dev.sixik.unigui.api.backend.UniGuiRuntime;
 
 
-/** Batches untextured UI primitives into one position-color draw call. */
+/**
+ * Batches untextured UI primitives into one position-color draw call.
+ */
 final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftShapeBatchRenderer.class);
     private static final float TAU = (float) (Math.PI * 2.0);
     private static final float MIN_SCREEN_STROKE_WIDTH = 1.0f;
-    /** Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого. */
+    /**
+     * Допуск flatten'а кривых в физических пикселях: отклонение полилинии от кривой не больше этого.
+     */
     private static final float CURVE_TOLERANCE_PIXELS = 0.05f;
     private static final int MIN_CURVE_SEGMENTS = 2;
     private static final int MAX_CURVE_SEGMENTS = 96;
     private final MinecraftSdfShapeRenderer sdfRenderer = new MinecraftSdfShapeRenderer();
     private final PathAntiAliasing pathAntiAliasing = new PathAntiAliasing();
     private final ColorVertexSink colorSink = new ColorVertexSink();
-    /** Физических пикселей на одну единицу GUI-координат текущего прохода; нужен для ширины AA-бахромы. */
+    /**
+     * Физических пикселей на одну единицу GUI-координат текущего прохода; нужен для ширины AA-бахромы.
+     */
     private float pixelsPerUnit = 1.0f;
 
     /**
@@ -171,7 +176,8 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
                 x1 = x2 = pixelCenter(x1);
             }
         }
-        return lineQuad(buffer, matrix, x1, y1, x2, y2, thickness, command.paint().color());
+        ColorView endColor = command.paint().hasGradient() ? command.paint().endColor() : command.paint().color();
+        return lineQuad(buffer, matrix, x1, y1, x2, y2, thickness, command.paint().color(), endColor);
     }
 
     private static int appendCircle(Object buffer, Matrix4f matrix, DrawCommand command) {
@@ -273,7 +279,9 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         return vertices + flushPath(points, command.paint(), false, fringe);
     }
 
-    /** Отправляет накопленный подконтур через AA-тесселятор: заливка выпуклая, обводка с miter-стыками. */
+    /**
+     * Отправляет накопленный подконтур через AA-тесселятор: заливка выпуклая, обводка с miter-стыками.
+     */
     private int flushPath(FloatPoints points, Paint paint, boolean closed, float fringe) {
         if (points.size() < 2) return 0;
         if (paint.isStroke()) {
@@ -352,7 +360,7 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     }
 
     private static FloatPoints roundedOutline(float x1, float y1, float x2, float y2,
-                                               float radius, int cornerSegments) {
+                                              float radius, int cornerSegments) {
         FloatPoints outline = new FloatPoints((cornerSegments + 1) * 4);
         appendArc(outline, x1 + radius, y1 + radius, radius, radius,
                 (float) Math.PI, (float) (Math.PI * 1.5), cornerSegments, true);
@@ -419,6 +427,15 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
     private static int lineQuad(Object buffer, Matrix4f matrix,
                                 float x1, float y1, float x2, float y2,
                                 float thickness, ColorView color) {
+        return lineQuad(buffer, matrix, x1, y1, x2, y2, thickness, color, color);
+    }
+
+    /**
+     * Линия квадом; цвет вершин переходит от {@code color} в начале к {@code endColor} в конце.
+     */
+    private static int lineQuad(Object buffer, Matrix4f matrix,
+                                float x1, float y1, float x2, float y2,
+                                float thickness, ColorView color, ColorView endColor) {
         float dx = x2 - x1;
         float dy = y2 - y1;
         float length = (float) Math.sqrt(dx * dx + dy * dy);
@@ -431,10 +448,10 @@ final class MinecraftShapeBatchRenderer implements AutoCloseable {
         float ny = dx / length * half;
         vertex(buffer, matrix, x1 + nx, y1 + ny, color);
         vertex(buffer, matrix, x1 - nx, y1 - ny, color);
-        vertex(buffer, matrix, x2 - nx, y2 - ny, color);
+        vertex(buffer, matrix, x2 - nx, y2 - ny, endColor);
         vertex(buffer, matrix, x1 + nx, y1 + ny, color);
-        vertex(buffer, matrix, x2 - nx, y2 - ny, color);
-        vertex(buffer, matrix, x2 + nx, y2 + ny, color);
+        vertex(buffer, matrix, x2 - nx, y2 - ny, endColor);
+        vertex(buffer, matrix, x2 + nx, y2 + ny, endColor);
         return 6;
     }
 

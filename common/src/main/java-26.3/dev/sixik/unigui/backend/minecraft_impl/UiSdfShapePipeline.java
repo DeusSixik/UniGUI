@@ -48,6 +48,7 @@ final class UiSdfShapePipeline {
             .addAttribute("InstanceLineEnd", GpuFormat.RG32_FLOAT)
             .addAttribute("InstanceShape", GpuFormat.RG32_FLOAT)
             .addAttribute("InstanceFlags", GpuFormat.RG32_FLOAT)
+            .addAttribute("InstanceEndColor", GpuFormat.RGBA32_FLOAT)
             .build();
 
     private static final UiCustomPipeline PIPELINE = new UiCustomPipeline("SDF shapes", SHADER,

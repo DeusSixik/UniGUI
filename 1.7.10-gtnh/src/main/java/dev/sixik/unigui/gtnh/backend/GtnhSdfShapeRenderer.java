@@ -167,6 +167,9 @@ final class GtnhSdfShapeRenderer {
             basicProgram.set("StrokeWidth", instanceData.get(base + 27));
             basicProgram.set("ShapeType", Math.round(instanceData.get(base + 28)));
             basicProgram.set("IsStroke", Math.round(instanceData.get(base + 29)));
+            basicProgram.set("EndColor", instanceData.get(base + 30), instanceData.get(base + 31),
+                    instanceData.get(base + 32), instanceData.get(base + 33));
+            basicProgram.set("LineGradient", 1);
             GL15.glBufferData(GL15.GL_ARRAY_BUFFER, basicVertices, GL15.GL_STREAM_DRAW);
             GL11.glDrawArrays(GL11.GL_TRIANGLE_FAN, 0, 4);
         }

@@ -221,6 +221,11 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
                 Math.max(1.0f, maxY - minY), 0.0f, thickness, false);
         uploadVec2(activeProgram, "LineStart", 0.0f, 0.0f);
         uploadVec2(activeProgram, "LineEnd", dx, dy);
+        if (command.paint().hasGradient()) {
+            ColorView end = command.paint().endColor();
+            uploadVec4(activeProgram, "EndColor", end.r(), end.g(), end.b(), end.a());
+            uploadInt(activeProgram, "LineGradient", 1);
+        }
 
         Matrix4f matrix = MinecraftTransform.commandMatrix(graphics.pose().last().pose(), command);
         drawQuad(matrix,
@@ -243,6 +248,8 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         uploadFloat(activeProgram, "StrokeWidth", strokeWidth);
         uploadInt(activeProgram, "ShapeType", shapeType);
         uploadInt(activeProgram, "IsStroke", stroke ? 1 : 0);
+        // Uniform'ы программы сохраняются между фигурами: градиент включает только renderLine.
+        uploadInt(activeProgram, "LineGradient", 0);
     }
 
     private void drawQuad(Matrix4f matrix,
@@ -345,6 +352,7 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         setupInstanceAttribute(9, 2, 24L * Float.BYTES);
         setupInstanceAttribute(10, 2, 26L * Float.BYTES);
         setupInstanceAttribute(11, 2, 28L * Float.BYTES);
+        setupInstanceAttribute(12, 4, 30L * Float.BYTES);
 
         GL30.glBindVertexArray(0);
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
@@ -608,6 +616,9 @@ final class MinecraftSdfShapeRenderer implements AutoCloseable {
         target.put(lineEndX).put(lineEndY);
         target.put(radius).put(strokeWidth);
         target.put(shapeType).put(stroke ? 1.0f : 0.0f);
+        // Конечный цвет: у градиентной линии свой, у остальных фигур равен основному (шейдер смешивает всегда).
+        ColorView endColor = shapeType == SHAPE_LINE && command.paint().hasGradient() ? command.paint().endColor() : color;
+        target.put(endColor.r()).put(endColor.g()).put(endColor.b()).put(endColor.a());
         return true;
     }
 

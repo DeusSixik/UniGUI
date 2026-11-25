@@ -13,6 +13,11 @@ import org.intellij.lang.annotations.Language;
  * <p>Two program variants exist. The basic program takes the shape parameters as uniforms and is drawn once per
  * command. The instanced program reads the same parameters from per-instance vertex attributes (packed as
  * {@link #INSTANCE_FLOATS} floats) so a whole batch is one draw call.</p>
+ *
+ * <p>A line may carry a second colour: the fragment blends from {@code Color} at {@code LineStart} to
+ * {@code EndColor} at {@code LineEnd}. The basic program only does it when the {@code LineGradient} uniform is set
+ * (its default {@code 0} keeps old backends unchanged); the instanced program always reads
+ * {@code InstanceEndColor}, which backends set to the start colour for a plain shape.</p>
  */
 public final class SdfShapeShaderSources {
     /** Shape type: rounded rectangle (radius {@code 0} gives a plain rectangle). */
@@ -28,7 +33,7 @@ public final class SdfShapeShaderSources {
     public static final float MIN_STROKE_WIDTH = 0.001f;
 
     /** Floats per instance in the instanced program, see {@link #INSTANCED_ATTRIBUTE_COMPONENTS}. */
-    public static final int INSTANCE_FLOATS = 30;
+    public static final int INSTANCE_FLOATS = 34;
 
     /** Attribute names of the basic program; the array index is the attribute location. */
     public static final String[] BASIC_ATTRIBUTE_NAMES = {"Position", "UV0"};
@@ -38,14 +43,14 @@ public final class SdfShapeShaderSources {
             "Position",
             "InstancePosition0", "InstancePosition1", "InstancePosition2", "InstancePosition3",
             "InstanceLocalBounds", "InstanceColor", "InstanceSize",
-            "InstanceLineStart", "InstanceLineEnd", "InstanceShape", "InstanceFlags"
+            "InstanceLineStart", "InstanceLineEnd", "InstanceShape", "InstanceFlags", "InstanceEndColor"
     };
 
     /**
      * Component count of each per-instance attribute, starting at location {@code 1} (location {@code 0} is the
      * unit quad). Offsets inside an instance are the running sum of the previous entries.
      */
-    public static final int[] INSTANCED_ATTRIBUTE_COMPONENTS = {3, 3, 3, 3, 4, 4, 2, 2, 2, 2, 2};
+    public static final int[] INSTANCED_ATTRIBUTE_COMPONENTS = {3, 3, 3, 3, 4, 4, 2, 2, 2, 2, 2, 4};
 
     @Language("GLSL")
     public static final String VERTEX = """
@@ -80,6 +85,8 @@ public final class SdfShapeShaderSources {
             uniform float StrokeWidth;
             uniform int ShapeType;
             uniform int IsStroke;
+            uniform vec4 EndColor;
+            uniform int LineGradient;
 
             float sdRoundedBox(vec2 point, vec2 halfSize, float radius) {
                 float safeRadius = clamp(radius, 0.0, min(halfSize.x, halfSize.y));
@@ -103,6 +110,12 @@ public final class SdfShapeShaderSources {
                 float denom = max(dot(ba, ba), 0.0001);
                 float h = clamp(dot(pa, ba) / denom, 0.0, 1.0);
                 return length(pa - ba * h);
+            }
+
+            // Position along the segment: 0 at the start, 1 at the end (same projection as sdSegment).
+            float segmentT(vec2 point, vec2 a, vec2 b) {
+                vec2 ba = b - a;
+                return clamp(dot(point - a, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
             }
 
             float aaWidth(float distanceToEdge) {
@@ -143,12 +156,16 @@ public final class SdfShapeShaderSources {
                         ? fillCoverage(distanceToEdge)
                         : innerStrokeCoverage(distanceToEdge, max(StrokeWidth, 0.0001));
 
-                float alpha = Color.a * coverage;
+                // A line with LineGradient != 0 blends from Color at LineStart to EndColor at LineEnd.
+                vec4 shapeColor = (ShapeType == 2 && LineGradient != 0)
+                        ? mix(Color, EndColor, segmentT(localPos, LineStart, LineEnd))
+                        : Color;
+                float alpha = shapeColor.a * coverage;
                 if (alpha <= 0.001) {
                     discard;
                 }
 
-                fragColor = vec4(Color.rgb, alpha);
+                fragColor = vec4(shapeColor.rgb, alpha);
             }
             """;
 
@@ -164,7 +181,9 @@ public final class SdfShapeShaderSources {
             .replace("uniform float Radius;", "flat in float Radius;")
             .replace("uniform float StrokeWidth;", "flat in float StrokeWidth;")
             .replace("uniform int ShapeType;", "flat in int ShapeType;")
-            .replace("uniform int IsStroke;", "flat in int IsStroke;");
+            .replace("uniform int IsStroke;", "flat in int IsStroke;")
+            .replace("uniform vec4 EndColor;", "flat in vec4 EndColor;")
+            .replace("uniform int LineGradient;", "flat in int LineGradient;");
 
     @Language("GLSL")
     public static final String INSTANCED_VERTEX = """
@@ -182,6 +201,7 @@ public final class SdfShapeShaderSources {
             in vec2 InstanceLineEnd;
             in vec2 InstanceShape;
             in vec2 InstanceFlags;
+            in vec4 InstanceEndColor;
 
             uniform mat4 ModelViewMat;
             uniform mat4 ProjMat;
@@ -195,6 +215,8 @@ public final class SdfShapeShaderSources {
             flat out float StrokeWidth;
             flat out int ShapeType;
             flat out int IsStroke;
+            flat out vec4 EndColor;
+            flat out int LineGradient;
 
             void main() {
                 vec3 left = mix(InstancePosition0, InstancePosition1, Position.y);
@@ -210,6 +232,9 @@ public final class SdfShapeShaderSources {
                 StrokeWidth = InstanceShape.y;
                 ShapeType = int(InstanceFlags.x + 0.5);
                 IsStroke = int(InstanceFlags.y + 0.5);
+                // Every instance carries an end colour (equal to InstanceColor for a plain shape).
+                EndColor = InstanceEndColor;
+                LineGradient = 1;
             }
             """;
 

@@ -14,7 +14,7 @@ import java.nio.FloatBuffer;
  * {@link SdfShapeShaderSources}. Pure Java (no OpenGL): the renderer only uploads the resulting buffer.
  *
  * <p>Per instance, in order: four transformed corner positions (3 floats each), local bounds (4), color (4),
- * size (2), line start (2), line end (2), {@code radius, strokeWidth} (2), {@code shapeType, isStroke} (2) = 30.</p>
+ * size (2), line start (2), line end (2), {@code radius, strokeWidth} (2), {@code shapeType, isStroke} (2), end colour (4) = 34.</p>
  */
 final class CleanroomSdfShapeInstances {
     private static final float FRACTION_EPSILON = 0.001f;
@@ -161,6 +161,10 @@ final class CleanroomSdfShapeInstances {
         target.put(lineEndX).put(lineEndY);
         target.put(radius).put(strokeWidth);
         target.put(shapeType).put(stroke ? 1.0f : 0.0f);
+        // End colour: a gradient line has its own, every other shape repeats the start colour.
+        ColorView endColor = shapeType == SdfShapeShaderSources.SHAPE_LINE && command.paint().hasGradient()
+                ? command.paint().endColor() : color;
+        target.put(endColor.r()).put(endColor.g()).put(endColor.b()).put(endColor.a() * clamp(opacity, 0.0f, 1.0f));
         return true;
     }
 
