@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.LayoutContext;
@@ -132,7 +133,7 @@ public final class DosTerminalDemo {
         screen.renderPolicy(UiRenderPolicy.vsync());
         screen.scaleWithMinecraftGui(true);
         screen.postEffect(crtScreenEffect());
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
     }
 
     /** @return screen-level effect для имитации пузатого CRT-монитора */

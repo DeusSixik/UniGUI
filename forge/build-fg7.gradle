@@ -27,19 +27,28 @@ java {
     withSourcesJar()
 }
 
+def sourceLine = versionProperty('source_line') ?: mcVersion
+/** Папка линейки версий и, если есть, папка конкретной версии (см. common/build.gradle). */
+def versionDirs = { File base ->
+    def dirs = [new File(base, "java-${sourceLine}")]
+    def own = new File(base, "java-${mcVersion}")
+    if (sourceLine != mcVersion && own.isDirectory()) dirs << own
+    return dirs
+}
+
 sourceSets {
     main {
         java.srcDirs = [
-                // У Forge 26.1 своя шина событий (EventBus 7): исходники платформы отдельные.
-                "src/main/java-${mcVersion}",
+                // У Forge 26.x своя шина событий (EventBus 7): исходники платформы отдельные.
+                *versionDirs(file('src/main')),
                 rootProject.file('common/src/main/java'),
-                rootProject.file("common/src/main/java-${mcVersion}"),
+                *versionDirs(rootProject.file('common/src/main')),
                 rootProject.file('core/src/main/java'),
                 rootProject.file('editor/src/main/java'),
                 rootProject.file('demo/src/main/java'),
         ]
         resources.srcDirs = [
-                "src/main/resources-${mcVersion}",
+                "src/main/resources-${sourceLine}",
                 rootProject.file('common/src/main/resources'),
                 rootProject.file('demo/src/main/resources'),
         ]
@@ -88,10 +97,11 @@ processResources {
             version                   : project.version,
             forge_loader_version_range: versionProject.forge_loader_version_range,
             forge_version_range       : versionProject.forge_version_range,
-            minecraft_version_range   : versionProject.forge_minecraft_version_range
+            minecraft_version_range   : versionProject.forge_minecraft_version_range,
+            resource_pack_format      : versionProject.resource_pack_format
     ]
     inputs.properties props
-    filesMatching('META-INF/mods.toml') {
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
         expand props
     }
 }

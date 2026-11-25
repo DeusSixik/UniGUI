@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
@@ -162,14 +163,14 @@ public final class TestCommands {
 
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.literal("UniGUI XAML Binding"), xmlScreen);
         screen.renderPolicy(UiRenderPolicy.onDirty());
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         installRenderModeToggle(screen);
     }
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.onDirty());
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         return screen;
     }
 
@@ -1745,8 +1746,8 @@ public final class TestCommands {
         previews.addChild(itemPreview("Pickaxe", Items.ENCHANTED_GOLDEN_APPLE));
         previews.addChild(blockPreview("Crafting", Blocks.CRAFTING_TABLE));
         previews.addChild(blockPreview("Furnace", Blocks.FURNACE));
-        previews.addChild(entityPreview("Player-ish", EntityType.ZOMBIE));
-        previews.addChild(entityPreview("Creeper", EntityType.CREEPER));
+        previews.addChild(entityPreview("Player-ish", MinecraftClientCompat.ZOMBIE));
+        previews.addChild(entityPreview("Creeper", MinecraftClientCompat.CREEPER));
         page.addChild(previews);
 
         WrapPanel actions = wrap();
@@ -1767,14 +1768,14 @@ public final class TestCommands {
         entities.spacing(1.0f);
         entities.lineSpacing(1.0f);
         List<EntityType<? extends LivingEntity>> types = List.of(
-                EntityType.ZOMBIE,
-                EntityType.SKELETON,
-                EntityType.CREEPER,
-                EntityType.VILLAGER,
-                EntityType.PIG,
-                EntityType.COW,
-                EntityType.SHEEP,
-                EntityType.CHICKEN
+                MinecraftClientCompat.ZOMBIE,
+                MinecraftClientCompat.SKELETON,
+                MinecraftClientCompat.CREEPER,
+                MinecraftClientCompat.VILLAGER,
+                MinecraftClientCompat.PIG,
+                MinecraftClientCompat.COW,
+                MinecraftClientCompat.SHEEP,
+                MinecraftClientCompat.CHICKEN
         );
         for (int i = 0; i < 160; i++) {
             MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("", types.get(i % types.size()));

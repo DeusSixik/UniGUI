@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransformOrigin;
@@ -471,7 +472,7 @@ public final class UniGuiDemo {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.vsync());
         screen.scaleWithMinecraftGui(false);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         return screen;
     }
 
@@ -2055,9 +2056,9 @@ public final class UniGuiDemo {
         previews.addChild(blockPreview("Crafting", Blocks.CRAFTING_TABLE));
         previews.addChild(blockPreview("Furnace", Blocks.FURNACE));
         previews.addChild(blockPreview("Chest", Blocks.CHEST));
-        previews.addChild(entityPreview("Zombie", EntityType.ZOMBIE));
-        previews.addChild(entityPreview("Creeper", EntityType.CREEPER));
-        previews.addChild(entityPreview("Villager", EntityType.VILLAGER));
+        previews.addChild(entityPreview("Zombie", MinecraftClientCompat.ZOMBIE));
+        previews.addChild(entityPreview("Creeper", MinecraftClientCompat.CREEPER));
+        previews.addChild(entityPreview("Villager", MinecraftClientCompat.VILLAGER));
         page.addChild(section("Preview widgets", previews));
 
         VBox registryPickers = new VBox();
@@ -2105,7 +2106,7 @@ public final class UniGuiDemo {
         WrapPanel entities = wrap();
         entities.spacing(1.0f);
         entities.lineSpacing(1.0f);
-        List<EntityType<? extends LivingEntity>> types = List.of(EntityType.ZOMBIE, EntityType.SKELETON, EntityType.CREEPER, EntityType.VILLAGER, EntityType.PIG, EntityType.COW, EntityType.SHEEP, EntityType.CHICKEN);
+        List<EntityType<? extends LivingEntity>> types = List.of(MinecraftClientCompat.ZOMBIE, MinecraftClientCompat.SKELETON, MinecraftClientCompat.CREEPER, MinecraftClientCompat.VILLAGER, MinecraftClientCompat.PIG, MinecraftClientCompat.COW, MinecraftClientCompat.SHEEP, MinecraftClientCompat.CHICKEN);
         for (int i = 0; i < 96; i++) {
             MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("", types.get(i % types.size()));
             entity.labelVisible(false);

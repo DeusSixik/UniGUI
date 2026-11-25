@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.minecraft;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftGuiRenderBackend;
 import net.minecraft.world.entity.EntityType;
@@ -36,7 +37,8 @@ public final class MinecraftEntityPreviewWidget extends MinecraftPreviewWidget {
 
     @Override
     protected void renderMinecraftPreview(MinecraftGuiRenderBackend backend, float x, float y, float size, float opacity) {
-        if (!backend.renderEntityPreview(entityType, x, y, size, lookX, lookY, opacity)) {
+        if (!backend.renderEntityPreview(entityType, x, y, size, lookX, lookY, opacity)
+                && MinecraftClientCompat.itemsReady()) {
             backend.renderItemPreview(Items.PLAYER_HEAD.getDefaultInstance(), x, y, size, opacity, false);
         }
     }

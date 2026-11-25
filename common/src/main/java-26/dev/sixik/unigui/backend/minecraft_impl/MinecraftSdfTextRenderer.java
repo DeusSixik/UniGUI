@@ -1,0 +1,905 @@
+package dev.sixik.unigui.backend.minecraft_impl;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuSampler;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.vertex.PoseStack;
+import dev.sixik.unigui.api.math.ColorView;
+import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.render.DrawCommand;
+import dev.sixik.unigui.api.render.Paint;
+import dev.sixik.unigui.api.render.TransformLayer;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.FontMetrics;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.LinearGradientTextBrush;
+import dev.sixik.unigui.api.text.SolidTextBrush;
+import dev.sixik.unigui.api.text.TextBrush;
+import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.impl.render.DrawBatch;
+import dev.sixik.unigui.impl.text.DefaultFontRegistry;
+import dev.sixik.unigui.impl.text.SdfGlyph;
+import dev.sixik.unigui.impl.text.SdfGlyphProvider;
+import dev.sixik.unigui.impl.render.shaders.SdfTextShaderSources;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL31;
+import org.lwjgl.opengl.GL33;
+import org.lwjgl.opengl.ARBInstancedArrays;
+import org.lwjgl.opengl.GL;
+import dev.sixik.unigui.api.backend.UniGuiLogger;
+import dev.sixik.unigui.api.backend.UniGuiRuntime;
+
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** GPU-рендерер одноканальных SDF-шрифтов, не зависящий от конкретного backend. */
+public final class MinecraftSdfTextRenderer implements AutoCloseable {
+    private static final int BASE_PIXEL_SIZE = SdfTextShaderSources.BASE_PIXEL_SIZE;
+    private static final int SPREAD = SdfTextShaderSources.SPREAD;
+    private static final int ATLAS_PADDING = SdfTextShaderSources.ATLAS_PADDING;
+    private static final int ATLAS_SIZE = SdfTextShaderSources.ATLAS_SIZE;
+    private static final int FLOATS_PER_INSTANCE = SdfTextShaderSources.FLOATS_PER_INSTANCE;
+    private static final int INSTANCE_STRIDE_BYTES = FLOATS_PER_INSTANCE * Float.BYTES;
+    private static final int QUAD_VERTEX_STRIDE_BYTES = 2 * Float.BYTES;
+    private static final boolean DEBUG_GL = Boolean.getBoolean("unigui.sdf.debugGl");
+    private static final float PIXEL_SNAP_MAX_SIZE = 18.0f;
+    private static final float MATRIX_EPSILON = 0.0001f;
+    private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftSdfTextRenderer.class);
+
+    // GLSL sources and glyph-instance layout are shared with the other version backends (core).
+    private static final String VERTEX_SHADER = SdfTextShaderSources.VERTEX;
+    private static final String FRAGMENT_SHADER = SdfTextShaderSources.FRAGMENT;
+
+    private final DefaultFontRegistry fonts;
+    private final Map<FontFace, FontAtlas> atlases = new IdentityHashMap<>();
+    private final ObjectArrayList<InstanceBatch> batchPool = new ObjectArrayList<>();
+    private final ObjectArrayList<InstanceBatch> frameBatches = new ObjectArrayList<>();
+    private FontFace defaultFace;
+    private final FloatBuffer matrixBuffer = BufferUtils.createFloatBuffer(16);
+    private final UiGpu.Bounds dirtyBounds = new UiGpu.Bounds();
+    private static final org.joml.Matrix4f IDENTITY = new org.joml.Matrix4f();
+    private FloatBuffer instanceUpload = BufferUtils.createFloatBuffer(FLOATS_PER_INSTANCE * 64);
+    private ByteBuffer glyphUpload = BufferUtils.createByteBuffer(64 * 64);
+    private int program;
+    private int vertexArray;
+    private int vertexBuffer;
+    private int instanceBuffer;
+    private int modelViewLocation;
+    private int projectionLocation;
+    private int sdfSpreadLocation;
+    private boolean initialized;
+    private boolean unavailable;
+    private final MinecraftUniformLocationCache uniformLocations = new MinecraftUniformLocationCache();
+    private boolean firstSubmitLogged;
+
+    public MinecraftSdfTextRenderer(DefaultFontRegistry fonts) {
+        this.fonts = fonts == null ? DefaultFontRegistry.global() : fonts;
+        this.defaultFace = this.fonts.defaultFace();
+    }
+
+    public FontFace defaultFace() {
+        return defaultFace;
+    }
+
+    public MinecraftSdfTextRenderer defaultFace(FontFace defaultFace) {
+        this.defaultFace = defaultFace == null ? fonts.defaultFace() : defaultFace;
+        return this;
+    }
+
+    public boolean render(UniGuiGraphics graphics, List<DrawCommand> commands, PoseStack pose) {
+        return render(graphics, commands, pose, false, 1.0f);
+    }
+
+    public boolean render(UniGuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+                          boolean renderingToPremultipliedTarget) {
+        return render(graphics, commands, pose, renderingToPremultipliedTarget, 1.0f);
+    }
+
+    public boolean render(UniGuiGraphics graphics, List<DrawCommand> commands, PoseStack pose,
+                          boolean renderingToPremultipliedTarget, float guiScale) {
+        if (graphics == null || commands == null || commands.isEmpty() || pose == null || unavailable) return false;
+        for (DrawCommand command : commands) {
+            if (!canRender(command)) return false;
+        }
+
+        if (UiSdfTextPipeline.available()) {
+            float coordinateScale = sanitizeScale(guiScale);
+            List<InstanceBatch> batches = layout(commands, pose.last().pose(), coordinateScale);
+            if (renderPipeline(batches, renderingToPremultipliedTarget, commands.size())) return true;
+        }
+        if (!MinecraftGpuCompat.openGl()) return false;
+
+        UiGl.Session state = UiGl.begin();
+        try {
+            if (DEBUG_GL) {
+                while (GL11.glGetError() != GL11.GL_NO_ERROR) {
+                    // Отделяем ошибки этого рендерера от устаревших ошибок чужого кода.
+                }
+            }
+            if (!initialize()) return false;
+            float coordinateScale = sanitizeScale(guiScale);
+            List<InstanceBatch> batches = layout(commands, pose.last().pose(), coordinateScale);
+            if (batches.isEmpty()) return true;
+            for (InstanceBatch batch : batches) markDirty(batch);
+
+            GL20.glUseProgram(program);
+            uploadMatrix(modelViewLocation, IDENTITY);
+            uploadMatrix(projectionLocation, UiGpu.projectionMatrix());
+            GL20.glUniform1f(sdfSpreadLocation, SPREAD);
+            GL30.glBindVertexArray(vertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
+            UiGl.blend(MinecraftUiBlend.straight(renderingToPremultipliedTarget));
+
+            for (InstanceBatch batch : batches) {
+                if (batch.instances.size == 0) continue;
+                UiGl.bindTexture(0, batch.page.view, batch.page.sampler());
+                FloatBuffer instances = uploadInstanceBuffer(batch.instances);
+                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instances, GL15.GL_STREAM_DRAW);
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instances.size / FLOATS_PER_INSTANCE);
+            }
+            if (DEBUG_GL) {
+                int error = GL11.glGetError();
+                if (error != GL11.GL_NO_ERROR) {
+                    throw new IllegalStateException("OpenGL error after SDF text submit: 0x"
+                            + Integer.toHexString(error));
+                }
+            }
+            if (!firstSubmitLogged) {
+                int instances = 0;
+                for (InstanceBatch batch : batches) instances += batch.instances.size / FLOATS_PER_INSTANCE;
+                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, instances={}",
+                        commands.size(), batches.size(), instances);
+                firstSubmitLogged = true;
+            }
+            return true;
+        } catch (Throwable failure) {
+            unavailable = true;
+            LOGGER.error("Disabling UniGUI SDF text renderer; Minecraft font fallback will be used", failure);
+            return false;
+        } finally {
+            UiGl.end(state);
+        }
+    }
+
+    public boolean render(UniGuiGraphics graphics, DrawBatch batch, PoseStack pose,
+                          boolean renderingToPremultipliedTarget) {
+        return render(graphics, batch, pose, renderingToPremultipliedTarget, 1.0f);
+    }
+
+    public boolean render(UniGuiGraphics graphics, DrawBatch batch, PoseStack pose,
+                          boolean renderingToPremultipliedTarget, float guiScale) {
+        if (batch == null) return false;
+        return renderRaw(graphics, batch.commandElements(), batch.size(), pose, renderingToPremultipliedTarget, guiScale);
+    }
+
+    private boolean renderRaw(UniGuiGraphics graphics, Object[] rawCommands, int commandCount, PoseStack pose,
+                              boolean renderingToPremultipliedTarget, float guiScale) {
+        if (graphics == null || rawCommands == null || commandCount == 0 || pose == null || unavailable) return false;
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (!canRender(command)) return false;
+        }
+
+        if (UiSdfTextPipeline.available()) {
+            float coordinateScale = sanitizeScale(guiScale);
+            ObjectArrayList<InstanceBatch> batches = layout(rawCommands, commandCount, pose.last().pose(), coordinateScale);
+            if (renderPipeline(batches, renderingToPremultipliedTarget, commandCount)) return true;
+        }
+        if (!MinecraftGpuCompat.openGl()) return false;
+
+        UiGl.Session state = UiGl.begin();
+        try {
+            if (DEBUG_GL) {
+                while (GL11.glGetError() != GL11.GL_NO_ERROR) {
+                    // Отделяем ошибки этого рендерера от устаревших ошибок чужого кода.
+                }
+            }
+            if (!initialize()) return false;
+            float coordinateScale = sanitizeScale(guiScale);
+            ObjectArrayList<InstanceBatch> batches = layout(rawCommands, commandCount, pose.last().pose(), coordinateScale);
+            if (batches.isEmpty()) return true;
+            for (int i = 0, size = batches.size(); i < size; i++) markDirty(batches.get(i));
+
+            GL20.glUseProgram(program);
+            uploadMatrix(modelViewLocation, IDENTITY);
+            uploadMatrix(projectionLocation, UiGpu.projectionMatrix());
+            GL20.glUniform1f(sdfSpreadLocation, SPREAD);
+            GL30.glBindVertexArray(vertexArray);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
+            UiGl.blend(MinecraftUiBlend.straight(renderingToPremultipliedTarget));
+
+            Object[] rawBatches = batches.elements();
+            for (int i = 0, size = batches.size(); i < size; i++) {
+                InstanceBatch batch = (InstanceBatch) rawBatches[i];
+                if (batch.instances.size == 0) continue;
+                UiGl.bindTexture(0, batch.page.view, batch.page.sampler());
+                FloatBuffer instances = uploadInstanceBuffer(batch.instances);
+                GL15.glBufferData(GL15.GL_ARRAY_BUFFER, instances, GL15.GL_STREAM_DRAW);
+                GL31.glDrawArraysInstanced(GL11.GL_TRIANGLES, 0, 6, batch.instances.size / FLOATS_PER_INSTANCE);
+            }
+            if (DEBUG_GL) {
+                int error = GL11.glGetError();
+                if (error != GL11.GL_NO_ERROR) {
+                    throw new IllegalStateException("OpenGL error after SDF text submit: 0x"
+                            + Integer.toHexString(error));
+                }
+            }
+            if (!firstSubmitLogged) {
+                int instances = 0;
+                for (int i = 0, size = batches.size(); i < size; i++) {
+                    InstanceBatch batch = (InstanceBatch) rawBatches[i];
+                    instances += batch.instances.size / FLOATS_PER_INSTANCE;
+                }
+                LOGGER.info("UniGUI SDF text active: commands={}, batches={}, instances={}",
+                        commandCount, batches.size(), instances);
+                firstSubmitLogged = true;
+            }
+            return true;
+        } catch (Throwable failure) {
+            unavailable = true;
+            LOGGER.error("Disabling UniGUI SDF text renderer; Minecraft font fallback will be used", failure);
+            return false;
+        } finally {
+            UiGl.end(state);
+        }
+    }
+    /**
+     * Рисует разложенные пакеты через ванильный пайплайн ({@link UiSdfTextPipeline}, OpenGL и Vulkan).
+     *
+     * @return {@code false}, если первый пакет нарисовать не удалось (тогда вызывающий рисует запасным путём);
+     * отказ на следующих пакетах только пропускает их, чтобы уже нарисованное не легло второй раз
+     */
+    private boolean renderPipeline(List<InstanceBatch> batches, boolean renderingToPremultipliedTarget, int commandCount) {
+        if (batches.isEmpty()) return true;
+        for (int i = 0, size = batches.size(); i < size; i++) markDirty(batches.get(i));
+        MinecraftUiBlend blend = MinecraftUiBlend.straight(renderingToPremultipliedTarget);
+        boolean any = false;
+        int instancesTotal = 0;
+        for (int i = 0, size = batches.size(); i < size; i++) {
+            InstanceBatch batch = batches.get(i);
+            int count = batch.instances.size / FLOATS_PER_INSTANCE;
+            if (count == 0) continue;
+            FloatBuffer instances = uploadInstanceBuffer(batch.instances);
+            if (!UiSdfTextPipeline.draw(blend, batch.page.view, batch.page.sampler(), instances, count)) {
+                return any;
+            }
+            any = true;
+            instancesTotal += count;
+        }
+        if (!firstSubmitLogged) {
+            LOGGER.info("UniGUI SDF text active (pipeline): commands={}, batches={}, instances={}",
+                    commandCount, batches.size(), instancesTotal);
+            firstSubmitLogged = true;
+        }
+        return true;
+    }
+
+    /**
+     * Отмечает изменённую область цели по позициям углов всех экземпляров пакета (первые 12 float экземпляра).
+     */
+    private void markDirty(InstanceBatch batch) {
+        float[] values = batch.instances.values;
+        for (int base = 0, size = batch.instances.size; base + 12 <= size; base += FLOATS_PER_INSTANCE) {
+            for (int corner = 0; corner < 4; corner++) {
+                dirtyBounds.add(values[base + corner * 3], values[base + corner * 3 + 1]);
+            }
+        }
+        dirtyBounds.commit();
+    }
+
+    public boolean unavailable() {
+        return unavailable;
+    }
+
+    private boolean canRender(DrawCommand command) {
+        if (command == null || command.text() == null || command.text().isEmpty()) return true;
+        RichText text = richText(command);
+        for (TextRun run : text.runs()) {
+            if (!(resolvedFace(run) instanceof SdfGlyphProvider)) return false;
+        }
+        return true;
+    }
+
+    private boolean initialize() {
+        if (initialized) return true;
+        program = linkProgram(VERTEX_SHADER, FRAGMENT_SHADER);
+        if (program == 0) {
+            unavailable = true;
+            return false;
+        }
+
+        if (!supportsInstancing()) {
+            LOGGER.warn("Инстансный рендер SDF-текста не поддерживается текущим OpenGL-контекстом");
+            unavailable = true;
+            return false;
+        }
+
+        vertexArray = GL30.glGenVertexArrays();
+        vertexBuffer = GL15.glGenBuffers();
+        instanceBuffer = GL15.glGenBuffers();
+        GL30.glBindVertexArray(vertexArray);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
+        FloatBuffer quad = BufferUtils.createFloatBuffer(12);
+        quad.put(0.0f).put(0.0f);
+        quad.put(0.0f).put(1.0f);
+        quad.put(1.0f).put(1.0f);
+        quad.put(0.0f).put(0.0f);
+        quad.put(1.0f).put(1.0f);
+        quad.put(1.0f).put(0.0f).flip();
+        GL15.glBufferData(GL15.GL_ARRAY_BUFFER, quad, GL15.GL_STATIC_DRAW);
+        GL20.glEnableVertexAttribArray(0);
+        GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, QUAD_VERTEX_STRIDE_BYTES, 0L);
+
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, instanceBuffer);
+        setupInstanceAttribute(3, 3, 0L);
+        setupInstanceAttribute(4, 3, 3L * Float.BYTES);
+        setupInstanceAttribute(5, 3, 6L * Float.BYTES);
+        setupInstanceAttribute(6, 3, 9L * Float.BYTES);
+        setupInstanceAttribute(7, 4, 12L * Float.BYTES);
+        setupInstanceAttribute(8, 4, 16L * Float.BYTES);
+        setupInstanceAttribute(9, 4, 20L * Float.BYTES);
+        setupInstanceAttribute(10, 4, 24L * Float.BYTES);
+        setupInstanceAttribute(11, 4, 28L * Float.BYTES);
+
+        modelViewLocation = uniformLocations.get(program, "ModelViewMat");
+        projectionLocation = uniformLocations.get(program, "ProjMat");
+        sdfSpreadLocation = uniformLocations.get(program, "SdfSpread");
+        int atlasLocation = uniformLocations.get(program, "GlyphAtlas");
+        GL20.glUseProgram(program);
+        GL20.glUniform1i(atlasLocation, 0);
+        GL20.glUniform1f(sdfSpreadLocation, SPREAD);
+        initialized = true;
+        return true;
+    }
+
+    private ObjectArrayList<InstanceBatch> layout(Object[] rawCommands, int commandCount, org.joml.Matrix4f basePose, float guiScale) {
+        ObjectArrayList<InstanceBatch> batches = frameBatches;
+        batches.clear();
+        for (int i = 0; i < commandCount; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
+            layoutCommand(batches, command, richText(command), basePose, guiScale);
+        }
+        return batches;
+    }
+    private List<InstanceBatch> layout(List<DrawCommand> commands, org.joml.Matrix4f basePose, float guiScale) {
+        List<InstanceBatch> batches = frameBatches;
+        batches.clear();
+        for (DrawCommand command : commands) {
+            if (!hasText(command) || !visibleAlpha(command.paint().color(), null)) continue;
+            layoutCommand(batches, command, richText(command), basePose, guiScale);
+        }
+        return batches;
+    }
+
+    private void layoutCommand(List<InstanceBatch> batches, DrawCommand command, RichText text,
+                               org.joml.Matrix4f basePose, float guiScale) {
+        RectView bounds = command.bounds();
+        List<LineInfo> lines = lineInfo(text);
+        TransformState transformState = TransformState.from(command, basePose);
+        float penX = bounds.x();
+        float lineTop = bounds.y();
+        int lineIndex = 0;
+        float baseline = lineTop + lines.get(0).ascent;
+        int glyphsInLine = 0;
+        float lineSnapOffsetX = 0.0f;
+        float lineSnapOffsetY = 0.0f;
+        boolean lineSnapInitialized = false;
+
+        for (TextRun run : text.runs()) {
+            FontFace face = resolvedFace(run);
+            SdfGlyphProvider provider = (SdfGlyphProvider) face;
+            FontAtlas atlas = atlases.computeIfAbsent(face, ignored -> new FontAtlas(provider));
+            float scale = run.pixelSize() / BASE_PIXEL_SIZE;
+            ColorView runColor = run.color();
+            boolean runVisible = visibleAlpha(command.paint().color(), runColor);
+            String value = run.text();
+            for (int index = 0; index < value.length(); ) {
+                int codePoint = value.codePointAt(index);
+                index += Character.charCount(codePoint);
+                if (codePoint == '\n') {
+                    penX = bounds.x();
+                    lineTop += lines.get(lineIndex).height;
+                    lineIndex = Math.min(lineIndex + 1, lines.size() - 1);
+                    baseline = lineTop + lines.get(lineIndex).ascent;
+                    glyphsInLine = 0;
+                    lineSnapOffsetX = 0.0f;
+                    lineSnapOffsetY = 0.0f;
+                    lineSnapInitialized = false;
+                    continue;
+                }
+
+                if (glyphsInLine > 0) penX += trackingAdvance(run);
+                GlyphPlacement placement = atlas.glyph(codePoint);
+                if (placement == null) {
+                    penX += Math.max(0.0f, face.advance(codePoint, run.pixelSize()));
+                    glyphsInLine++;
+                    continue;
+                }
+                float left = penX + placement.bearingX * scale;
+                float top = baseline + placement.bearingY * scale;
+                float width = placement.width * scale;
+                float height = placement.height * scale;
+                if (runVisible) {
+                    float drawLeft = left;
+                    float drawTop = top;
+                    if (shouldPixelSnap(command, run.pixelSize(), transformState)) {
+                        if (!lineSnapInitialized) {
+                            lineSnapOffsetX = snapScreenX(left, transformState, guiScale) - left;
+                            lineSnapOffsetY = snapScreenY(top, transformState, guiScale) - top;
+                            lineSnapInitialized = true;
+                        }
+                        drawLeft += lineSnapOffsetX;
+                        drawTop += lineSnapOffsetY;
+                    }
+                    InstanceBatch batch = nextBatch(batches, placement.page);
+                    addQuad(batch.instances, drawLeft, drawTop, width, height,
+                            placement.u0, placement.v0, placement.u1, placement.v1,
+                            command.paint(), runColor, run.brush(), command.brushBounds(), transformState);
+                }
+                penX += placement.advance * scale;
+                glyphsInLine++;
+            }
+        }
+    }
+
+    private List<LineInfo> lineInfo(RichText text) {
+        List<LineInfo> lines = new ObjectArrayList<>();
+        float ascent = 0.0f;
+        float height = 0.0f;
+        for (TextRun run : text.runs()) {
+            FontMetrics metrics = resolvedFace(run).metrics(run.pixelSize());
+            ascent = Math.max(ascent, metrics.ascent());
+            height = Math.max(height, metrics.lineHeight());
+            String value = run.text();
+            for (int index = 0; index < value.length(); ) {
+                int codePoint = value.codePointAt(index);
+                index += Character.charCount(codePoint);
+                if (codePoint == '\n') {
+                    lines.add(new LineInfo(positive(ascent), positive(height)));
+                    ascent = metrics.ascent();
+                    height = metrics.lineHeight();
+                }
+            }
+        }
+        lines.add(new LineInfo(positive(ascent), positive(height)));
+        return lines;
+    }
+
+    private RichText richText(DrawCommand command) {
+        RichText richText = command.richText();
+        return richText == null
+                ? RichText.of(command.text(), defaultFace, TextRun.DEFAULT_PIXEL_SIZE)
+                : richText;
+    }
+
+    private static boolean hasText(DrawCommand command) {
+        if (command == null) return false;
+        if (command.richText() != null) return !command.richText().isEmpty();
+        return command.text() != null && !command.text().isEmpty();
+    }
+
+    private FontFace resolvedFace(TextRun run) {
+        return run.font() == null ? defaultFace : run.font();
+    }
+
+    private InstanceBatch nextBatch(List<InstanceBatch> batches, AtlasPage page) {
+        if (!batches.isEmpty() && batches.get(batches.size() - 1).page == page) {
+            return batches.get(batches.size() - 1);
+        }
+        int index = batches.size();
+        InstanceBatch batch;
+        if (index < batchPool.size()) {
+            batch = batchPool.get(index);
+            batch.page = page;
+            batch.instances.clear();
+        } else {
+            batch = new InstanceBatch(page);
+            batchPool.add(batch);
+        }
+        batches.add(batch);
+        return batch;
+    }
+
+    private static void addQuad(FloatArray instances, float x, float y, float width, float height,
+                                float u0, float v0, float u1, float v1, Paint paint,
+                                ColorView runColor, TextBrush brush, RectView brushBounds,
+                                TransformState state) {
+        instances.ensure(instances.size + FLOATS_PER_INSTANCE);
+        int index = instances.size;
+        index = addPosition(instances.values, index, x, y, state);
+        index = addPosition(instances.values, index, x, y + height, state);
+        index = addPosition(instances.values, index, x + width, y + height, state);
+        index = addPosition(instances.values, index, x + width, y, state);
+        instances.values[index++] = u0;
+        instances.values[index++] = v0;
+        instances.values[index++] = u1;
+        instances.values[index++] = v1;
+        index = addColor(instances.values, index, x, y, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x, y + height, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x + width, y + height, paint, runColor, brush, brushBounds);
+        index = addColor(instances.values, index, x + width, y, paint, runColor, brush, brushBounds);
+        instances.size = index;
+    }
+
+    private static int addPosition(float[] values, int index, float x, float y, TransformState state) {
+        values[index++] = state.m00 * x + state.m10 * y + state.m30;
+        values[index++] = state.m01 * x + state.m11 * y + state.m31;
+        values[index++] = state.m02 * x + state.m12 * y + state.m32;
+        return index;
+    }
+
+    private static int addColor(float[] values, int index, float x, float y,
+                                Paint paint, ColorView runColor, TextBrush brush, RectView brushBounds) {
+        ColorView base = paint == null ? null : paint.color();
+        float baseAlpha = base == null ? 1.0f : clamp01(base.a());
+        float runAlpha = runColor == null ? 1.0f : clamp01(runColor.a());
+        float r;
+        float g;
+        float b;
+        float a = baseAlpha * runAlpha;
+        if (brush instanceof SolidTextBrush solid) {
+            ColorView color = solid.color();
+            r = clamp01(color.r());
+            g = clamp01(color.g());
+            b = clamp01(color.b());
+            a *= clamp01(color.a());
+        } else if (brush instanceof LinearGradientTextBrush gradient) {
+            float t = gradient.factor(x, y, brushBounds);
+            ColorView start = gradient.startColor();
+            ColorView end = gradient.endColor();
+            r = lerp(clamp01(start.r()), clamp01(end.r()), t);
+            g = lerp(clamp01(start.g()), clamp01(end.g()), t);
+            b = lerp(clamp01(start.b()), clamp01(end.b()), t);
+            a *= lerp(clamp01(start.a()), clamp01(end.a()), t);
+        } else {
+            r = (base == null ? 1.0f : clamp01(base.r()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.r()));
+            g = (base == null ? 1.0f : clamp01(base.g()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.g()));
+            b = (base == null ? 1.0f : clamp01(base.b()))
+                    * (runColor == null ? 1.0f : clamp01(runColor.b()));
+        }
+        values[index++] = r;
+        values[index++] = g;
+        values[index++] = b;
+        values[index++] = a;
+        return index;
+    }
+
+    private static float lerp(float from, float to, float t) {
+        return from + (to - from) * t;
+    }
+
+    private void uploadMatrix(int location, org.joml.Matrix4fc matrix) {
+        matrixBuffer.clear();
+        matrixBuffer.limit(16);
+        matrix.get(matrixBuffer);
+        GL20.glUniformMatrix4fv(location, false, matrixBuffer);
+    }
+
+    private FloatBuffer uploadInstanceBuffer(FloatArray values) {
+        if (instanceUpload.capacity() < values.size) {
+            int capacity = Math.max(values.size, instanceUpload.capacity() * 2);
+            instanceUpload = BufferUtils.createFloatBuffer(capacity);
+        }
+        instanceUpload.clear();
+        instanceUpload.put(values.values, 0, values.size);
+        instanceUpload.flip();
+        return instanceUpload;
+    }
+
+    private ByteBuffer uploadGlyphBuffer(byte[] pixels) {
+        if (glyphUpload.capacity() < pixels.length) {
+            glyphUpload = BufferUtils.createByteBuffer(Math.max(pixels.length, glyphUpload.capacity() * 2));
+        }
+        glyphUpload.clear();
+        glyphUpload.put(pixels);
+        glyphUpload.flip();
+        return glyphUpload;
+    }
+
+    private static int linkProgram(String vertexSource, String fragmentSource) {
+        int vertex = compileShader(GL20.GL_VERTEX_SHADER, vertexSource);
+        int fragment = compileShader(GL20.GL_FRAGMENT_SHADER, fragmentSource);
+        if (vertex == 0 || fragment == 0) {
+            if (vertex != 0) GL20.glDeleteShader(vertex);
+            if (fragment != 0) GL20.glDeleteShader(fragment);
+            return 0;
+        }
+        int linkedProgram = GL20.glCreateProgram();
+        GL20.glAttachShader(linkedProgram, vertex);
+        GL20.glAttachShader(linkedProgram, fragment);
+        GL20.glBindAttribLocation(linkedProgram, 0, "Position");
+        GL20.glBindAttribLocation(linkedProgram, 3, "InstancePosition0");
+        GL20.glBindAttribLocation(linkedProgram, 4, "InstancePosition1");
+        GL20.glBindAttribLocation(linkedProgram, 5, "InstancePosition2");
+        GL20.glBindAttribLocation(linkedProgram, 6, "InstancePosition3");
+        GL20.glBindAttribLocation(linkedProgram, 7, "InstanceUv");
+        GL20.glBindAttribLocation(linkedProgram, 8, "InstanceColor0");
+        GL20.glBindAttribLocation(linkedProgram, 9, "InstanceColor1");
+        GL20.glBindAttribLocation(linkedProgram, 10, "InstanceColor2");
+        GL20.glBindAttribLocation(linkedProgram, 11, "InstanceColor3");
+        GL20.glLinkProgram(linkedProgram);
+        GL20.glDeleteShader(vertex);
+        GL20.glDeleteShader(fragment);
+        if (GL20.glGetProgrami(linkedProgram, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
+            LOGGER.error("Failed to link UniGUI SDF shader: {}", GL20.glGetProgramInfoLog(linkedProgram));
+            GL20.glDeleteProgram(linkedProgram);
+            return 0;
+        }
+        return linkedProgram;
+    }
+
+    private static void setupInstanceAttribute(int index, int components, long offset) {
+        GL20.glEnableVertexAttribArray(index);
+        GL20.glVertexAttribPointer(index, components, GL11.GL_FLOAT, false, INSTANCE_STRIDE_BYTES, offset);
+        if (GL.getCapabilities().OpenGL33) GL33.glVertexAttribDivisor(index, 1);
+        else ARBInstancedArrays.glVertexAttribDivisorARB(index, 1);
+    }
+
+    private static boolean supportsInstancing() {
+        if (GL.getCapabilities() == null) return false;
+        return GL.getCapabilities().OpenGL31
+                && (GL.getCapabilities().OpenGL33 || GL.getCapabilities().GL_ARB_instanced_arrays);
+    }
+
+    private static int compileShader(int type, String source) {
+        int shader = GL20.glCreateShader(type);
+        GL20.glShaderSource(shader, source);
+        GL20.glCompileShader(shader);
+        if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
+            LOGGER.error("Failed to compile UniGUI SDF {} shader: {}",
+                    type == GL20.GL_VERTEX_SHADER ? "vertex" : "fragment",
+                    GL20.glGetShaderInfoLog(shader));
+            GL20.glDeleteShader(shader);
+            return 0;
+        }
+        return shader;
+    }
+
+    private static float positive(float value) {
+        return value > 0.0f ? value : TextRun.DEFAULT_PIXEL_SIZE;
+    }
+
+    private static float trackingAdvance(TextRun run) {
+        return run == null ? 0.0f : Math.max(0.0f, run.tracking()) * run.pixelSize();
+    }
+
+    private static boolean shouldPixelSnap(DrawCommand command, float pixelSize, TransformState state) {
+        return (command == null || command.textPixelSnap())
+                && !hasVisualTransform(command)
+                && Float.isFinite(pixelSize)
+                && pixelSize > 0.0f
+                && pixelSize <= PIXEL_SNAP_MAX_SIZE
+                && state != null
+                && Math.abs(state.m10()) <= MATRIX_EPSILON
+                && Math.abs(state.m01()) <= MATRIX_EPSILON
+                && Math.abs(state.m00()) > MATRIX_EPSILON
+                && Math.abs(state.m11()) > MATRIX_EPSILON;
+    }
+
+    private static boolean hasVisualTransform(DrawCommand command) {
+        if (command == null) return false;
+        if (hasVisualTransform(command.transform())) return true;
+        Object[] rawLayers = command.transformStackElements();
+        for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+            Object rawLayer = rawLayers[i];
+            if (rawLayer instanceof TransformLayer layer && hasVisualTransform(layer.transform())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasVisualTransform(Transform transform) {
+        if (transform == null) return false;
+        return Math.abs(transform.position().x()) > MATRIX_EPSILON
+                || Math.abs(transform.position().y()) > MATRIX_EPSILON
+                || Math.abs(transform.rotationDegrees()) > MATRIX_EPSILON
+                || Math.abs(transform.scale().x() - 1.0f) > MATRIX_EPSILON
+                || Math.abs(transform.scale().y() - 1.0f) > MATRIX_EPSILON;
+    }
+
+    private static float snapScreenX(float x, TransformState state, float guiScale) {
+        float scale = sanitizeScale(guiScale);
+        float screen = x * state.m00() + state.m30();
+        return (float) (((Math.round(screen * scale) / scale) - state.m30()) / state.m00());
+    }
+
+    private static float snapScreenY(float y, TransformState state, float guiScale) {
+        float scale = sanitizeScale(guiScale);
+        float screen = y * state.m11() + state.m31();
+        return (float) (((Math.round(screen * scale) / scale) - state.m31()) / state.m11());
+    }
+
+    private static float sanitizeScale(float value) {
+        return Float.isFinite(value) && value > 0.0f ? value : 1.0f;
+    }
+
+    private static float clamp01(float value) {
+        if (!Float.isFinite(value)) return 1.0f;
+        return Math.max(0.0f, Math.min(1.0f, value));
+    }
+
+    private static boolean visibleAlpha(ColorView base, ColorView run) {
+        if (base == null) return true;
+        float alpha = clamp01(base.a()) * (run == null ? 1.0f : clamp01(run.a()));
+        return Math.max(0, Math.min(255, Math.round(alpha * 255.0f))) > 0;
+    }
+
+    @Override
+    public void close() {
+        for (FontAtlas atlas : atlases.values()) atlas.close();
+        atlases.clear();
+        if (vertexBuffer != 0) GL15.glDeleteBuffers(vertexBuffer);
+        if (instanceBuffer != 0) GL15.glDeleteBuffers(instanceBuffer);
+        if (vertexArray != 0) GL30.glDeleteVertexArrays(vertexArray);
+        if (program != 0) GL20.glDeleteProgram(program);
+        vertexBuffer = 0;
+        instanceBuffer = 0;
+        vertexArray = 0;
+        program = 0;
+        initialized = false;
+        uniformLocations.clear();
+        frameBatches.clear();
+        batchPool.clear();
+    }
+
+    private final class FontAtlas implements AutoCloseable {
+        private final SdfGlyphProvider provider;
+        private final Map<Integer, GlyphPlacement> glyphs = new HashMap<>();
+        private final ObjectArrayList<AtlasPage> pages = new ObjectArrayList<>();
+
+        private FontAtlas(SdfGlyphProvider provider) {
+            this.provider = provider;
+        }
+
+        private GlyphPlacement glyph(int codePoint) {
+            GlyphPlacement cached = glyphs.get(codePoint);
+            if (cached != null) return cached;
+            SdfGlyph glyph = provider.sdfGlyph(codePoint, BASE_PIXEL_SIZE, SPREAD);
+            if (glyph == null) return null;
+            AtlasPage page = pages.isEmpty() ? newPage() : pages.get(pages.size() - 1);
+            if (!page.canFit(glyph.width(), glyph.height())) page = newPage();
+            GlyphPlacement placement = page.add(glyph);
+            glyphs.put(codePoint, placement);
+            return placement;
+        }
+
+        private AtlasPage newPage() {
+            AtlasPage page = new AtlasPage(ATLAS_SIZE);
+            pages.add(page);
+            return page;
+        }
+
+        @Override
+        public void close() {
+            Object[] rawPages = pages.elements();
+            for (int i = 0, size = pages.size(); i < size; i++) {
+                AtlasPage page = (AtlasPage) rawPages[i];
+                page.close();
+            }
+            pages.clear();
+            glyphs.clear();
+        }
+    }
+
+    /**
+     * Страница атласа: одноканальная текстура Minecraft ({@link GpuTexture}), поэтому её может читать и прямой
+     * GL-путь, и пайплайн на любом бэкенде. Глифы дописываются через {@code CommandEncoder.writeToTexture}.
+     */
+    private final class AtlasPage implements AutoCloseable {
+        private final int size;
+        private final GpuTexture texture;
+        private final GpuTextureView view;
+        private int cursorX = ATLAS_PADDING;
+        private int cursorY = ATLAS_PADDING;
+        private int rowHeight;
+
+        private AtlasPage(int size) {
+            this.size = size;
+            texture = MinecraftGpuCompat.createR8Texture(() -> "UniGUI SDF glyph atlas", size, size);
+            view = RenderSystem.getDevice().createTextureView(texture);
+            // Содержимое новой текстуры не определено: промежутки между глифами должны быть нулевыми.
+            ByteBuffer emptyAtlas = BufferUtils.createByteBuffer(size * size);
+            MinecraftGpuCompat.writeR8(texture, emptyAtlas, 0, 0, size, size);
+        }
+
+        private GpuSampler sampler() {
+            return RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+        }
+
+        private boolean canFit(int width, int height) {
+            if (width + ATLAS_PADDING > size || height + ATLAS_PADDING > size) return false;
+            if (cursorX + width > size) return cursorY + rowHeight + ATLAS_PADDING + height <= size;
+            return cursorY + height <= size;
+        }
+
+        private GlyphPlacement add(SdfGlyph glyph) {
+            if (cursorX + glyph.width() > size) {
+                cursorX = ATLAS_PADDING;
+                cursorY += rowHeight + ATLAS_PADDING;
+                rowHeight = 0;
+            }
+            int x = cursorX;
+            int y = cursorY;
+            cursorX += glyph.width() + ATLAS_PADDING;
+            rowHeight = Math.max(rowHeight, glyph.height());
+            if (glyph.width() > 0 && glyph.height() > 0) {
+                ByteBuffer pixels = uploadGlyphBuffer(glyph.pixels());
+                MinecraftGpuCompat.writeR8(texture, pixels, x, y, glyph.width(), glyph.height());
+            }
+            return new GlyphPlacement(this, glyph.width(), glyph.height(), glyph.advance(),
+                    glyph.bearingX(), glyph.bearingY(),
+                    x / (float) size, y / (float) size,
+                    (x + glyph.width()) / (float) size,
+                    (y + glyph.height()) / (float) size);
+        }
+
+        @Override
+        public void close() {
+            view.close();
+            texture.close();
+        }
+    }
+
+    private record GlyphPlacement(AtlasPage page, int width, int height, float advance,
+                                  float bearingX, float bearingY,
+                                  float u0, float v0, float u1, float v1) {
+    }
+
+    private record LineInfo(float ascent, float height) {
+    }
+
+    private record TransformState(float m00, float m01, float m02,
+                                  float m10, float m11, float m12,
+                                  float m30, float m31, float m32) {
+        private static TransformState from(DrawCommand command, org.joml.Matrix4f pose) {
+            org.joml.Matrix4f matrix = MinecraftTransform.commandMatrix(pose, command);
+            return new TransformState(
+                    matrix.m00(), matrix.m01(), matrix.m02(),
+                    matrix.m10(), matrix.m11(), matrix.m12(),
+                    matrix.m30(), matrix.m31(), matrix.m32());
+        }
+    }
+
+    private static final class InstanceBatch {
+        private AtlasPage page;
+        private final FloatArray instances = new FloatArray();
+
+        private InstanceBatch(AtlasPage page) {
+            this.page = page;
+        }
+    }
+
+    private static final class FloatArray {
+        private float[] values = new float[FLOATS_PER_INSTANCE * 64];
+        private int size;
+
+        private void clear() {
+            size = 0;
+        }
+
+        private void ensure(int required) {
+            if (required <= values.length) return;
+            values = java.util.Arrays.copyOf(values, Math.max(required, values.length * 2));
+        }
+    }
+}

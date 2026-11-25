@@ -9,7 +9,8 @@ architectury {
 
 sourceSets {
     main {
-        resources.srcDir "src/main/resources-${versionProject.minecraft_version}"
+        // Линейка 26.x делит ресурсы (resources-26), у старых версий они свои.
+        resources.srcDir "src/main/resources-${versionProperty('source_line') ?: versionProject.minecraft_version}"
     }
 }
 

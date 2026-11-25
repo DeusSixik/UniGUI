@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests.mixin;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.gui.render.pip.GuiEntityRenderer;
@@ -43,7 +44,7 @@ public abstract class MixinGuiRendererEntityPool {
         if (index == 0) return renderers.get(stateClass);
         while (unigui$entityRenderers.size() < index) {
             Minecraft minecraft = Minecraft.getInstance();
-            unigui$entityRenderers.add(new GuiEntityRenderer(minecraft.renderBuffers().bufferSource(),
+            unigui$entityRenderers.add(new GuiEntityRenderer(MinecraftClientCompat.renderBuffers().bufferSource(),
                     minecraft.getEntityRenderDispatcher()));
         }
         return unigui$entityRenderers.get(index - 1);

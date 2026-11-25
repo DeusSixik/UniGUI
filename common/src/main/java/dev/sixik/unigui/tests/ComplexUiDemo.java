@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
@@ -72,7 +73,7 @@ public final class ComplexUiDemo {
                 Component.literal("UniGUI Complex Demo"), create(), context);
         screen.renderPolicy(UiRenderPolicy.continuous());
         screen.scaleWithMinecraftGui(false);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
     }
 
     /**

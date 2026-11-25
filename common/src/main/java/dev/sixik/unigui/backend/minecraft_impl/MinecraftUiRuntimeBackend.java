@@ -124,7 +124,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         Minecraft minecraft = Minecraft.getInstance();
         synchronized (openScreens) {
             MinecraftWidgetScreen existing = openScreens.get(screen);
-            if (existing != null && existing == minecraft.screen) return;
+            if (existing != null && existing == MinecraftClientCompat.screen()) return;
         }
         UIContext context = screen.context() == null
                 ? new DefaultUIContext(new MinecraftClipboardService())
@@ -151,7 +151,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         synchronized (openScreens) {
             openScreens.put(screen, nativeScreen);
         }
-        minecraft.setScreen(nativeScreen);
+        MinecraftClientCompat.setScreen(nativeScreen);
     }
 
     @Override
@@ -161,8 +161,8 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
             nativeScreen = openScreens.remove(screen);
         }
         Minecraft minecraft = Minecraft.getInstance();
-        if (nativeScreen != null && minecraft.screen == nativeScreen) {
-            minecraft.setScreen(null);
+        if (nativeScreen != null && MinecraftClientCompat.screen() == nativeScreen) {
+            MinecraftClientCompat.setScreen(null);
         }
     }
 }

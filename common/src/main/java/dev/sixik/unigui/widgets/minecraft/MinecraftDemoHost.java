@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.minecraft;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
@@ -58,7 +59,7 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     public Widget block(String label, SampleBlock block, float size) {
         Block mapped = switch (block) {
             case GRASS -> Blocks.GRASS_BLOCK;
-            case RED_WOOL -> Blocks.RED_WOOL;
+            case RED_WOOL -> MinecraftClientCompat.redWool();
             case GLASS -> Blocks.GLASS;
             case LOG -> Blocks.OAK_LOG;
         };
@@ -71,10 +72,10 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     public Widget entity(String label, SampleEntity entity, float size) {
         // The player cannot be created from its EntityType, so the preview would only show a head placeholder.
         EntityType<? extends net.minecraft.world.entity.LivingEntity> type = switch (entity) {
-            case ZOMBIE -> EntityType.ZOMBIE;
-            case PIG -> EntityType.PIG;
-            case CREEPER -> EntityType.CREEPER;
-            case CHICKEN -> EntityType.CHICKEN;
+            case ZOMBIE -> MinecraftClientCompat.ZOMBIE;
+            case PIG -> MinecraftClientCompat.PIG;
+            case CREEPER -> MinecraftClientCompat.CREEPER;
+            case CHICKEN -> MinecraftClientCompat.CHICKEN;
             case PLAYER -> null;
         };
         if (type == null) return null;
@@ -94,6 +95,8 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     }
 
     private static ItemStack stack(SampleItem item) {
+        // В 26.x до загрузки мира компоненты предметов не привязаны и ItemStack создать нельзя.
+        if (!MinecraftClientCompat.itemsReady()) return ItemStack.EMPTY;
         return switch (item) {
             case DIAMOND -> new ItemStack(Items.DIAMOND);
             case IRON_INGOT -> new ItemStack(Items.IRON_INGOT);

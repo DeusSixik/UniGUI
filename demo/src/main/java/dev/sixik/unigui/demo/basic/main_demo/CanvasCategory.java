@@ -357,10 +357,18 @@ final class CanvasCategory extends DemoCategory {
                         uniform vec2 MapSize;
                         uniform float Zoom;
                         
+                        // Integer hash: bit-exact on every backend. A float hash like fract(p * 123.34) is rounded
+                        // differently by each compiler (SPIR-V on Vulkan), which breaks value noise at cell borders.
                         float hash21(vec2 p) {
-                            p = fract(p * vec2(123.34, 456.21));
-                            p += dot(p, p + 45.32);
-                            return fract(p.x * p.y);
+                            uvec2 v = uvec2(ivec2(floor(p * 256.0)));
+                            v = v * 1664525u + 1013904223u;
+                            v.x += v.y * 1664525u;
+                            v.y += v.x * 1664525u;
+                            v ^= v >> 16u;
+                            v.x += v.y * 1664525u;
+                            v.y += v.x * 1664525u;
+                            v ^= v >> 16u;
+                            return float((v.x ^ v.y) >> 8u) * (1.0 / 16777216.0);
                         }
                         
                         vec2 hash22(vec2 p) {

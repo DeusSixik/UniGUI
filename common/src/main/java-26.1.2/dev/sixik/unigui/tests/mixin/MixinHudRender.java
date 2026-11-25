@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests.mixin;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.backend.minecraft_impl.HudRender;
 import dev.sixik.unigui.backend.minecraft_impl.UiDebugCapture;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,6 @@ public abstract class MixinHudRender {
     private void unigui$renderHud(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker,
                                   CallbackInfo callback) {
         HudRender.render(graphics, deltaTracker.getGameTimeDeltaPartialTick(false));
-        if (Minecraft.getInstance().screen == null) UiDebugCapture.onScreenExtract(null);
+        if (MinecraftClientCompat.screen() == null) UiDebugCapture.onScreenExtract(null);
     }
 }

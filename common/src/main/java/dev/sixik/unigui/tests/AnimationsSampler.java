@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.AnimatedProperty;
 import dev.sixik.unigui.api.animation.FloatTransition;
@@ -82,7 +83,7 @@ public final class AnimationsSampler {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.vsync());
         screen.scaleWithMinecraftGui(false);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         return screen;
     }
 
