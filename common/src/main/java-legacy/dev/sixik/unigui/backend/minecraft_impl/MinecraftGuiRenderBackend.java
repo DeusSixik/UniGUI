@@ -487,6 +487,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
      * координатах 256x144, а texture target быть 1024x576. В таком случае {@code coordinateScale}
      * сообщает backend'у, сколько texel'ов приходится на одну UI-единицу.</p>
      */
+    @Override
     public void render(DrawList drawList, RenderTarget target, float coordinateScale) {
         clearScissorStack();
         if (target == null) {

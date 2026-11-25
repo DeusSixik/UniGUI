@@ -77,7 +77,8 @@ public final class MinecraftZLayer extends PanelWidget implements OverlayHostAwa
 
         DrawList nestedDrawList = new DrawList();
         DefaultRenderContext nestedContext = new DefaultRenderContext(nestedDrawList)
-                .backend(context.backend());
+                .backend(context.backend())
+                .pixelScale(context.pixelScale());
         nestedContext.pushOpacity(context.opacityMultiplier());
         pushOpacity(nestedContext);
         try {

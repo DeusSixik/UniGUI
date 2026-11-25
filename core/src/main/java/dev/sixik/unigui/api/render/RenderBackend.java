@@ -70,6 +70,28 @@ public interface RenderBackend {
      */
     void render(DrawList drawList, RenderTarget target);
 
+    /**
+     * Рендерит draw list в target с явным масштабом координат: одна единица UI занимает
+     * {@code coordinateScale} пикселей цели. Нужен для чёткого offscreen-рендера (например,
+     * {@code RenderToTexture} на экране с GUI scale 3).
+     *
+     * <p>По умолчанию поддерживается только масштаб {@code 1}; backend, который умеет больше,
+     * переопределяет метод.</p>
+     *
+     * @param drawList        список команд
+     * @param target          цель рендера или {@code null} для экрана
+     * @param coordinateScale пикселей цели на единицу UI
+     * @throws UnsupportedOperationException если backend не умеет масштаб, отличный от {@code 1}
+     */
+    default void render(DrawList drawList, RenderTarget target, float coordinateScale) {
+        if (Math.abs(coordinateScale - 1.0f) <= 1.0e-4f) {
+            render(drawList, target);
+            return;
+        }
+        throw new UnsupportedOperationException(getClass().getSimpleName()
+                + " does not support scaled offscreen rendering (coordinateScale=" + coordinateScale + ")");
+    }
+
     /** Завершает render frame и сбрасывает временное состояние backend'а. */
     void endFrame();
 }

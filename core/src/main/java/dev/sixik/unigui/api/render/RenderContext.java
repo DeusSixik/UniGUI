@@ -45,6 +45,19 @@ public interface RenderContext {
         return null;
     }
 
+    /**
+     * Сколько физических пикселей цели приходится на одну логическую единицу UI.
+     *
+     * <p>Экран Minecraft с GUI scale 3 и UI scale 1 даёт {@code 3}. Внутри offscreen-рендера значение равно
+     * масштабу координат этой цели. По нему виджеты вроде {@code RenderToTexture} выбирают размер текстуры,
+     * чтобы она не была размытой.</p>
+     *
+     * @return плотность пикселей, {@code 1} если неизвестна
+     */
+    default float pixelScale() {
+        return 1.0f;
+    }
+
     default void pushOpacity(float opacity) {
     }
 

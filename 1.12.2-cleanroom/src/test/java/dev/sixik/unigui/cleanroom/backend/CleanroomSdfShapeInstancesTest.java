@@ -181,8 +181,8 @@ class CleanroomSdfShapeInstancesTest {
 
     @Test
     void layoutConstants_matchSharedShaderContract() {
-        assertEquals(30, FLOATS);
-        assertEquals(List.of(3, 3, 3, 3, 4, 4, 2, 2, 2, 2, 2).size(),
+        assertEquals(34, FLOATS);
+        assertEquals(List.of(3, 3, 3, 3, 4, 4, 2, 2, 2, 2, 2, 4).size(),
                 SdfShapeShaderSources.INSTANCED_ATTRIBUTE_COMPONENTS.length);
     }
 

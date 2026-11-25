@@ -348,6 +348,10 @@ public class MinecraftWidgetScreen extends Screen {
         float uiScale = effectiveUiScale();
         float logicalWidth = toLogicalPixels(width, uiScale);
         float logicalHeight = toLogicalPixels(height, uiScale);
+        // Физических пикселей окна на логическую единицу UI: по нему RenderToTexture выбирает размер текстуры.
+        float pixelScale = UIScaleProvider.sanitize(uiScale) * minecraftGuiScale();
+        renderContext.pixelScale(pixelScale);
+        cacheRenderContext.pixelScale(pixelScale);
         float deltaSeconds = lastFrameStartNanos == 0L
                 ? 1.0f / 60.0f
                 : Math.max(0.0f, (uiCpuStartNanos - lastFrameStartNanos) / 1_000_000_000.0f);

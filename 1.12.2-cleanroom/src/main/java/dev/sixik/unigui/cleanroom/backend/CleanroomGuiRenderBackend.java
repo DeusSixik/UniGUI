@@ -139,6 +139,23 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
         return new CleanroomRenderTarget(width, height, options);
     }
 
+    /**
+     * Offscreen-рендер с масштабом координат (нужен {@code RenderToTexture} и UI-поверхностям в мире).
+     *
+     * <p>TODO 1.12.2 (Cleanroom): поддержать масштаб — ortho на {@code target / coordinateScale} при рендере в target.
+     * Пока без масштаба вызов просто делегирует в {@link #render(DrawList, RenderTarget)}, а с масштабом
+     * бросает исключение, чтобы недоделку не пропустить.</p>
+     */
+    @Override
+    public void render(DrawList drawList, RenderTarget target, float coordinateScale) {
+        if (Math.abs(coordinateScale - 1.0f) <= 1.0e-4f) {
+            render(drawList, target);
+            return;
+        }
+        throw new UnsupportedOperationException("RenderToTexture with coordinateScale=" + coordinateScale
+                + " is not implemented on 1.12.2 (Cleanroom) yet");
+    }
+
     @Override
     public void render(DrawList drawList, RenderTarget target) {
         if (target == null) {

@@ -222,6 +222,7 @@ public final class MinecraftWorldUiSurface implements AutoCloseable {
 
         backend.beginFrame(renderFrame);
         renderContext.backend(backend);
+        renderContext.pixelScale(textureScale);
         drawList.clear();
         root.renderCached(renderContext);
 

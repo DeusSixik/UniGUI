@@ -1,6 +1,8 @@
 package dev.sixik.unigui.xaml.schema.builtin;
 
+import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.widgets.caching.CachedSubtreeWidget;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
@@ -15,6 +17,7 @@ import dev.sixik.unigui.widgets.display.Text;
 import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
+import dev.sixik.unigui.widgets.rendering.RenderToTexture;
 import dev.sixik.unigui.xaml.schema.ChildSink;
 import dev.sixik.unigui.xaml.schema.Converters;
 import dev.sixik.unigui.xaml.schema.Meta;
@@ -52,6 +55,7 @@ final class DisplayTypes {
                 .build());
         schema.define("Path", DisplayTypes::path);
         schema.define("CachedSubtreeWidget", DisplayTypes::cachedSubtree);
+        schema.define("RenderToTexture", DisplayTypes::renderToTexture);
         schema.define("Shape", () -> type("Shape", Shape.class, Shape::new).build());
         schema.define("Sparkline", () -> type("Sparkline", Sparkline.class, Sparkline::new).build());
         schema.define("Chart", () -> type("Chart", Chart.class, Chart::new).build());
@@ -95,6 +99,78 @@ final class DisplayTypes {
                         .reads("tint", CachedSubtreeWidget::tint)
                         .exportsChildren(widget -> Types.optional(widget.content())),
                 content, "Single widget subtree rendered into the cache.").build();
+    }
+
+    private static dev.sixik.unigui.xaml.schema.TypeInfo<RenderToTexture> renderToTexture() {
+        ChildSink<RenderToTexture> content = (parent, child) -> {
+            if (parent.content() != null) {
+                throw new IllegalArgumentException("Widget RenderToTexture can contain only one content child.");
+            }
+            parent.content(child);
+        };
+        return singleContent(type("RenderToTexture", RenderToTexture.class, RenderToTexture::new)
+                        .describe("Render To Texture", "Display",
+                                "Renders its child (or a Java painter) into an offscreen texture that can be shown in place or reused elsewhere.")
+                        .property("updateMode", Converters.enumOf(RenderToTexture.UpdateMode.class), RenderToTexture::updateMode,
+                                Meta.category("Rendering").displayName("Update Mode").defaultValue("EVERY_FRAME")
+                                        .description("When the texture is redrawn: every frame, on change, or only on request."))
+                        .property("resolutionScale", Converters.FLOAT, RenderToTexture::resolutionScale,
+                                Meta.category("Rendering").displayName("Resolution Scale").defaultValue("1")
+                                        .description("Multiplier of the automatic texture size; 2 supersamples."))
+                        .property("textureSize", Converters.STRING,
+                                (widget, value) -> {
+                                    int[] size = sizePair(value, "textureSize");
+                                    widget.textureSize(size[0], size[1]);
+                                },
+                                Meta.category("Rendering").displayName("Texture Size")
+                                        .description("Fixed texture size in pixels as 'WxH', for example '64x64'; '0x0' is automatic."))
+                        .property("canvasSize", Converters.STRING,
+                                (widget, value) -> {
+                                    int[] size = sizePair(value, "canvasSize");
+                                    if (size[0] == 0 && size[1] == 0) widget.clearCanvasSize();
+                                    else widget.canvasSize(size[0], size[1]);
+                                },
+                                Meta.category("Rendering").displayName("Canvas Size")
+                                        .description("Logical size of the content as 'WxH'; by default the widget size."))
+                        .property("targetOptions", Converters.STRING,
+                                (widget, value) -> widget.targetOptions(renderTargetOptions(value)),
+                                Meta.category("Rendering").displayName("Target Options").defaultValue("color")
+                                        .kind(ValueKind.ENUM)
+                                        .description("Offscreen render target mode: color or colorDepth."))
+                        .property("depth", Converters.BOOLEAN, RenderToTexture::depth,
+                                Meta.category("Rendering").defaultValue("false")
+                                        .description("Whether the offscreen target has a depth buffer (needed for 3D)."))
+                        .property("clearColor", Converters.COLOR, (widget, color) -> widget.clearColor().set(color),
+                                Meta.category("Rendering").displayName("Clear Color").defaultValue("#00000000")
+                                        .description("Color the texture is filled with before drawing."))
+                        .property("displayed", Converters.BOOLEAN, RenderToTexture::displayed,
+                                Meta.category("Appearance").defaultValue("true")
+                                        .description("Whether the texture is drawn in place of the widget."))
+                        .property("fit", Converters.enumOf(ImageFit.class), RenderToTexture::fit,
+                                Meta.category("Appearance").defaultValue("STRETCH")
+                                        .description("How the texture fits the widget bounds."))
+                        .property("filter", Converters.enumOf(TextureFilter.class), RenderToTexture::filter,
+                                Meta.category("Appearance").defaultValue("LINEAR")
+                                        .description("Texture filtering; NEAREST for pixel art."))
+                        .property("tint", Converters.COLOR, (widget, color) -> widget.tint().set(color),
+                                Meta.category("Appearance").defaultValue("#FFFFFFFF")
+                                        .description("Tint applied when drawing the texture."))
+                        .reads("tint", RenderToTexture::tint)
+                        .reads("clearColor", RenderToTexture::clearColor)
+                        .exportsChildren(widget -> Types.optional(widget.content())),
+                content, "Single widget rendered into the texture.").build();
+    }
+
+    private static int[] sizePair(String value, String property) {
+        String[] parts = value == null ? new String[0] : value.trim().toLowerCase(Locale.ROOT).split("\\s*[x,]\\s*");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Expected " + property + " as 'WxH', got: " + value);
+        }
+        try {
+            return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException("Expected " + property + " as 'WxH', got: " + value, invalid);
+        }
     }
 
     private static RenderTargetOptions renderTargetOptions(String value) {

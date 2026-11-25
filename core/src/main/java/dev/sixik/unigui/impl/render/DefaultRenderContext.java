@@ -24,6 +24,7 @@ public final class DefaultRenderContext implements RenderContext {
     private final List<TransformLayer> transformStackView = Collections.unmodifiableList(transformStack);
     private RenderBackend backend;
     private float opacityMultiplier = 1.0f;
+    private float pixelScale = 1.0f;
     private boolean textPixelSnapEnabled = true;
     private final MutableRect textBrushBounds = new MutableRect();
     private int textBrushDepth;
@@ -35,6 +36,22 @@ public final class DefaultRenderContext implements RenderContext {
     public DefaultRenderContext backend(RenderBackend backend) {
         this.backend = backend;
         return this;
+    }
+
+    /**
+     * Задаёт плотность пикселей цели, см. {@link RenderContext#pixelScale()}.
+     *
+     * @param pixelScale физических пикселей на единицу UI; некорректное значение сбрасывается в {@code 1}
+     * @return этот context
+     */
+    public DefaultRenderContext pixelScale(float pixelScale) {
+        this.pixelScale = Float.isFinite(pixelScale) && pixelScale > 0.0f ? pixelScale : 1.0f;
+        return this;
+    }
+
+    @Override
+    public float pixelScale() {
+        return pixelScale;
     }
 
     @Override
