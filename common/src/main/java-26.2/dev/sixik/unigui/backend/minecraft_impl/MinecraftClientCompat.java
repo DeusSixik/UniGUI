@@ -96,4 +96,15 @@ public final class MinecraftClientCompat {
     public static boolean itemsReady() {
         return Items.STONE.builtInRegistryHolder().areComponentsBound();
     }
+
+    /**
+     * Рисует подсказку из готовых компонентов в текущем кадре GUI.
+     */
+    public static void tooltip(net.minecraft.client.gui.GuiGraphicsExtractor extractor, net.minecraft.client.gui.Font font,
+                               java.util.List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components,
+                               int x, int y,
+                               net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner positioner,
+                               net.minecraft.resources.@Nullable Identifier style) {
+        extractor.tooltip(font, components, x, y, positioner, style);
+    }
 }

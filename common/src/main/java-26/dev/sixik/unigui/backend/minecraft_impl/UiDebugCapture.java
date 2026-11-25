@@ -123,9 +123,12 @@ public final class UiDebugCapture {
         }
         if (screenFrames == CLICK_FRAME && !SCROLL.isEmpty()) scroll(screen);
         if (screenFrames == CLICK_FRAME && !CLICK.isEmpty()) click(screen);
+        if (screenFrames == CLICK_FRAME + 2 && !CLICK.isEmpty()) {
+            LOGGER.info("UniGUI capture: text input active = {}", MinecraftInputCompat.textInputActive());
+        }
         if (screenFrames == CLICK_FRAME && KEY >= 0 && screen != null) {
             LOGGER.info("UniGUI capture: key {} -> {}", KEY,
-                    screen.keyPressed(new net.minecraft.client.input.KeyEvent(KEY, 0, 0)));
+                    screen.keyPressed(MinecraftInputCompat.keyEvent(KEY, 0, 0)));
         }
         if (screenFrames == SETTLE_FRAMES) {
             // Слои этого кадра уже нарисованы; страницы снимаются в следующем кадре при переносе.
@@ -202,11 +205,47 @@ public final class UiDebugCapture {
         String[] parts = CLICK.split(",");
         double x = Double.parseDouble(parts[0].trim());
         double y = Double.parseDouble(parts[1].trim());
-        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(0, 0));
+        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(MinecraftInputCompat.nativeMouseButton(0), 0));
         LOGGER.info("UniGUI capture: click at {},{}", x, y);
         screen.mouseMoved(x, y);
+        if (clickThroughMouseHandler(x, y)) return;
         screen.mouseClicked(event, false);
         screen.mouseReleased(event);
+    }
+
+    /**
+     * Кликает через {@code MouseHandler.onButton}, как настоящая мышь: так проходят и перехваты ввода
+     * screen-overlay слоёв, стоящие на вызовах экрана. Поля и метод берутся рефлексией по именам Mojang, это
+     * работает только в dev-запуске.
+     *
+     * @param x координата X в единицах GUI
+     * @param y координата Y в единицах GUI
+     * @return {@code true}, если клик отправлен; иначе нужно звать экран напрямую
+     */
+    private static boolean clickThroughMouseHandler(double x, double y) {
+        Minecraft minecraft = Minecraft.getInstance();
+        try {
+            Object handler = minecraft.mouseHandler;
+            Class<?> type = handler.getClass();
+            int scale = minecraft.getWindow().getGuiScale();
+            java.lang.reflect.Field xpos = type.getDeclaredField("xpos");
+            java.lang.reflect.Field ypos = type.getDeclaredField("ypos");
+            xpos.setAccessible(true);
+            ypos.setAccessible(true);
+            xpos.setDouble(handler, x * scale);
+            ypos.setDouble(handler, y * scale);
+            java.lang.reflect.Method onButton = type.getDeclaredMethod("onButton", long.class, MouseButtonInfo.class, int.class);
+            onButton.setAccessible(true);
+            MouseButtonInfo info = new MouseButtonInfo(MinecraftInputCompat.nativeMouseButton(0), 0);
+            long window = minecraft.getWindow().handle();
+            onButton.invoke(handler, window, info, 1);
+            onButton.invoke(handler, window, info, 0);
+            LOGGER.info("UniGUI capture: click sent through MouseHandler");
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            LOGGER.warn("UniGUI capture: MouseHandler click failed ({}), calling the screen", failure.toString());
+            return false;
+        }
     }
 
     private static void dump(GpuTexture texture, String name, boolean opaque) {

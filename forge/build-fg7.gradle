@@ -30,7 +30,8 @@ java {
 def sourceLine = versionProperty('source_line') ?: mcVersion
 /** Папка линейки версий и, если есть, папка конкретной версии (см. common/build.gradle). */
 def versionDirs = { File base ->
-    def dirs = [new File(base, "java-${sourceLine}")]
+    // Папка линейки — через lineSourceDir: в версиях с package-remap.properties это копия с новыми пакетами.
+    def dirs = [lineSourceDir(new File(base, "java-${sourceLine}"))]
     def own = new File(base, "java-${mcVersion}")
     if (sourceLine != mcVersion && own.isDirectory()) dirs << own
     return dirs

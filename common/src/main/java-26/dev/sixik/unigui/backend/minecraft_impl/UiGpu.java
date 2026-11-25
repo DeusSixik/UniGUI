@@ -559,7 +559,7 @@ final class UiGpu {
         RenderPass pass = MinecraftGpuCompat.openPass(() -> "UniGUI " + pipeline.getLocation(), target.color(),
                 pipeline.wantsDepthTexture() ? target.depth() : null);
         try {
-            pass.setPipeline(pipeline);
+            MinecraftGpuCompat.setPipeline(pass, pipeline);
             MinecraftGpuCompat.bindDefaultUniforms(pass);
             pass.setUniform("Projection", state.projection);
             pass.setUniform("DynamicTransforms", transforms);
@@ -569,7 +569,7 @@ final class UiGpu {
             }
             for (int i = 0, size = textures.size(); i < size; i++) {
                 TextureBind texture = textures.get(i);
-                pass.bindTexture(texture.name(), texture.view(), texture.sampler());
+                MinecraftGpuCompat.bindTexture(pass, texture.name(), texture.view(), texture.sampler());
             }
             if (state.scissor) {
                 pass.enableScissor(state.scissorX, state.scissorY, state.scissorWidth, state.scissorHeight);

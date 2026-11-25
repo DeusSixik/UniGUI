@@ -23,7 +23,7 @@ stonecutter {
     centralScript = 'build.gradle'
 
     create(rootProject) {
-        versions '1.20.1', '1.21.1', '26.1.2', '26.2'
+        versions '1.20.1', '1.21.1', '26.1.2', '26.2', '26.3'
         vcsVersion = '1.20.1'
     }
 }
@@ -46,7 +46,8 @@ def modulesByMinecraftVersion = [
         // 26.1+ не обфусцирован: Fabric и NeoForge собирает Architectury Loom (no-remap),
         // Forge — ForgeGradle 7 (Loom не поддерживает Forge без обфускации).
         '26.1.2': ['common', 'fabric', 'neoforge', 'forge'],
-        '26.2': ['common', 'fabric', 'neoforge', 'forge']
+        '26.2': ['common', 'fabric', 'neoforge', 'forge'],
+        '26.3': ['common', 'fabric', 'neoforge', 'forge']
 ]
 
 modulesByMinecraftVersion.each { minecraftVersion, modules ->

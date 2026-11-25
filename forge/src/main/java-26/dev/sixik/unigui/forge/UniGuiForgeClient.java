@@ -1,5 +1,6 @@
 package dev.sixik.unigui.forge;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftInputCompat;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftUiRuntimeBackend;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
@@ -27,15 +28,15 @@ public final class UniGuiForgeClient {
 
         ScreenEvent.MouseButtonPressed.Pre.BUS.addListener(event -> {
             return ScreenOverlayRender.mouseClicked(
-                event.getScreen(), event.getMouseX(), event.getMouseY(), event.getButton());
+                event.getScreen(), event.getMouseX(), event.getMouseY(), MinecraftInputCompat.mouseButton(event.getButton()));
         });
         ScreenEvent.MouseButtonReleased.Pre.BUS.addListener(event -> {
             return ScreenOverlayRender.mouseReleased(
-                event.getScreen(), event.getMouseX(), event.getMouseY(), event.getButton());
+                event.getScreen(), event.getMouseX(), event.getMouseY(), MinecraftInputCompat.mouseButton(event.getButton()));
         });
         ScreenEvent.MouseDragged.Pre.BUS.addListener(event -> {
             return ScreenOverlayRender.mouseDragged(
-                event.getScreen(), event.getMouseX(), event.getMouseY(), event.getMouseButton(),
+                event.getScreen(), event.getMouseX(), event.getMouseY(), MinecraftInputCompat.mouseButton(event.getMouseButton()),
                 event.getDragX(), event.getDragY());
         });
         ScreenEvent.MouseScrolled.Pre.BUS.addListener(event -> {
@@ -44,11 +45,13 @@ public final class UniGuiForgeClient {
         });
         ScreenEvent.KeyPressed.Pre.BUS.addListener(Priority.HIGHEST, event -> {
             return ScreenOverlayRender.keyPressed(
-                event.getScreen(), event.getKeyCode(), event.getScanCode(), event.getModifiers());
+                event.getScreen(), MinecraftInputCompat.key(event.getInfo()), MinecraftInputCompat.scancode(event.getInfo()),
+                MinecraftInputCompat.modifiers(event.getModifiers()));
         });
         ScreenEvent.KeyReleased.Pre.BUS.addListener(event -> {
             return ScreenOverlayRender.keyReleased(
-                event.getScreen(), event.getKeyCode(), event.getScanCode(), event.getModifiers());
+                event.getScreen(), MinecraftInputCompat.key(event.getInfo()), MinecraftInputCompat.scancode(event.getInfo()),
+                MinecraftInputCompat.modifiers(event.getModifiers()));
         });
         ScreenEvent.CharacterTyped.Pre.BUS.addListener(Priority.HIGHEST, event -> {
             return ScreenOverlayRender.charTyped(

@@ -20,6 +20,51 @@ def versionProperty = { String key ->
 }
 
 
+/**
+ * Папка общих исходников линейки версий (например {@code java-26}) для этой версии Minecraft.
+ *
+ * <p>Если у версии есть {@code versions/<mc>/package-remap.properties} (полное старое имя класса = новое), исходники
+ * компилируются из копии, где эти имена заменены. Так одна папка линейки переживает переезд классов в другой пакет
+ * (в 26.3 GPU API ушёл из {@code com.mojang.blaze3d} в {@code com.mojang.renderpearl}). Без файла возвращается сама папка.</p>
+ */
+def lineSourceDir = { Project target, File dir ->
+    def remapFile = versionProject.file('package-remap.properties')
+    if (!remapFile.isFile() || !dir.isDirectory()) return dir
+    def loaded = new Properties()
+    remapFile.withInputStream { loaded.load(it) }
+    // И точечные имена (импорты), и внутренние со слэшами (дескрипторы в аннотациях миксинов).
+    def remap = new Properties()
+    loaded.each { from, to ->
+        remap.setProperty(from as String, to as String)
+        remap.setProperty((from as String).replace('.', '/'), (to as String).replace('.', '/'))
+    }
+    // Длинные имена первыми, чтобы VertexFormatElement не заменился как VertexFormat + "Element".
+    def names = remap.keySet().collect { it as String }.sort { -it.length() }
+    def pattern = java.util.regex.Pattern.compile(
+            // Перед именем не может стоять часть другого имени; 'L' допустима — так начинается дескриптор типа.
+            '(?<![A-KM-Za-z0-9_./])(' + names.collect { java.util.regex.Pattern.quote(it) }.join('|') + ')(?![A-Za-z0-9_])')
+    def module = dir.parentFile.parentFile.parentFile.name
+    def task = target.tasks.register("remap${module.capitalize()}${dir.name.replaceAll('[^A-Za-z0-9]', '')}Sources", Sync) {
+        description = "Copies ${dir} with classes renamed by ${remapFile.name}."
+        from dir
+        into target.layout.buildDirectory.dir("generated/remapped-sources/${module}/${dir.name}")
+        inputs.file remapFile
+        filteringCharset = 'UTF-8'
+        filter { String line ->
+            def matcher = pattern.matcher(line)
+            if (!matcher.find()) return line
+            matcher.reset()
+            def out = new StringBuilder()
+            while (matcher.find()) {
+                matcher.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(remap.getProperty(matcher.group(1))))
+            }
+            matcher.appendTail(out)
+            return out.toString()
+        }
+    }
+    return target.files(task.map { it.destinationDir }).builtBy(task)
+}
+
 // Начиная с 26.1 Minecraft поставляется без обфускации: маппинги и remapJar не нужны,
 // а Architectury Loom подключается как `loom-no-remap`.
 def unobfuscated = (versionProperty('minecraft_version').tokenize('.')[0] as int) >= 26
@@ -65,6 +110,7 @@ subprojects {
     ext.versionProject = versionProject
     ext.versionProperty = versionProperty
     ext.unobfuscated = unobfuscated
+    ext.lineSourceDir = { File dir -> lineSourceDir(project, dir) }
     if (forgeGradle) return
     if (minecraftIndependent) {
         apply plugin: 'java-library'

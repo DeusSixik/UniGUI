@@ -1,67 +1,62 @@
 package dev.sixik.unigui.tests.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftInputCompat;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
-import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Передаёт ввод мыши и клавиатуры screen-overlay слоям Minecraft 26.1. */
-@Mixin(ContainerEventHandler.class)
-public interface MixinScreenOverlayInput {
-    @Inject(method = "mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$mouseClicked(MouseButtonEvent event, boolean doubleClick,
-                                     CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen
-                && ScreenOverlayRender.mouseClicked(screen, event.x(), event.y(), event.button())) {
-            callback.setReturnValue(true);
+/**
+ * Передаёт мышь screen-overlay слоям раньше экрана (Minecraft 26.x, Fabric и NeoForge).
+ *
+ * <p>Перехват стоит на вызовах {@code Screen.mouseClicked/…} в {@link MouseHandler}, как события
+ * {@code ScreenEvent.*.Pre} в Forge. Перехват методов {@code ContainerEventHandler} не подходит: экраны-контейнеры
+ * их переопределяют ({@code AbstractContainerScreen.mouseReleased} зовёт {@code super} только в конце,
+ * {@code mouseScrolled} не зовёт совсем), и до слоёв поверх инвентаря ввод не доходил.</p>
+ */
+@Mixin(MouseHandler.class)
+public abstract class MixinScreenOverlayInput {
+    @WrapOperation(method = "onButton", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screens/Screen;mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z"))
+    private boolean unigui$mouseClicked(Screen screen, MouseButtonEvent event, boolean doubleClick,
+                                        Operation<Boolean> original) {
+        if (ScreenOverlayRender.mouseClicked(screen, event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()))) {
+            return true;
         }
+        return original.call(screen, event, doubleClick);
     }
 
-    @Inject(method = "mouseReleased(Lnet/minecraft/client/input/MouseButtonEvent;)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$mouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen
-                && ScreenOverlayRender.mouseReleased(screen, event.x(), event.y(), event.button())) {
-            callback.setReturnValue(true);
+    @WrapOperation(method = "onButton", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screens/Screen;mouseReleased(Lnet/minecraft/client/input/MouseButtonEvent;)Z"))
+    private boolean unigui$mouseReleased(Screen screen, MouseButtonEvent event, Operation<Boolean> original) {
+        if (ScreenOverlayRender.mouseReleased(screen, event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()))) {
+            return true;
         }
+        return original.call(screen, event);
     }
 
-    @Inject(method = "mouseDragged(Lnet/minecraft/client/input/MouseButtonEvent;DD)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$mouseDragged(MouseButtonEvent event, double dragX, double dragY,
-                                     CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen
-                && ScreenOverlayRender.mouseDragged(screen, event.x(), event.y(), event.button(), dragX, dragY)) {
-            callback.setReturnValue(true);
+    @WrapOperation(method = "handleAccumulatedMovement", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screens/Screen;mouseDragged(Lnet/minecraft/client/input/MouseButtonEvent;DD)Z"))
+    private boolean unigui$mouseDragged(Screen screen, MouseButtonEvent event, double dragX, double dragY,
+                                        Operation<Boolean> original) {
+        if (ScreenOverlayRender.mouseDragged(screen, event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()),
+                dragX, dragY)) {
+            return true;
         }
+        return original.call(screen, event, dragX, dragY);
     }
 
-    @Inject(method = "mouseScrolled(DDDD)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY,
-                                      CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen
-                && ScreenOverlayRender.mouseScrolled(screen, mouseX, mouseY, scrollY)) {
-            callback.setReturnValue(true);
+    @WrapOperation(method = "onScroll", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/screens/Screen;mouseScrolled(DDDD)Z"))
+    private boolean unigui$mouseScrolled(Screen screen, double mouseX, double mouseY, double scrollX, double scrollY,
+                                         Operation<Boolean> original) {
+        if (ScreenOverlayRender.mouseScrolled(screen, mouseX, mouseY, scrollY)) {
+            return true;
         }
-    }
-
-    @Inject(method = "keyReleased(Lnet/minecraft/client/input/KeyEvent;)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$keyReleased(KeyEvent event, CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen
-                && ScreenOverlayRender.keyReleased(screen, event.key(), event.scancode(), event.modifiers())) {
-            callback.setReturnValue(true);
-        }
-    }
-
-    @Inject(method = "charTyped(Lnet/minecraft/client/input/CharacterEvent;)Z", at = @At("HEAD"), cancellable = true)
-    private void unigui$charTyped(CharacterEvent event, CallbackInfoReturnable<Boolean> callback) {
-        if ((Object) this instanceof Screen screen && Character.isBmpCodePoint(event.codepoint())
-                && ScreenOverlayRender.charTyped(screen, (char) event.codepoint(), 0)) {
-            callback.setReturnValue(true);
-        }
+        return original.call(screen, mouseX, mouseY, scrollX, scrollY);
     }
 }

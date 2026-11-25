@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests.mixin;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftInputCompat;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
 import dev.sixik.unigui.backend.minecraft_impl.UiDebugCapture;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -33,7 +34,7 @@ public abstract class MixinScreenOverlay {
 
     @Inject(method = "keyPressed(Lnet/minecraft/client/input/KeyEvent;)Z", at = @At("HEAD"), cancellable = true)
     private void unigui$keyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> callback) {
-        if (ScreenOverlayRender.keyPressed((Screen) (Object) this, event.key(), event.scancode(), event.modifiers())) {
+        if (ScreenOverlayRender.keyPressed((Screen) (Object) this, MinecraftInputCompat.key(event), MinecraftInputCompat.scancode(event), MinecraftInputCompat.modifiers(event.modifiers()))) {
             callback.setReturnValue(true);
         }
     }

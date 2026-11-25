@@ -151,6 +151,20 @@ final class MinecraftGpuCompat {
     }
 
     /**
+     * Ставит пайплайн прохода.
+     */
+    static void setPipeline(RenderPass pass, RenderPipeline pipeline) {
+        pass.setPipeline(pipeline);
+    }
+
+    /**
+     * Привязывает текстуру с сэмплером к сэмплеру шейдера {@code name}.
+     */
+    static void bindTexture(RenderPass pass, String name, com.mojang.blaze3d.textures.GpuTextureView view, com.mojang.blaze3d.textures.GpuSampler sampler) {
+        pass.bindTexture(name, view, sampler);
+    }
+
+    /**
      * Привязывает униформы, которые нужны ванильным шейдерам, кроме {@code Projection} и
      * {@code DynamicTransforms}: в 26.2 это блок {@code Globals}.
      */

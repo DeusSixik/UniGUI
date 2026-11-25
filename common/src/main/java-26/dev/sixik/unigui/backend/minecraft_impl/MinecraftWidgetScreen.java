@@ -40,16 +40,10 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
 
 public class MinecraftWidgetScreen extends Screen {
-    /** Значение {@code GLFW_RESIZE_NWSE_CURSOR} из GLFW 3.4: в LWJGL 3.3.1 константы нет. */
-    private static final int GLFW_RESIZE_NWSE_CURSOR = 0x00036007;
-    /** Значение {@code GLFW_RESIZE_NESW_CURSOR} из GLFW 3.4. */
-    private static final int GLFW_RESIZE_NESW_CURSOR = 0x00036008;
-
     private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final Widget root;
     private final UIContext uiContext;
@@ -80,8 +74,9 @@ public class MinecraftWidgetScreen extends Screen {
     private int cachedWidth;
     private int cachedHeight;
     private long lastCachedRenderNanos;
-    private final Map<MouseCursor, Long> nativeCursors = new EnumMap<>(MouseCursor.class);
     private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
+    /** Включён ли сейчас ввод текста окна для этого экрана (нужно в 26.3, см. {@link #updateTextInput()}). */
+    private boolean textInputActive;
     private boolean layoutInitialized;
     private Runnable closeCallback;
     private KeyboardInputHandler keyboardInputHandler;
@@ -346,6 +341,9 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         long uiCpuStartNanos = System.nanoTime();
+        // В 26.3 курсор без запроса на кадр сбрасывается на стрелку.
+        MinecraftInputCompat.requestCursor(graphics, activeMouseCursor);
+        updateTextInput();
         updateScaleProviderViewport();
         float uiScale = effectiveUiScale();
         float logicalWidth = toLogicalPixels(width, uiScale);
@@ -528,29 +526,31 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         lastMouseModifiers = event.modifiers();
-        return mouseClicked(event.x(), event.y(), event.button());
+        return mouseClicked(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()));
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         lastMouseModifiers = event.modifiers();
-        return mouseReleased(event.x(), event.y(), event.button());
+        return mouseReleased(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()));
     }
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         lastMouseModifiers = event.modifiers();
-        return mouseDragged(event.x(), event.y(), event.button(), dragX, dragY);
+        return mouseDragged(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()), dragX, dragY);
     }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        return keyPressed(event.key(), event.scancode(), event.modifiers());
+        return keyPressed(MinecraftInputCompat.key(event), MinecraftInputCompat.scancode(event),
+                MinecraftInputCompat.modifiers(event.modifiers()));
     }
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        return keyReleased(event.key(), event.scancode(), event.modifiers());
+        return keyReleased(MinecraftInputCompat.key(event), MinecraftInputCompat.scancode(event),
+                MinecraftInputCompat.modifiers(event.modifiers()));
     }
 
     @Override
@@ -702,10 +702,13 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     /**
-     * Событие мыши 26.1 для вызова ванильных обработчиков из обработчиков со старой сигнатурой.
+     * Событие мыши 26.x для вызова ванильных обработчиков из обработчиков со старой сигнатурой.
+     *
+     * @param button кнопка GLFW (в кодах UniGUI)
      */
     private MouseButtonEvent mouseEvent(double mouseX, double mouseY, int button) {
-        return new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, lastMouseModifiers));
+        return new MouseButtonEvent(mouseX, mouseY,
+                new MouseButtonInfo(MinecraftInputCompat.nativeMouseButton(button), lastMouseModifiers));
     }
 
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
@@ -732,7 +735,7 @@ public class MinecraftWidgetScreen extends Screen {
             if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
                 return true;
             }
-            return uiContext.focusManager().focusDirectional(root, focusDirection) || super.keyPressed(new KeyEvent(keyCode, scanCode, modifiers));
+            return uiContext.focusManager().focusDirectional(root, focusDirection) || super.keyPressed(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
         }
 
         Widget focused = uiContext.focusManager().focusedWidget();
@@ -744,7 +747,7 @@ public class MinecraftWidgetScreen extends Screen {
     }
 
     protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
-        return super.keyPressed(new KeyEvent(keyCode, scanCode, modifiers));
+        return super.keyPressed(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
     }
 
     /**
@@ -766,7 +769,7 @@ public class MinecraftWidgetScreen extends Screen {
                 && keyboardInputHandler.keyReleased(keyCode, scanCode, modifiers)) return true;
         Widget focused = uiContext.focusManager().focusedWidget();
         if (focused == null) {
-            return super.keyReleased(new KeyEvent(keyCode, scanCode, modifiers));
+            return super.keyReleased(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
         }
         return uiContext.routedEvents().dispatch(new KeyReleasedEvent(focused, keyCode, scanCode, modifiers));
     }
@@ -783,6 +786,10 @@ public class MinecraftWidgetScreen extends Screen {
     @Override
     public void removed() {
         releaseMouseCursors();
+        if (textInputActive) {
+            textInputActive = false;
+            MinecraftInputCompat.setTextInput(this, false);
+        }
         uiContext.hoverManager().clearHover();
         uiContext.focusManager().clearFocus();
         uiContext.keyboard().clear();
@@ -839,9 +846,7 @@ public class MinecraftWidgetScreen extends Screen {
     }
     private long renderIntervalNanos() {
         if (renderPolicy.mode() == UiRenderPolicy.Mode.VSYNC) {
-            int refreshRate = backend == null || backend.minecraft().getWindow() == null
-                    ? 60
-                    : backend.minecraft().getWindow().getRefreshRate();
+            int refreshRate = backend == null ? 60 : MinecraftInputCompat.refreshRate(backend.minecraft());
             float safeRefreshRate = refreshRate > 0 ? refreshRate : 60.0f;
             return Math.max(1L, Math.round(1_000_000_000.0 / safeRefreshRate));
         }
@@ -1046,55 +1051,23 @@ public class MinecraftWidgetScreen extends Screen {
         MouseCursor normalized = cursor == null ? MouseCursor.DEFAULT : cursor;
         if (activeMouseCursor == normalized) return;
 
-        long window = minecraft == null || minecraft.getWindow() == null
-                ? 0L
-                : minecraft.getWindow().handle();
-        if (window == 0L) return;
-
-        long nativeCursor = normalized == MouseCursor.DEFAULT
-                ? 0L
-                : nativeCursors.computeIfAbsent(normalized, this::createNativeCursor);
-        GLFW.glfwSetCursor(window, nativeCursor);
+        MinecraftInputCompat.setCursor(minecraft, normalized);
         activeMouseCursor = normalized;
     }
 
-    private long createNativeCursor(MouseCursor cursor) {
-        int shape = switch (cursor) {
-            case POINTER -> GLFW.GLFW_HAND_CURSOR;
-            case TEXT -> GLFW.GLFW_IBEAM_CURSOR;
-            case CROSSHAIR -> GLFW.GLFW_CROSSHAIR_CURSOR;
-            case RESIZE_HORIZONTAL -> GLFW.GLFW_HRESIZE_CURSOR;
-            case RESIZE_VERTICAL -> GLFW.GLFW_VRESIZE_CURSOR;
-            case RESIZE_NWSE -> diagonalCursorShape(GLFW_RESIZE_NWSE_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
-            case RESIZE_NESW -> diagonalCursorShape(GLFW_RESIZE_NESW_CURSOR, GLFW.GLFW_HRESIZE_CURSOR);
-            case DEFAULT -> GLFW.GLFW_ARROW_CURSOR;
-        };
-        return GLFW.glfwCreateStandardCursor(shape);
-    }
-
     /**
-     * Форма диагонального курсора: GLFW 3.4+ умеет её сам, на старых версиях (Minecraft 1.20.1 приносит
-     * GLFW 3.3) остаётся горизонтальная стрелка, чтобы не вызвать ошибку {@code invalid enum}.
+     * Держит ввод текста окна включённым, пока у экрана есть получатель символов: виджет в фокусе или свой
+     * обработчик клавиатуры. В 26.3 (SDL3) без этого {@code charTyped} не приходит и печатать нельзя.
      */
-    private static int diagonalCursorShape(int shape, int fallback) {
-        int[] major = new int[1];
-        int[] minor = new int[1];
-        int[] revision = new int[1];
-        GLFW.glfwGetVersion(major, minor, revision);
-        return major[0] > 3 || (major[0] == 3 && minor[0] >= 4) ? shape : fallback;
+    private void updateTextInput() {
+        boolean wanted = keyboardInputHandler != null || uiContext.focusManager().focusedWidget() != null;
+        if (wanted == textInputActive) return;
+        textInputActive = wanted;
+        MinecraftInputCompat.setTextInput(this, wanted);
     }
 
     private void releaseMouseCursors() {
-        long window = minecraft == null || minecraft.getWindow() == null
-                ? 0L
-                : minecraft.getWindow().handle();
-        if (window != 0L) {
-            GLFW.glfwSetCursor(window, 0L);
-        }
-        for (long cursor : nativeCursors.values()) {
-            if (cursor != 0L) GLFW.glfwDestroyCursor(cursor);
-        }
-        nativeCursors.clear();
+        MinecraftInputCompat.releaseCursors(minecraft);
         activeMouseCursor = MouseCursor.DEFAULT;
     }
 

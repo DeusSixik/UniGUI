@@ -317,8 +317,8 @@ public final class GlslUniformBlocks {
         static Stage parse(String raw, String stageName) {
             String source = raw.startsWith("﻿") ? raw.substring(1) : raw;
             Stage stage = new Stage(source);
-            String masked = maskComments(source);
-            int[] depth = braceDepth(masked);
+            String masked = GlslSource.maskComments(source);
+            int[] depth = GlslSource.braceDepth(masked);
             Matcher matcher = UNIFORM.matcher(masked);
             while (matcher.find()) {
                 if (depth[matcher.start()] != 0) continue;
@@ -377,7 +377,7 @@ public final class GlslUniformBlocks {
         }
 
         private static String withVersion(String source) {
-            Matcher version = VERSION.matcher(maskComments(source));
+            Matcher version = VERSION.matcher(GlslSource.maskComments(source));
             if (!version.find()) return "#version " + MIN_VERSION + "\n" + source;
             String profile = version.group(2) == null ? "" : version.group(2).trim();
             if ("es".equals(profile)) throw new IllegalArgumentException("GLSL ES shaders are not supported");
@@ -390,45 +390,6 @@ public final class GlslUniformBlocks {
 
         private static boolean isOpaque(String type) {
             return type.contains("sampler") || type.contains("image") || type.startsWith("atomic_");
-        }
-
-        /** Заменяет комментарии пробелами (переводы строк сохраняются), чтобы позиции совпадали с исходником. */
-        private static String maskComments(String source) {
-            char[] chars = source.toCharArray();
-            int i = 0;
-            while (i < chars.length) {
-                if (chars[i] == '/' && i + 1 < chars.length && chars[i + 1] == '/') {
-                    while (i < chars.length && chars[i] != '\n') chars[i++] = ' ';
-                } else if (chars[i] == '/' && i + 1 < chars.length && chars[i + 1] == '*') {
-                    chars[i++] = ' ';
-                    chars[i++] = ' ';
-                    while (i < chars.length && !(chars[i] == '*' && i + 1 < chars.length && chars[i + 1] == '/')) {
-                        if (chars[i] != '\n') chars[i] = ' ';
-                        i++;
-                    }
-                    if (i < chars.length) {
-                        chars[i++] = ' ';
-                        chars[i++] = ' ';
-                    }
-                } else {
-                    i++;
-                }
-            }
-            return new String(chars);
-        }
-
-        /** Глубина фигурных скобок в каждой позиции (объявления внутри функций и блоков не трогаются). */
-        private static int[] braceDepth(String masked) {
-            int[] depth = new int[masked.length() + 1];
-            int current = 0;
-            for (int i = 0; i < masked.length(); i++) {
-                depth[i] = current;
-                char c = masked.charAt(i);
-                if (c == '{') current++;
-                else if (c == '}') current = Math.max(0, current - 1);
-            }
-            depth[masked.length()] = current;
-            return depth;
         }
     }
 }

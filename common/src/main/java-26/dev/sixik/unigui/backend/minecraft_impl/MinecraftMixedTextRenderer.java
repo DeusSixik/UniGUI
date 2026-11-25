@@ -288,7 +288,7 @@ final class MinecraftMixedTextRenderer {
         float pivotY = bounds.y() + transform.pivot().y();
         pose.translate(transform.position().x(), transform.position().y(), 0.0f);
         pose.translate(pivotX, pivotY, 0.0f);
-        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(transform.rotationDegrees()));
+        MinecraftTransform.rotateZ(pose, transform.rotationDegrees());
         pose.scale(transform.scale().x(), transform.scale().y(), 1.0f);
         pose.translate(-pivotX, -pivotY, 0.0f);
     }

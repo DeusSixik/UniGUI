@@ -22,6 +22,7 @@
             <option value="$PROJECT_DIR$/versions/1.21.1" />
             <option value="$PROJECT_DIR$/versions/26.1.2" />
             <option value="$PROJECT_DIR$/versions/26.2" />
+            <option value="$PROJECT_DIR$/versions/26.3" />
           </set>
         </option>
         <option name="resolveExternalAnnotations" value="true" />

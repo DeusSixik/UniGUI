@@ -9,7 +9,7 @@ sourceSets {
         // если такая папка есть, — классы, отличающиеся у конкретной версии. Один класс не может лежать в обеих
         // папках: отличающийся класс переносится из общей папки во все папки версий линейки.
         def sourceLine = versionProperty('source_line')
-        if (sourceLine) java.srcDir "src/main/java-${sourceLine}"
+        if (sourceLine) java.srcDir lineSourceDir(file("src/main/java-${sourceLine}"))
         def versionSources = file("src/main/java-${versionProject.minecraft_version}")
         if (!sourceLine || versionSources.isDirectory()) java.srcDir versionSources
         // GL-бэкенд и API на ResourceLocation, общие для обфусцированных версий (1.20.1, 1.21.1).

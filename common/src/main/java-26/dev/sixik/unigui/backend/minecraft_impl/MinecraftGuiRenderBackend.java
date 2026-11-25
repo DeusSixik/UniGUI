@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Axis;
 import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.api.core.FrameContext;
@@ -288,7 +287,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
                                          net.minecraft.resources.Identifier style, float x, float y) {
         if (components.isEmpty() || !canSubmitVanilla()) return;
         inVanillaGuiSpace(x, y, (guiX, guiY) -> graphics.submitInGuiSpace(extractor ->
-                extractor.tooltip(minecraft.font, components, guiX, guiY, DefaultTooltipPositioner.INSTANCE, style)));
+                MinecraftClientCompat.tooltip(extractor, minecraft.font, components, guiX, guiY, DefaultTooltipPositioner.INSTANCE, style)));
     }
 
     /**
@@ -992,7 +991,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         pose.translate(transform.position().x(), transform.position().y(), 0.0f);
         pose.translate(pivotX, pivotY, 0.0f);
         if (transform.rotationDegrees() != 0.0f) {
-            pose.mulPose(Axis.ZP.rotationDegrees(transform.rotationDegrees()));
+            MinecraftTransform.rotateZ(pose, transform.rotationDegrees());
         }
         pose.scale(transform.scale().x(), transform.scale().y(), 1.0f);
         pose.translate(-pivotX, -pivotY, 0.0f);
