@@ -1,6 +1,5 @@
 package dev.sixik.unigui.tests;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
@@ -70,31 +69,31 @@ public final class TestCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
 //                .executes(ctx -> {
-//                    RenderSystem.recordRenderCall(TestCommands::openExamplesScreen);
+//                    Minecraft.getInstance().execute(TestCommands::openExamplesScreen);
 //                    return 0;
 //                })
                 .then(Commands.literal("docking").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openDockingEditorScreen);
+                    Minecraft.getInstance().execute(TestCommands::openDockingEditorScreen);
                     return 0;
                 }))
                 .then(Commands.literal("nodegraph").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openNodeGraphExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("style").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openStyleApiExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openStyleApiExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("xaml").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openXamlBindingExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openXamlBindingExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("terminal").executes(ctx -> {
-                    RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
+                    Minecraft.getInstance().execute(DosTerminalDemo::openDemoClient);
                     return 0;
                 }))
                 .then(Commands.literal("adminconsole").executes(ctx -> {
-                    RenderSystem.recordRenderCall(AdminConsoleDemo::openDemoClient);
+                    Minecraft.getInstance().execute(AdminConsoleDemo::openDemoClient);
                     return 0;
                 })));
     }

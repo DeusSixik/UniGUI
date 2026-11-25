@@ -279,7 +279,8 @@ public final class UniGuiDemo {
         protected final Label breadcrumb = new Label("BASIC INPUT");
         protected final HBox accentSwatches = new HBox();
         protected final MutableColor accent = color(30, 166, 222);
-        protected String selectedId = "slider";
+        // Начальная страница; свойство unigui.demo.page нужно для отладочного захвата кадра.
+        protected String selectedId = System.getProperty("unigui.demo.page", "slider");
         protected Runnable exitAction = () -> {
         };
 

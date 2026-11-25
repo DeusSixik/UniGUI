@@ -22,10 +22,12 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     }
 
     /**
-     * Makes the demo gallery show the Minecraft category. Safe to call more than once.
+     * Makes the demo gallery show the Minecraft category and load its images. Safe to call more than once.
      */
     public static void install() {
         if (!(DemoMinecraft.host() instanceof MinecraftDemoHost)) DemoMinecraft.host(new MinecraftDemoHost());
+        // Картинки галереи (раздел Textures и др.) из ресурсов demo; иначе остаются заглушки.
+        dev.sixik.unigui.demo.ui.DemoAssets.provider(MinecraftDemoAssets::load);
     }
 
     @Override

@@ -19,7 +19,7 @@ import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import dev.sixik.unigui.widgets.interaction.SearchableGridPickerWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
@@ -82,7 +82,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return filteredEntryCount();
     }
 
-    public ResourceLocation selectedId() {
+    public Identifier selectedId() {
         return selectedEntryOrNull() == null ? null : selectedEntryOrNull().id();
     }
 
@@ -96,10 +96,10 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
             Minecraft minecraft = Minecraft.getInstance();
             if (minecraft != null) {
                 ResourceManager resourceManager = minecraft.getResourceManager();
-                Map<ResourceLocation, Resource> resources = resourceManager.listResources(
+                Map<Identifier, Resource> resources = resourceManager.listResources(
                         "textures",
                         id -> id.getPath().endsWith(".png"));
-                for (ResourceLocation id : resources.keySet()) {
+                for (Identifier id : resources.keySet()) {
                     resourceTextures.add(new TextureEntry(id));
                 }
             }
@@ -114,10 +114,10 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return this;
     }
 
-    public MinecraftTexturePickerWidget textureIds(Collection<ResourceLocation> ids) {
+    public MinecraftTexturePickerWidget textureIds(Collection<Identifier> ids) {
         List<TextureEntry> entries = new ObjectArrayList<>();
         if (ids != null) {
-            for (ResourceLocation id : ids) {
+            for (Identifier id : ids) {
                 if (id != null) {
                     entries.add(new TextureEntry(id));
                 }
@@ -126,9 +126,21 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return textures(entries);
     }
 
-    public MinecraftTexturePickerWidget selectId(ResourceLocation id) {
+    public MinecraftTexturePickerWidget selectId(Identifier id) {
         selectEntry(findById(id), true, false);
         return this;
+    }
+
+    /**
+     * Выбирает текстуру по строковому id ({@code namespace:path}): версионно-нейтральный вариант
+     * {@link #selectId(Identifier)} для общего кода.
+     *
+     * @param id строковый id текстуры
+     * @return этот виджет
+     */
+    public MinecraftTexturePickerWidget selectId(String id) {
+        Identifier location = id == null ? null : Identifier.tryParse(id);
+        return location == null ? this : selectId(location);
     }
 
     @Override
@@ -234,7 +246,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return RichText.of(entry.id().toString(), MinecraftFonts.defaultFace(), TextRun.DEFAULT_PIXEL_SIZE);
     }
 
-    private TextureEntry findById(ResourceLocation id) {
+    private TextureEntry findById(Identifier id) {
         if (id == null) return null;
         for (TextureEntry entry : entries()) {
             if (entry.id().equals(id)) {
@@ -244,7 +256,7 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return null;
     }
 
-    private static String shortTexturePath(ResourceLocation id) {
+    private static String shortTexturePath(Identifier id) {
         String path = id == null ? "" : id.getPath();
         if (path.startsWith("textures/")) {
             path = path.substring("textures/".length());
@@ -255,8 +267,8 @@ public class MinecraftTexturePickerWidget extends SearchableGridPickerWidget<Min
         return path;
     }
 
-    public record TextureEntry(ResourceLocation id, MinecraftTextureHandle texture) {
-        public TextureEntry(ResourceLocation id) {
+    public record TextureEntry(Identifier id, MinecraftTextureHandle texture) {
+        public TextureEntry(Identifier id) {
             this(id, new MinecraftTextureHandle(id, 16, 16));
         }
 

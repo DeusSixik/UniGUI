@@ -144,14 +144,14 @@ public final class ScreenOverlayRender {
      * @return {@code true}, если overlay обработал нажатие мыши
      */
     public static boolean mouseClicked(Screen screen, double mouseX, double mouseY, int button) {
-        return screen != null && REGISTRY.mouseClicked(screen, mouseX, mouseY, button);
+        return screen != null && dispatch(() -> REGISTRY.mouseClicked(screen, mouseX, mouseY, button));
     }
 
     /**
      * @return {@code true}, если overlay обработал отпускание мыши
      */
     public static boolean mouseReleased(Screen screen, double mouseX, double mouseY, int button) {
-        return screen != null && REGISTRY.mouseReleased(screen, mouseX, mouseY, button);
+        return screen != null && dispatch(() -> REGISTRY.mouseReleased(screen, mouseX, mouseY, button));
     }
 
     /**
@@ -159,34 +159,55 @@ public final class ScreenOverlayRender {
      */
     public static boolean mouseDragged(Screen screen, double mouseX, double mouseY, int button,
                                        double dragX, double dragY) {
-        return screen != null && REGISTRY.mouseDragged(screen, mouseX, mouseY, button, dragX, dragY);
+        return screen != null && dispatch(() -> REGISTRY.mouseDragged(screen, mouseX, mouseY, button, dragX, dragY));
     }
 
     /**
      * @return {@code true}, если overlay обработал колесо мыши
      */
     public static boolean mouseScrolled(Screen screen, double mouseX, double mouseY, double delta) {
-        return screen != null && REGISTRY.mouseScrolled(screen, mouseX, mouseY, delta);
+        return screen != null && dispatch(() -> REGISTRY.mouseScrolled(screen, mouseX, mouseY, delta));
     }
 
     /**
      * @return {@code true}, если overlay обработал нажатие клавиши
      */
     public static boolean keyPressed(Screen screen, int keyCode, int scanCode, int modifiers) {
-        return screen != null && REGISTRY.keyPressed(screen, keyCode, scanCode, modifiers);
+        return screen != null && dispatch(() -> REGISTRY.keyPressed(screen, keyCode, scanCode, modifiers));
     }
 
     /**
      * @return {@code true}, если overlay обработал отпускание клавиши
      */
     public static boolean keyReleased(Screen screen, int keyCode, int scanCode, int modifiers) {
-        return screen != null && REGISTRY.keyReleased(screen, keyCode, scanCode, modifiers);
+        return screen != null && dispatch(() -> REGISTRY.keyReleased(screen, keyCode, scanCode, modifiers));
     }
 
     /**
      * @return {@code true}, если overlay обработал ввод символа
      */
     public static boolean charTyped(Screen screen, char codePoint, int modifiers) {
-        return screen != null && REGISTRY.charTyped(screen, codePoint, modifiers);
+        return screen != null && dispatch(() -> REGISTRY.charTyped(screen, codePoint, modifiers));
+    }
+
+    /** Идёт ли сейчас передача ввода слоям (защита от повторного входа). */
+    private static boolean dispatching;
+
+    /**
+     * Передаёт событие ввода слоям без повторного входа.
+     *
+     * <p>Внутренний экран слоя, не обработав клавишу, вызывает ванильный {@code Screen.keyPressed}, а его
+     * перехватывает тот же миксин overlay. Без защиты событие снова уходит в слои, и при нажатии стрелки или
+     * клавиши без фокуса получалась бесконечная рекурсия ({@code StackOverflowError}). Вложенный вызов просто
+     * возвращает {@code false}: событие идёт дальше в ванильную обработку.</p>
+     */
+    private static boolean dispatch(java.util.function.BooleanSupplier event) {
+        if (dispatching) return false;
+        dispatching = true;
+        try {
+            return event.getAsBoolean();
+        } finally {
+            dispatching = false;
+        }
     }
 }

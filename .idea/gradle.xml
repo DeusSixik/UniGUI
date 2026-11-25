@@ -20,6 +20,7 @@
             <option value="$PROJECT_DIR$/neoforge" />
             <option value="$PROJECT_DIR$/versions/1.20.1" />
             <option value="$PROJECT_DIR$/versions/1.21.1" />
+            <option value="$PROJECT_DIR$/versions/26.1.2" />
           </set>
         </option>
         <option name="resolveExternalAnnotations" value="true" />

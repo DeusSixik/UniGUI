@@ -7,6 +7,11 @@ architectury {
 sourceSets {
     main {
         java.srcDir "src/main/java-${versionProject.minecraft_version}"
+        // GL-бэкенд и API на ResourceLocation, общие для обфусцированных версий (1.20.1, 1.21.1).
+        // В 26.1+ рендер построен на GpuDevice/RenderPipeline, и его бэкенд лежит в src/main/java-<версия>.
+        if (!unobfuscated) {
+            java.srcDir "src/main/java-legacy"
+        }
     }
 }
 
@@ -19,7 +24,7 @@ dependencies {
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.
     // Do NOT use other classes from Fabric Loader.
-    modCompileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
+    add modCompileOnlyConfig, "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
 }
 
 tasks.matching { it.name.startsWith('transformProduction') }.configureEach {

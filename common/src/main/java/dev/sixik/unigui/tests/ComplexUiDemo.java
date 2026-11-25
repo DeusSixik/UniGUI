@@ -28,7 +28,6 @@ import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextInput;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
@@ -62,7 +61,7 @@ public final class ComplexUiDemo {
 
     /** Ставит demo-экран в очередь рендера Minecraft. */
     public static void openDemo() {
-        RenderSystem.recordRenderCall(ComplexUiDemo::openDemoClient);
+        Minecraft.getInstance().execute(ComplexUiDemo::openDemoClient);
     }
 
     /** Открывает demo-экран; метод вызывается на render thread. */

@@ -1,6 +1,5 @@
 package dev.sixik.unigui.tests;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransformOrigin;
@@ -55,7 +54,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -438,9 +436,9 @@ public final class UniGuiDemo {
     public static void openDemo() {
         // Без хоста категория Minecraft в галерее показывает только заглушку.
         dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost.install();
-//        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+//        Minecraft.getInstance().execute(UniGuiDemo::openDemoClient);
         // Системный буфер обмена: без него демо использует MemoryClipboardService, и копирование не выходит за игру.
-        RenderSystem.recordRenderCall(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
+        Minecraft.getInstance().execute(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -450,7 +448,7 @@ public final class UniGuiDemo {
                     return 0;
                 })
                 .then(Commands.literal("animations").executes(ctx -> {
-                    RenderSystem.recordRenderCall(AnimationsSampler::openDemoClient);
+                    Minecraft.getInstance().execute(AnimationsSampler::openDemoClient);
                     return 0;
                 }))
                 .then(Commands.literal("complex").executes(ctx -> {
@@ -464,7 +462,7 @@ public final class UniGuiDemo {
 
         dispatcher.register(Commands.literal("unigui_old")
                 .executes(ctx -> {
-                    RenderSystem.recordRenderCall(() -> UniGuiDemo.openDemoClient());
+                    Minecraft.getInstance().execute(() -> UniGuiDemo.openDemoClient());
                     return 0;
                 }));
     }
@@ -2074,7 +2072,7 @@ public final class UniGuiDemo {
 
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget();
         texturePicker.layout(style -> style.size(304.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
-        texturePicker.selectId(ResourceLocation.tryBuild("minecraft", "textures/block/stone.png"));
+        texturePicker.selectId("minecraft:textures/block/stone.png");
 
         Runnable updatePickerStatus = () -> pickerStatus.text("Item: "
                 + (itemPicker.selectedId() == null ? "<none>" : itemPicker.selectedId())

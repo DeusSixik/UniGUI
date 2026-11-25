@@ -1,0 +1,114 @@
+// Forge для Minecraft 26.1+: собирается ForgeGradle 7, а не Architectury Loom.
+// Loom не поддерживает Forge без обфускации, поэтому этот скрипт подключается из settings.gradle
+// вместо forge/build.gradle (см. usesForgeGradle), а корневой build.gradle не применяет к проекту Loom.
+//
+// Мод собирается из исходников одним source set'ом: forge + common (+ java-<версия>) + core + editor + demo.
+// Так и dev-запуск, и итоговый jar — один модуль мода: миксины common грузятся вместе с ним, а классы
+// core/common не попадают в boot-слой модулей (там они конфликтуют с модулями самого Forge, например
+// org.jetbrains.annotations, который core упаковывает для старых версий).
+// В 26.1 имена классов Forge и ванили совпадают (обфускации нет), поэтому architectury-трансформер не нужен:
+// аннотации @Environment из Fabric Loader имеют retention CLASS и в рантайме Forge просто игнорируются.
+
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle'
+}
+
+def mcVersion = versionProject.minecraft_version
+def mixinConfig = 'unigui.mixins.json'
+
+base {
+    archivesName = "${versionProperty('archives_name')}-forge-${mcVersion}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(versionProperty('java_version') as int)
+    withSourcesJar()
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [
+                // У Forge 26.1 своя шина событий (EventBus 7): исходники платформы отдельные.
+                "src/main/java-${mcVersion}",
+                rootProject.file('common/src/main/java'),
+                rootProject.file("common/src/main/java-${mcVersion}"),
+                rootProject.file('core/src/main/java'),
+                rootProject.file('editor/src/main/java'),
+                rootProject.file('demo/src/main/java'),
+        ]
+        resources.srcDirs = [
+                "src/main/resources-${mcVersion}",
+                rootProject.file('common/src/main/resources'),
+                rootProject.file('demo/src/main/resources'),
+        ]
+    }
+}
+
+minecraft {
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+            // В dev-запуске Mixin берёт конфиг из аргумента, в собранном jar — из манифеста.
+            args "--mixin.config=${mixinConfig}"
+        }
+        register('client')
+        register('server') {
+            args '--nogui'
+        }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    maven { url = uri('https://maven.fabricmc.net/') }
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency(versionProject.forge_dependency)
+
+    // Только аннотации для компиляции: в рантайме они не нужны.
+    compileOnly "net.fabricmc:fabric-loader:${versionProject.fabric_loader_version}"
+    compileOnly 'org.jetbrains:annotations:26.0.1'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = versionProperty('java_version') as int
+    options.compilerArgs << '-parameters'
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    def props = [
+            version                   : project.version,
+            forge_loader_version_range: versionProject.forge_loader_version_range,
+            forge_version_range       : versionProject.forge_version_range,
+            minecraft_version_range   : versionProject.forge_minecraft_version_range
+    ]
+    inputs.properties props
+    filesMatching('META-INF/mods.toml') {
+        expand props
+    }
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+jar {
+    manifest.attributes('MixinConfigs': mixinConfig)
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}

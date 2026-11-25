@@ -18,6 +18,7 @@ public class MixinCommands {
     public void register(Commands.CommandSelection commandSelection, CommandBuildContext commandBuildContext, CallbackInfo ci) {
         CommandDispatcher<CommandSourceStack> dispatcher = ((Commands) (Object) this).getDispatcher();
         TestCommands.register(dispatcher);
+        dev.sixik.unigui.tests.LayerTestCommands.register(dispatcher);
         UniGuiDemo.register(dispatcher);
     }
 }

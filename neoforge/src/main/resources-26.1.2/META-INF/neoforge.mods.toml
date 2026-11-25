@@ -1,0 +1,29 @@
+modLoader = "javafml"
+loaderVersion = "${neoforge_loader_version_range}"
+license = "GNU LGPL 3.0"
+
+[[mixins]]
+config = "unigui.mixins.json"
+
+[[mods]]
+modId = "unigui"
+version = "${version}"
+displayName = "UniGUI"
+authors = "Sixik"
+description = '''
+
+'''
+
+[[dependencies.unigui]]
+modId = "neoforge"
+mandatory = true
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.unigui]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"

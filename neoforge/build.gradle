@@ -1,5 +1,5 @@
 plugins {
-    id 'com.github.johnrengelman.shadow'
+    id 'com.gradleup.shadow'
 }
 
 architectury {
@@ -31,8 +31,11 @@ configurations {
 dependencies {
     neoForge versionProject.neoforge_dependency
 
-    common(project(path: "${versionProject.path}:common", configuration: 'namedElements')) { transitive false }
+    common(commonNamed("${versionProject.path}:common")) { transitive false }
     common(project(path: ':core')) { transitive false }
+    // demo и editor нужны и в dev-запуске, а не только в итоговом jar (shadowBundle).
+    common(project(path: ':editor')) { transitive false }
+    common(project(path: ':demo')) { transitive false }
     shadowBundle(project(path: ':core')) { transitive false }
     shadowBundle(project(path: ':editor')) { transitive false }
     shadowBundle(project(path: ':demo')) { transitive false }
@@ -53,11 +56,21 @@ processResources {
     }
 }
 
-shadowJar {
-    configurations = [project.configurations.shadowBundle]
-    archiveClassifier = 'dev-shadow'
+if (unobfuscated) {
+    // Итоговый jar без классификатора занимает shadowJar.
+    jar {
+        archiveClassifier = 'raw'
+    }
 }
 
-remapJar {
-    input.set shadowJar.archiveFile
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    // Без обфускации shadowJar и есть итоговый jar; иначе его дальше ремапит remapJar.
+    archiveClassifier = unobfuscated ? '' : 'dev-shadow'
+}
+
+if (!unobfuscated) {
+    remapJar {
+        input.set shadowJar.archiveFile
+    }
 }
