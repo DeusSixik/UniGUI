@@ -10,8 +10,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Minecraft-1.7.10%20%7C%201.12.2%20%7C%201.20.1%20%7C%201.21.1-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">
-  <img src="https://img.shields.io/badge/Fabric%20%7C%20Forge%20%7C%20NeoForge%20%7C%20GTNH%20%7C%20Cleanroom-supported-6366f1?style=for-the-badge&logo=java&logoColor=white" alt="Supported platforms">
+  <img src="https://img.shields.io/badge/Minecraft-1.7.10%20%7C%201.12.2%20%7C%201.20.1%20%7C%201.21.1%20%7C%2026.1.2%20%7C%2026.2%20%7C%2026.3-5D9E3D?style=for-the-badge&logo=minecraft&logoColor=white" alt="Minecraft versions">
+</p>
+<p align="center">
+   <img src="https://img.shields.io/badge/Fabric%20%7C%20Forge%20%7C%20NeoForge%20%7C%20GTNH%20%7C%20Cleanroom-supported-6366f1?style=for-the-badge&logo=java&logoColor=white" alt="Supported platforms">
 </p>
 
 <p align="center">
