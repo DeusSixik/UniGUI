@@ -1,5 +1,13 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.Easing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
@@ -14,68 +22,146 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Декларативная анимация узлов сцены по ключевым кадрам, которую можно показать в любой момент времени.
+ * Seekable keyframe animation for scene nodes.
  *
- * <p>Кадр считается только из времени: {@link #sample(float)} можно вызывать вперёд, назад и с любым шагом,
- * результат один и тот же. Поэтому одна и та же анимация годится и для проигрывания
- * ({@link #play(Scene3D)}), и для перемотки ползунком.</p>
- *
+ * <p>{@link #sample(float)} evaluates the timeline at an absolute time in either direction. The same tracks
+ * can be played by {@link #play(Scene3D)} or driven by a scrubber. Make custom samplers depend on the supplied
+ * time or progress if they must behave the same during playback and seeking.</p>
  * <pre>{@code
  * SceneTimeline timeline = new SceneTimeline();
  * timeline.track(furnace)
- *         .visible(0, false).visible(2, true)
- *         .position(2, 0, 4, 0)
- *         .position(2.8f, 0, 1, 0, AnimationEasing.QUAD_IN)   // падение с ускорением
- *         .state(4, "minecraft:furnace[facing=south,lit=true]");
- * timeline.assemble(house, 0, 3);                            // сборка структуры по слоям
- * timeline.play(viewport);                                   // или timeline.sample(seconds)
+ * .visible(0, false).visible(2, true)
+ * .position(2, 0, 4, 0)
+ * .position(2.8f, 0, 1, 0, AnimationEasing.QUAD_IN)
+ * .state(4, "minecraft:furnace[facing=south,lit=true]");
+ * timeline.assemble(house, 0, 3);
+ * timeline.play(viewport);
  * }</pre>
- *
- * <p>Ключи одного свойства задаются в любом порядке. Между ключами значение интерполируется с функцией
- * плавности следующего ключа. До первого ключа держится значение первого, после последнего — последнего.
- * Дискретные свойства (видимость, состояние блока) переключаются в момент ключа включительно. Свойство без
- * ключей таймлайн не трогает.</p>
+ * <p>Keys can be added in any order. Between keys, interpolation uses the destination key's easing.
+ * Values hold at the first and last keys outside their interval. Visibility and block states change at the
+ * key time, inclusive. Properties without keys retain their existing values.</p>
  */
+@WikiPage(
+        title = "SceneTimeline", slug = "scene-timeline",
+        category = "API/3D Scene", order = 170,
+        summary = "Seekable keyframe tracks and samplers for scene tutorials.")
+@WikiSection(title = "Tracks and interpolation", order = 10, markdown = """
+        `track(node)` returns a `SceneTimeline.Track`. Add position, rotation and scale keys with `position`, `yaw`,
+        `rotation` and `scale`. Positions are parent-relative, rotations use radians and scale is unitless. Use
+        `head` for entity head angles, `state` for block states, and `visible` or `visibleBetween` for timed
+        visibility. The first and last keys hold outside their range.
+        """)
+@WikiSection(title = "Track methods", order = 15, markdown = """
+        | Method | Property and units |
+        | --- | --- |
+        | `position(seconds, x, y, z[, easing])` | Parent-relative position in scene units. |
+        | `yaw(seconds, yaw)` | Yaw in radians with a linear transition and zero pitch. |
+        | `rotation(seconds, yaw, pitch, easing)` | Yaw and pitch in radians, interpolated as scalars. |
+        | `scale(seconds, scale)` | Uniform dimensionless scale with a linear transition. |
+        | `scale(seconds, x, y, z, easing)` | Dimensionless scale factors along the local axes. |
+        | `head(seconds, yaw, pitch, easing)` | Entity head angles in radians relative to the body. |
+        | `visible(seconds, visible)` | Discrete visibility from the key time onward. |
+        | `visibleBetween(from, to)` | Visibility from the inclusive start to the exclusive end. |
+        | `state(seconds, state)` | Discrete block state from the key time onward. |
+
+        Use `track(otherNode)` on a track to move to another node in the same timeline.
+        `timeline()` returns the timeline that owns the track.
+        """)
+@WikiSection(title = "Playback and checkpoints", order = 20, markdown = """
+        `play(viewport)` runs the timeline once from the beginning. Connect replay to `play` and connect sliders or
+        checkpoint buttons to `stop` followed by `sample(seconds)`. Use `duration(seconds)` to hold the final state
+        longer. The `during` callback receives normalized eased progress. `onSample` receives time in seconds after
+        node tracks have been applied.
+        """)
+@WikiExample(title = "Play and seek a furnace tutorial", code = """
+        SceneTimeline tutorial = new SceneTimeline().assemble(floor, 0, 2).duration(5);
+        tutorial.track(furnace)
+                .visible(0, false).visible(2, true)
+                .position(2, 0, 4, 0)
+                .position(3, 0, 0, 0, AnimationEasing.QUAD_IN)
+                .state(4, "minecraft:furnace[facing=south,lit=true]");
+        tutorial.play(viewport);
+        // When the user chooses a checkpoint:
+        tutorial.stop(viewport);
+        tutorial.sample(3.5f);
+        """)
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@WikiLink(label = "BlockNode", target = "page:block-node")
+@WikiLink(label = "EntityNode", target = "page:entity-node")
+@WikiLink(label = "StructureNode", target = "page:structure-node")
+@AiDoc(
+        summary = "Seekable keyframe tracks and samplers for scene tutorials.",
+        purpose = "Drive playback, replay, checkpoint navigation and timeline sliders from one scene definition.",
+        criticalRules = {
+                "Times are in seconds. `sample` applies the state at absolute time and can seek in either direction.",
+                "Easing comes from the destination key. Discrete visibility and block state keys apply from their timestamp inclusive.",
+                "Track methods include position, yaw, rotation, scale, head, visible, visibleBetween and state.",
+                "Use head only on EntityNode tracks and state only on BlockNode tracks.",
+                "Make onSample and during callbacks derive state from the supplied absolute time or progress.",
+                "Use `stop(viewport)` before scrubbing manually. `play(viewport)` restarts from time zero."
+        },
+        related = {"Scene3D", "SceneNode", "BlockNode", "EntityNode", "StructureNode"},
+        examples = @AiDoc.Example(title = "Play and seek a furnace tutorial", code = """
+                SceneTimeline tutorial = new SceneTimeline().assemble(floor, 0, 2).duration(5);
+                tutorial.track(furnace)
+                        .visible(0, false).visible(2, true)
+                        .position(2, 0, 4, 0)
+                        .position(3, 0, 0, 0, AnimationEasing.QUAD_IN)
+                        .state(4, "minecraft:furnace[facing=south,lit=true]");
+                tutorial.play(viewport);
+                // When the user chooses a checkpoint:
+                tutorial.stop(viewport);
+                tutorial.sample(3.5f);
+                """))
 public final class SceneTimeline {
     /**
-     * Дорожки узлов в порядке создания.
+     * Tracks indexed by node.
      */
     private final Map<SceneNode, Track> tracks = new IdentityHashMap<>();
     /**
-     * Порядок применения дорожек.
+     * Order in which tracks are applied.
      */
     private final List<Track> order = new ArrayList<>();
     /**
-     * Пользовательские шаги, вызываемые на каждом кадре.
+     * Custom samplers invoked on each frame.
      */
     private final List<Sampler> samplers = new ArrayList<>();
     /**
-     * Длительность, заданная явно, или отрицательное число.
+     * Explicit duration in seconds, or a negative value to infer it.
      */
     private float explicitDuration = -1;
     /**
-     * Наибольшее время ключа или конца интервала.
+     * Latest key time or interval end in seconds.
      */
     private float lastKey;
 
     /**
-     * Принимает время или прогресс анимации.
+     * Receives absolute time or normalized progress.
      */
     @FunctionalInterface
     public interface Sampler {
         /**
-         * @param value время в секундах или прогресс от 0 до 1.
+         * Samples the current value.
+         *
+         * @param value time in seconds or progress in [0, 1].
          */
         void sample(float value);
     }
 
     /**
-     * Возвращает дорожку узла, создавая её при первом обращении.
+     * Gets or creates a track for the node.
      *
-     * @param node анимируемый узел.
-     * @return дорожка для ключей этого узла.
+     * @param node animated node.
+     * @return the node's track.
      */
-    public Track track(SceneNode node) {
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 10,
+            summary = "Gets or creates a track for the node.")
+    @WikiReturn("the node's track")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 10,
+            summary = "Gets or creates a track for the node.")
+    public Track track(
+            @WikiParameter(description = "animated node.") SceneNode node) {
         Objects.requireNonNull(node, "node");
         return tracks.computeIfAbsent(node, key -> {
             Track track = new Track(key);
@@ -85,15 +171,24 @@ public final class SceneTimeline {
     }
 
     /**
-     * Анимирует произвольное значение на отрезке времени. Прогресс до начала равен 0, после конца — 1.
+     * Animates custom progress during an interval. Progress is zero before the start and one after the end.
      *
-     * @param start    начало в секундах.
-     * @param end      конец в секундах, не раньше начала.
-     * @param easing   функция плавности или null для линейной.
-     * @param progress получает прогресс с учётом плавности на каждом кадре.
-     * @return этот таймлайн.
+     * @param start start time in seconds.
+     * @param end end time in seconds, at or after start.
+     * @param easing easing function, or null for linear progress.
+     * @param progress receives eased progress when sampled.
+     * @return this timeline.
      */
-    public SceneTimeline during(float start, float end, Easing easing, Sampler progress) {
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 20,
+            summary = "Animates custom progress during an interval. Progress is zero before the start and one after the end.")
+    @WikiReturn("this timeline")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 20,
+            summary = "Animates custom progress during an interval. Progress is zero before the start and one after the end.")
+    public SceneTimeline during(
+            @WikiParameter(description = "start time in seconds.") float start,
+            @WikiParameter(description = "end time in seconds, at or after start.") float end,
+            @WikiParameter(description = "easing function, or null for linear progress.") Easing easing,
+            @WikiParameter(description = "receives eased progress when sampled.") Sampler progress) {
         requireTime(start);
         requireTime(end);
         if (end < start) throw new IllegalArgumentException("Interval ends before it starts: " + start + " > " + end);
@@ -107,25 +202,39 @@ public final class SceneTimeline {
     }
 
     /**
-     * Вызывает шаг на каждом кадре с текущим временем, например для видимости виджетов-подписей.
+     * Invokes a sampler with the absolute time, for example to control the visibility of an anchored label.
      *
-     * @param sampler получает время в секундах.
-     * @return этот таймлайн.
+     * @param sampler receives time in seconds.
+     * @return this timeline.
      */
-    public SceneTimeline onSample(Sampler sampler) {
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 30,
+            summary = "Invokes a sampler with the absolute time, for example to control the visibility of an anchored label.")
+    @WikiReturn("this timeline")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 30,
+            summary = "Invokes a sampler with the absolute time, for example to control the visibility of an anchored label.")
+    public SceneTimeline onSample(
+            @WikiParameter(description = "receives time in seconds.") Sampler sampler) {
         samplers.add(Objects.requireNonNull(sampler, "sampler"));
         return this;
     }
 
     /**
-     * Собирает структуру снизу вверх: верхний видимый слой растёт от «ничего» до последнего непустого слоя.
+     * Reveals the structure from bottom to top, starting with no visible layers.
      *
-     * @param structure структура.
-     * @param start     начало сборки в секундах.
-     * @param end       конец сборки в секундах.
-     * @return этот таймлайн.
+     * @param structure structure to reveal.
+     * @param start start time in seconds.
+     * @param end end time in seconds.
+     * @return this timeline.
      */
-    public SceneTimeline assemble(StructureNode structure, float start, float end) {
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 40,
+            summary = "Reveals the structure from bottom to top, starting with no visible layers.")
+    @WikiReturn("this timeline")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 40,
+            summary = "Reveals the structure from bottom to top, starting with no visible layers.")
+    public SceneTimeline assemble(
+            @WikiParameter(description = "structure to reveal.") StructureNode structure,
+            @WikiParameter(description = "start time in seconds.") float start,
+            @WikiParameter(description = "end time in seconds.") float end) {
         Objects.requireNonNull(structure, "structure");
         return during(start, end, AnimationEasing.LINEAR, progress -> {
             int[] range = structure.layerRange(Integer.MAX_VALUE);
@@ -136,42 +245,66 @@ public final class SceneTimeline {
     }
 
     /**
-     * Задаёт длительность явно, например чтобы последний кадр держался дольше последнего ключа.
+     * Sets the duration explicitly, for example to hold the last frame past the last key.
      *
-     * @param seconds длительность в секундах.
-     * @return этот таймлайн.
+     * @param seconds duration in seconds.
+     * @return this timeline.
      */
-    public SceneTimeline duration(float seconds) {
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 50,
+            summary = "Sets the duration explicitly, for example to hold the last frame past the last key.")
+    @WikiReturn("this timeline")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 50,
+            summary = "Sets the duration explicitly, for example to hold the last frame past the last key.")
+    public SceneTimeline duration(
+            @WikiParameter(description = "duration in seconds.") float seconds) {
         requireTime(seconds);
         explicitDuration = seconds;
         return this;
     }
 
     /**
-     * @return явная длительность или время последнего ключа.
+     * Reads the playback duration.
+     *
+     * @return the explicit duration or the latest key or interval end, in seconds.
      */
+    @WikiMethod(section = "Authoring", sectionOrder = 10, order = 50,
+            summary = "Reads the playback duration.")
+    @WikiReturn("the explicit duration or the latest key or interval end, in seconds")
+    @AiDoc(section = "Authoring", sectionOrder = 10, order = 50,
+            summary = "Reads the playback duration.")
     public float duration() {
         return explicitDuration >= 0 ? explicitDuration : lastKey;
     }
 
     /**
-     * Ставит все узлы в положение момента времени.
+     * Applies the timeline state at the supplied time.
      *
-     * @param seconds время от начала в секундах.
+     * @param seconds time since the start, in seconds.
      */
-    public void sample(float seconds) {
+    @WikiMethod(section = "Playback", sectionOrder = 20, order = 10,
+            summary = "Applies the timeline state at the supplied time.")
+    @AiDoc(section = "Playback", sectionOrder = 20, order = 10,
+            summary = "Applies the timeline state at the supplied time.")
+    public void sample(
+            @WikiParameter(description = "time since the start, in seconds.") float seconds) {
         float time = Float.isFinite(seconds) ? seconds : 0;
         for (int i = 0; i < order.size(); i++) order.get(i).sample(time);
         for (int i = 0; i < samplers.size(); i++) samplers.get(i).sample(time);
     }
 
     /**
-     * Проигрывает таймлайн один раз от начала во вьюпорте. Повторный вызов начинает заново.
+     * Plays the timeline once from the beginning. Calling again restarts playback.
      *
-     * @param viewport вьюпорт, тикающий анимацию.
-     * @return этот таймлайн.
+     * @param viewport viewport that drives animation ticks.
+     * @return this timeline.
      */
-    public SceneTimeline play(Scene3D viewport) {
+    @WikiMethod(section = "Playback", sectionOrder = 20, order = 20,
+            summary = "Plays the timeline once from the beginning. Calling again restarts playback.")
+    @WikiReturn("this timeline")
+    @AiDoc(section = "Playback", sectionOrder = 20, order = 20,
+            summary = "Plays the timeline once from the beginning. Calling again restarts playback.")
+    public SceneTimeline play(
+            @WikiParameter(description = "viewport that drives animation ticks.") Scene3D viewport) {
         viewport.stopParameterAnimation(this);
         sample(0);
         float length = duration();
@@ -183,17 +316,24 @@ public final class SceneTimeline {
     }
 
     /**
-     * Останавливает проигрывание, оставляя текущий кадр.
+     * Stops playback and retains the current frame.
      *
-     * @param viewport вьюпорт из {@link #play(Scene3D)}.
+     * @param viewport viewport passed to {@link #play(Scene3D)}.
      */
-    public void stop(Scene3D viewport) {
+    @WikiMethod(section = "Playback", sectionOrder = 20, order = 30,
+            summary = "Stops playback and retains the current frame.")
+    @AiDoc(section = "Playback", sectionOrder = 20, order = 30,
+            summary = "Stops playback and retains the current frame.")
+    public void stop(
+            @WikiParameter(description = "viewport passed to `play(Scene3D)`.") Scene3D viewport) {
         viewport.stopParameterAnimation(this);
     }
 
     /**
-     * @param seconds проверяемое время.
-     * @throws IllegalArgumentException если время отрицательно или не конечно.
+     * Validates a time.
+     *
+     * @param seconds time in seconds.
+     * @throws IllegalArgumentException if time is negative or nonfinite.
      */
     private static void requireTime(float seconds) {
         if (!Float.isFinite(seconds) || seconds < 0) {
@@ -202,83 +342,85 @@ public final class SceneTimeline {
     }
 
     /**
-     * Ключи одного узла: позиция, поворот, масштаб, видимость и состояние блока.
+     * Keyframes for one node's transform, visibility, entity head rotation and block state.
      */
     public final class Track {
         /**
-         * Анимируемый узел.
+         * Animated node.
          */
         private final SceneNode node;
         /**
-         * Позиция X, Y, Z.
+         * Position XYZ in scene units.
          */
         private final Channel position = new Channel(3);
         /**
-         * Рыскание и тангаж в радианах.
+         * Yaw and pitch in radians.
          */
         private final Channel rotation = new Channel(2);
         /**
-         * Масштаб X, Y, Z.
+         * Dimensionless XYZ scale.
          */
         private final Channel scale = new Channel(3);
         /**
-         * Видимость: 1 или 0.
+         * Visibility stored as one or zero.
          */
         private final Channel visible = new Channel(1);
         /**
-         * Поворот головы сущности: рыскание и тангаж.
+         * Entity head yaw and pitch in radians.
          */
         private final Channel head = new Channel(2);
         /**
-         * Время ключей состояния блока.
+         * Block state key times in seconds.
          */
         private float[] stateTimes = new float[0];
         /**
-         * Состояния блока в порядке {@link #stateTimes}.
+         * Block states in the order of {@link #stateTimes}.
          */
         private String[] states = new String[0];
         /**
-         * Последнее применённое состояние, чтобы не сбрасывать кэш блока на каждом кадре.
+         * Last applied state, used to avoid resetting the block cache.
          */
         private String appliedState;
         /**
-         * Рабочий кватернион поворота.
+         * Reusable rotation quaternion.
          */
         private final MutableQuat quaternion = new MutableQuat();
         /**
-         * Рабочий буфер значений.
+         * Reusable buffer for sampled values.
          */
         private final float[] values = new float[3];
 
         /**
-         * @param node анимируемый узел.
+         * Creates an empty track.
+         *
+         * @param node animated node.
          */
         private Track(SceneNode node) {
             this.node = node;
         }
 
         /**
-         * Ключ позиции с линейным переходом от предыдущего ключа.
+         * Adds a position key with linear interpolation from the preceding key.
          *
-         * @param seconds время ключа.
-         * @param x       X.
-         * @param y       Y.
-         * @param z       Z.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param x parent-space X in scene units.
+         * @param y parent-space Y in scene units.
+         * @param z parent-space Z in scene units.
+         * @return this track.
          */
         public Track position(float seconds, float x, float y, float z) {
             return position(seconds, x, y, z, null);
         }
 
         /**
-         * Ключ позиции.
+         * Adds a position key.
          *
-         * @param seconds время ключа.
-         * @param x       X.
-         * @param y       Y.
-         * @param z       Z.
-         * @param easing  плавность перехода от предыдущего ключа или null для линейной.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param x parent-space X in scene units.
+         * @param y parent-space Y in scene units.
+         * @param z parent-space Z in scene units.
+         * @param easing interpolation from the preceding key, or null for linear.
+         * @return this track.
          */
         public Track position(float seconds, float x, float y, float z, Easing easing) {
             position.add(seconds, easing, x, y, z);
@@ -286,24 +428,24 @@ public final class SceneTimeline {
         }
 
         /**
-         * Ключ поворота вокруг вертикали с линейным переходом.
+         * Adds a yaw key with a linear transition.
          *
-         * @param seconds время ключа.
-         * @param yaw     рыскание в радианах.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param yaw yaw in radians.
+         * @return this track.
          */
         public Track yaw(float seconds, float yaw) {
             return rotation(seconds, yaw, 0, null);
         }
 
         /**
-         * Ключ поворота. Углы интерполируются как числа, поэтому оборот больше чем на π задаётся явно.
+         * Adds a rotation key. Angles interpolate as scalars, so a rotation greater than π can be specified directly.
          *
-         * @param seconds время ключа.
-         * @param yaw     рыскание в радианах.
-         * @param pitch   тангаж в радианах.
-         * @param easing  плавность перехода от предыдущего ключа или null для линейной.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param yaw yaw in radians.
+         * @param pitch pitch in radians.
+         * @param easing interpolation from the preceding key, or null for linear.
+         * @return this track.
          */
         public Track rotation(float seconds, float yaw, float pitch, Easing easing) {
             rotation.add(seconds, easing, yaw, pitch, 0);
@@ -311,25 +453,25 @@ public final class SceneTimeline {
         }
 
         /**
-         * Ключ равномерного масштаба с линейным переходом.
+         * Adds a uniform scale key with a linear transition.
          *
-         * @param seconds время ключа.
-         * @param scale   масштаб по всем осям.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param scale dimensionless factor along every axis.
+         * @return this track.
          */
         public Track scale(float seconds, float scale) {
             return scale(seconds, scale, scale, scale, null);
         }
 
         /**
-         * Ключ масштаба.
+         * Adds a scale key.
          *
-         * @param seconds время ключа.
-         * @param x       масштаб X.
-         * @param y       масштаб Y.
-         * @param z       масштаб Z.
-         * @param easing  плавность перехода от предыдущего ключа или null для линейной.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param x local X scale factor.
+         * @param y local Y scale factor.
+         * @param z local Z scale factor.
+         * @param easing interpolation from the preceding key, or null for linear.
+         * @return this track.
          */
         public Track scale(float seconds, float x, float y, float z, Easing easing) {
             scale.add(seconds, easing, x, y, z);
@@ -337,14 +479,14 @@ public final class SceneTimeline {
         }
 
         /**
-         * Ключ поворота головы {@link EntityNode} относительно тела.
+         * Adds an {@link EntityNode} head rotation key relative to the body.
          *
-         * @param seconds время ключа.
-         * @param yaw     рыскание в радианах.
-         * @param pitch   тангаж в радианах.
-         * @param easing  плавность перехода от предыдущего ключа или null для линейной.
-         * @return эта дорожка.
-         * @throws IllegalArgumentException если узел не {@link EntityNode}.
+         * @param seconds key time in seconds.
+         * @param yaw yaw in radians.
+         * @param pitch pitch in radians.
+         * @param easing interpolation from the preceding key, or null for linear.
+         * @return this track.
+         * @throws IllegalArgumentException if the node is not an {@link EntityNode}.
          */
         public Track head(float seconds, float yaw, float pitch, Easing easing) {
             if (!(node instanceof EntityNode)) throw new IllegalArgumentException("Only an EntityNode has a head");
@@ -353,11 +495,11 @@ public final class SceneTimeline {
         }
 
         /**
-         * Ключ видимости, который действует с указанного момента включительно.
+         * Adds a visibility key that takes effect at the specified time, inclusive.
          *
-         * @param seconds время ключа.
-         * @param visible видимость.
-         * @return эта дорожка.
+         * @param seconds key time in seconds.
+         * @param visible visibility after the key.
+         * @return this track.
          */
         public Track visible(float seconds, boolean visible) {
             this.visible.add(seconds, STEP, visible ? 1 : 0, 0, 0);
@@ -365,23 +507,23 @@ public final class SceneTimeline {
         }
 
         /**
-         * Показывает узел только на отрезке {@code [from, to)}.
+         * Shows the node only during {@code [from, to)}.
          *
-         * @param from начало показа.
-         * @param to   момент скрытия.
-         * @return эта дорожка.
+         * @param from inclusive start time in seconds.
+         * @param to exclusive end time in seconds.
+         * @return this track.
          */
         public Track visibleBetween(float from, float to) {
             return visible(0, from == 0).visible(from, true).visible(to, false);
         }
 
         /**
-         * Ключ состояния блока, который действует с указанного момента включительно.
+         * Adds a block state key that takes effect at the specified time, inclusive.
          *
-         * @param seconds время ключа.
-         * @param state   строка блока, например {@code minecraft:furnace[lit=true]}.
-         * @return эта дорожка.
-         * @throws IllegalArgumentException если узел не {@link BlockNode}.
+         * @param seconds key time in seconds.
+         * @param state block specification such as {@code minecraft:furnace[lit=true]}.
+         * @return this track.
+         * @throws IllegalArgumentException if the node is not a {@link BlockNode}.
          */
         public Track state(float seconds, String state) {
             if (!(node instanceof BlockNode)) throw new IllegalArgumentException("Only a BlockNode has a block state");
@@ -398,26 +540,28 @@ public final class SceneTimeline {
         }
 
         /**
-         * Возвращает таймлайн для следующей дорожки.
+         * Gets another node's track from the same timeline.
          *
-         * @param other следующий узел.
-         * @return его дорожка.
+         * @param other next node to animate.
+         * @return the other node's track.
          */
         public Track track(SceneNode other) {
             return SceneTimeline.this.track(other);
         }
 
         /**
-         * @return таймлайн этой дорожки.
+         * Reads the enclosing timeline.
+         *
+         * @return this track's timeline.
          */
         public SceneTimeline timeline() {
             return SceneTimeline.this;
         }
 
         /**
-         * Применяет кадр к узлу.
+         * Applies the sampled state to the node.
          *
-         * @param seconds время в секундах.
+         * @param seconds time in seconds.
          */
         private void sample(float seconds) {
             if (position.sample(seconds, values)) node.setPosition(values[0], values[1], values[2]);
@@ -437,40 +581,48 @@ public final class SceneTimeline {
     }
 
     /**
-     * Плавность дискретного ключа: значение не меняется до самого ключа.
+     * Step easing that holds the preceding value until the destination key.
      */
     private static final Easing STEP = progress -> progress >= 1 ? 1 : 0;
 
     /**
-     * Ключи одного свойства с одним, двумя или тремя числами, отсортированные по времени.
+     * Time-sorted keys for a property with one, two or three numeric components.
      */
     private final class Channel {
         /**
-         * Чисел в одном ключе.
+         * Number of components per key.
          */
         private final int width;
         /**
-         * Время ключей.
+         * Key times in seconds.
          */
         private float[] times = new float[0];
         /**
-         * Значения ключей подряд по {@link #width}.
+         * Consecutive key values with {@link #width} components per key.
          */
         private float[] values = new float[0];
         /**
-         * Плавность перехода к каждому ключу.
+         * Easing into each destination key.
          */
         private Easing[] easings = new Easing[0];
 
         /**
-         * @param width чисел в ключе.
+         * Creates an empty key sequence.
+         *
+         * @param width number of components per key.
          */
         private Channel(int width) {
             this.width = width;
         }
 
         /**
-         * Вставляет ключ после ключей с тем же временем.
+         * Inserts a key after any existing keys at the same time.
+         *
+         * @param seconds key time in seconds.
+         * @param easing interpolation into the key, or null for linear.
+         * @param a first component.
+         * @param b second component, if used.
+         * @param c third component, if used.
          */
         private void add(float seconds, Easing easing, float a, float b, float c) {
             requireTime(seconds);
@@ -494,11 +646,12 @@ public final class SceneTimeline {
         }
 
         /**
-         * Интерполирует {@code v = a + (b - a) * easing((t - ta) / (tb - ta))} между соседними ключами.
+         * Interpolates {@code v = a + (b - a) * easing((t - ta) / (tb - ta))}, where a and b are adjacent
+         * key values at times ta and tb, and t is the sample time.
          *
-         * @param seconds время.
-         * @param out     буфер для значений.
-         * @return false, если у свойства нет ключей.
+         * @param seconds sample time t in seconds.
+         * @param out buffer for the interpolated components.
+         * @return false when no keys exist, true otherwise.
          */
         private boolean sample(float seconds, float[] out) {
             int count = times.length;
@@ -521,12 +674,12 @@ public final class SceneTimeline {
     }
 
     /**
-     * Находит первый ключ строго позже момента времени.
+     * Finds the first key strictly after the given time.
      *
-     * @param times отсортированное время ключей.
-     * @param count число ключей.
-     * @param value время.
-     * @return индекс от 0 до count.
+     * @param times sorted key times in seconds.
+     * @param count number of valid keys.
+     * @param value time to find in seconds.
+     * @return insertion index from zero through count.
      */
     private static int insertionPoint(float[] times, int count, float value) {
         int low = 0, high = count;
@@ -539,7 +692,12 @@ public final class SceneTimeline {
     }
 
     /**
-     * @param array массив. @param at позиция. @param value новое значение. @return новый массив.
+     * Inserts a value into an array copy.
+     *
+     * @param array original array.
+     * @param at insertion index.
+     * @param value value to insert.
+     * @return the new array.
      */
     private static float[] insert(float[] array, int at, float value) {
         float[] grown = new float[array.length + 1];

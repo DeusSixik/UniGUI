@@ -7,62 +7,62 @@ import dev.sixik.unigui.api.render.ImageFit;
 import dev.sixik.unigui.api.render.TexturePlacement;
 
 /**
- * Связывает координаты холста, физическую текстуру и прямоугольник UI.
+ * Maps coordinates between the logical canvas, physical texture and widget rectangle.
  */
 final class SceneViewport {
     /**
-     * Последние границы виджета в координатах раскладки.
+     * Latest widget bounds in layout coordinates.
      */
     private final MutableRect bounds = new MutableRect();
     /**
-     * Размещение текстуры в UI вместе с видимой UV-областью.
+     * Texture placement with the displayed UV range.
      */
     private TexturePlacement placement;
     /**
-     * Режим размещения текстуры.
+     * Texture fit mode.
      */
     private ImageFit fit;
     /**
-     * Ширина текстуры в физических пикселях.
+     * Texture width in physical pixels.
      */
     private int width;
     /**
-     * Высота текстуры в физических пикселях.
+     * Texture height in physical pixels.
      */
     private int height;
     /**
-     * Ширина логического холста.
+     * Logical canvas width.
      */
     private float canvasWidth;
     /**
-     * Высота логического холста.
+     * Logical canvas height.
      */
     private float canvasHeight;
     /**
-     * Ширина 3D-прохода в физических пикселях.
+     * 3D pass width in physical pixels.
      */
     private float passWidth;
     /**
-     * Высота 3D-прохода в физических пикселях.
+     * 3D pass height in physical pixels.
      */
     private float passHeight;
     /**
-     * Номер изменения геометрии, влияющей на перевод координат.
+     * Revision of the coordinate mapping.
      */
     private long revision;
 
     /**
-     * Создаёт расчёт, который обновится при первой раскладке.
+     * Creates an uninitialized mapping for the first layout pass.
      */
     SceneViewport() {
     }
 
     /**
-     * Обновляет размещение и границы 3D-прохода по параметрам RenderToTexture.
+     * Updates texture placement and 3D pass dimensions from the render-to-texture configuration.
      *
-     * @param rect границы виджета в координатах раскладки.
-     * @param fit  режим размещения текстуры.
-     * @param size размеры логического холста и физической цели.
+     * @param rect widget bounds in layout coordinates.
+     * @param fit texture fit mode.
+     * @param size logical canvas and physical target dimensions.
      */
     void update(RectView rect, ImageFit fit, RenderToTexture.TargetSize size) {
         float nextPassWidth = Math.min(size.width(), size.logicalWidth() * size.coordinateScale());
@@ -89,13 +89,13 @@ final class SceneViewport {
     }
 
     /**
-     * Переводит точку UI в холст. Сначала интерполирует UV по положению внутри размещённой
-     * текстуры, затем умножает UV на размер текстуры и делит на размер 3D-прохода.
+     * Maps a widget-local point to the canvas. Interpolates UVs within the placed texture and scales
+     * each UV by its texture dimension divided by the corresponding 3D pass dimension.
      *
-     * @param x   горизонтальная координата относительно виджета.
-     * @param y   вертикальная координата относительно виджета.
-     * @param out результат в единицах холста.
-     * @return true внутри показанной области холста.
+     * @param x widget-local X.
+     * @param y widget-local Y.
+     * @param out result in logical canvas units.
+     * @return true for a point in the displayed canvas area.
      */
     boolean toCanvas(float x, float y, MutableVec2 out) {
         float nx = (x + bounds.x() - placement.x()) / placement.width();
@@ -109,12 +109,12 @@ final class SceneViewport {
     }
 
     /**
-     * Переводит точку холста через UV в координаты раскладки.
+     * Maps a canvas point through UVs to layout coordinates.
      *
-     * @param x   горизонтальная координата холста.
-     * @param y   вертикальная координата холста.
-     * @param out результат в координатах раскладки.
-     * @return true внутри показанной области холста.
+     * @param x canvas X.
+     * @param y canvas Y.
+     * @param out result in layout coordinates.
+     * @return true for a point in the displayed canvas area.
      */
     boolean fromCanvas(float x, float y, MutableVec2 out) {
         if (!(x >= 0 && x <= canvasWidth && y >= 0 && y <= canvasHeight
@@ -129,38 +129,38 @@ final class SceneViewport {
     }
 
     /**
-     * Переводит горизонтальное смещение UI в смещение холста.
+     * Converts horizontal UI displacement to canvas displacement.
      *
-     * @param dx смещение по X в единицах UI.
-     * @return смещение по X в единицах холста.
+     * @param dx X displacement in UI units.
+     * @return X displacement in canvas units.
      */
     float canvasDeltaX(float dx) {
         return dx * placement.uWidth() / placement.width() * width / passWidth * canvasWidth;
     }
 
     /**
-     * Переводит вертикальное смещение UI в смещение холста.
+     * Converts vertical UI displacement to canvas displacement.
      *
-     * @param dy смещение по Y в единицах UI.
-     * @return смещение по Y в единицах холста.
+     * @param dy Y displacement in UI units.
+     * @return Y displacement in canvas units.
      */
     float canvasDeltaY(float dy) {
         return dy * placement.vHeight() / placement.height() * height / passHeight * canvasHeight;
     }
 
     /**
-     * Читает версию размещения и размеров.
+     * Reads the placement and size revision.
      *
-     * @return счётчик изменений соответствия между холстом и виджетом.
+     * @return revision of the mapping between canvas and widget.
      */
     long revision() {
         return revision;
     }
 
     /**
-     * Читает высоту холста.
+     * Reads the logical canvas height.
      *
-     * @return логическая высота холста в единицах UI.
+     * @return height in UI units.
      */
     float canvasHeight() {
         return canvasHeight;

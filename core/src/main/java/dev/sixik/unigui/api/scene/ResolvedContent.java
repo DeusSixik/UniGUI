@@ -6,39 +6,39 @@ import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import java.util.function.Function;
 
 /**
- * Кэш нативного объекта узла: строка или объект пользователя разрешаются платформой один раз.
+ * Caches the result of resolving a node's source with a platform.
  *
- * <p>Результат запоминается вместе с платформой. {@code null} от платформы означает «пока недоступно» и
- * не кэшируется. Ошибка {@link IllegalArgumentException} или {@link UnsupportedOperationException}
- * кэшируется и пишется в лог один раз, чтобы не повторяться каждый кадр.</p>
+ * <p>A null result means the native content is temporarily unavailable and permits a retry.
+ * An {@link IllegalArgumentException} or {@link UnsupportedOperationException} is logged once
+ * and cached with the platform.</p>
  */
 final class ResolvedContent {
     /**
-     * Лог ошибок разрешения.
+     * Logger for resolution failures.
      */
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(ResolvedContent.class);
 
     /**
-     * Платформа, для которой сохранён результат, или null.
+     * Platform associated with the cached result, or null.
      */
     private ScenePlatform platform;
     /**
-     * Разрешённый объект или null.
+     * Resolved native object, or null.
      */
     private Object value;
     /**
-     * Запомненная ошибка или null.
+     * Cached resolution failure, or null.
      */
     private RuntimeException failure;
 
     /**
-     * Возвращает объект, разрешая его при первом обращении для этой платформы.
+     * Returns the cached native object or attempts to resolve it for the given platform.
      *
-     * @param target   платформа или null.
-     * @param resolver вызов платформы.
-     * @param what     описание контента для лога.
-     * @param rethrow  бросить ли запомненную ошибку вместо возврата null.
-     * @return нативный объект или null, если он недоступен или неверен.
+     * @param target platform to use, or null.
+     * @param resolver platform resolution callback.
+     * @param what description of the content for diagnostics.
+     * @param rethrow true to throw a cached failure.
+     * @return the native object, or null if unavailable or invalid.
      */
     Object get(ScenePlatform target, Function<ScenePlatform, Object> resolver, Object what, boolean rethrow) {
         if (target == null) return null;
@@ -65,16 +65,16 @@ final class ResolvedContent {
     }
 
     /**
-     * Платформа последнего успешного или ошибочного разрешения.
+     * Reads the platform used for the last cached result or failure.
      *
-     * @return платформа или null.
+     * @return the platform, or null.
      */
     ScenePlatform platform() {
         return platform;
     }
 
     /**
-     * Забывает результат после смены источника.
+     * Clears the result after a source change.
      */
     void reset() {
         platform = null;

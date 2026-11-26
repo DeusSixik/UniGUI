@@ -166,8 +166,8 @@ final class DisplayTypes {
     }
 
     /**
-     * Описывает камеру, отрисовку и содержимое трёхмерной сцены.
-     * @return схема Scene3D для загрузчика и редактора.
+     * Defines camera, rendering and content properties for a 3D scene.
+     * @return the Scene3D schema for loading and editor inspection.
      */
     private static TypeInfo<Scene3D> scene3D() {
         ChildSink<Scene3D> overlay = (scene, child) -> {

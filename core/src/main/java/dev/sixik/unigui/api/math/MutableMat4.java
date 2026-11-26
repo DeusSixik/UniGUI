@@ -1,21 +1,64 @@
 package dev.sixik.unigui.api.math;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import java.util.Objects;
 
 /**
- * Изменяемая матрица 4×4 для векторов-столбцов. Построение, композиция и инверсия
- * переиспользуют память результата. Проекции используют правую систему координат, направление
- * взгляда −Z и диапазон глубины NDC от −1 до 1.
+ * Mutable 4-by-4 matrix for column vectors. Matrix construction, composition and inversion reuse
+ * the result storage. Projections are right-handed, with -Z forward and NDC depth from -1 to 1.
  */
+@WikiPage(
+        title = "MutableMat4", slug = "mutable-mat-4",
+        category = "API/3D Scene", order = 300,
+        summary = "Reusable matrix for affine transforms, view and projection.")
+@WikiSection(title = "Transforms", order = 10, markdown = """
+        `setTransform` builds `T * R * S`. `setView` inverts the world-space camera pose. Perspective and
+        orthographic builders use right-handed camera space and NDC depth from -1 to 1.
+        """)
+@WikiExample(title = "Copy a world transform for upload", code = """
+        MutableMat4 world = node.worldMatrix(new MutableMat4());
+        float[] columnMajor = new float[16];
+        world.copyColumnMajor(columnMajor, 0);
+        """)
+@WikiLink(label = "Mat4View", target = "page:mat-4-view")
+@WikiLink(label = "MutableQuat", target = "page:mutable-quat")
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "Frustum3D", target = "page:frustum-3d")
+@AiDoc(
+        summary = "Reusable matrix for affine transforms, view and projection.",
+        purpose = "Compose scene transforms or pass matrices to a renderer.",
+        criticalRules = {
+                "Matrices act on column vectors. `setProduct(left, right)` applies right first.",
+                "Use W = 1 for points and W = 0 for directions in homogeneous transforms.",
+                "`setInverse` leaves the result unchanged if inversion fails. `copyColumnMajor` writes 16 floats for GPU upload."
+        },
+        related = {"Mat4View", "MutableQuat", "Camera3D", "Frustum3D"},
+        examples = @AiDoc.Example(title = "Copy a world transform for upload", code = """
+                MutableMat4 world = node.worldMatrix(new MutableMat4());
+                float[] columnMajor = new float[16];
+                world.copyColumnMajor(columnMajor, 0);
+                """))
 public final class MutableMat4 implements Mat4View {
     /**
-     * 16 элементов в порядке столбцов. Единицы задаёт преобразование.
+     * Sixteen elements in column-major order. Units depend on the transform.
      */
     private final double[] elements = new double[16];
 
     /**
-     * Создаёт единичную матрицу.
+     * Creates an identity matrix.
      */
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 10,
+            summary = "Creates an identity matrix.")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 10,
+            summary = "Creates an identity matrix.")
     public MutableMat4() {
         identity();
     }
@@ -29,21 +72,32 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает единицы на диагонали и нули в остальных элементах.
+     * Writes ones to the diagonal and zeros elsewhere.
      *
-     * @return эта матрица.
+     * @return this matrix.
      */
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 20,
+            summary = "Writes ones to the diagonal and zeros elsewhere.")
+    @WikiReturn("this matrix")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 20,
+            summary = "Writes ones to the diagonal and zeros elsewhere.")
     public MutableMat4 identity() {
         return setEntries(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
     }
 
     /**
-     * Копирует исходную матрицу.
+     * Copies a matrix.
      *
-     * @param source матрица, может совпадать с этой.
-     * @return эта матрица.
+     * @param source source matrix, may alias this matrix.
+     * @return this matrix.
      */
-    public MutableMat4 set(Mat4View source) {
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 30,
+            summary = "Copies a matrix.")
+    @WikiReturn("this matrix")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 30,
+            summary = "Copies a matrix.")
+    public MutableMat4 set(
+            @WikiParameter(description = "source matrix, may alias this matrix.") Mat4View source) {
         for (int column = 0; column < 4; column++) {
             for (int row = 0; row < 4; row++) {
                 elements[column * 4 + row] = source.get(row, column);
@@ -53,13 +107,20 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Копирует элементы в порядке столбцов, приводя их к float для передачи рендереру.
+     * Copies column-major elements as floats for the renderer.
      *
-     * @param out    массив с местом для 16 последовательных значений.
-     * @param offset индекс записи первого элемента.
-     * @throws IndexOutOfBoundsException если диапазон выходит за границы массива.
+     * @param out array with space for 16 consecutive values.
+     * @param offset index of the first output value.
+     * @throws IndexOutOfBoundsException if the range exceeds the array.
      */
-    public void copyColumnMajor(float[] out, int offset) {
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 60,
+            summary = "Copies column-major elements as floats for the renderer.")
+    @WikiThrows(type = IndexOutOfBoundsException.class, description = "if the range exceeds the array.")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 60,
+            summary = "Copies column-major elements as floats for the renderer.")
+    public void copyColumnMajor(
+            @WikiParameter(description = "array with space for 16 consecutive values.") float[] out,
+            @WikiParameter(description = "index of the first output value.") int offset) {
         Objects.checkFromIndexSize(offset, 16, out.length);
         for (int i = 0; i < 16; i++) {
             out[offset + i] = (float) elements[i];
@@ -67,15 +128,22 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает {@code T * R * S}, где S масштабирует каждую локальную ось,
-     * R вращает вокруг начала координат, а T переносит в родительскую систему.
+     * Sets {@code T * R * S}, where S scales the local axes, R rotates at the origin, and T translates into parent space.
      *
-     * @param position перенос в единицах сцены.
-     * @param rotation единичный кватернион активного вращения.
-     * @param scale    безразмерные коэффициенты масштаба по локальным осям.
-     * @return эта матрица.
+     * @param position translation in scene units.
+     * @param rotation unit active rotation quaternion.
+     * @param scale dimensionless local scale factors.
+     * @return this matrix.
      */
-    public MutableMat4 setTransform(Vec3View position, QuatView rotation, Vec3View scale) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 10,
+            summary = "Sets `T * R * S`, where S scales the local axes, R rotates at the origin, and T translates into parent space.")
+    @WikiReturn("this matrix")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 10,
+            summary = "Sets `T * R * S`, where S scales the local axes, R rotates at the origin, and T translates into parent space.")
+    public MutableMat4 setTransform(
+            @WikiParameter(description = "translation in scene units.") Vec3View position,
+            @WikiParameter(description = "unit active rotation quaternion.") QuatView rotation,
+            @WikiParameter(description = "dimensionless local scale factors.") Vec3View scale) {
         setRotation(rotation.x(), rotation.y(), rotation.z(), rotation.w());
         for (int row = 0; row < 3; row++) {
             elements[row] *= scale.x();
@@ -89,14 +157,21 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает обратное преобразование позы {@code R^-1 * T(-eye)}.
-     * Для единичного кватерниона R^-1 задаётся сопряжением, а столбец переноса равен {@code -R^-1 * eye}.
+     * Sets the inverse of the camera pose, {@code R^-1 * T(-eye)}. A unit quaternion's conjugate
+     * represents R^-1. The translation column is {@code -R^-1 * eye}.
      *
-     * @param eye         положение камеры в единицах сцены.
-     * @param orientation единичный кватернион, переводящий локальные оси камеры в мировые.
-     * @return эта матрица.
+     * @param eye camera position in scene units.
+     * @param orientation unit camera-to-world quaternion.
+     * @return this matrix.
      */
-    public MutableMat4 setView(Vec3View eye, QuatView orientation) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 20,
+            summary = "Sets the inverse of the camera pose, `R^-1 * T(-eye)`. A unit quaternion's conjugate represents R^-1. The translation column is `-R^-1 * eye`.")
+    @WikiReturn("this matrix")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 20,
+            summary = "Sets the inverse of the camera pose, `R^-1 * T(-eye)`. A unit quaternion's conjugate represents R^-1. The translation column is `-R^-1 * eye`.")
+    public MutableMat4 setView(
+            @WikiParameter(description = "camera position in scene units.") Vec3View eye,
+            @WikiParameter(description = "unit camera-to-world quaternion.") QuatView orientation) {
         setRotation(-orientation.x(), -orientation.y(), -orientation.z(), orientation.w());
         for (int row = 0; row < 3; row++) {
             elements[12 + row] = -transformComponent(row, eye.x(), eye.y(), eye.z(), 0.0);
@@ -105,19 +180,29 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает симметричную перспективную проекцию. При {@code f = 1/tan(fovY/2)}
-     * масштабы равны {@code f/aspect} и {@code f}, а {@code clip.w = -view.z}.
-     * Коэффициенты глубины {@code -(far+near)/(far-near)} и {@code -2*far*near/(far-near)}
-     * переводят плоскости {@code z = -near} и {@code z = -far} в NDC −1 и 1.
+     * Sets a symmetric perspective projection. With {@code f = 1/tan(fovY/2)}, X and Y scale by
+     * {@code f/aspect} and {@code f}, and {@code clip.w = -view.z}. The depth coefficients
+     * {@code -(far+near)/(far-near)} and {@code -2*far*near/(far-near)} map view Z at -near and -far
+     * to NDC depths -1 and 1.
      *
-     * @param fovY   вертикальный угол поля зрения в радианах, строго между 0 и π.
-     * @param aspect положительное отношение ширины к высоте.
-     * @param near   положительное расстояние до ближней плоскости в единицах сцены.
-     * @param far    расстояние до дальней плоскости в единицах сцены, больше near.
-     * @return эта матрица.
-     * @throws IllegalArgumentException если аргументы вне указанных диапазонов или проекция не конечна.
+     * @param fovY vertical field of view in radians, strictly between zero and π.
+     * @param aspect positive width divided by height.
+     * @param near positive near-plane distance in scene units.
+     * @param far far-plane distance in scene units, greater than near.
+     * @return this matrix.
+     * @throws IllegalArgumentException if an argument is outside its range or the projection is nonfinite.
      */
-    public MutableMat4 setPerspective(double fovY, double aspect, double near, double far) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 30,
+            summary = "Sets a symmetric perspective projection. With `f = 1/tan(fovY/2)`, X and Y scale by `f/aspect` and `f`, and `clip.w = -view.z`. The depth coefficients `-(far+near)/(far-near)` and `-2*far*near/(far-near)` map view Z at -near and -far to NDC depths -1 and 1.")
+    @WikiReturn("this matrix")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if an argument is outside its range or the projection is nonfinite.")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 30,
+            summary = "Sets a symmetric perspective projection. With `f = 1/tan(fovY/2)`, X and Y scale by `f/aspect` and `f`, and `clip.w = -view.z`. The depth coefficients `-(far+near)/(far-near)` and `-2*far*near/(far-near)` map view Z at -near and -far to NDC depths -1 and 1.")
+    public MutableMat4 setPerspective(
+            @WikiParameter(description = "vertical field of view in radians, strictly between zero and π.") double fovY,
+            @WikiParameter(description = "positive width divided by height.") double aspect,
+            @WikiParameter(description = "positive near-plane distance in scene units.") double near,
+            @WikiParameter(description = "far-plane distance in scene units, greater than near.") double far) {
         checkProjection(aspect, near, far);
         double f = 1.0 / Math.tan(fovY * 0.5);
         double scaleX = f / aspect;
@@ -133,18 +218,27 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает симметричную ортографическую проекцию.
-     * Масштабы X и Y равны {@code 2/(height*aspect)} и {@code 2/height}.
-     * Глубина изменяется линейно по формуле {@code zNdc = -2*(view.z+near)/(far-near) - 1}.
+     * Sets a symmetric orthographic projection. X and Y scale by {@code 2/(height*aspect)} and
+     * {@code 2/height}. View-space depth maps linearly as {@code zNdc = -2*(view.z+near)/(far-near) - 1}.
      *
-     * @param height положительная высота видимой области в единицах сцены.
-     * @param aspect положительное отношение ширины к высоте.
-     * @param near   положительное расстояние до ближней плоскости в единицах сцены.
-     * @param far    расстояние до дальней плоскости в единицах сцены, больше near.
-     * @return эта матрица.
-     * @throws IllegalArgumentException если аргументы вне указанных диапазонов или проекция не конечна.
+     * @param height positive visible height in scene units.
+     * @param aspect positive width divided by height.
+     * @param near positive near-plane distance in scene units.
+     * @param far far-plane distance in scene units, greater than near.
+     * @return this matrix.
+     * @throws IllegalArgumentException if an argument is outside its range or the projection is nonfinite.
      */
-    public MutableMat4 setOrthographic(double height, double aspect, double near, double far) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 40,
+            summary = "Sets a symmetric orthographic projection. X and Y scale by `2/(height*aspect)` and `2/height`. View-space depth maps linearly as `zNdc = -2*(view.z+near)/(far-near) - 1`.")
+    @WikiReturn("this matrix")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if an argument is outside its range or the projection is nonfinite.")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 40,
+            summary = "Sets a symmetric orthographic projection. X and Y scale by `2/(height*aspect)` and `2/height`. View-space depth maps linearly as `zNdc = -2*(view.z+near)/(far-near) - 1`.")
+    public MutableMat4 setOrthographic(
+            @WikiParameter(description = "positive visible height in scene units.") double height,
+            @WikiParameter(description = "positive width divided by height.") double aspect,
+            @WikiParameter(description = "positive near-plane distance in scene units.") double near,
+            @WikiParameter(description = "far-plane distance in scene units, greater than near.") double far) {
         checkProjection(aspect, near, far);
         double scaleY = 2.0 / height;
         double scaleX = scaleY / aspect;
@@ -160,14 +254,20 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает произведение {@code left * right}. Элемент (r,c) равен сумме
-     * {@code left[r,k] * right[k,c]} по k от 0 до 3.
+     * Sets {@code left * right}. Element (r,c) sums {@code left[r,k] * right[k,c]} for k from zero through three.
      *
-     * @param left  левый множитель, может совпадать с результатом.
-     * @param right правый множитель, может совпадать с результатом.
-     * @return эта матрица.
+     * @param left left factor, may alias this matrix.
+     * @param right right factor, may alias this matrix.
+     * @return this matrix.
      */
-    public MutableMat4 setProduct(Mat4View left, Mat4View right) {
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 40,
+            summary = "Sets `left * right`. Element (r,c) sums `left[r,k] * right[k,c]` for k from zero through three.")
+    @WikiReturn("this matrix")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 40,
+            summary = "Sets `left * right`. Element (r,c) sums `left[r,k] * right[k,c]` for k from zero through three.")
+    public MutableMat4 setProduct(
+            @WikiParameter(description = "left factor, may alias this matrix.") Mat4View left,
+            @WikiParameter(description = "right factor, may alias this matrix.") Mat4View right) {
         return setEntries(
                 dot(left, right, 0, 0), dot(left, right, 1, 0), dot(left, right, 2, 0), dot(left, right, 3, 0),
                 dot(left, right, 0, 1), dot(left, right, 1, 1), dot(left, right, 2, 1), dot(left, right, 3, 1),
@@ -176,14 +276,20 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает обратную матрицу {@code adj(A)/det(A)}. Элементы adj(A) —
-     * транспонированные миноры 3×3 со знаком {@code (-1)^(row+column)}. При разложении этих
-     * миноров по одной строке переиспользуются миноры 2×2 верхней (s) и нижней (c) пары строк.
+     * Sets the inverse {@code adj(A)/det(A)}. Entries in adj(A) are transposed 3-by-3 minors with
+     * sign {@code (-1)^(row+column)}. Expanding those minors reuses the 2-by-2 minors of the upper
+     * pair of rows (s) and lower pair of rows (c).
      *
-     * @param source обратимая матрица A, может совпадать с результатом.
-     * @return удалось ли вычислить конечную обратную матрицу. При отказе прежние элементы сохраняются.
+     * @param source invertible matrix A, may alias this matrix.
+     * @return true if the inverse is finite and stored. On failure this matrix is unchanged.
      */
-    public boolean setInverse(Mat4View source) {
+    @WikiMethod(section = "Matrices", sectionOrder = 10, order = 50,
+            summary = "Sets the inverse `adj(A)/det(A)`. Entries in adj(A) are transposed 3-by-3 minors with sign `(-1)^(row+column)`. Expanding those minors reuses the 2-by-2 minors of the upper pair of rows (s) and lower pair of rows (c).")
+    @WikiReturn("true if the inverse is finite and stored. On failure this matrix is unchanged")
+    @AiDoc(section = "Matrices", sectionOrder = 10, order = 50,
+            summary = "Sets the inverse `adj(A)/det(A)`. Entries in adj(A) are transposed 3-by-3 minors with sign `(-1)^(row+column)`. Expanding those minors reuses the 2-by-2 minors of the upper pair of rows (s) and lower pair of rows (c).")
+    public boolean setInverse(
+            @WikiParameter(description = "invertible matrix A, may alias this matrix.") Mat4View source) {
         double a00 = source.get(0, 0), a01 = source.get(0, 1), a02 = source.get(0, 2), a03 = source.get(0, 3);
         double a10 = source.get(1, 0), a11 = source.get(1, 1), a12 = source.get(1, 2), a13 = source.get(1, 3);
         double a20 = source.get(2, 0), a21 = source.get(2, 1), a22 = source.get(2, 2), a23 = source.get(2, 3);
@@ -233,29 +339,47 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Умножает строку матрицы на однородный вектор {@code (x, y, z, w)}.
+     * Multiplies one row by the homogeneous vector {@code (x, y, z, w)}.
      *
-     * @param row индекс результирующей компоненты от 0 до 3.
-     * @param x   первая компонента входного вектора.
-     * @param y   вторая компонента входного вектора.
-     * @param z   третья компонента входного вектора.
-     * @param w   четвёртая компонента, обычно 1 для точки и 0 для направления.
-     * @return скалярное произведение строки и вектора.
-     * @throws IndexOutOfBoundsException если индекс вне диапазона.
+     * @param row result component index from 0 to 3.
+     * @param x first input component.
+     * @param y second input component.
+     * @param z third input component.
+     * @param w fourth input component, usually one for a point or zero for a direction.
+     * @return dot product of the row and input vector.
+     * @throws IndexOutOfBoundsException if row is outside its range.
      */
-    public double transformComponent(int row, double x, double y, double z, double w) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 60,
+            summary = "Multiplies one row by the homogeneous vector `(x, y, z, w)`.")
+    @WikiReturn("dot product of the row and input vector")
+    @WikiThrows(type = IndexOutOfBoundsException.class, description = "if row is outside its range.")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 60,
+            summary = "Multiplies one row by the homogeneous vector `(x, y, z, w)`.")
+    public double transformComponent(
+            @WikiParameter(description = "result component index from 0 to 3.") int row,
+            @WikiParameter(description = "first input component.") double x,
+            @WikiParameter(description = "second input component.") double y,
+            @WikiParameter(description = "third input component.") double z,
+            @WikiParameter(description = "fourth input component, usually one for a point or zero for a direction.") double w) {
         return elements[Objects.checkIndex(row, 4)] * x + elements[row + 4] * y
                 + elements[row + 8] * z + elements[row + 12] * w;
     }
 
     /**
-     * Преобразует точку формулой {@code out = (M * (point, 1)).xyz / (M * (point, 1)).w}.
+     * Transforms a point as {@code out = (M * (point, 1)).xyz / (M * (point, 1)).w}, where M is this matrix.
      *
-     * @param point исходная точка, может совпадать с out.
-     * @param out   выходная точка в системе координат матрицы.
-     * @return true при конечном результате. При нулевом w или недопустимом результате out сохраняется.
+     * @param point input point, may alias out.
+     * @param out output point in the transformed coordinate space.
+     * @return true for a finite result. Zero W or invalid output leaves out unchanged.
      */
-    public boolean transformPoint(Vec3View point, MutableVec3 out) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 70,
+            summary = "Transforms a point as `out = (M * (point, 1)).xyz / (M * (point, 1)).w`, where M is this matrix.")
+    @WikiReturn("true for a finite result. Zero W or invalid output leaves out unchanged")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 70,
+            summary = "Transforms a point as `out = (M * (point, 1)).xyz / (M * (point, 1)).w`, where M is this matrix.")
+    public boolean transformPoint(
+            @WikiParameter(description = "input point, may alias out.") Vec3View point,
+            @WikiParameter(description = "output point in the transformed coordinate space.") MutableVec3 out) {
         double x = point.x(), y = point.y(), z = point.z();
         double w = transformComponent(3, x, y, z, 1.0);
         if (w == 0.0 || !Double.isFinite(w)) return false;
@@ -268,14 +392,14 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Записывает ортонормальный базис из кватерниона. Столбцы — результат вращения
-     * единичных осей формулой {@code v + 2*w*(q.xyz × v) + 2*q.xyz × (q.xyz × v)}.
-     * Масштаб 2 делится на квадрат длины q, чтобы компенсировать округление его float-компонент.
+     * Writes the orthonormal basis for quaternion q. Each column rotates a unit basis vector v via
+     * {@code v + 2*w*(q.xyz × v) + 2*q.xyz × (q.xyz × v)}. The factor of two is divided by the
+     * squared length of q to compensate for rounding of the stored components.
      *
-     * @param x первая компонента векторной части q.
-     * @param y вторая компонента векторной части q.
-     * @param z третья компонента векторной части q.
-     * @param w скалярная часть q.
+     * @param x first vector component of q.
+     * @param y second vector component of q.
+     * @param z third vector component of q.
+     * @param w scalar component of q.
      */
     private void setRotation(double x, double y, double z, double w) {
         double factor = 2.0 / (x * x + y * y + z * z + w * w);
@@ -289,12 +413,12 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Проверяет общий для двух проекций диапазон.
+     * Validates the ranges shared by both projections.
      *
-     * @param aspect отношение ширины к высоте.
-     * @param near   ближняя плоскость в единицах сцены.
-     * @param far    дальняя плоскость в единицах сцены.
-     * @throws IllegalArgumentException если значения не конечны или нарушено {@code aspect > 0, 0 < near < far}.
+     * @param aspect width divided by height.
+     * @param near near-plane distance in scene units.
+     * @param far far-plane distance in scene units.
+     * @throws IllegalArgumentException if a value is nonfinite or violates {@code aspect > 0, 0 < near < far}.
      */
     private static void checkProjection(double aspect, double near, double far) {
         if (!(aspect > 0.0 && near > 0.0 && far > near) || !Double.isFinite(aspect) || !Double.isFinite(far)) {
@@ -303,13 +427,13 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Вычисляет один элемент произведения матриц.
+     * Computes an element of the matrix product.
      *
-     * @param left   левый множитель.
-     * @param right  правый множитель.
-     * @param row    строка левой матрицы.
-     * @param column столбец правой матрицы.
-     * @return скалярное произведение строки и столбца.
+     * @param left left factor.
+     * @param right right factor.
+     * @param row row of the left factor.
+     * @param column column of the right factor.
+     * @return dot product of the selected row and column.
      */
     private static double dot(Mat4View left, Mat4View right, int row, int column) {
         return left.get(row, 0) * right.get(0, column) + left.get(row, 1) * right.get(1, column)
@@ -317,25 +441,25 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Фиксирует все элементы после вычисления аргументов, в том числе при записи поверх источника.
+     * Stores every element after the arguments have been evaluated. This permits overwriting a source matrix.
      *
-     * @param m00 элемент строки 0 столбца 0.
-     * @param m10 элемент строки 1 столбца 0.
-     * @param m20 элемент строки 2 столбца 0.
-     * @param m30 элемент строки 3 столбца 0.
-     * @param m01 элемент строки 0 столбца 1.
-     * @param m11 элемент строки 1 столбца 1.
-     * @param m21 элемент строки 2 столбца 1.
-     * @param m31 элемент строки 3 столбца 1.
-     * @param m02 элемент строки 0 столбца 2.
-     * @param m12 элемент строки 1 столбца 2.
-     * @param m22 элемент строки 2 столбца 2.
-     * @param m32 элемент строки 3 столбца 2.
-     * @param m03 элемент строки 0 столбца 3.
-     * @param m13 элемент строки 1 столбца 3.
-     * @param m23 элемент строки 2 столбца 3.
-     * @param m33 элемент строки 3 столбца 3.
-     * @return эта матрица.
+     * @param m00 row 0, column 0.
+     * @param m10 row 1, column 0.
+     * @param m20 row 2, column 0.
+     * @param m30 row 3, column 0.
+     * @param m01 row 0, column 1.
+     * @param m11 row 1, column 1.
+     * @param m21 row 2, column 1.
+     * @param m31 row 3, column 1.
+     * @param m02 row 0, column 2.
+     * @param m12 row 1, column 2.
+     * @param m22 row 2, column 2.
+     * @param m32 row 3, column 2.
+     * @param m03 row 0, column 3.
+     * @param m13 row 1, column 3.
+     * @param m23 row 2, column 3.
+     * @param m33 row 3, column 3.
+     * @return this matrix.
      */
     private MutableMat4 setEntries(double m00, double m10, double m20, double m30,
                                    double m01, double m11, double m21, double m31,
@@ -361,14 +485,22 @@ public final class MutableMat4 implements Mat4View {
     }
 
     /**
-     * Заменяет одну компоненту столбца переноса.
+     * Replaces one translation component.
      *
-     * @param row   строка 0, 1 или 2 (X, Y, Z).
-     * @param value новое значение.
-     * @return эта матрица.
-     * @throws IndexOutOfBoundsException если строка вне 0..2.
+     * @param row 0, 1 or 2 for X, Y or Z.
+     * @param value new component.
+     * @return this matrix.
+     * @throws IndexOutOfBoundsException if row is outside its range.
      */
-    public MutableMat4 setTranslationComponent(int row, double value) {
+    @WikiMethod(section = "Transforms", sectionOrder = 20, order = 50,
+            summary = "Replaces one translation component.")
+    @WikiReturn("this matrix")
+    @WikiThrows(type = IndexOutOfBoundsException.class, description = "if row is outside its range.")
+    @AiDoc(section = "Transforms", sectionOrder = 20, order = 50,
+            summary = "Replaces one translation component.")
+    public MutableMat4 setTranslationComponent(
+            @WikiParameter(description = "0, 1 or 2 for X, Y or Z.") int row,
+            @WikiParameter(description = "new component.") double value) {
         if (row < 0 || row > 2) throw new IndexOutOfBoundsException("Translation row must be 0..2: " + row);
         elements[12 + row] = value;
         return this;

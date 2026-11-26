@@ -1,5 +1,14 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.Vec3View;
@@ -7,95 +16,159 @@ import dev.sixik.unigui.api.math.Vec3View;
 import java.util.Objects;
 
 /**
- * Управляет камерой вокруг точки интереса. Вращение, панорама и зум принимают уже обработанный ввод.
+ * Orbits a camera around a point of interest. Rotation, panning and zoom accept processed input.
  */
+@WikiPage(
+        title = "OrbitCameraController", slug = "orbit-camera-controller",
+        category = "API/3D Scene", order = 50,
+        summary = "Camera controller that orbits, pans and zooms around a world-space target.")
+@WikiSection(title = "Orbit gestures", order = 10, markdown = """
+        `Scene3D.orbit()` exposes the controller used by pointer gestures. `pan(right, up)` slides camera and target
+        in camera-local axes. `setOrbit` sets target, radius and both angles in one update.
+        """)
+@WikiExample(title = "Frame a block structure", code = """
+        viewport.orbit().setOrbit(new MutableVec3(3.5f, 2, 3.5f), 14,
+                Math.toRadians(40), Math.toRadians(25));
+        """)
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@WikiLink(label = "FreeFlyCameraController", target = "page:free-fly-camera-controller")
+@AiDoc(
+        summary = "Camera controller that orbits, pans and zooms around a world-space target.",
+        purpose = "Set the initial angle of a 3D preview or drive the orbit from custom input.",
+        criticalRules = {
+                "Yaw rotates about world +Y. Positive pitch is elevation above the target.",
+                "`zoom(factor)` scales the orbit distance in perspective and the view height in orthographic mode. Factors above one zoom out."
+        },
+        related = {"Camera3D", "Scene3D", "FreeFlyCameraController"},
+        examples = @AiDoc.Example(title = "Frame a block structure", code = """
+                viewport.orbit().setOrbit(new MutableVec3(3.5f, 2, 3.5f), 14,
+                        Math.toRadians(40), Math.toRadians(25));
+                """))
 public final class OrbitCameraController {
     /**
-     * Управляемая камера.
+     * Controlled camera.
      */
     private final Camera3D camera;
     /**
-     * Точка интереса в мировых единицах.
+     * Point of interest in world units.
      */
     private final MutableVec3 target = new MutableVec3();
     /**
-     * Рабочее вращение для преобразования из координат камеры в мировые.
+     * Reusable rotation from camera space to world space.
      */
     private final MutableQuat rotation = new MutableQuat();
     /**
-     * Рабочий вектор смещения в единицах сцены.
+     * Reusable offset vector in scene units.
      */
     private final MutableVec3 offset = new MutableVec3();
     /**
-     * Положительное расстояние от камеры до цели в единицах сцены.
+     * Positive distance from the camera to the target in scene units.
      */
     private float distance;
     /**
-     * Поворот вокруг мировой оси Y в радианах, от −π до π.
+     * Rotation about world Y in radians, from -π to π.
      */
     private double yaw;
     /**
-     * Угол возвышения камеры над целью в радианах, от −π/2 до π/2.
+     * Elevation above the target in radians, from -π/2 to π/2.
      */
     private double pitch;
 
     /**
-     * Настраивает камеру смотреть на цель со стороны +Z.
+     * Places the camera on the +Z side of the target.
      *
-     * @param camera   управляемая камера.
-     * @param target   исходная точка интереса в единицах сцены.
-     * @param distance конечное положительное расстояние до цели в единицах сцены.
-     * @throws IllegalArgumentException если поза или цель не конечна либо расстояние не положительно.
+     * @param camera controlled camera.
+     * @param target initial point of interest in scene units.
+     * @param distance finite positive distance to the target in scene units.
+     * @throws IllegalArgumentException if the resulting pose or target is nonfinite or the distance is nonpositive.
      */
-    public OrbitCameraController(Camera3D camera, Vec3View target, float distance) {
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 10,
+            summary = "Places the camera on the +Z side of the target.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the resulting pose or target is nonfinite or the distance is nonpositive.")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 10,
+            summary = "Places the camera on the +Z side of the target.")
+    public OrbitCameraController(
+            @WikiParameter(description = "controlled camera.") Camera3D camera,
+            @WikiParameter(description = "initial point of interest in scene units.") Vec3View target,
+            @WikiParameter(description = "finite positive distance to the target in scene units.") float distance) {
         this.camera = Objects.requireNonNull(camera, "camera");
         setOrbit(target, distance, 0.0, 0.0);
     }
 
     /**
-     * Задаёт орбиту. Камера располагается в {@code target + R*(0, 0, distance)}, где R —
-     * вращение {@code qY(yaw) * qX(-pitch)}. Локальная ось −Z указывает на цель, положительный pitch поднимает камеру.
+     * Sets the camera position to {@code target + R*(0, 0, distance)}, where R is
+     * {@code qY(yaw) * qX(-pitch)}. Camera-local -Z points at the target. Positive pitch raises the camera.
      *
-     * @param target   конечная мировая точка интереса в единицах сцены.
-     * @param distance конечное положительное расстояние до цели в единицах сцены.
-     * @param yaw      конечный угол вокруг мировой оси Y в радианах.
-     * @param pitch    конечный угол возвышения в радианах, ограничивается диапазоном ±π/2.
-     * @throws IllegalArgumentException если поза или аргументы не конечны либо расстояние не положительно.
+     * @param target finite world-space point of interest.
+     * @param distance finite positive distance in scene units.
+     * @param yaw finite angle about world Y in radians.
+     * @param pitch finite elevation in radians, clamped to ±π/2.
+     * @throws IllegalArgumentException if an argument or the pose is nonfinite or distance is nonpositive.
      */
-    public void setOrbit(Vec3View target, float distance, double yaw, double pitch) {
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 20,
+            summary = "Sets the camera position to `target + R*(0, 0, distance)`, where R is `qY(yaw) * qX(-pitch)`. Camera-local -Z points at the target. Positive pitch raises the camera.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if an argument or the pose is nonfinite or distance is nonpositive.")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 20,
+            summary = "Sets the camera position to `target + R*(0, 0, distance)`, where R is `qY(yaw) * qX(-pitch)`. Camera-local -Z points at the target. Positive pitch raises the camera.")
+    public void setOrbit(
+            @WikiParameter(description = "finite world-space point of interest.") Vec3View target,
+            @WikiParameter(description = "finite positive distance in scene units.") float distance,
+            @WikiParameter(description = "finite angle about world Y in radians.") double yaw,
+            @WikiParameter(description = "finite elevation in radians, clamped to ±π/2.") double pitch) {
         setOrbit(target.x(), target.y(), target.z(), distance, yaw, pitch);
     }
 
     /**
-     * Складывает угловые приращения с параметрами текущей орбиты.
+     * Adds angular deltas to the current orbit.
      *
-     * @param yawDelta   приращение вокруг мировой оси Y в радианах.
-     * @param pitchDelta приращение угла возвышения в радианах.
-     * @throws IllegalArgumentException если углы или результирующая поза не конечны.
+     * @param yawDelta rotation about world Y in radians.
+     * @param pitchDelta elevation change in radians.
+     * @throws IllegalArgumentException if an angle or the resulting pose is nonfinite.
      */
-    public void rotate(double yawDelta, double pitchDelta) {
+    @WikiMethod(section = "Gestures", sectionOrder = 20, order = 10,
+            summary = "Adds angular deltas to the current orbit.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if an angle or the resulting pose is nonfinite.")
+    @AiDoc(section = "Gestures", sectionOrder = 20, order = 10,
+            summary = "Adds angular deltas to the current orbit.")
+    public void rotate(
+            @WikiParameter(description = "rotation about world Y in radians.") double yawDelta,
+            @WikiParameter(description = "elevation change in radians.") double pitchDelta) {
         setOrbit(target, distance, yaw + yawDelta, pitch + pitchDelta);
     }
 
     /**
-     * Смещает цель и камеру на {@code R*(right, up, 0)}, где R — вращение камеры.
+     * Moves the target and camera by {@code R*(right, up, 0)}, where R is the camera orientation.
      *
-     * @param right смещение вдоль правой оси камеры в единицах сцены.
-     * @param up    смещение вверх по оси камеры в единицах сцены.
-     * @throws IllegalArgumentException если смещение или результирующая поза не конечны.
+     * @param right offset along camera +X in scene units.
+     * @param up offset along camera +Y in scene units.
+     * @throws IllegalArgumentException if an offset or the resulting pose is nonfinite.
      */
-    public void pan(float right, float up) {
+    @WikiMethod(section = "Gestures", sectionOrder = 20, order = 20,
+            summary = "Moves the target and camera by `R*(right, up, 0)`, where R is the camera orientation.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if an offset or the resulting pose is nonfinite.")
+    @AiDoc(section = "Gestures", sectionOrder = 20, order = 20,
+            summary = "Moves the target and camera by `R*(right, up, 0)`, where R is the camera orientation.")
+    public void pan(
+            @WikiParameter(description = "offset along camera +X in scene units.") float right,
+            @WikiParameter(description = "offset along camera +Y in scene units.") float up) {
         rotation.setYawPitch(yaw, -pitch).rotate(right, up, 0.0f, offset);
         setOrbit(target.x() + offset.x(), target.y() + offset.y(), target.z() + offset.z(), distance, yaw, pitch);
     }
 
     /**
-     * Умножает расстояние до цели (перспектива) или высоту видимой области (ортографическая проекция) на factor.
+     * Multiplies the perspective orbit radius or orthographic view height by factor.
      *
-     * @param factor конечный положительный коэффициент. Значение больше 1 отдаляет изображение.
-     * @throws IllegalArgumentException если коэффициент или результат не конечен либо не положителен.
+     * @param factor finite positive multiplier. Values above one zoom out.
+     * @throws IllegalArgumentException if factor or the result is nonpositive or nonfinite.
      */
-    public void zoom(float factor) {
+    @WikiMethod(section = "Gestures", sectionOrder = 20, order = 30,
+            summary = "Multiplies the perspective orbit radius or orthographic view height by factor.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if factor or the result is nonpositive or nonfinite.")
+    @AiDoc(section = "Gestures", sectionOrder = 20, order = 30,
+            summary = "Multiplies the perspective orbit radius or orthographic view height by factor.")
+    public void zoom(
+            @WikiParameter(description = "finite positive multiplier. Values above one zoom out.") float factor) {
         if (!(factor > 0.0f) || !Float.isFinite(factor)) {
             throw new IllegalArgumentException("Zoom factor must be finite and positive");
         }
@@ -107,71 +180,103 @@ public final class OrbitCameraController {
     }
 
     /**
-     * Копирует мировую точку интереса.
+     * Copies the world-space target.
      *
-     * @param out переиспользуемый вектор в единицах сцены.
+     * @param out reusable vector in scene units.
      * @return out.
      */
-    public MutableVec3 target(MutableVec3 out) {
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 30,
+            summary = "Copies the world-space target.")
+    @WikiReturn("out")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 30,
+            summary = "Copies the world-space target.")
+    public MutableVec3 target(
+            @WikiParameter(description = "reusable vector in scene units.") MutableVec3 out) {
         return out.set(target);
     }
 
     /**
-     * Читает радиус орбиты.
+     * Reads the orbit radius.
      *
-     * @return расстояние от камеры до цели в единицах сцены.
+     * @return distance from camera to target in scene units.
      */
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 40,
+            summary = "Reads the orbit radius.")
+    @WikiReturn("distance from camera to target in scene units")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 40,
+            summary = "Reads the orbit radius.")
     public float distance() {
         return distance;
     }
 
     /**
-     * Читает поворот орбиты вокруг мировой оси Y.
+     * Reads the orbit angle about world Y.
      *
-     * @return угол в радианах.
+     * @return angle in radians.
      */
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 50,
+            summary = "Reads the orbit angle about world Y.")
+    @WikiReturn("angle in radians")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 50,
+            summary = "Reads the orbit angle about world Y.")
     public double yaw() {
         return yaw;
     }
 
     /**
-     * Читает возвышение камеры над целью.
+     * Reads the elevation above the target.
      *
-     * @return угол в радианах.
+     * @return angle in radians.
      */
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 60,
+            summary = "Reads the elevation above the target.")
+    @WikiReturn("angle in radians")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 60,
+            summary = "Reads the elevation above the target.")
     public double pitch() {
         return pitch;
     }
 
     /**
-     * Задаёт абсолютные углы текущей орбиты.
+     * Sets the absolute orbit angles.
      *
-     * @param yaw   угол вокруг мировой оси Y в радианах.
-     * @param pitch угол возвышения в радианах.
+     * @param yaw rotation about world Y in radians.
+     * @param pitch elevation in radians.
      */
-    public void setAngles(double yaw, double pitch) {
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 70,
+            summary = "Sets the absolute orbit angles.")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 70,
+            summary = "Sets the absolute orbit angles.")
+    public void setAngles(
+            @WikiParameter(description = "rotation about world Y in radians.") double yaw,
+            @WikiParameter(description = "elevation in radians.") double pitch) {
         setOrbit(target, distance, yaw, pitch);
     }
 
     /**
-     * Задаёт расстояние до текущей цели.
+     * Sets the distance to the current target.
      *
-     * @param distance конечное положительное расстояние в единицах сцены.
+     * @param distance finite positive distance in scene units.
      */
-    public void setDistance(float distance) {
+    @WikiMethod(section = "Orbit", sectionOrder = 10, order = 80,
+            summary = "Sets the distance to the current target.")
+    @AiDoc(section = "Orbit", sectionOrder = 10, order = 80,
+            summary = "Sets the distance to the current target.")
+    public void setDistance(
+            @WikiParameter(description = "finite positive distance in scene units.") float distance) {
         setOrbit(target, distance, yaw, pitch);
     }
 
     /**
-     * Пересчитывает позу камеры при изменении цели или углов орбиты.
+     * Recomputes the camera pose from the target and orbit parameters.
      *
-     * @param x        мировая координата X цели в единицах сцены.
-     * @param y        мировая координата Y цели в единицах сцены.
-     * @param z        мировая координата Z цели в единицах сцены.
-     * @param distance конечное положительное расстояние до цели в единицах сцены.
-     * @param yaw      конечный угол вокруг мировой оси Y в радианах.
-     * @param pitch    конечный угол возвышения в радианах.
-     * @throws IllegalArgumentException если аргументы или поза не конечны либо расстояние не положительно.
+     * @param x target world X in scene units.
+     * @param y target world Y in scene units.
+     * @param z target world Z in scene units.
+     * @param distance finite positive distance in scene units.
+     * @param yaw finite angle about world Y in radians.
+     * @param pitch finite elevation in radians.
+     * @throws IllegalArgumentException if an argument or the pose is nonfinite or distance is nonpositive.
      */
     private void setOrbit(float x, float y, float z, float distance, double yaw, double pitch) {
         if (!(distance > 0.0f) || !Float.isFinite(distance) || !Double.isFinite(yaw) || !Double.isFinite(pitch)) {

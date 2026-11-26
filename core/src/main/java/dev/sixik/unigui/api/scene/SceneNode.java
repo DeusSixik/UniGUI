@@ -1,5 +1,14 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.math.Frustum3D;
 import dev.sixik.unigui.api.math.MutableMat4;
@@ -15,110 +24,181 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Узел с локальной трансформацией и собственным содержимым. Используется в UI-потоке.
+ * A node with a local transform and its own content. Use it on the UI thread.
  */
+@WikiPage(
+        title = "SceneNode", slug = "scene-node",
+        category = "API/3D Scene", order = 30,
+        summary = "Transformable scene graph node with optional mesh, material and hover geometry.")
+@WikiSection(title = "Transforms", order = 10, markdown = """
+        The node maps local coordinates into parent space with `T(position) * R * S * T(-origin)`. The parent world
+        matrix then maps the result into scene space. `centerOrigin()` uses the center of a unit block's base at
+        `(0.5, 0, 0.5)`.
+        """)
+@WikiSection(title = "Custom picking and highlights", order = 20, markdown = """
+        `bounds()` covers the node's own content. Subclasses can supply local geometry bounds through
+        `contentBounds()` and implement cell hits through `intersectPickBounds`. A returned `HoverHighlight(mesh,
+        material)` is depth-tested. Place its geometry relative to the node origin for object hits, or to the
+        selected cell's lower corner for cell hits.
+        """)
+@WikiExample(title = "Supply custom object hover geometry", code = """
+        SceneNode node = new SceneNode() {
+            private final HoverHighlight highlight = new HoverHighlight(outlineMesh, outlineMaterial);
+
+            @Override
+            public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+                return highlight;
+            }
+        };
+        node.setMesh(objectMesh).setMaterial(objectMaterial);
+        viewport.highlightObjects(true).scene().addRoot(node);
+        """)
+@WikiLink(label = "Scene", target = "page:scene")
+@WikiLink(label = "Mesh3D", target = "page:mesh-3d")
+@WikiLink(label = "Material", target = "page:scene-material")
+@WikiLink(label = "ScenePicker", target = "page:scene-picker")
+@WikiLink(label = "BlockNode", target = "page:block-node")
+@WikiLink(label = "ItemNode", target = "page:item-node")
+@WikiLink(label = "EntityNode", target = "page:entity-node")
+@WikiLink(label = "StructureNode", target = "page:structure-node")
+@AiDoc(
+        summary = "Transformable scene graph node with optional mesh, material and hover geometry.",
+        purpose = "Group content, attach custom geometry or extend a node with specialized bounds and hover highlights.",
+        criticalRules = {
+                "Position is relative to the parent and locates the pivot. `setOrigin` takes node-local coordinates.",
+                "A mesh is immutable and shareable. The AABB covers this node's own content.",
+                "Picking tests indexed triangles when a mesh is present. `setBounds` overrides local bounds for broad-phase picking and culling.",
+                "Override `hoverHighlight(Vec3View)` for custom geometry. The argument is a borrowed cell origin or null for an object hit. Return null for the viewport default.",
+                "Call `invalidateContent()` after external changes such as an updated dynamic texture or custom highlight."
+        },
+        related = {"Scene", "Mesh3D", "Material", "ScenePicker", "BlockNode", "ItemNode", "EntityNode", "StructureNode"},
+        examples = @AiDoc.Example(title = "Supply custom object hover geometry", code = """
+                SceneNode node = new SceneNode() {
+                    private final HoverHighlight highlight = new HoverHighlight(outlineMesh, outlineMaterial);
+
+                    @Override
+                    public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+                        return highlight;
+                    }
+                };
+                node.setMesh(objectMesh).setMaterial(objectMaterial);
+                viewport.highlightObjects(true).scene().addRoot(node);
+                """))
 public class SceneNode {
     /**
-     * Принадлежность служебного корня сцене. У обычных узлов null.
+     * Scene owner of the internal root, or null for ordinary nodes.
      */
     private final Scene rootScene;
     /**
-     * Локальная позиция в единицах сцены.
+     * Local position in scene units.
      */
     private final MutableVec3 position = new MutableVec3();
     /**
-     * Единичное локальное вращение XYZW.
+     * Unit local rotation quaternion in XYZW order.
      */
     private final MutableQuat rotation = new MutableQuat();
     /**
-     * Безразмерные коэффициенты масштаба по локальным осям.
+     * Dimensionless scale factors along the local axes.
      */
     private final MutableVec3 scale = new MutableVec3(1, 1, 1);
     /**
-     * Точка в локальных координатах, вокруг которой узел поворачивается и масштабируется и которая ставится в
-     * {@link #position}.
+     * Local pivot around which the node rotates and scales. {@link #position} places this point.
      */
     private final MutableVec3 origin = new MutableVec3();
     /**
-     * Кэш локальной матрицы T * R * S.
+     * Cached local matrix.
      */
     private final MutableMat4 local = new MutableMat4();
     /**
-     * Кэш преобразования из локальной системы в мировую.
+     * Cached transform from local space to world space.
      */
     private final MutableMat4 world = new MutableMat4();
 
     /**
-     * Список детей в порядке добавления, создаётся при первом добавлении.
+     * Children in insertion order, allocated on first insertion.
      */
     private ArrayList<SceneNode> children;
     /**
-     * Живое представление списка для чтения, создаётся при первом запросе.
+     * Live read-only view of the children, allocated on first access.
      */
     private List<SceneNode> childrenView;
     /**
-     * Родитель, служебный корень сцены или null для свободного узла.
+     * Parent, internal scene root, or null for a detached node.
      */
     private SceneNode parent;
     /**
-     * Индекс в списке родителя при наличии родителя.
+     * Index in the parent's child list when attached.
      */
     private int siblingIndex;
     /**
-     * Нужно ли пересчитать T * R * S после изменения позы.
+     * Whether the local transform needs recomputing after a pose change.
      */
     private boolean localDirty;
     /**
-     * Нужно ли пересчитать мировую матрицу после изменения позы или родителя.
+     * Whether the world transform needs recomputing after a pose or parent change.
      */
     private boolean worldDirty;
     /**
-     * Видимость узла и его детей при видимых родителях.
+     * Visibility flag for this node and its subtree, subject to ancestor visibility.
      */
     private boolean visible = true;
     /**
-     * Меш в координатах узла или null.
+     * Mesh in node-local space, or null.
      */
     private Mesh3D mesh;
     /**
-     * Настройки отрисовки меша.
+     * Surface settings for the mesh.
      */
     private Material material = Material.DEFAULT;
     /**
-     * Явные границы содержимого узла или null для использования границ меша.
+     * Explicit content bounds, or null to derive bounds from the content.
      */
     private Aabb boundsOverride;
 
     /**
-     * Создаёт отсоединённый видимый узел с единичной трансформацией.
+     * Creates a detached, visible node with an identity transform.
      */
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 10,
+            summary = "Creates a detached, visible node with an identity transform.")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 10,
+            summary = "Creates a detached, visible node with an identity transform.")
     public SceneNode() {
         this(null);
     }
 
     /**
-     * Создаёт узел с заданной принадлежностью служебного корня.
+     * Creates a node with optional scene ownership.
      *
-     * @param rootScene сцена для служебного корня или null для обычного узла.
+     * @param rootScene owning scene for the internal root, or null for an ordinary node.
      */
     SceneNode(Scene rootScene) {
         this.rootScene = rootScene;
     }
 
     /**
-     * Читает родителя узла.
+     * Reads the parent.
      *
-     * @return родительский узел или null у корневого либо отсоединённого узла.
+     * @return the parent node, or null for scene roots and detached nodes.
      */
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 20,
+            summary = "Reads the parent.")
+    @WikiReturn("the parent node, or null for scene roots and detached nodes")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 20,
+            summary = "Reads the parent.")
     public final SceneNode parent() {
         return parent == null || parent.rootScene != null ? null : parent;
     }
 
     /**
-     * Находит сцену через верхний узел иерархии.
+     * Finds the scene through the hierarchy root.
      *
-     * @return сцена или null для отсоединённого дерева.
+     * @return scene, or null for a detached hierarchy.
      */
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 30,
+            summary = "Finds the scene through the hierarchy root.")
+    @WikiReturn("scene, or null for a detached hierarchy")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 30,
+            summary = "Finds the scene through the hierarchy root.")
     public final Scene scene() {
         SceneNode root = this;
         while (root.parent != null) root = root.parent;
@@ -126,10 +206,15 @@ public class SceneNode {
     }
 
     /**
-     * Читает детей в порядке добавления.
+     * Reads the children in insertion order.
      *
-     * @return живое представление списка для чтения.
+     * @return a live, read-only view.
      */
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 40,
+            summary = "Reads the children in insertion order.")
+    @WikiReturn("a live, read-only view")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 40,
+            summary = "Reads the children in insertion order.")
     public final List<SceneNode> children() {
         if (childrenView == null) {
             if (children == null) children = new ArrayList<>();
@@ -139,61 +224,94 @@ public class SceneNode {
     }
 
     /**
-     * Добавляет ребёнка, при необходимости перемещая его из прежней иерархии.
-     * Локальная трансформация ребёнка сохраняется.
+     * Adds a child, detaching it from the previous hierarchy as needed. The child keeps its local transform.
      *
-     * @param child перемещаемый узел.
-     * @return этот родитель.
-     * @throws NullPointerException     если child равен null.
-     * @throws IllegalArgumentException если добавление создаёт цикл.
+     * @param child node to move.
+     * @return this node.
+     * @throws NullPointerException if child is null.
+     * @throws IllegalArgumentException if adding the child would create a cycle.
      */
-    public final SceneNode addChild(SceneNode child) {
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 50,
+            summary = "Adds a child, detaching it from the previous hierarchy as needed. The child keeps its local transform.")
+    @WikiReturn("this node")
+    @WikiThrows(type = NullPointerException.class, description = "if child is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if adding the child would create a cycle.")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 50,
+            summary = "Adds a child, detaching it from the previous hierarchy as needed. The child keeps its local transform.")
+    public final SceneNode addChild(
+            @WikiParameter(description = "node to move.") SceneNode child) {
         child.attachTo(this);
         return this;
     }
 
     /**
-     * Отсоединяет собственного ребёнка со всем его поддеревом.
+     * Detaches a direct child with its subtree.
      *
-     * @param child узел для удаления. Допускается null.
-     * @return true, если этот узел был родителем child.
+     * @param child node to remove, or null.
+     * @return true if this node was the parent of child.
      */
-    public final boolean removeChild(SceneNode child) {
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 60,
+            summary = "Detaches a direct child with its subtree.")
+    @WikiReturn("true if this node was the parent of child")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 60,
+            summary = "Detaches a direct child with its subtree.")
+    public final boolean removeChild(
+            @WikiParameter(description = "node to remove, or null.") SceneNode child) {
         if (child == null || child.parent != this) return false;
         child.detach();
         return true;
     }
 
     /**
-     * Отсоединяет этот узел вместе с его детьми от родителя или сцены.
+     * Detaches this node and its subtree from its parent or scene.
      *
-     * @return этот узел.
+     * @return this node.
      */
+    @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 70,
+            summary = "Detaches this node and its subtree from its parent or scene.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Hierarchy", sectionOrder = 10, order = 70,
+            summary = "Detaches this node and its subtree from its parent or scene.")
     public final SceneNode detach() {
         attachTo(null);
         return this;
     }
 
     /**
-     * Копирует локальную позицию.
+     * Copies the local position.
      *
-     * @param out переиспользуемый вектор в единицах сцены.
+     * @param out reusable vector in scene units.
      * @return out.
      */
-    public final MutableVec3 position(MutableVec3 out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 10,
+            summary = "Copies the local position.")
+    @WikiReturn("out")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 10,
+            summary = "Copies the local position.")
+    public final MutableVec3 position(
+            @WikiParameter(description = "reusable vector in scene units.") MutableVec3 out) {
         return out.set(position);
     }
 
     /**
-     * Задаёт перенос относительно родителя.
+     * Sets the position relative to the parent.
      *
-     * @param x конечная координата X в единицах сцены.
-     * @param y конечная координата Y в единицах сцены.
-     * @param z конечная координата Z в единицах сцены.
-     * @return этот узел.
-     * @throws IllegalArgumentException если координата не конечна.
+     * @param x finite X coordinate in scene units.
+     * @param y finite Y coordinate in scene units.
+     * @param z finite Z coordinate in scene units.
+     * @return this node.
+     * @throws IllegalArgumentException if a coordinate is nonfinite.
      */
-    public SceneNode setPosition(float x, float y, float z) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 20,
+            summary = "Sets the position relative to the parent.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a coordinate is nonfinite.")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 20,
+            summary = "Sets the position relative to the parent.")
+    public SceneNode setPosition(
+            @WikiParameter(description = "finite X coordinate in scene units.") float x,
+            @WikiParameter(description = "finite Y coordinate in scene units.") float y,
+            @WikiParameter(description = "finite Z coordinate in scene units.") float z) {
         requireFinite(x, y, z);
         if (position.x() != x || position.y() != y || position.z() != z) {
             position.set(x, y, z);
@@ -203,22 +321,34 @@ public class SceneNode {
     }
 
     /**
-     * Копирует локальное вращение.
+     * Copies the local rotation.
      *
-     * @param out переиспользуемый кватернион.
+     * @param out reusable quaternion.
      * @return out.
      */
-    public final MutableQuat rotation(MutableQuat out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 30,
+            summary = "Copies the local rotation.")
+    @WikiReturn("out")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 30,
+            summary = "Copies the local rotation.")
+    public final MutableQuat rotation(
+            @WikiParameter(description = "reusable quaternion.") MutableQuat out) {
         return out.set(rotation);
     }
 
     /**
-     * Задаёт локальное вращение.
+     * Sets the local rotation.
      *
-     * @param value единичный кватернион активного вращения.
-     * @return этот узел.
+     * @param value unit quaternion representing an active rotation.
+     * @return this node.
      */
-    public SceneNode setRotation(QuatView value) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 40,
+            summary = "Sets the local rotation.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 40,
+            summary = "Sets the local rotation.")
+    public SceneNode setRotation(
+            @WikiParameter(description = "unit quaternion representing an active rotation.") QuatView value) {
         if (rotation.x() != value.x() || rotation.y() != value.y()
                 || rotation.z() != value.z() || rotation.w() != value.w()) {
             rotation.set(value);
@@ -228,25 +358,40 @@ public class SceneNode {
     }
 
     /**
-     * Копирует локальные коэффициенты масштаба.
+     * Copies the local scale factors.
      *
-     * @param out переиспользуемый безразмерный вектор.
+     * @param out reusable vector of dimensionless factors.
      * @return out.
      */
-    public final MutableVec3 scale(MutableVec3 out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 50,
+            summary = "Copies the local scale factors.")
+    @WikiReturn("out")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 50,
+            summary = "Copies the local scale factors.")
+    public final MutableVec3 scale(
+            @WikiParameter(description = "reusable vector of dimensionless factors.") MutableVec3 out) {
         return out.set(scale);
     }
 
     /**
-     * Задаёт масштаб в локальных осях.
+     * Sets the scale along the local axes. Zero and negative factors are allowed.
      *
-     * @param x конечный безразмерный множитель по X, может быть нулевым или отрицательным.
-     * @param y конечный безразмерный множитель по Y.
-     * @param z конечный безразмерный множитель по Z.
-     * @return этот узел.
-     * @throws IllegalArgumentException если коэффициент не конечен.
+     * @param x finite dimensionless factor along X.
+     * @param y finite dimensionless factor along Y.
+     * @param z finite dimensionless factor along Z.
+     * @return this node.
+     * @throws IllegalArgumentException if a factor is nonfinite.
      */
-    public SceneNode setScale(float x, float y, float z) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 60,
+            summary = "Sets the scale along the local axes. Zero and negative factors are allowed.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a factor is nonfinite.")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 60,
+            summary = "Sets the scale along the local axes. Zero and negative factors are allowed.")
+    public SceneNode setScale(
+            @WikiParameter(description = "finite dimensionless factor along X.") float x,
+            @WikiParameter(description = "finite dimensionless factor along Y.") float y,
+            @WikiParameter(description = "finite dimensionless factor along Z.") float z) {
         requireFinite(x, y, z);
         if (scale.x() != x || scale.y() != y || scale.z() != z) {
             scale.set(x, y, z);
@@ -256,27 +401,41 @@ public class SceneNode {
     }
 
     /**
-     * Копирует точку опоры.
+     * Copies the pivot.
      *
-     * @param out приёмник.
+     * @param out reusable vector in node-local units.
      * @return out.
      */
-    public final MutableVec3 origin(MutableVec3 out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 70,
+            summary = "Copies the pivot.")
+    @WikiReturn("out")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 70,
+            summary = "Copies the pivot.")
+    public final MutableVec3 origin(
+            @WikiParameter(description = "reusable vector in node-local units.") MutableVec3 out) {
         return out.set(origin);
     }
 
     /**
-     * Задаёт точку опоры в локальных координатах: узел поворачивается и масштабируется вокруг неё, а
-     * {@link #setPosition} ставит в позицию именно её. Например, блок с началом в углу вращается вокруг центра
-     * основания при {@code setOrigin(0.5f, 0, 0.5f)}.
+     * Sets the local pivot. The node rotates and scales around it, and {@link #setPosition} places it in
+     * parent space. For example, {@code setOrigin(0.5f, 0, 0.5f)} pivots a unit block around its base center.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @param z локальная координата Z.
-     * @return этот узел.
-     * @throws IllegalArgumentException если координата не конечна.
+     * @param x local X coordinate.
+     * @param y local Y coordinate.
+     * @param z local Z coordinate.
+     * @return this node.
+     * @throws IllegalArgumentException if a coordinate is nonfinite.
      */
-    public SceneNode setOrigin(float x, float y, float z) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 80,
+            summary = "Sets the local pivot. The node rotates and scales around it, and `setPosition` places it in parent space. For example, `setOrigin(0.5f, 0, 0.5f)` pivots a unit block around its base center.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a coordinate is nonfinite.")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 80,
+            summary = "Sets the local pivot. The node rotates and scales around it, and `setPosition` places it in parent space. For example, `setOrigin(0.5f, 0, 0.5f)` pivots a unit block around its base center.")
+    public SceneNode setOrigin(
+            @WikiParameter(description = "local X coordinate.") float x,
+            @WikiParameter(description = "local Y coordinate.") float y,
+            @WikiParameter(description = "local Z coordinate.") float z) {
         requireFinite(x, y, z);
         if (origin.x() != x || origin.y() != y || origin.z() != z) {
             origin.set(x, y, z);
@@ -286,51 +445,78 @@ public class SceneNode {
     }
 
     /**
-     * Ставит точку опоры в центр основания блока, {@code (0.5, 0, 0.5)}.
+     * Sets the pivot to the center of a unit block's base at {@code (0.5, 0, 0.5)}.
      *
-     * @return этот узел.
+     * @return this node.
      */
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 90,
+            summary = "Sets the pivot to the center of a unit block's base at `(0.5, 0, 0.5)`.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 90,
+            summary = "Sets the pivot to the center of a unit block's base at `(0.5, 0, 0.5)`.")
     public SceneNode centerOrigin() {
         return setOrigin(0.5f, 0, 0.5f);
     }
 
     /**
-     * Копирует локальную матрицу {@code T(position) * R * S * T(-origin)}. S масштабирует, R вращает, T переносит.
+     * Copies the matrix {@code T(position) * R * S * T(-origin)}, where R rotates, S scales and T translates.
      *
-     * @param out переиспользуемая матрица.
-     * @return out с преобразованием в координаты родителя.
+     * @param out reusable matrix.
+     * @return out with the transform into parent space.
      */
-    public final MutableMat4 localMatrix(MutableMat4 out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 100,
+            summary = "Copies the matrix `T(position) * R * S * T(-origin)`, where R rotates, S scales and T translates.")
+    @WikiReturn("out with the transform into parent space")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 100,
+            summary = "Copies the matrix `T(position) * R * S * T(-origin)`, where R rotates, S scales and T translates.")
+    public final MutableMat4 localMatrix(
+            @WikiParameter(description = "reusable matrix.") MutableMat4 out) {
         return out.set(resolvedLocal());
     }
 
     /**
-     * Копирует мировую матрицу {@code parentWorld * local}. При отсутствии родителя
-     * мировая матрица совпадает с локальной.
+     * Copies the matrix {@code parentWorld * local}. For a node without a parent the world matrix is its local matrix.
      *
-     * @param out переиспользуемая матрица.
-     * @return out с преобразованием в координаты сцены.
+     * @param out reusable matrix.
+     * @return out with the transform into scene space.
      */
-    public final MutableMat4 worldMatrix(MutableMat4 out) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 110,
+            summary = "Copies the matrix `parentWorld * local`. For a node without a parent the world matrix is its local matrix.")
+    @WikiReturn("out with the transform into scene space")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 110,
+            summary = "Copies the matrix `parentWorld * local`. For a node without a parent the world matrix is its local matrix.")
+    public final MutableMat4 worldMatrix(
+            @WikiParameter(description = "reusable matrix.") MutableMat4 out) {
         return out.set(resolvedWorld());
     }
 
     /**
-     * Читает флаг видимости самого узла.
+     * Reads this node's own visibility flag.
      *
-     * @return true, если узел допускает показ себя и своего поддерева.
+     * @return true if this node allows its subtree to be visited.
      */
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 120,
+            summary = "Reads this node's own visibility flag.")
+    @WikiReturn("true if this node allows its subtree to be visited")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 120,
+            summary = "Reads this node's own visibility flag.")
     public final boolean visible() {
         return visible;
     }
 
     /**
-     * Изменяет видимость всего поддерева при обходе сцены.
+     * Sets visibility for the entire subtree during scene traversal.
      *
-     * @param visible true разрешает показ, false скрывает поддерево.
-     * @return этот узел.
+     * @param visible true to show the subtree, false to hide it.
+     * @return this node.
      */
-    public SceneNode setVisible(boolean visible) {
+    @WikiMethod(section = "Transforms and visibility", sectionOrder = 20, order = 130,
+            summary = "Sets visibility for the entire subtree during scene traversal.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 130,
+            summary = "Sets visibility for the entire subtree during scene traversal.")
+    public SceneNode setVisible(
+            @WikiParameter(description = "true to show the subtree, false to hide it.") boolean visible) {
         if (this.visible != visible) {
             this.visible = visible;
             invalidateContent();
@@ -339,21 +525,32 @@ public class SceneNode {
     }
 
     /**
-     * Читает меш узла.
+     * Reads the mesh.
      *
-     * @return неизменяемая геометрия или null.
+     * @return immutable geometry, or null.
      */
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 10,
+            summary = "Reads the mesh.")
+    @WikiReturn("immutable geometry, or null")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 10,
+            summary = "Reads the mesh.")
     public final Mesh3D mesh() {
         return mesh;
     }
 
     /**
-     * Заменяет геометрию узла.
+     * Replaces this node's geometry.
      *
-     * @param mesh меш в координатах узла или null для удаления.
-     * @return этот узел.
+     * @param mesh geometry in node coordinates, or null to remove it.
+     * @return this node.
      */
-    public final SceneNode setMesh(Mesh3D mesh) {
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 20,
+            summary = "Replaces this node's geometry.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 20,
+            summary = "Replaces this node's geometry.")
+    public final SceneNode setMesh(
+            @WikiParameter(description = "geometry in node coordinates, or null to remove it.") Mesh3D mesh) {
         if (this.mesh != mesh) {
             this.mesh = mesh;
             invalidateContent();
@@ -362,22 +559,34 @@ public class SceneNode {
     }
 
     /**
-     * Читает настройки поверхности.
+     * Reads the surface settings.
      *
-     * @return материал меша.
+     * @return the mesh material.
      */
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 30,
+            summary = "Reads the surface settings.")
+    @WikiReturn("the mesh material")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 30,
+            summary = "Reads the surface settings.")
     public final Material material() {
         return material;
     }
 
     /**
-     * Заменяет настройки поверхности.
+     * Replaces the surface settings.
      *
-     * @param material новый материал.
-     * @return этот узел.
-     * @throws NullPointerException если material равен null.
+     * @param material new mesh material.
+     * @return this node.
+     * @throws NullPointerException if material is null.
      */
-    public final SceneNode setMaterial(Material material) {
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 40,
+            summary = "Replaces the surface settings.")
+    @WikiReturn("this node")
+    @WikiThrows(type = NullPointerException.class, description = "if material is null.")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 40,
+            summary = "Replaces the surface settings.")
+    public final SceneNode setMaterial(
+            @WikiParameter(description = "new mesh material.") Material material) {
         Objects.requireNonNull(material, "material");
         if (this.material != material) {
             this.material = material;
@@ -387,65 +596,76 @@ public class SceneNode {
     }
 
     /**
-     * Читает границы собственного содержимого узла в локальных координатах.
+     * Reads the local bounds of this node's own content.
      *
-     * @return явный AABB, границы меша или null при отсутствии обоих источников.
+     * @return the explicit AABB, derived content bounds, or null when neither is available.
      */
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 50,
+            summary = "Reads the local bounds of this node's own content.")
+    @WikiReturn("the explicit AABB, derived content bounds, or null when neither is available")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 50,
+            summary = "Reads the local bounds of this node's own content.")
     public final Aabb bounds() {
         if (boundsOverride != null) return boundsOverride;
         return contentBounds();
     }
 
     /**
-     * Читает границы собственной геометрии, когда явный AABB не задан.
+     * Reads the local bounds of this node's own geometry when there is no explicit AABB.
      *
-     * @return локальные границы содержимого или null.
+     * @return local content bounds, or null.
      */
     protected Aabb contentBounds() {
         return mesh == null ? null : mesh.bounds();
     }
 
     /**
-     * Проверяет геометрию узла, представленную границами или набором единичных ячеек.
+     * Tests content represented by bounds or unit cells.
      *
-     * @param ray        луч в локальных координатах.
-     * @param entry      расстояние входа в границы узла.
-     * @param limit      максимальное расстояние поиска в локальных единицах.
-     * @param cellOrigin нижний угол выбранной единичной ячейки. При обычном попадании сохраняет NaN.
-     * @return ближайшее расстояние или +∞ при промахе. Треугольники меша проверяются отдельно.
+     * @param ray node-local ray.
+     * @param entry ray parameter at entry into the node bounds.
+     * @param limit maximum ray parameter for the search.
+     * @param cellOrigin output for the lower cell corner. Leave it as NaN for an ordinary object hit.
+     * @return nearest hit parameter, or positive infinity for a miss. Mesh triangles are tested separately.
      */
     protected double intersectPickBounds(Ray ray, double entry, double limit, MutableVec3 cellOrigin) {
         return mesh == null ? entry : Double.POSITIVE_INFINITY;
     }
 
     /**
-     * Возвращает собственную подсветку при попадании указателя в этот узел. Виджет вызывает метод
-     * в UI-потоке при обновлении результата наведения, если подсветка для типа попадания включена.
-     * Готовый результат можно переиспользовать. После изменения внешних данных подсветки вызовите
-     * {@link #invalidateContent()}, чтобы обновить её под неподвижным указателем.
+     * Supplies a custom hover highlight. The viewport calls this on the UI thread when highlighting for
+     * the hit type is enabled. Reuse the result if possible and call {@link #invalidateContent()} after
+     * external highlight data changes to refresh it under a stationary pointer.
      *
-     * @param cellOrigin нижний угол выбранной ячейки в координатах узла или null при попадании в объект.
-     *                   Представление действительно в пределах вызова.
-     * @return меш с материалом для подсветки или null для стандартной рамки AABB либо подсветки ячейки.
+     * @param cellOrigin lower corner of the hit cell in node coordinates, or null for an object hit.
+     * The view is valid only during the call.
+     * @return custom geometry and material, or null for the default AABB frame or cell highlight.
      */
-    public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 70,
+            summary = "Supplies a custom hover highlight. The viewport calls this on the UI thread when highlighting for the hit type is enabled. Reuse the result if possible and call `invalidateContent()` after external highlight data changes to refresh it under a stationary pointer.")
+    @WikiReturn("custom geometry and material, or null for the default AABB frame or cell highlight")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 70,
+            summary = "Supplies a custom hover highlight. The viewport calls this on the UI thread when highlighting for the hit type is enabled. Reuse the result if possible and call `invalidateContent()` after external highlight data changes to refresh it under a stationary pointer.")
+    public HoverHighlight hoverHighlight(
+            @WikiParameter(description =
+                    "lower corner of the hit cell in node coordinates, or null for an object hit. The view is valid only during the call.")
+            Vec3View cellOrigin) {
         return null;
     }
 
     /**
-     * Геометрия и материал подсветки, которую виджет рисует с общей глубиной сцены.
+     * Geometry and material rendered against the scene depth buffer.
      *
-     * @param mesh     геометрия в локальных осях узла. Начало координат совпадает с началом выбранной
-     *                 ячейки при попадании в неё и с началом узла при попадании в объект.
-     * @param material материал подсветки.
+     * @param mesh geometry in node-local axes, relative to the hit cell corner or the node origin.
+     * @param material highlight material.
      */
     public record HoverHighlight(Mesh3D mesh, Material material) {
         /**
-         * Проверяет и сохраняет геометрию и материал.
+         * Validates the mesh and material.
          *
-         * @param mesh     геометрия в локальных единицах сцены.
-         * @param material материал подсветки.
-         * @throws NullPointerException если меш или материал равен null.
+         * @param mesh geometry in local scene units.
+         * @param material highlight material.
+         * @throws NullPointerException if mesh or material is null.
          */
         public HoverHighlight {
             Objects.requireNonNull(mesh, "mesh");
@@ -454,12 +674,18 @@ public class SceneNode {
     }
 
     /**
-     * Задаёт собственные границы для отсечения содержимого узла.
+     * Overrides the bounds used for culling and picking this node's content.
      *
-     * @param bounds локальный AABB или null, чтобы брать границы из меша.
-     * @return этот узел.
+     * @param bounds local AABB, or null to use derived content bounds.
+     * @return this node.
      */
-    public final SceneNode setBounds(Aabb bounds) {
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 60,
+            summary = "Overrides the bounds used for culling and picking this node's content.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 60,
+            summary = "Overrides the bounds used for culling and picking this node's content.")
+    public final SceneNode setBounds(
+            @WikiParameter(description = "local AABB, or null to use derived content bounds.") Aabb bounds) {
         if (!Objects.equals(boundsOverride, bounds)) {
             boundsOverride = bounds;
             invalidateContent();
@@ -468,18 +694,22 @@ public class SceneNode {
     }
 
     /**
-     * Отмечает внешний контент узла изменённым, например обновлённую текстуру или данные подкласса.
+     * Marks external node content as changed, for example after editing a texture or subclass data.
      */
+    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 80,
+            summary = "Marks external node content as changed, for example after editing a texture or subclass data.")
+    @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 80,
+            summary = "Marks external node content as changed, for example after editing a texture or subclass data.")
     public final void invalidateContent() {
         Scene scene = scene();
         if (scene != null) scene.changed();
     }
 
     /**
-     * Перемещает поддерево, сохраняя его локальные координаты. Обновляет обе сцены, если они различны.
+     * Reparents the subtree and keeps its local coordinates. Updates both scenes if they differ.
      *
-     * @param nextParent новый родитель, служебный корень сцены или null для отсоединения.
-     * @throws IllegalArgumentException если новый родитель входит в перемещаемое поддерево.
+     * @param nextParent new parent, internal scene root, or null to detach.
+     * @throws IllegalArgumentException if nextParent belongs to this subtree.
      */
     final void attachTo(SceneNode nextParent) {
         if (parent == nextParent) return;
@@ -503,11 +733,11 @@ public class SceneNode {
     }
 
     /**
-     * Выбирает следующий узел прямого обхода дерева без рекурсии.
+     * Finds the next node in a nonrecursive preorder traversal.
      *
-     * @param root    граница обхода, текущий узел или его предок.
-     * @param descend нужно ли сначала зайти в детей текущего узла.
-     * @return следующий узел или null в конце поддерева root.
+     * @param root traversal boundary, this node or an ancestor.
+     * @param descend whether to visit the current node's children first.
+     * @return next node, or null at the end of the subtree.
      */
     final SceneNode nextInSubtree(SceneNode root, boolean descend) {
         if (descend && children != null && !children.isEmpty()) return children.get(0);
@@ -520,10 +750,10 @@ public class SceneNode {
     }
 
     /**
-     * Проверяет, может ли собственное содержимое быть видимым после мировой трансформации.
+     * Tests whether this node's transformed content may be visible.
      *
-     * @param frustum объём видимости текущей камеры.
-     * @return true для узла без границ или при потенциальной видимости.
+     * @param frustum camera view volume.
+     * @return true for unbounded or potentially visible content.
      */
     final boolean intersects(Frustum3D frustum) {
         MutableMat4 matrix = resolvedWorld();
@@ -532,9 +762,9 @@ public class SceneNode {
     }
 
     /**
-     * Удаляет ребёнка из списка и корректирует индексы элементов после него.
+     * Removes a child and updates the indices of later children.
      *
-     * @param index позиция существующего ребёнка.
+     * @param index position of an existing child.
      */
     private void unlinkChild(int index) {
         children.remove(index);
@@ -544,7 +774,7 @@ public class SceneNode {
     }
 
     /**
-     * Помечает кэш локальной позы и производные мировые матрицы устаревшими.
+     * Marks the local transform and dependent world transforms dirty.
      */
     private void transformChanged() {
         localDirty = true;
@@ -553,7 +783,7 @@ public class SceneNode {
     }
 
     /**
-     * Помечает мировые матрицы поддерева устаревшими без обхода стека вызовов.
+     * Marks world transforms in the subtree dirty without recursion.
      */
     private void invalidateWorld() {
         for (SceneNode node = this; node != null; node = node.nextInSubtree(this, true)) {
@@ -562,15 +792,15 @@ public class SceneNode {
     }
 
     /**
-     * Пересчитывает локальную матрицу при первом обращении после смены позы.
+     * Recomputes the local matrix on demand after a pose change.
      *
-     * @return внутренний кэш локальной матрицы.
+     * @return the internal local matrix cache.
      */
     private MutableMat4 resolvedLocal() {
         if (localDirty) {
             local.setTransform(position, rotation, scale);
             if (origin.x() != 0 || origin.y() != 0 || origin.z() != 0) {
-                // T(p) * R * S * T(-o): перенос равен p - (R * S) * o.
+                // For T(p) * R * S * T(-o), the translation is p - (R * S) * o.
                 for (int row = 0; row < 3; row++) {
                     double shifted = local.get(row, 3) - local.get(row, 0) * origin.x()
                             - local.get(row, 1) * origin.y() - local.get(row, 2) * origin.z();
@@ -583,10 +813,9 @@ public class SceneNode {
     }
 
     /**
-     * Поднимается от узла к ближайшему предку с актуальной мировой матрицей,
-     * последовательно домножая локальные матрицы слева.
+     * Walks to the nearest ancestor with a current world matrix, multiplying local matrices on the left.
      *
-     * @return внутренний кэш мировой матрицы.
+     * @return the internal world matrix cache.
      */
     private MutableMat4 resolvedWorld() {
         if (!worldDirty) return world;
@@ -603,12 +832,12 @@ public class SceneNode {
     }
 
     /**
-     * Проверяет компоненты переноса или масштаба.
+     * Validates translation or scale components.
      *
-     * @param x компонента X.
-     * @param y компонента Y.
-     * @param z компонента Z.
-     * @throws IllegalArgumentException если компонента не конечна.
+     * @param x X component.
+     * @param y Y component.
+     * @param z Z component.
+     * @throws IllegalArgumentException if a component is nonfinite.
      */
     private static void requireFinite(float x, float y, float z) {
         if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) {

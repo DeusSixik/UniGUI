@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.rendering;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -47,251 +56,372 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Offscreen-виджет с 3D-сценой и обычными UI-якорями поверх текстуры.
- * Левая кнопка вращает камеру и выбирает узлы коротким кликом, средняя или правая панорамирует,
- * колесо меняет масштаб. Бэкенд отрисовывает сцену через {@link RenderBackend#scene3D()}.
+ * Offscreen 3D viewport with ordinary UI widgets drawn over the scene. The primary button orbits
+ * on drag and picks nodes on click. The middle or secondary button pans, and the wheel zooms.
+ * The backend draws the 3D pass through {@link RenderBackend#scene3D()}.
  */
+@WikiPage(
+        title = "Scene3D", slug = "scene-3d",
+        category = "API/3D Scene", order = 10,
+        summary = "Interactive 3D viewport with a scene graph, picking and projected UI.")
+@WikiSection(title = "Geometry and UI layers", order = 10, markdown = """
+        Add geometry to `scene()` and mount the viewport in the UI tree. The backend renders the 3D pass first, then
+        `painter(...)` and `content(...)` into the target. Anchors are widgets rendered over the displayed texture.
+        They follow world or node points and use ordinary UI hit testing.
+        """)
+@WikiSection(title = "Camera and picking", order = 20, markdown = """
+        Primary drag orbits. Middle or secondary drag pans. The wheel zooms. A short primary click emits a node
+        click when press and release hit the same node. `onNodeHover` reports transitions, including a null node
+        when the pointer leaves a hit. Set `highlightBlocks(true)` for cell highlights and `highlightObjects(true)`
+        for object frames or custom highlight geometry.
+        """)
+@WikiSection(title = "Custom viewport tools", order = 25, markdown = """
+        For a transform gizmo, project the selected node's world-space pivot and handles with
+        `camera().project(...)`. You can paint handles over the 3D pass through `painter(...)`.
+        With the default canvas size and `ImageFit.STRETCH`, projected coordinates and widget-local pointer
+        coordinates use the same logical units. Capture the pointer during a handle drag. Cancel the routed
+        pointer event when the tool owns the gesture so the built-in orbit controller leaves it to the tool.
+        Use the node setters for position, rotation and scale. They advance the scene revision.
+        """)
+@WikiSection(title = "Clipping and update modes", order = 30, markdown = """
+        `camera().setClipPlanes(near, far)` takes distances from the camera in scene units. Extend `far` to show
+        more distant objects. For tighter depth precision, keep the near plane as far from zero as the scene allows.
+        `maxZoomDistance` caps the perspective orbit radius on scroll. In `ON_CHANGE`, scene and camera revisions
+        trigger a refresh. Call `requestRender()` when only external painter data changes.
+        """)
+@WikiSection(title = "XAML", order = 40, markdown = """
+        Camera attributes include `camera="orbit|fixed"`, angles `yaw` and `pitch` in **degrees**, and `distance`,
+        `farClip` and `maxZoomDistance` in scene units. Each node supports `pos="x,y,z"`. A structure can specify
+        `topVisibleY` and `assemblySeconds`. One ordinary UI child is allowed.
+
+        ```xml
+        <Scene3D width="320" height="200" yaw="35" pitch="20" distance="8"
+                 farClip="128" maxZoomDistance="48" highlightBlocks="true">
+            <Block state="minecraft:furnace[facing=south]" pos="-1,0,0"/>
+            <Item item="minecraft:diamond_sword" pos="1,0.5,0"/>
+            <Entity type="minecraft:zombie" pos="2,0,-1"/>
+            <Label text="Furnace preview"/>
+        </Scene3D>
+        ```
+
+        Use a metadata specification such as `minecraft:furnace@3` on 1.7.10. `<Structure
+        src="minecraft:igloo/top"/>` requires a platform that supports structure resources.
+        """)
+@WikiExample(title = "Build a furnace preview", code = """
+        Scene3D viewport = new Scene3D().highlightBlocks(true);
+        viewport.layout(style -> style.width(320).height(200));
+        viewport.camera().setClipPlanes(0.1f, 128);
+        viewport.orbit().setOrbit(new MutableVec3(0.5f, 0.5f, 0.5f), 6, 0.65, 0.4);
+        BlockNode furnace = new BlockNode("minecraft:furnace[facing=south]");
+        viewport.scene().addRoot(furnace);
+        viewport.addAnchor(new Label("Furnace"), furnace, new MutableVec3(0.5f, 1.2f, 0.5f))
+                .pivot(0.5f, 1);
+        viewport.onNodeClick(event -> System.out.println(event.node()));
+        """)
+@WikiLink(label = "Scene", target = "page:scene")
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "OrbitCameraController", target = "page:orbit-camera-controller")
+@WikiLink(label = "FreeFlyCameraController", target = "page:free-fly-camera-controller")
+@WikiLink(label = "RenderToTexture", target = "page:render-to-texture")
+@WikiLink(label = "SceneAnchor3D", target = "page:scene-anchor-3d")
+@WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
+@WikiLink(label = "ScenePicker", target = "page:scene-picker")
+@WikiLink(label = "Scene3DRenderer", target = "page:scene-3d-renderer")
+@AiDoc(
+        summary = "Interactive 3D viewport with a scene graph, picking and projected UI.",
+        purpose = "Embed Minecraft content or custom meshes in a widget tree and compose ordinary UI over the result.",
+        criticalRules = {
+                "Use `scene().addRoot(node)` for Java scene content. Use `content(widget)` for one UI overlay and `addAnchor` for projected labels or controls.",
+                "The camera viewport uses logical canvas units. `pickNode` takes widget-local coordinates and handles texture placement.",
+                "Adjust `camera().setClipPlanes(near, far)` to change visibility range. `maxZoomDistance` only limits perspective wheel zoom.",
+                "For WASD or other custom camera input, disable built-in gestures with `cameraControls(false)` and drive `FreeFlyCameraController` yourself.",
+                "Use `requestRender()` for updates to external painter data in ON_CHANGE mode.",
+                "A custom drag tool should capture its pointer and cancel consumed target events before the built-in orbit gesture."
+        },
+        related = {"Scene", "Camera3D", "OrbitCameraController", "FreeFlyCameraController", "RenderToTexture",
+                "SceneAnchor3D", "SceneTimeline", "ScenePicker", "Scene3DRenderer"},
+        examples = @AiDoc.Example(title = "Build a furnace preview", code = """
+                Scene3D viewport = new Scene3D().highlightBlocks(true);
+                viewport.layout(style -> style.width(320).height(200));
+                viewport.camera().setClipPlanes(0.1f, 128);
+                viewport.orbit().setOrbit(new MutableVec3(0.5f, 0.5f, 0.5f), 6, 0.65, 0.4);
+                BlockNode furnace = new BlockNode("minecraft:furnace[facing=south]");
+                viewport.scene().addRoot(furnace);
+                viewport.addAnchor(new Label("Furnace"), furnace, new MutableVec3(0.5f, 1.2f, 0.5f))
+                        .pivot(0.5f, 1);
+                viewport.onNodeClick(event -> System.out.println(event.node()));
+                """))
 public final class Scene3D extends RenderToTexture {
     /**
-     * Цель с глубиной. Автоочистка 2D отключена, очистка принадлежит 3D-проходу.
+     * Depth-enabled target cleared by the 3D pass.
      */
     private static final RenderTargetOptions SCENE_TARGET = new RenderTargetOptions(true, false, "scene_3d");
     /**
-     * Суммарное смещение от нажатия, после которого жест считается перетаскиванием, в единицах UI.
+     * Displacement from the press that starts a drag, in logical UI units.
      */
     private static final float DRAG_THRESHOLD = 3.0f;
     /**
-     * Угол поворота камеры на логический пиксель перетаскивания, в радианах.
+     * Camera rotation angle per logical pixel of drag, in radians.
      */
     private static final double ROTATION_PER_PIXEL = 0.01;
     /**
-     * Во сколько раз меняется дистанция или высота при одном шаге колеса.
+     * Zoom multiplier per scroll step.
      */
     private static final double WHEEL_SCALE = 0.85;
     /**
-     * Допуск при проекции точки ровно на ближней плоскости, в единицах глубины от 0 до 1.
+     * Projection tolerance at the near plane in normalized depth units.
      */
     private static final double DEPTH_ROUNDOFF = 8.0 * Math.ulp(1.0);
 
     /**
-     * Сцена, принадлежащая логической модели виджета.
+     * Scene graph displayed by this viewport.
      */
     private final Scene scene;
     /**
-     * Камера с viewport, соответствующим логическому холсту.
+     * Camera sized to the logical canvas.
      */
     private final Camera3D camera = new Camera3D();
     /**
-     * Управление камерой вокруг точки интереса.
+     * Orbit controller around a point of interest.
      */
     private final OrbitCameraController orbit = new OrbitCameraController(camera, new MutableVec3(), 5);
     /**
-     * Переиспользуемый поиск узлов под курсором.
+     * Reusable scene picker.
      */
     private final ScenePicker picker = new ScenePicker();
     /**
-     * Геометрия размещения текстуры, общая для picking и якорей.
+     * Texture placement shared by picking and anchors.
      */
     private final SceneViewport viewport = new SceneViewport();
     /**
-     * Рабочая экранная или логическая точка в единицах UI.
+     * Reusable two-dimensional point in UI units.
      */
     private final MutableVec2 mapped = new MutableVec2();
     /**
-     * Рабочая точка якоря, затем экранная проекция с глубиной в Z.
+     * Reusable anchor point, then projected coordinates with depth in Z.
      */
     private final MutableVec3 anchorPoint = new MutableVec3();
     /**
-     * Рабочая матрица мирового преобразования или проекции.
+     * Reusable world or projection matrix.
      */
     private final MutableMat4 matrix = new MutableMat4();
     /**
-     * UI-якоря в порядке добавления.
+     * UI anchors in insertion order.
      */
     private final List<SceneAnchor3D> anchors = new ArrayList<>();
     /**
-     * Дочерний виджет RTT и UI-якоря в порядке дерева.
+     * Render-to-texture content and anchors in UI tree order.
      */
     private final List<Widget> children = new ArrayList<>();
     /**
-     * Живое представление дочернего списка.
+     * Live view of the child list.
      */
     private final List<Widget> childrenView = Collections.unmodifiableList(children);
     /**
-     * Декларации XAML в порядке добавления, с соответствующими корневыми узлами.
+     * XAML declarations in insertion order, paired with their root nodes.
      */
     private final List<NodeContent> nodeContent = new ArrayList<>();
 
     /**
-     * Последний известный коэффициент физических пикселей на единицу внешнего UI.
+     * Last known ratio of physical pixels to outer UI units.
      */
     private float pixelScale = 1;
     /**
-     * Дробная часть тика из последнего кадра.
+     * Partial tick from the latest frame.
      */
     private float partialTick;
     /**
-     * Версия сцены, переданная последнему 3D-проходу.
+     * Scene revision used by the last 3D pass.
      */
     private long renderedSceneRevision = -1;
     /**
-     * Версия камеры, переданная последнему 3D-проходу.
+     * Camera revision used by the last 3D pass.
      */
     private long renderedCameraRevision = -1;
     /**
-     * Включены ли вращение, панорамирование и зум мышью.
+     * Whether pointer orbit, pan and zoom gestures are enabled.
      */
     private boolean cameraControls = true;
     /**
-     * Максимальный радиус орбиты при зуме колесом в единицах сцены. Ноль использует дальнюю плоскость.
+     * Maximum perspective wheel-zoom radius in scene units. Zero uses the far plane.
      */
     private float maxZoomDistance;
     /**
-     * Разрешена ли подсветка единичных ячеек под мышью.
+     * Whether to highlight unit-cell hits.
      */
     private boolean highlightBlocks;
     /**
-     * Разрешена ли подсветка объектов, выбранных без попадания в единичную ячейку.
+     * Whether to highlight object hits without a unit cell.
      */
     private boolean highlightObjects;
     /**
-     * Нижний угол ячейки, найденной при последнем наведении.
+     * Lower corner of the cell found during the latest hover sample.
      */
     private final MutableVec3 hoverCell = new MutableVec3();
     /**
-     * Подсветка в этом viewport и её рабочие данные.
+     * Highlight and its workspace for this viewport.
      */
     private HoverHighlight highlight;
 
     /**
-     * Узел под указателем или null.
+     * Node under the pointer, or null.
      */
     private SceneNode hoveredNode;
     /**
-     * Находится ли указатель на самой сцене.
+     * Whether the pointer is over the scene itself.
      */
     private boolean pointerOnScene;
     /**
-     * Последняя локальная координата X указателя в единицах UI.
+     * Last local pointer X in logical UI units.
      */
     private float pointerX;
     /**
-     * Последняя локальная координата Y указателя в единицах UI.
+     * Last local pointer Y in logical UI units.
      */
     private float pointerY;
     /**
-     * Действителен ли последний результат picking для наведения.
+     * Whether the cached hover result is valid.
      */
     private boolean hoverSampleValid;
     /**
-     * Координата X последней проверки наведения в единицах UI.
+     * Local X of the last hover sample in UI units.
      */
     private float sampledX;
     /**
-     * Координата Y последней проверки наведения в единицах UI.
+     * Local Y of the last hover sample in UI units.
      */
     private float sampledY;
     /**
-     * Версия модели при последней проверке наведения.
+     * Scene revision of the last hover sample.
      */
     private long sampledSceneRevision;
     /**
-     * Версия камеры при последней проверке наведения.
+     * Camera revision of the last hover sample.
      */
     private long sampledCameraRevision;
     /**
-     * Версия размещения при последней проверке наведения.
+     * Viewport placement revision of the last hover sample.
      */
     private long sampledViewportRevision;
     /**
-     * Кнопка активного жеста или null.
+     * Button that started the active gesture, or null.
      */
     private PointerButton gestureButton;
     /**
-     * Идентификатор указателя, который начал жест.
+     * ID of the pointer that started the active gesture.
      */
     private int gesturePointer;
     /**
-     * Узел, на котором началось нажатие, или null.
+     * Node under the pointer at press time, or null.
      */
     private SceneNode pressedNode;
     /**
-     * Координата X начала жеста в единицах UI.
+     * Gesture start X in logical UI units.
      */
     private float startX;
     /**
-     * Координата Y начала жеста в единицах UI.
+     * Gesture start Y in logical UI units.
      */
     private float startY;
     /**
-     * Координата X последнего обработанного смещения.
+     * Local X of the last processed drag update.
      */
     private float dragX;
     /**
-     * Координата Y последнего обработанного смещения.
+     * Local Y of the last processed drag update.
      */
     private float dragY;
     /**
-     * Превысило ли движение порог перетаскивания.
+     * Whether motion has crossed the drag threshold.
      */
     private boolean dragging;
     /**
-     * Получен ли захват от UI-контекста для текущего жеста.
+     * Whether the UI context granted capture for this gesture.
      */
     private boolean captured;
 
     /**
-     * Создаёт виджет с пустой сценой и обновлением ON_CHANGE.
+     * Creates an empty scene in ON_CHANGE update mode.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 10,
+            summary = "Creates an empty scene in ON_CHANGE update mode.")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 10,
+            summary = "Creates an empty scene in ON_CHANGE update mode.")
     public Scene3D() {
         this(new Scene());
     }
 
     /**
-     * Создаёт виджет для заданной сцены.
+     * Creates a viewport for the supplied scene.
      *
-     * @param scene граф сцены, может использоваться несколькими виджетами.
+     * @param scene scene graph, which can be shared by several viewports.
      */
-    public Scene3D(Scene scene) {
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 10,
+            summary = "Creates a viewport for the supplied scene.")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 10,
+            summary = "Creates a viewport for the supplied scene.")
+    public Scene3D(
+            @WikiParameter(description = "scene graph, which can be shared by several viewports.") Scene scene) {
         this.scene = Objects.requireNonNull(scene, "scene");
         super.targetOptions(SCENE_TARGET);
         updateMode(UpdateMode.ON_CHANGE);
     }
 
     /**
-     * Читает граф сцены для изменения узлов и света.
+     * Reads the scene graph for node and lighting changes.
      *
-     * @return модель сцены.
+     * @return scene model.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 20,
+            summary = "Reads the scene graph for node and lighting changes.")
+    @WikiReturn("scene model")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 20,
+            summary = "Reads the scene graph for node and lighting changes.")
     public Scene scene() {
         return scene;
     }
 
     /**
-     * Читает камеру виджета. Размер её viewport устанавливает виджет.
+     * Reads the viewport camera. The widget sets the camera's viewport dimensions.
      *
-     * @return камера для настройки позы и проекции.
+     * @return camera for pose and projection configuration.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 30,
+            summary = "Reads the viewport camera. The widget sets the camera's viewport dimensions.")
+    @WikiReturn("camera for pose and projection configuration")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 30,
+            summary = "Reads the viewport camera. The widget sets the camera's viewport dimensions.")
     public Camera3D camera() {
         return camera;
     }
 
     /**
-     * Читает контроллер, который используется мышью.
+     * Reads the controller used by pointer gestures.
      *
-     * @return контроллер для настройки цели, углов и дистанции.
+     * @return controller for the target, angles and distance.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 40,
+            summary = "Reads the controller used by pointer gestures.")
+    @WikiReturn("controller for the target, angles and distance")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 40,
+            summary = "Reads the controller used by pointer gestures.")
     public OrbitCameraController orbit() {
         return orbit;
     }
 
     /**
-     * Управляет камерой мышью. Picking остаётся доступным при отключении управления.
+     * Enables or disables pointer camera controls. Picking remains available in both modes.
      *
-     * @param enabled true разрешает перетаскивание и колесо.
-     * @return этот виджет.
+     * @param enabled true to allow drag and wheel camera gestures.
+     * @return this viewport.
      */
-    public Scene3D cameraControls(boolean enabled) {
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 50,
+            summary = "Enables or disables pointer camera controls. Picking remains available in both modes.")
+    @WikiReturn("this viewport")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 50,
+            summary = "Enables or disables pointer camera controls. Picking remains available in both modes.")
+    public Scene3D cameraControls(
+            @WikiParameter(description = "true to allow drag and wheel camera gestures.") boolean enabled) {
         if (cameraControls != enabled) {
             cameraControls = enabled;
             releaseGesture();
@@ -300,23 +430,34 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Читает состояние управления мышью.
+     * Reads the pointer camera controls setting.
      *
-     * @return true, если камера реагирует на перетаскивание и колесо.
+     * @return true if camera drag and wheel gestures are enabled.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 50,
+            summary = "Reads the pointer camera controls setting.")
+    @WikiReturn("true if camera drag and wheel gestures are enabled")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 50,
+            summary = "Reads the pointer camera controls setting.")
     public boolean cameraControls() {
         return cameraControls;
     }
 
     /**
-     * Задаёт максимальный радиус орбиты при зуме колесом в перспективной проекции.
-     * Значение ограничивается диапазоном плоскостей отсечения при прокрутке.
+     * Sets the maximum perspective orbit radius for wheel zoom. Wheel input also respects the clipping range.
      *
-     * @param distance конечная дистанция в единицах сцены, не меньше нуля. Ноль использует дальнюю плоскость.
-     * @return этот виджет.
-     * @throws IllegalArgumentException если дистанция отрицательна или не конечна.
+     * @param distance finite nonnegative distance in scene units. Zero uses the far plane.
+     * @return this viewport.
+     * @throws IllegalArgumentException if distance is negative or nonfinite.
      */
-    public Scene3D maxZoomDistance(float distance) {
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 60,
+            summary = "Sets the maximum perspective orbit radius for wheel zoom. Wheel input also respects the clipping range.")
+    @WikiReturn("this viewport")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if distance is negative or nonfinite.")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 60,
+            summary = "Sets the maximum perspective orbit radius for wheel zoom. Wheel input also respects the clipping range.")
+    public Scene3D maxZoomDistance(
+            @WikiParameter(description = "finite nonnegative distance in scene units. Zero uses the far plane.") float distance) {
         if (distance < 0 || !Float.isFinite(distance)) {
             throw new IllegalArgumentException("Maximum zoom distance must be finite and nonnegative");
         }
@@ -325,21 +466,32 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Читает настроенное ограничение зума колесом.
+     * Reads the wheel-zoom limit.
      *
-     * @return максимальный радиус орбиты в единицах сцены или ноль, если используется дальняя плоскость.
+     * @return maximum orbit radius in scene units, or zero to use the far plane.
      */
+    @WikiMethod(section = "Configuration", sectionOrder = 10, order = 60,
+            summary = "Reads the wheel-zoom limit.")
+    @WikiReturn("maximum orbit radius in scene units, or zero to use the far plane")
+    @AiDoc(section = "Configuration", sectionOrder = 10, order = 60,
+            summary = "Reads the wheel-zoom limit.")
     public float maxZoomDistance() {
         return maxZoomDistance;
     }
 
     /**
-     * Включает подсветку блоков, которые поддерживают выбор единичной ячейки.
+     * Toggles highlighting for blocks that support unit-cell hits.
      *
-     * @param enabled true включает подсветку.
-     * @return этот виджет.
+     * @param enabled true to enable cell highlighting.
+     * @return this viewport.
      */
-    public Scene3D highlightBlocks(boolean enabled) {
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 10,
+            summary = "Toggles highlighting for blocks that support unit-cell hits.")
+    @WikiReturn("this viewport")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 10,
+            summary = "Toggles highlighting for blocks that support unit-cell hits.")
+    public Scene3D highlightBlocks(
+            @WikiParameter(description = "true to enable cell highlighting.") boolean enabled) {
         if (highlightBlocks != enabled) {
             highlightBlocks = enabled;
             hoverSampleValid = false;
@@ -349,22 +501,33 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Читает настройку подсветки.
+     * Reads the cell highlighting setting.
      *
-     * @return true, если поддерживаемый блок под курсором подсвечивается.
+     * @return true if hovered supported cells are highlighted.
      */
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 10,
+            summary = "Reads the cell highlighting setting.")
+    @WikiReturn("true if hovered supported cells are highlighted")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 10,
+            summary = "Reads the cell highlighting setting.")
     public boolean highlightBlocks() {
         return highlightBlocks;
     }
 
     /**
-     * Включает подсветку выбранного объекта, например предмета или моба.
-     * Узел может предоставить свою геометрию через {@link SceneNode#hoverHighlight(Vec3View)}.
+     * Toggles object highlights, for example on items or mobs. The default is an AABB frame when bounds
+     * are available. A node can supply custom geometry through {@link SceneNode#hoverHighlight(Vec3View)}.
      *
-     * @param enabled true включает подсветку при наведении.
-     * @return этот виджет.
+     * @param enabled true to enable object highlighting.
+     * @return this viewport.
      */
-    public Scene3D highlightObjects(boolean enabled) {
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 20,
+            summary = "Toggles object highlights, for example on items or mobs. The default is an AABB frame when bounds are available. A node can supply custom geometry through `SceneNode#hoverHighlight(Vec3View)`.")
+    @WikiReturn("this viewport")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 20,
+            summary = "Toggles object highlights, for example on items or mobs. The default is an AABB frame when bounds are available. A node can supply custom geometry through `SceneNode#hoverHighlight(Vec3View)`.")
+    public Scene3D highlightObjects(
+            @WikiParameter(description = "true to enable object highlighting.") boolean enabled) {
         if (highlightObjects != enabled) {
             highlightObjects = enabled;
             hoverSampleValid = false;
@@ -374,30 +537,45 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Читает настройку подсветки объектов.
+     * Reads the object highlighting setting.
      *
-     * @return true, если объекты выделяются при наведении.
+     * @return true if hovered objects are highlighted.
      */
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 20,
+            summary = "Reads the object highlighting setting.")
+    @WikiReturn("true if hovered objects are highlighted")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 20,
+            summary = "Reads the object highlighting setting.")
     public boolean highlightObjects() {
         return highlightObjects;
     }
 
     /**
-     * Помещает узел из декларации XAML в сцену.
+     * Adds a node supplied by an XAML declaration.
      *
-     * @param content декларация, предоставляющая готовый узел.
+     * @param content declaration that supplies a built node.
      */
-    public void addNodeContent(NodeContent content) {
+    @WikiMethod(section = "XAML integration", sectionOrder = 40, order = 10,
+            summary = "Adds a node supplied by an XAML declaration.")
+    @AiDoc(section = "XAML integration", sectionOrder = 40, order = 10,
+            summary = "Adds a node supplied by an XAML declaration.")
+    public void addNodeContent(
+            @WikiParameter(description = "declaration that supplies a built node.") NodeContent content) {
         scene.addRoot(content.sceneNode());
         nodeContent.add(content);
         content.onAddedToScene(this);
     }
 
     /**
-     * Возвращает текущие декларации сцены для экспорта XAML.
+     * Reads the logical children for XAML export.
      *
-     * @return список логических дочерних элементов сцены.
+     * @return the scene declarations and overlay content.
      */
+    @WikiMethod(section = "XAML integration", sectionOrder = 40, order = 20,
+            summary = "Reads the logical children for XAML export.")
+    @WikiReturn("the scene declarations and overlay content")
+    @AiDoc(section = "XAML integration", sectionOrder = 40, order = 20,
+            summary = "Reads the logical children for XAML export.")
     public List<Widget> xamlChildren() {
         List<Widget> result = new ArrayList<>();
         for (NodeContent entry : nodeContent) {
@@ -409,30 +587,30 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Невизуальный элемент разметки, создающий узел графа сцены.
+     * Nonvisual XAML child that creates a scene node.
      */
     public interface NodeContent extends Widget {
         /**
-         * Читает узел, построенный при загрузке декларации.
+         * Reads the node built during loading.
          *
-         * @return узел декларации для размещения в сцене.
+         * @return node for insertion into the scene.
          */
         SceneNode sceneNode();
 
         /**
-         * Настраивает поведение декларации после добавления узла.
+         * Runs after this declaration's node has been added.
          *
-         * @param viewport владеющий виджет, в котором уже находится узел.
+         * @param viewport viewport containing the node.
          */
         default void onAddedToScene(Scene3D viewport) {
         }
     }
 
     /**
-     * Сохраняет глубину и режим композиции при смене параметров цели.
+     * Preserves depth and compositing settings when configuring the target.
      *
-     * @param options задаёт отладочное имя цели или null для стандартного имени.
-     * @return этот виджет.
+     * @param options options supplying a debug name, or null for the default name.
+     * @return this viewport.
      */
     @Override
     public Scene3D targetOptions(RenderTargetOptions options) {
@@ -444,8 +622,13 @@ public final class Scene3D extends RenderToTexture {
     /**
      * {@inheritDoc}
      */
+    @WikiMethod(section = "UI composition", sectionOrder = 30, order = 10,
+            summary = "Draws a single UI child above the 3D pass and painter. Pass null to clear it.")
+    @AiDoc(section = "UI composition", sectionOrder = 30, order = 10,
+            summary = "Draws a single UI child above the 3D pass and painter. Pass null to clear it.")
     @Override
-    public Scene3D content(Widget content) {
+    public Scene3D content(
+            @WikiParameter(description = "UI overlay widget, or null to clear it.") Widget content) {
         if (content == content()) return this;
         if (content != null) requireFreeWidget(content);
         super.content(content);
@@ -455,26 +638,42 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Добавляет UI-виджет с привязкой к мировой точке.
+     * Anchors a detached UI widget to a world-space point.
      *
-     * @param widget свободный дочерний виджет.
-     * @param point  конечная точка в мировых координатах.
-     * @return якорь для настройки позиции и pivot.
+     * @param widget detached child widget.
+     * @param point finite world-space point.
+     * @return anchor for adjusting the point and UI pivot.
      */
-    public SceneAnchor3D addAnchor(Widget widget, Vec3View point) {
+    @WikiMethod(section = "UI composition", sectionOrder = 30, order = 20,
+            summary = "Anchors a detached UI widget to a world-space point.")
+    @WikiReturn("anchor for adjusting the point and UI pivot")
+    @AiDoc(section = "UI composition", sectionOrder = 30, order = 20,
+            summary = "Anchors a detached UI widget to a world-space point.")
+    public SceneAnchor3D addAnchor(
+            @WikiParameter(description = "detached child widget.") Widget widget,
+            @WikiParameter(description = "finite world-space point.") Vec3View point) {
         return addAnchor(widget, null, point);
     }
 
     /**
-     * Добавляет UI-виджет с привязкой к локальной точке узла.
+     * Anchors a detached UI widget to a point on a node or in the world.
      *
-     * @param widget свободный дочерний виджет.
-     * @param node   узел привязки или null для мировой точки.
-     * @param point  конечная точка в координатах узла или сцены.
-     * @return якорь для настройки позиции и pivot.
-     * @throws IllegalArgumentException если виджет уже принадлежит дереву или создал бы цикл.
+     * @param widget detached child widget.
+     * @param node anchoring node, or null for a world-space point.
+     * @param point finite point in node-local or scene coordinates.
+     * @return anchor for adjusting the point and UI pivot.
+     * @throws IllegalArgumentException if the widget is already attached or would create a cycle.
      */
-    public SceneAnchor3D addAnchor(Widget widget, SceneNode node, Vec3View point) {
+    @WikiMethod(section = "UI composition", sectionOrder = 30, order = 20,
+            summary = "Anchors a detached UI widget to a point on a node or in the world.")
+    @WikiReturn("anchor for adjusting the point and UI pivot")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the widget is already attached or would create a cycle.")
+    @AiDoc(section = "UI composition", sectionOrder = 30, order = 20,
+            summary = "Anchors a detached UI widget to a point on a node or in the world.")
+    public SceneAnchor3D addAnchor(
+            @WikiParameter(description = "detached child widget.") Widget widget,
+            @WikiParameter(description = "anchoring node, or null for a world-space point.") SceneNode node,
+            @WikiParameter(description = "finite point in node-local or scene coordinates.") Vec3View point) {
         requireFreeWidget(widget);
         SceneAnchor3D anchor = new SceneAnchor3D(widget, node, point);
         anchors.add(anchor);
@@ -486,12 +685,18 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Удаляет якорь, освобождая дочерний виджет для повторного использования.
+     * Removes an anchor and detaches its widget for reuse.
      *
-     * @param anchor удаляемый якорь.
-     * @return true, если этот виджет владел якорем.
+     * @param anchor anchor to remove.
+     * @return true if this viewport owned the anchor.
      */
-    public boolean removeAnchor(SceneAnchor3D anchor) {
+    @WikiMethod(section = "UI composition", sectionOrder = 30, order = 30,
+            summary = "Removes an anchor and detaches its widget for reuse.")
+    @WikiReturn("true if this viewport owned the anchor")
+    @AiDoc(section = "UI composition", sectionOrder = 30, order = 30,
+            summary = "Removes an anchor and detaches its widget for reuse.")
+    public boolean removeAnchor(
+            @WikiParameter(description = "anchor to remove.") SceneAnchor3D anchor) {
         if (!anchors.remove(anchor)) return false;
         rebuildChildren();
         anchor.hideProjection();
@@ -504,35 +709,42 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Ищет узел в показанной части холста.
+     * Picks within the displayed portion of the canvas.
      *
-     * @param x координата X относительно границы виджета.
-     * @param y координата Y относительно границы виджета.
-     * @return ближайший видимый узел или null.
+     * @param x horizontal coordinate relative to the widget in UI units.
+     * @param y vertical coordinate relative to the widget in UI units.
+     * @return closest visible node, or null.
      */
-    public SceneNode pickNode(float x, float y) {
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 30,
+            summary = "Picks within the displayed portion of the canvas.")
+    @WikiReturn("closest visible node, or null")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 30,
+            summary = "Picks within the displayed portion of the canvas.")
+    public SceneNode pickNode(
+            @WikiParameter(description = "horizontal coordinate relative to the widget in UI units.") float x,
+            @WikiParameter(description = "vertical coordinate relative to the widget in UI units.") float y) {
         prepareViewport();
         return pickPrepared(x, y);
     }
 
     /**
-     * Ищет узел с уже рассчитанным viewport.
+     * Picks using the current viewport mapping.
      *
-     * @param x горизонтальная координата относительно виджета.
-     * @param y вертикальная координата относительно виджета.
-     * @return ближайший узел или null.
+     * @param x horizontal coordinate relative to the widget.
+     * @param y vertical coordinate relative to the widget.
+     * @return closest node, or null.
      */
     private SceneNode pickPrepared(float x, float y) {
         return pickPrepared(x, y, null);
     }
 
     /**
-     * Ищет узел и заполняет координаты его ячейки, если она найдена.
+     * Picks a node and copies the cell coordinates on a cell hit.
      *
-     * @param x    горизонтальная координата относительно виджета.
-     * @param y    вертикальная координата относительно виджета.
-     * @param cell выход для нижнего угла ячейки или null.
-     * @return ближайший видимый узел или null.
+     * @param x horizontal coordinate relative to the widget.
+     * @param y vertical coordinate relative to the widget.
+     * @param cell optional output for the lower cell corner.
+     * @return closest visible node, or null.
      */
     private SceneNode pickPrepared(float x, float y, MutableVec3 cell) {
         if (!visible() || !displayed() || !viewport.toCanvas(x, y, mapped)) return null;
@@ -540,31 +752,48 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Читает текущее наведение в 3D-сцене.
+     * Reads the current hover target.
      *
-     * @return узел под указателем или null.
+     * @return node under the pointer, or null.
      */
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 40,
+            summary = "Reads the current hover target.")
+    @WikiReturn("node under the pointer, or null")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 40,
+            summary = "Reads the current hover target.")
     public SceneNode hoveredNode() {
         return hoveredNode;
     }
 
     /**
-     * Подписывается на переходы наведения между узлами и пустой областью.
+     * Subscribes to hover transitions between nodes and empty space.
      *
-     * @param listener обработчик изменения.
-     * @return подписка.
+     * @param listener hover-change callback.
+     * @return the event subscription.
      */
-    public EventSubscription onNodeHover(EventListener<? super NodeHoverEvent> listener) {
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 50,
+            summary = "Subscribes to hover transitions between nodes and empty space.")
+    @WikiReturn("the event subscription")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 50,
+            summary = "Subscribes to hover transitions between nodes and empty space.")
+    public EventSubscription onNodeHover(
+            @WikiParameter(description = "hover-change callback.") EventListener<? super NodeHoverEvent> listener) {
         return on(NodeHoverEvent.TYPE, listener);
     }
 
     /**
-     * Подписывается на короткий клик по узлу.
+     * Subscribes to primary-button clicks on nodes.
      *
-     * @param listener обработчик клика.
-     * @return подписка.
+     * @param listener click callback.
+     * @return the event subscription.
      */
-    public EventSubscription onNodeClick(EventListener<? super NodeClickEvent> listener) {
+    @WikiMethod(section = "Picking and highlighting", sectionOrder = 20, order = 60,
+            summary = "Subscribes to primary-button clicks on nodes.")
+    @WikiReturn("the event subscription")
+    @AiDoc(section = "Picking and highlighting", sectionOrder = 20, order = 60,
+            summary = "Subscribes to primary-button clicks on nodes.")
+    public EventSubscription onNodeClick(
+            @WikiParameter(description = "click callback.") EventListener<? super NodeClickEvent> listener) {
         return on(NodeClickEvent.TYPE, listener);
     }
 
@@ -749,7 +978,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Обновляет размеры камеры и соответствие между холстом и виджетом.
+     * Updates camera dimensions and the mapping between canvas and widget.
      */
     private void prepareViewport() {
         TargetSize size = targetSize(pixelScale);
@@ -758,7 +987,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Просит обновить текстуру в ON_CHANGE при изменении модели или камеры.
+     * Requests a texture redraw in ON_CHANGE mode when the scene or camera changes.
      */
     private void synchronizeTexture() {
         if (updateMode() == UpdateMode.ON_CHANGE && (renderedCameraRevision != camera.revision()
@@ -768,7 +997,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Проецирует якоря с учётом видимости узла, отсечения и размещения текстуры.
+     * Projects anchors using node visibility, clipping and texture placement.
      */
     private void projectAnchors() {
         for (int i = 0; i < anchors.size(); i++) {
@@ -784,10 +1013,10 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Переводит точку якоря в мировые координаты с проверкой его узла и предков.
+     * Maps an anchor to world space after checking its node and ancestors.
      *
-     * @param anchor якорь сцены.
-     * @return true, если его мировая точка определена и узел не скрыт.
+     * @param anchor scene anchor.
+     * @return true if the point is defined and the node is visible.
      */
     private boolean worldAnchorPoint(SceneAnchor3D anchor) {
         anchor.position(anchorPoint);
@@ -801,9 +1030,9 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Рисует UI-якоря поверх текстуры с преобразованием и отсечением по границам виджета.
+     * Draws UI anchors above the texture with the widget transform and clipping.
      *
-     * @param context экранный контекст.
+     * @param context screen render context.
      */
     private void renderAnchors(RenderContext context) {
         if (anchors.isEmpty() || !displayed()) return;
@@ -828,7 +1057,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Синхронизирует дерево UI с содержимым RTT и порядком якорей.
+     * Synchronizes the widget tree with the texture content and anchor order.
      */
     private void rebuildChildren() {
         children.clear();
@@ -837,11 +1066,11 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Проверяет, что виджет можно подсоединить без перемещения из другого дерева или создания цикла.
+     * Checks that the widget can attach without reparenting or creating a cycle.
      *
-     * @param widget добавляемый виджет.
-     * @throws NullPointerException     если widget равен null.
-     * @throws IllegalArgumentException если уже есть родитель или widget является предком этой сцены.
+     * @param widget widget to attach.
+     * @throws NullPointerException if widget is null.
+     * @throws IllegalArgumentException if widget already has a parent or is an ancestor of this viewport.
      */
     private void requireFreeWidget(Widget widget) {
         Objects.requireNonNull(widget, "widget");
@@ -852,9 +1081,9 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Обрабатывает ввод для самой сцены. События дочерних виджетов обрабатываются ими.
+     * Handles input for the viewport itself. Child widgets handle their own events.
      *
-     * @param pointer событие указателя в локальных координатах сцены.
+     * @param pointer pointer event in viewport-local coordinates.
      */
     private void handlePointer(PointerEvent pointer) {
         if (pointer instanceof PointerExitedEvent) {
@@ -875,9 +1104,9 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Запоминает нажатие и захватывает указатель, если мышь управляет камерой или нажат узел.
+     * Starts capture when the press controls the camera or hits a node.
      *
-     * @param pointer нажатие в локальных координатах виджета.
+     * @param pointer press event in widget-local coordinates.
      */
     private void beginGesture(PointerPressedEvent pointer) {
         if (gestureButton != null) return;
@@ -902,19 +1131,19 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Проверяет, что отпущена кнопка текущего жеста.
+     * Checks whether a release matches the active gesture.
      *
-     * @param pointer событие отпускания.
-     * @return true для того же указателя и той же кнопки.
+     * @param pointer release event.
+     * @return true for the same pointer and button.
      */
     private boolean matchesGesture(PointerReleasedEvent pointer) {
         return gestureButton == pointer.button() && gesturePointer == pointer.pointerId();
     }
 
     /**
-     * Завершает жест и отправляет клик при отпускании над тем же узлом.
+     * Ends the gesture and emits a click if the release counts as a click on the same node.
      *
-     * @param pointer событие отпускания.
+     * @param pointer release event.
      */
     private void finishGesture(PointerReleasedEvent pointer) {
         SceneNode pressed = pressedNode;
@@ -929,7 +1158,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Освобождает захват и сбрасывает текущее нажатие.
+     * Releases capture and resets the active gesture.
      */
     private void releaseGesture() {
         if (captured && uiContext() != null) uiContext().releasePointer(gesturePointer, this);
@@ -940,11 +1169,11 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Проверяет порог клика по квадрату расстояния от начала нажатия.
+     * Tests the squared distance from the press against the click threshold.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @return true внутри радиуса DRAG_THRESHOLD.
+     * @param x local pointer X.
+     * @param y local pointer Y.
+     * @return true within the radius defined by DRAG_THRESHOLD.
      */
     private boolean withinClickThreshold(float x, float y) {
         float dx = x - startX, dy = y - startY;
@@ -952,12 +1181,12 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Вращает или панорамирует камеру при перемещении захваченного указателя.
-     * Для панорамирования вертикальный размер видимой области перспективы на дистанции d равен
-     * {@code 2*d / projection[1,1]}. Деление на высоту холста переводит смещение в мировые единицы.
+     * Orbits or pans while the captured pointer moves. For perspective panning, the visible height
+     * at orbit distance d is {@code 2*d / projection[1,1]}. Dividing by the canvas height converts
+     * a logical canvas delta to world units.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
+     * @param x local pointer X.
+     * @param y local pointer Y.
      */
     private void moveGesture(float x, float y) {
         float dx = x - dragX, dy = y - dragY;
@@ -981,10 +1210,10 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Меняет масштаб по формуле {@code factor = WHEEL_SCALE^delta}.
-     * Перспективное расстояние ограничено плоскостями отсечения и {@link #maxZoomDistance()}.
+     * Applies {@code factor = WHEEL_SCALE^delta}, where delta is the vertical wheel delta.
+     * Clipping planes and {@link #maxZoomDistance()} constrain the perspective orbit radius.
      *
-     * @param scroll колесо в локальных координатах сцены.
+     * @param scroll wheel event in viewport-local coordinates.
      */
     private void zoom(ScrollEvent scroll) {
         float delta = scroll.deltaY();
@@ -1009,7 +1238,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Обновляет наведение по последней позиции, в том числе после движения камеры.
+     * Refreshes hover from the last pointer position, including after a camera change.
      */
     private void refreshHover() {
         if (!pointerOnScene || dragging || !enabled()) {
@@ -1040,7 +1269,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Сбрасывает положение указателя и наведение.
+     * Clears the pointer position and hovered node.
      */
     private void clearHover() {
         pointerOnScene = false;
@@ -1050,7 +1279,7 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Сбрасывает все состояния ввода.
+     * Resets all input state.
      */
     private void resetPointer() {
         releaseGesture();
@@ -1058,9 +1287,9 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Публикует переход наведения, если цель изменилась.
+     * Emits a hover transition if the target changed.
      *
-     * @param node новый узел или null.
+     * @param node new hovered node, or null.
      */
     private void setHoveredNode(SceneNode node) {
         if (hoveredNode != node) {
@@ -1071,9 +1300,9 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Меняет подсвеченный объект или ячейку текущего viewport.
+     * Updates the highlighted object or cell.
      *
-     * @param node узел под указателем или null для сброса.
+     * @param node hovered node, or null to clear the highlight.
      */
     private void updateHighlight(SceneNode node) {
         boolean cellHit = node != null && Float.isFinite(hoverCell.x());
@@ -1103,15 +1332,15 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Помещает стандартный или пользовательский меш подсветки в мировые координаты.
+     * Places default or custom hover geometry in world space.
      */
     private static final class HoverHighlight {
         /**
-         * Отступ граней от блока в единицах сцены, чтобы избежать совпадения глубины.
+         * Cell highlight offset in scene units to avoid depth conflicts.
          */
         private static final float OFFSET = 0.003f;
         /**
-         * Одна полупрозрачная оболочка вокруг единичной ячейки.
+         * Translucent shell around a unit cell.
          */
         private static final Mesh3D BLOCK_MESH = new Mesh3D(new float[]{
                 -OFFSET, -OFFSET, -OFFSET, 1 + OFFSET, -OFFSET, -OFFSET,
@@ -1124,81 +1353,81 @@ public final class Scene3D extends RenderToTexture {
                 0, 1, 5, 0, 5, 4, 3, 7, 6, 3, 6, 2
         });
         /**
-         * Тёплый полупрозрачный цвет для выделения поверхности.
+         * Warm translucent tint for a highlighted cell.
          */
         private static final Material BLOCK_MATERIAL = new Material(0x73FFE18C, null, Material.Shading.UNLIT,
                 Material.AlphaMode.TRANSLUCENT, 0, Material.Culling.BACK);
         /**
-         * Отступ рамки от объекта с каждой стороны, в локальных единицах сцены.
+         * Padding on each side of an object highlight in node-local units.
          */
         private static final float FRAME_PADDING = 0.04f;
         /**
-         * Ширина полосы в долях размера соответствующей стороны рамки.
+         * Frame strip width as a fraction of the corresponding frame side.
          */
         private static final float FRAME_EDGE = 0.04f;
         /**
-         * Грани единичного куба с вырезанным центром.
+         * Unit cube faces with open centers.
          */
         private static final Mesh3D FRAME_MESH = frameMesh();
         /**
-         * Светло-голубая рамка, проходящая тест глубины сцены.
+         * Light blue object frame depth-tested against the scene.
          */
         private static final Material FRAME_MATERIAL = new Material(0xE095DEFF, null, Material.Shading.UNLIT,
                 Material.AlphaMode.TRANSLUCENT, 0, Material.Culling.BACK);
         /**
-         * Нижний угол ячейки или начало узла в локальных единицах сцены.
+         * Lower cell corner or node origin in local units.
          */
         private final MutableVec3 origin = new MutableVec3();
         /**
-         * Вращение единичного преобразования.
+         * Identity rotation.
          */
         private final MutableQuat rotation = new MutableQuat();
         /**
-         * Размер рамки по локальным осям. Равен единице для ячейки.
+         * Frame scale along the local axes. Unit scale for a cell.
          */
         private final MutableVec3 scale = new MutableVec3(1, 1, 1);
         /**
-         * Локальная позиция первого угла рамки, в единицах сцены.
+         * Frame's first corner in node-local units.
          */
         private final MutableVec3 frameOrigin = new MutableVec3();
         /**
-         * Преобразование меша подсветки в систему узла.
+         * Transform from highlight space to node space.
          */
         private final MutableMat4 local = new MutableMat4();
         /**
-         * Преобразование геометрии подсветки в мировые координаты.
+         * Transform from highlight space to world space.
          */
         private final MutableMat4 world = new MutableMat4();
         /**
-         * Переиспользуемый пакет подсветки ячейки.
+         * Reusable cell highlight data.
          */
         private final Scene3DRenderer.Highlight block = new Scene3DRenderer.Highlight(BLOCK_MESH, BLOCK_MATERIAL, world);
         /**
-         * Переиспользуемый пакет рамки объекта.
+         * Reusable object frame data.
          */
         private final Scene3DRenderer.Highlight frame = new Scene3DRenderer.Highlight(FRAME_MESH, FRAME_MATERIAL, world);
         /**
-         * Подсвеченный узел или null.
+         * Highlighted node, or null.
          */
         private SceneNode node;
         /**
-         * Локальные границы объекта для стандартной рамки, иначе null.
+         * Local object bounds for the default frame, or null.
          */
         private Aabb bounds;
         /**
-         * Геометрия и материал от узла или null для стандартной подсветки.
+         * Custom node geometry and material, or null for the default highlight.
          */
         private SceneNode.HoverHighlight custom;
         /**
-         * Пакет пользовательской подсветки, переиспользуемый пока геометрия и материал совпадают.
+         * Cached custom draw data for the current mesh and material.
          */
         private Scene3DRenderer.Highlight customRenderable;
 
         /**
-         * Обновляет пакет пользовательской подсветки при изменении её геометрии или материала.
+         * Updates the custom draw data when its geometry or material changes.
          *
-         * @param next новая подсветка узла или null для стандартной подсветки.
-         * @return true, если пакет изменился.
+         * @param next custom node highlight, or null for the default.
+         * @return true if the draw data changed.
          */
         private boolean setCustom(SceneNode.HoverHighlight next) {
             if (Objects.equals(custom, next)) return false;
@@ -1208,9 +1437,9 @@ public final class Scene3D extends RenderToTexture {
         }
 
         /**
-         * Умножает мировое преобразование узла на локальное преобразование подсветки.
+         * Combines the node's world transform with the highlight's local transform.
          *
-         * @return подсветка этого viewport или null.
+         * @return the viewport highlight, or null.
          */
         private Scene3DRenderer.Highlight renderable() {
             if (node == null) return null;
@@ -1231,10 +1460,10 @@ public final class Scene3D extends RenderToTexture {
         }
 
         /**
-         * Строит рамку из четырёх полос на каждой грани единичного куба. Внутренний угол
-         * равен {@code outer + FRAME_EDGE * (opposite - outer)}, где opposite лежит на той же грани по диагонали.
+         * Builds four strips on each face of a unit cube. Each inner corner is
+         * {@code outer + FRAME_EDGE * (opposite - outer)}, where opposite is the diagonally opposed corner on that face.
          *
-         * @return неизменяемый меш рамки с треугольниками, направленными наружу.
+         * @return immutable frame mesh with outward-facing triangles.
          */
         private static Mesh3D frameMesh() {
             float[] corners = {0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1};
@@ -1267,27 +1496,27 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Изменение узла под указателем.
+     * Change of the node under the pointer.
      */
     public static final class NodeHoverEvent extends BaseEvent {
         /**
-         * Тип локальной подписки на наведение.
+         * Local hover subscription type.
          */
         public static final EventType<NodeHoverEvent> TYPE = EventType.create("scene3d.node.hover");
         /**
-         * Узел, с которого ушёл указатель, или null.
+         * Previously hovered node, or null.
          */
         private final SceneNode previous;
         /**
-         * Узел под указателем или null.
+         * Currently hovered node, or null.
          */
         private final SceneNode node;
 
         /**
-         * Создаёт событие смены наведения.
+         * Creates a hover transition.
          *
-         * @param previous прежний узел или null.
-         * @param node     новый узел или null.
+         * @param previous previously hovered node, or null.
+         * @param node currently hovered node, or null.
          */
         private NodeHoverEvent(SceneNode previous, SceneNode node) {
             this.previous = previous;
@@ -1303,18 +1532,18 @@ public final class Scene3D extends RenderToTexture {
         }
 
         /**
-         * Читает прежнюю цель наведения.
+         * Reads the previous hover target.
          *
-         * @return узел или null.
+         * @return node the pointer left, or null.
          */
         public SceneNode previous() {
             return previous;
         }
 
         /**
-         * Читает текущую цель наведения.
+         * Reads the current hover target.
          *
-         * @return узел или null.
+         * @return node the pointer entered, or null.
          */
         public SceneNode node() {
             return node;
@@ -1322,27 +1551,27 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Короткий клик основной кнопкой по узлу.
+     * Primary-button click on a node without a drag.
      */
     public static final class NodeClickEvent extends BaseEvent {
         /**
-         * Тип локальной подписки на клики по узлам.
+         * Local node-click subscription type.
          */
         public static final EventType<NodeClickEvent> TYPE = EventType.create("scene3d.node.click");
         /**
-         * Выбранный узел.
+         * Clicked node.
          */
         private final SceneNode node;
         /**
-         * Событие отпускания указателя с экранными и локальными координатами.
+         * Pointer release with root and widget-local coordinates.
          */
         private final PointerReleasedEvent pointer;
 
         /**
-         * Создаёт событие клика.
+         * Creates a node click event.
          *
-         * @param node    выбранный узел.
-         * @param pointer событие отпускания указателя.
+         * @param node clicked node.
+         * @param pointer pointer release event.
          */
         private NodeClickEvent(SceneNode node, PointerReleasedEvent pointer) {
             this.node = node;
@@ -1358,18 +1587,18 @@ public final class Scene3D extends RenderToTexture {
         }
 
         /**
-         * Читает выбранный узел.
+         * Reads the clicked node.
          *
-         * @return узел клика.
+         * @return clicked node.
          */
         public SceneNode node() {
             return node;
         }
 
         /**
-         * Читает исходное событие указателя.
+         * Reads the underlying pointer event.
          *
-         * @return отпускание основной кнопки.
+         * @return primary-button release.
          */
         public PointerReleasedEvent pointer() {
             return pointer;

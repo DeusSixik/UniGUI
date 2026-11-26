@@ -21,25 +21,22 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 /**
- * Невизуальные элементы Minecraft-контента внутри {@code <Scene3D>}: {@code <Block>}, {@code <Item>},
- * {@code <Entity>} и {@code <Structure>}. Работают на всех версиях: строки разрешает установленная
- * {@link ScenePlatform}.
+ * Nonvisual Minecraft content elements inside {@code <Scene3D>}. The installed {@link ScenePlatform}
+ * resolves {@code <Block>}, {@code <Item>}, {@code <Entity>} and {@code <Structure>} sources.
  *
- * <p>Неизвестный идентификатор сообщается при загрузке разметки. Если версия не поддерживает вид контента,
- * разметка загружается, а узел ничего не рисует. Без установленной платформы (например в редакторе без игры)
- * узлы создаются без проверки, а структура остаётся пустой.</p>
- *
+ * <p>Unknown IDs are reported while loading. Unsupported content is skipped at render time.
+ * With no platform installed, nodes are created without validation and structures stay empty.</p>
  * <pre>{@code
  * <Scene3D>
- *     <Block state="minecraft:furnace[facing=south]"/>
- *     <Item item="minecraft:diamond_sword" pos="1.5,0.5,0.5"/>
- *     <Structure src="minecraft:igloo/top" pos="-4,0,-4" assemblySeconds="2"/>
+ * <Block state="minecraft:furnace[facing=south]"/>
+ * <Item item="minecraft:diamond_sword" pos="1.5,0.5,0.5"/>
+ * <Structure src="minecraft:igloo/top" pos="-4,0,-4" assemblySeconds="2"/>
  * </Scene3D>
  * }</pre>
  */
 final class SceneContentTypes {
     /**
-     * Лог пропущенного неподдерживаемого контента.
+     * Logger for skipped content.
      */
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(SceneContentTypes.class);
 
@@ -47,9 +44,9 @@ final class SceneContentTypes {
     }
 
     /**
-     * Добавляет элементы, доступные внутри Scene3D.
+     * Registers the content elements accepted by Scene3D.
      *
-     * @param schema реестр типов.
+     * @param schema type registry.
      */
     static void register(Schema schema) {
         schema.define("Block", () -> declaration("Block", BlockElement.class, BlockElement::new)
@@ -82,13 +79,13 @@ final class SceneContentTypes {
     }
 
     /**
-     * Описывает общие свойства декларации узла.
+     * Defines the shared node declaration properties.
      *
-     * @param name    имя XML-элемента.
-     * @param type    класс элемента.
-     * @param factory фабрика элемента для загрузчика.
-     * @param <T>     тип элемента.
-     * @return билдер схемы.
+     * @param name element name.
+     * @param type element implementation class.
+     * @param factory factory for deserialization.
+     * @param <T> element type.
+     * @return schema builder.
      */
     private static <T extends NodeElement> TypeInfo.Builder<T> declaration(String name, Class<T> type,
                                                                            Supplier<T> factory) {
@@ -101,10 +98,10 @@ final class SceneContentTypes {
     }
 
     /**
-     * Проверяет контент на установленной платформе. Неподдерживаемый вид контента не мешает загрузке.
+     * Validates content on the installed platform. Unsupported content is allowed.
      *
-     * @param check проверка, бросающая исключение для неверного идентификатора.
-     * @param what  описание для лога.
+     * @param check validation that throws for an invalid ID.
+     * @param what content description for logging.
      */
     private static void validate(Runnable check, String what) {
         if (ScenePlatform.current() == null) return;
@@ -116,27 +113,27 @@ final class SceneContentTypes {
     }
 
     /**
-     * Сохраняет декларацию для снимка XAML и строит её узел после загрузки свойств.
+     * Retains the declaration for XAML export and builds a node from the loaded properties.
      */
     private abstract static class NodeElement extends WidgetBase implements Scene3D.NodeContent {
         /**
-         * Позиция из разметки в формате X,Y,Z, в единицах сцены.
+         * Markup position in X,Y,Z format, in scene units.
          */
         private String position = "0,0,0";
         /**
-         * Разобранная позиция X, Y, Z.
+         * Parsed X, Y and Z in scene units.
          */
         private float x, y, z;
         /**
-         * Узел, построенный после применения атрибутов.
+         * Node built from the loaded attributes.
          */
         private SceneNode node;
 
         /**
-         * Принимает строковое значение позиции.
+         * Parses the position attribute.
          *
-         * @param position координаты X,Y,Z в единицах сцены.
-         * @throws IllegalArgumentException если строка не содержит три числа через запятую.
+         * @param position comma-separated X,Y,Z in scene units.
+         * @throws IllegalArgumentException if position does not contain three comma-separated numbers.
          */
         final void position(String position) {
             String[] components = position.split(",", -1);
@@ -152,18 +149,18 @@ final class SceneContentTypes {
         }
 
         /**
-         * Читает позицию для экспорта.
+         * Reads the position for export.
          *
-         * @return строка координат X,Y,Z.
+         * @return X,Y,Z attribute text.
          */
         final String position() {
             return position;
         }
 
         /**
-         * Строит узел и применяет конечную позицию из XAML.
+         * Builds the node and applies the configured position.
          *
-         * @throws IllegalArgumentException если контент не найден.
+         * @throws IllegalArgumentException if the source or position is invalid.
          */
         final void buildNode() {
             node = createNode().setPosition(x, y, z);
@@ -178,19 +175,19 @@ final class SceneContentTypes {
         }
 
         /**
-         * Загружает данные узла из его свойств.
+         * Builds a node from the declaration properties.
          *
-         * @return готовый узел в начале координат.
+         * @return a new node at the origin.
          */
         abstract SceneNode createNode();
     }
 
     /**
-     * Декларация блока по строке состояния.
+     * Block declaration from a state specification.
      */
     private static final class BlockElement extends NodeElement {
         /**
-         * Строка блока.
+         * Block specification.
          */
         private String state = "minecraft:stone";
 
@@ -200,18 +197,18 @@ final class SceneContentTypes {
         @Override
         SceneNode createNode() {
             BlockNode node = new BlockNode(state);
-            // Неверная строка видна сразу при загрузке разметки, а не при первой отрисовке.
+            // Validate the block specification during markup loading.
             validate(() -> node.requireNativeState(ScenePlatform.current()), "Block " + state);
             return node;
         }
     }
 
     /**
-     * Декларация предмета.
+     * Item declaration.
      */
     private static final class ItemElement extends NodeElement {
         /**
-         * Идентификатор предмета.
+         * Minecraft item ID.
          */
         private String item = "minecraft:apple";
 
@@ -227,11 +224,11 @@ final class SceneContentTypes {
     }
 
     /**
-     * Декларация сущности для превью.
+     * Entity preview declaration.
      */
     private static final class EntityElement extends NodeElement {
         /**
-         * Идентификатор типа сущности.
+         * Minecraft entity type ID.
          */
         private String type = "minecraft:zombie";
 
@@ -241,26 +238,26 @@ final class SceneContentTypes {
         @Override
         SceneNode createNode() {
             EntityNode node = new EntityNode(type);
-            // Неизвестный тип виден сразу. Сама сущность создаётся, когда появится мир.
+            // Validate the type immediately. Instantiating the preview can wait for a world.
             validate(() -> node.requireNativeEntity(ScenePlatform.current()), "Entity " + type);
             return node;
         }
     }
 
     /**
-     * Декларация структуры из файла ресурсов.
+     * Structure resource declaration.
      */
     private static final class StructureElement extends NodeElement {
         /**
-         * Идентификатор структуры или пустая строка для пустого узла.
+         * Resource ID or empty text for an empty structure.
          */
         private String source = "";
         /**
-         * Последний видимый слой в локальных координатах, включительно.
+         * Highest visible local layer, inclusive.
          */
         private int topVisibleY = Integer.MAX_VALUE;
         /**
-         * Длительность сборки в секундах. Ноль показывает все разрешённые слои сразу.
+         * Assembly duration in seconds. Zero shows the configured layers immediately.
          */
         private float assemblySeconds;
 
@@ -283,10 +280,10 @@ final class SceneContentTypes {
         }
 
         /**
-         * Загружает структуру через платформу версии.
+         * Loads a structure through the installed platform.
          *
-         * @return загруженная структура или пустая, если файлов структур нет на этой версии.
-         * @throws IllegalArgumentException если структура не найдена или повреждена.
+         * @return loaded structure, or an empty structure when unavailable on this platform.
+         * @throws IllegalArgumentException if the resource is missing or invalid.
          */
         private StructureNode loadStructure() {
             ScenePlatform platform = ScenePlatform.current();

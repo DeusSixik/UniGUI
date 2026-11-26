@@ -1,36 +1,82 @@
 package dev.sixik.unigui.api.math;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 /**
- * Изменяемый 3D-вектор, пригодный для повторного использования как выходной параметр.
+ * Mutable 3D vector suitable for reuse as an output parameter.
  */
+@WikiPage(
+        title = "MutableVec3", slug = "mutable-vec-3",
+        category = "API/3D Scene", order = 280,
+        summary = "Reusable three-component vector for scene data and output parameters.")
+@WikiSection(title = "Reusing vectors", order = 10, markdown = """
+        Allocate a vector once to read scene positions or reuse it as the result of `Camera3D.project`. `setCross(a,
+        b)` uses the right-handed cross product and can write over either input.
+        """)
+@WikiExample(title = "Copy the position of a node", code = """
+        MutableVec3 position = node.position(new MutableVec3());
+        """)
+@WikiLink(label = "Vec3View", target = "page:vec-3-view")
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "Ray", target = "page:scene-ray")
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@AiDoc(
+        summary = "Reusable three-component vector for scene data and output parameters.",
+        purpose = "Store positions, directions, scale values or projected points.",
+        criticalRules = {
+                "Operations mutate the vector. Each API determines the units, such as scene units, a unit direction, or logical canvas coordinates.",
+                "`normalize()` returns false and keeps the old components if the length is zero or nonfinite."
+        },
+        related = {"Vec3View", "Camera3D", "Ray", "SceneNode"},
+        examples = @AiDoc.Example(title = "Copy the position of a node", code = """
+                MutableVec3 position = node.position(new MutableVec3());
+                """))
 public final class MutableVec3 implements Vec3View {
     /**
-     * Компонента X в единицах вектора.
+     * X component in vector units.
      */
     private float x;
     /**
-     * Компонента Y в единицах вектора.
+     * Y component in vector units.
      */
     private float y;
     /**
-     * Компонента Z в единицах вектора.
+     * Z component in vector units.
      */
     private float z;
 
     /**
-     * Создаёт нулевой вектор.
+     * Creates a zero vector.
      */
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 10,
+            summary = "Creates a zero vector.")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 10,
+            summary = "Creates a zero vector.")
     public MutableVec3() {
     }
 
     /**
-     * Создаёт вектор с указанными компонентами.
+     * Creates a vector from components.
      *
-     * @param x компонента X.
-     * @param y компонента Y.
-     * @param z компонента Z.
+     * @param x X component.
+     * @param y Y component.
+     * @param z Z component.
      */
-    public MutableVec3(float x, float y, float z) {
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 10,
+            summary = "Creates a vector from components.")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 10,
+            summary = "Creates a vector from components.")
+    public MutableVec3(
+            @WikiParameter(description = "X component.") float x,
+            @WikiParameter(description = "Y component.") float y,
+            @WikiParameter(description = "Z component.") float z) {
         set(x, y, z);
     }
 
@@ -59,14 +105,22 @@ public final class MutableVec3 implements Vec3View {
     }
 
     /**
-     * Записывает компоненты вектора.
+     * Sets the vector components.
      *
-     * @param x компонента X.
-     * @param y компонента Y.
-     * @param z компонента Z.
-     * @return этот вектор.
+     * @param x X component.
+     * @param y Y component.
+     * @param z Z component.
+     * @return this vector.
      */
-    public MutableVec3 set(float x, float y, float z) {
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 20,
+            summary = "Sets the vector components.")
+    @WikiReturn("this vector")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 20,
+            summary = "Sets the vector components.")
+    public MutableVec3 set(
+            @WikiParameter(description = "X component.") float x,
+            @WikiParameter(description = "Y component.") float y,
+            @WikiParameter(description = "Z component.") float z) {
         this.x = x;
         this.y = y;
         this.z = z;
@@ -74,36 +128,57 @@ public final class MutableVec3 implements Vec3View {
     }
 
     /**
-     * Копирует компоненты.
+     * Copies vector components.
      *
-     * @param source исходный вектор.
-     * @return этот вектор.
+     * @param source input vector.
+     * @return this vector.
      */
-    public MutableVec3 set(Vec3View source) {
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 20,
+            summary = "Copies vector components.")
+    @WikiReturn("this vector")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 20,
+            summary = "Copies vector components.")
+    public MutableVec3 set(
+            @WikiParameter(description = "input vector.") Vec3View source) {
         return set(source.x(), source.y(), source.z());
     }
 
     /**
-     * Складывает компоненты этого вектора с приращениями в тех же единицах.
+     * Adds offsets in the same units as the vector.
      *
-     * @param x приращение по X.
-     * @param y приращение по Y.
-     * @param z приращение по Z.
-     * @return этот вектор.
+     * @param x offset along X.
+     * @param y offset along Y.
+     * @param z offset along Z.
+     * @return this vector.
      */
-    public MutableVec3 add(float x, float y, float z) {
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 30,
+            summary = "Adds offsets in the same units as the vector.")
+    @WikiReturn("this vector")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 30,
+            summary = "Adds offsets in the same units as the vector.")
+    public MutableVec3 add(
+            @WikiParameter(description = "offset along X.") float x,
+            @WikiParameter(description = "offset along Y.") float y,
+            @WikiParameter(description = "offset along Z.") float z) {
         return set(this.x + x, this.y + y, this.z + z);
     }
 
     /**
-     * Записывает векторное произведение a × b, где первая компонента равна
-     * {@code a.y * b.z - a.z * b.y}, а две следующие получаются циклической перестановкой осей.
+     * Stores the cross product a × b. The X component is {@code a.y * b.z - a.z * b.y}.
+     * Compute Y and Z by cycling the axes.
      *
-     * @param a первый вектор, может совпадать с выходным.
-     * @param b второй вектор, может совпадать с выходным.
-     * @return этот вектор.
+     * @param a first vector, may alias this vector.
+     * @param b second vector, may alias this vector.
+     * @return this vector.
      */
-    public MutableVec3 setCross(Vec3View a, Vec3View b) {
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 40,
+            summary = "Stores the cross product a × b. The X component is `a.y * b.z - a.z * b.y`. Compute Y and Z by cycling the axes.")
+    @WikiReturn("this vector")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 40,
+            summary = "Stores the cross product a × b. The X component is `a.y * b.z - a.z * b.y`. Compute Y and Z by cycling the axes.")
+    public MutableVec3 setCross(
+            @WikiParameter(description = "first vector, may alias this vector.") Vec3View a,
+            @WikiParameter(description = "second vector, may alias this vector.") Vec3View b) {
         return set(
                 (float) ((double) a.y() * b.z() - (double) a.z() * b.y()),
                 (float) ((double) a.z() * b.x() - (double) a.x() * b.z()),
@@ -111,10 +186,15 @@ public final class MutableVec3 implements Vec3View {
     }
 
     /**
-     * Делит компоненты на длину {@code sqrt(x*x + y*y + z*z)}.
+     * Divides the components by their length {@code sqrt(x*x + y*y + z*z)}.
      *
-     * @return получилось ли нормализовать вектор. Нулевой или не конечный вектор сохраняется.
+     * @return true after normalization. A zero or nonfinite vector is left unchanged.
      */
+    @WikiMethod(section = "Vector", sectionOrder = 10, order = 50,
+            summary = "Divides the components by their length `sqrt(x*x + y*y + z*z)`.")
+    @WikiReturn("true after normalization. A zero or nonfinite vector is left unchanged")
+    @AiDoc(section = "Vector", sectionOrder = 10, order = 50,
+            summary = "Divides the components by their length `sqrt(x*x + y*y + z*z)`.")
     public boolean normalize() {
         double length = Math.sqrt((double) x * x + (double) y * y + (double) z * z);
         if (!(length > 0.0) || !Double.isFinite(length)) return false;

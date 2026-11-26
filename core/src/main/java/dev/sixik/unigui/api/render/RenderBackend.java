@@ -27,9 +27,10 @@ public interface RenderBackend {
     }
 
     /**
-     * Возвращает рендерер 3D-сцен.
-     * @return backend-specific проход для цели с глубиной.
-     * @throws UnsupportedOperationException если бэкенд не поддерживает 3D-сцены.
+     * Returns the 3D scene renderer for offscreen viewports.
+     *
+     * @return backend-specific renderer for a target with depth.
+     * @throws UnsupportedOperationException if the backend does not support 3D scenes.
      */
     default Scene3DRenderer scene3D() {
         throw new UnsupportedOperationException("3D scenes are not supported by this backend");

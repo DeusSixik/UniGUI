@@ -1,13 +1,17 @@
 package dev.sixik.unigui.demo.basic.main_demo;
 
 import dev.sixik.unigui.api.scene.BlockSpec;
+import dev.sixik.unigui.api.scene.SceneNode;
 import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.scene.StructureNode;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
+import dev.sixik.unigui.demo.ui.scene.SceneFurnaceTutorial;
 import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
+import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
@@ -145,6 +149,12 @@ class MinecraftCategoryTest {
                 public SceneShowcase.Blocks sceneBlocks() {
                     return SceneShowcase.Blocks.MODERN;
                 }
+
+                @Override
+                public SceneTutorialPlayer.Sequence furnaceTutorial() {
+                    return SceneFurnaceTutorial.create(center -> new SceneNode(), new SceneNode(), lit -> {
+                    }, Box::new, Box::new, Box::new);
+                }
             });
             VBox root = new VBox();
             new MinecraftCategory().addDemo("mc-scene", root);
@@ -154,6 +164,11 @@ class MinecraftCategoryTest {
             assertNotNull(scene, "the page embeds the scene widget");
             assertEquals(4, scene.scene().roots().size(), "structure, block, item and mob");
             assertInstanceOf(StructureNode.class, scene.scene().roots().get(0));
+            assertEquals(3, root.children().size(), "structure, tutorial, then gizmo");
+            Scene3D gizmo = findScene(root.children().get(2));
+            assertNotNull(gizmo);
+            assertTrue(gizmo.focusable());
+            assertNotNull(gizmo.painter());
         } finally {
             ScenePlatform.install(null);
         }

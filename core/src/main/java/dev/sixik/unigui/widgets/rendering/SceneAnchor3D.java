@@ -1,5 +1,14 @@
 package dev.sixik.unigui.widgets.rendering;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -18,53 +27,85 @@ import dev.sixik.unigui.impl.widget.WidgetBase;
 import java.util.List;
 
 /**
- * Размещает обычный UI-виджет в проекции мировой или локальной точки узла.
+ * Positions a UI widget at the projection of a world-space or node-local point.
  */
+@WikiPage(
+        title = "SceneAnchor3D", slug = "scene-anchor-3d",
+        category = "API/3D Scene", order = 70,
+        summary = "Projects a world-space or node-local point to an ordinary UI widget.")
+@WikiSection(title = "Position and pivot", order = 10, markdown = """
+        Use a world point for a fixed label or a node-local point to follow scene transforms. `(0.5, 1)` aligns the
+        bottom center of the widget to the projected point. Remove the anchor with `Scene3D.removeAnchor` to detach
+        its widget for reuse.
+        """)
+@WikiExample(title = "Place a label above an object", code = """
+        SceneAnchor3D badge = viewport.addAnchor(new Label("Furnace"), furnace,
+                new MutableVec3(0.5f, 1.2f, 0.5f)).pivot(0.5f, 1);
+        badge.position(0.5f, 1.4f, 0.5f);
+        """)
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@AiDoc(
+        summary = "Projects a world-space or node-local point to an ordinary UI widget.",
+        purpose = "Attach labels and controls to points that move with a rendered scene.",
+        criticalRules = {
+                "Create anchors with `Scene3D.addAnchor` and pass a detached widget.",
+                "The anchor follows node and ancestor transforms and visibility. A projection outside the viewport hides the widget.",
+                "Anchor placement uses camera projection, not scene occlusion.",
+                "Pivot is a fraction of the child width and height measured from its top left."
+        },
+        related = {"Scene3D", "SceneNode", "Camera3D"},
+        examples = @AiDoc.Example(title = "Place a label above an object", code = """
+                SceneAnchor3D badge = viewport.addAnchor(new Label("Furnace"), furnace,
+                        new MutableVec3(0.5f, 1.2f, 0.5f)).pivot(0.5f, 1);
+                badge.position(0.5f, 1.4f, 0.5f);
+                """))
 public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOnly {
     /**
-     * Якорь использует собственный желаемый размер дочернего виджета.
+     * Layout constraints for measuring the anchored widget at its own desired size.
      */
     private static final LayoutContext UNBOUNDED = new LayoutContext(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
 
     /**
-     * Прикреплённый UI-виджет.
+     * Attached UI widget.
      */
     private final Widget widget;
     /**
-     * Дочерний список для layout и маршрутизации событий.
+     * Child list for layout and event routing.
      */
     private List<Widget> children;
     /**
-     * Узел, в чьих координатах задана точка, или null для мировой точки.
+     * Node defining the point's coordinate space, or null for world space.
      */
     private final SceneNode node;
     /**
-     * Точка привязки в единицах сцены или локальных единицах узла.
+     * Anchor point in scene or node-local units.
      */
     private final MutableVec3 point = new MutableVec3();
     /**
-     * Буфер границ в логических единицах UI.
+     * Reusable bounds in logical UI units.
      */
     private final MutableRect projectedBounds = new MutableRect();
     /**
-     * Горизонтальная привязка в долях ширины, от 0 до 1.
+     * Horizontal pivot as a fraction of width, from zero to one.
      */
     private float pivotX = 0.5f;
     /**
-     * Вертикальная привязка в долях высоты, от 0 до 1.
+     * Vertical pivot as a fraction of height, from zero to one.
      */
     private float pivotY = 0.5f;
     /**
-     * Попала ли точка якоря в видимую область текущей сцены.
+     * Whether the anchor projects into the visible viewport.
      */
     private boolean projected;
 
     /**
-     * Привязывает свободный виджет к точке. Владелец добавляет якорь в дерево UI.
+     * Attaches a detached widget to a point. The owning viewport adds the anchor to the UI tree.
      *
-     * @param widget дочерний виджет.
-     * @param node   узел привязки или null для мировой точки.
-     * @param point  точка в соответствующей системе координат.
+     * @param widget detached UI widget.
+     * @param node anchoring node, or null for world space.
+     * @param point world-space or node-local position.
      */
     SceneAnchor3D(Widget widget, SceneNode node, Vec3View point) {
         this.widget = widget;
@@ -75,43 +116,68 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Читает прикреплённый виджет.
+     * Reads the anchored widget.
      *
-     * @return виджет, переданный при создании якоря.
+     * @return the widget supplied when the anchor was created.
      */
+    @WikiMethod(section = "Anchor", sectionOrder = 10, order = 10,
+            summary = "Reads the anchored widget.")
+    @WikiReturn("the widget supplied when the anchor was created")
+    @AiDoc(section = "Anchor", sectionOrder = 10, order = 10,
+            summary = "Reads the anchored widget.")
     public Widget widget() {
         return widget;
     }
 
     /**
-     * Читает узел привязки.
+     * Reads the anchoring node.
      *
-     * @return узел или null для мировой точки.
+     * @return the node, or null for a world-space point.
      */
+    @WikiMethod(section = "Anchor", sectionOrder = 10, order = 20,
+            summary = "Reads the anchoring node.")
+    @WikiReturn("the node, or null for a world-space point")
+    @AiDoc(section = "Anchor", sectionOrder = 10, order = 20,
+            summary = "Reads the anchoring node.")
     public SceneNode node() {
         return node;
     }
 
     /**
-     * Копирует точку якоря.
+     * Copies the anchor point.
      *
-     * @param out переиспользуемый вектор в единицах сцены или узла.
+     * @param out reusable vector in scene or node-local units.
      * @return out.
      */
-    public MutableVec3 position(MutableVec3 out) {
+    @WikiMethod(section = "Anchor", sectionOrder = 10, order = 30,
+            summary = "Copies the anchor point.")
+    @WikiReturn("out")
+    @AiDoc(section = "Anchor", sectionOrder = 10, order = 30,
+            summary = "Copies the anchor point.")
+    public MutableVec3 position(
+            @WikiParameter(description = "reusable vector in scene or node-local units.") MutableVec3 out) {
         return out.set(point);
     }
 
     /**
-     * Задаёт точку привязки.
+     * Moves the anchor in its existing coordinate space.
      *
-     * @param x конечная координата X.
-     * @param y конечная координата Y.
-     * @param z конечная координата Z.
-     * @return этот якорь.
-     * @throws IllegalArgumentException если хотя бы одна координата не конечна.
+     * @param x finite X in scene or node-local units.
+     * @param y finite Y in scene or node-local units.
+     * @param z finite Z in scene or node-local units.
+     * @return this anchor.
+     * @throws IllegalArgumentException if a coordinate is nonfinite.
      */
-    public SceneAnchor3D position(float x, float y, float z) {
+    @WikiMethod(section = "Anchor", sectionOrder = 10, order = 30,
+            summary = "Moves the anchor in its existing coordinate space.")
+    @WikiReturn("this anchor")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a coordinate is nonfinite.")
+    @AiDoc(section = "Anchor", sectionOrder = 10, order = 30,
+            summary = "Moves the anchor in its existing coordinate space.")
+    public SceneAnchor3D position(
+            @WikiParameter(description = "finite X in scene or node-local units.") float x,
+            @WikiParameter(description = "finite Y in scene or node-local units.") float y,
+            @WikiParameter(description = "finite Z in scene or node-local units.") float z) {
         if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) {
             throw new IllegalArgumentException("Anchor position must be finite");
         }
@@ -123,14 +189,22 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Указывает, какая точка прямоугольника UI совпадает с проекцией.
+     * Sets which point of the UI rectangle aligns with the projection.
      *
-     * @param x доля ширины от левого края, от 0 до 1.
-     * @param y доля высоты от верхнего края, от 0 до 1.
-     * @return этот якорь.
-     * @throws IllegalArgumentException если координата вне диапазона.
+     * @param x fraction of the width from the left edge, from zero to one.
+     * @param y fraction of the height from the top edge, from zero to one.
+     * @return this anchor.
+     * @throws IllegalArgumentException if either fraction is outside [0, 1].
      */
-    public SceneAnchor3D pivot(float x, float y) {
+    @WikiMethod(section = "Anchor", sectionOrder = 10, order = 40,
+            summary = "Sets which point of the UI rectangle aligns with the projection.")
+    @WikiReturn("this anchor")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if either fraction is outside [0, 1].")
+    @AiDoc(section = "Anchor", sectionOrder = 10, order = 40,
+            summary = "Sets which point of the UI rectangle aligns with the projection.")
+    public SceneAnchor3D pivot(
+            @WikiParameter(description = "fraction of the width from the left edge, from zero to one.") float x,
+            @WikiParameter(description = "fraction of the height from the top edge, from zero to one.") float y) {
         if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) throw new IllegalArgumentException("Invalid anchor pivot");
         if (pivotX != x || pivotY != y) {
             pivotX = x;
@@ -209,10 +283,10 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Размещает виджет по проекции с учётом pivot.
+     * Places the widget at the projected point using the pivot.
      *
-     * @param x горизонтальная позиция проекции в координатах раскладки.
-     * @param y вертикальная позиция проекции в координатах раскладки.
+     * @param x projected horizontal position in layout coordinates.
+     * @param y projected vertical position in layout coordinates.
      */
     void projectAt(float x, float y) {
         boolean needsLayout = InvalidationFlags.has(subtreeInvalidationFlags(), InvalidationFlags.LAYOUT);
@@ -231,7 +305,7 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Скрывает якорь и его детей от отрисовки и hit-testing.
+     * Hides the anchor and its children from rendering and hit testing.
      */
     void hideProjection() {
         if (projected) {
@@ -242,7 +316,7 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Снимает наведение и фокус детей, когда якорь уходит с экрана.
+     * Clears child focus and hover when the anchor leaves the viewport.
      */
     void clearInteraction() {
         UIContext context = uiContext();
@@ -252,10 +326,10 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Проверяет принадлежность виджета поддереву якоря.
+     * Checks whether a widget belongs to the anchor subtree.
      *
-     * @param candidate виджет под курсором или в фокусе, может быть null.
-     * @return true, если якорь входит в его цепочку родителей.
+     * @param candidate widget under the pointer or in focus, or null.
+     * @return true if the anchor is in its parent chain.
      */
     private boolean containsWidget(Widget candidate) {
         for (Widget current = candidate; current != null; current = current.parent()) {
@@ -265,7 +339,7 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Освобождает дочерний виджет при удалении якоря из сцены.
+     * Detaches the child widget when the anchor is removed.
      */
     void releaseWidget() {
         children = List.of();

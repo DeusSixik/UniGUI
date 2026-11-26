@@ -7,10 +7,10 @@ import dev.sixik.unigui.api.render.TextureOptions;
 import java.util.Objects;
 
 /**
- * Текстура offscreen-цели с выбранной фильтрацией.
+ * Offscreen target texture with a sampling filter override.
  *
- * <p>Backend'ы привязывают текстуру по {@link #nativeHandle()}, а фильтрацию берут из {@link #options()}, поэтому
- * обёртка меняет только опции и передаёт остальное исходной текстуре цели.</p>
+ * <p>The backend binds {@link #nativeHandle()} and reads sampling options from {@link #options()}.
+ * The wrapper forwards the other properties to the target texture.</p>
  */
 final class SampledTexture implements TextureHandle {
     private final TextureHandle source;
@@ -23,7 +23,9 @@ final class SampledTexture implements TextureHandle {
     }
 
     /**
-     * @return исходная текстура цели
+     * Reads the original texture.
+     *
+     * @return the target's source texture.
      */
     TextureHandle source() {
         return source;

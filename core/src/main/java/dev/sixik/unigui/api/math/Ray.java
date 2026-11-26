@@ -1,45 +1,105 @@
 package dev.sixik.unigui.api.math;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+
 /**
- * Изменяемый луч {@code origin + t * direction}, где {@code t >= 0}.
- * Направление единичное, поэтому t измеряется в единицах сцены.
- * Методы пересечения возвращают {@link Double#POSITIVE_INFINITY} при промахе.
+ * Mutable ray {@code origin + t * direction} for {@code t >= 0}. The direction has unit length,
+ * so t is a distance in scene units. Intersection methods return {@link Double#POSITIVE_INFINITY} for a miss.
  */
+@WikiPage(
+        title = "Ray", slug = "scene-ray",
+        category = "API/3D Scene", order = 240,
+        summary = "Normalized 3D ray with AABB, triangle and plane intersections.")
+@WikiSection(title = "Ray parameter", order = 10, markdown = """
+        The ray is `origin + t * direction` for `t >= 0`. Direction is normalized. The AABB test returns zero for an
+        origin on or inside the box. The triangle test accepts either face.
+        """)
+@WikiExample(title = "Intersect the ground plane at Y = 0", code = """
+        Ray ray = new Ray();
+        if (camera.screenRay(canvasX, canvasY, ray)) {
+            double distance = ray.intersectPlane(new MutableVec3(), new MutableVec3(0, 1, 0));
+            if (Double.isFinite(distance)) {
+                MutableVec3 point = ray.pointAt(distance, new MutableVec3());
+            }
+        }
+        """)
+@WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "ScenePicker", target = "page:scene-picker")
+@WikiLink(label = "Aabb", target = "page:aabb")
+@WikiLink(label = "MutableVec3", target = "page:mutable-vec-3")
+@AiDoc(
+        summary = "Normalized 3D ray with AABB, triangle and plane intersections.",
+        purpose = "Implement geometric picking and viewport manipulation tools.",
+        criticalRules = {
+                "A hit parameter is a distance in the ray's coordinate space. Positive infinity signals a miss.",
+                "`set` returns false and retains the previous ray when the direction is zero or invalid.",
+                "Camera3D.screenRay starts on the near plane. Use ScenePicker to enforce both clipping planes in picking."
+        },
+        related = {"Camera3D", "ScenePicker", "Aabb", "MutableVec3"},
+        examples = @AiDoc.Example(title = "Intersect the ground plane at Y = 0", code = """
+                Ray ray = new Ray();
+                if (camera.screenRay(canvasX, canvasY, ray)) {
+                    double distance = ray.intersectPlane(new MutableVec3(), new MutableVec3(0, 1, 0));
+                    if (Double.isFinite(distance)) {
+                        MutableVec3 point = ray.pointAt(distance, new MutableVec3());
+                    }
+                }
+                """))
 public final class Ray {
     /**
-     * Начало луча в единицах сцены.
+     * Ray origin in scene units.
      */
     private final MutableVec3 origin = new MutableVec3();
     /**
-     * Безразмерная компонента X единичного направления.
+     * Dimensionless X component of the unit direction.
      */
     private double dx;
     /**
-     * Безразмерная компонента Y единичного направления.
+     * Dimensionless Y component of the unit direction.
      */
     private double dy;
     /**
-     * Безразмерная компонента Z единичного направления.
+     * Dimensionless Z component of the unit direction.
      */
     private double dz = -1.0;
 
     /**
-     * Создаёт луч из начала координат вдоль −Z.
+     * Creates a ray from the origin along -Z.
      */
+    @WikiMethod(section = "Ray", sectionOrder = 10, order = 10,
+            summary = "Creates a ray from the origin along -Z.")
+    @AiDoc(section = "Ray", sectionOrder = 10, order = 10,
+            summary = "Creates a ray from the origin along -Z.")
     public Ray() {
     }
 
     /**
-     * Задаёт луч и нормализует направление делением на длину. Сначала компоненты
-     * делятся на наибольшую по модулю, чтобы квадрат длины оставался конечным.
+     * Sets the ray and normalizes its direction. To avoid overflow in the squared length, first divides
+     * the direction components by their maximum absolute value.
      *
-     * @param origin начало в единицах сцены.
-     * @param x      компонента X направления.
-     * @param y      компонента Y направления.
-     * @param z      компонента Z направления.
-     * @return удалось ли записать луч. При нулевой длине или не конечном аргументе прежний луч сохраняется.
+     * @param origin origin in scene units.
+     * @param x X direction component.
+     * @param y Y direction component.
+     * @param z Z direction component.
+     * @return true on success. A zero-length direction or nonfinite input leaves the ray unchanged.
      */
-    public boolean set(Vec3View origin, double x, double y, double z) {
+    @WikiMethod(section = "Ray", sectionOrder = 10, order = 20,
+            summary = "Sets the ray and normalizes its direction. To avoid overflow in the squared length, first divides the direction components by their maximum absolute value.")
+    @WikiReturn("true on success. A zero-length direction or nonfinite input leaves the ray unchanged")
+    @AiDoc(section = "Ray", sectionOrder = 10, order = 20,
+            summary = "Sets the ray and normalizes its direction. To avoid overflow in the squared length, first divides the direction components by their maximum absolute value.")
+    public boolean set(
+            @WikiParameter(description = "origin in scene units.") Vec3View origin,
+            @WikiParameter(description = "X direction component.") double x,
+            @WikiParameter(description = "Y direction component.") double y,
+            @WikiParameter(description = "Z direction component.") double z) {
         float ox = origin.x(), oy = origin.y(), oz = origin.z();
         double largest = Math.max(Math.abs(x), Math.max(Math.abs(y), Math.abs(z)));
         if (!(largest > 0.0) || !Double.isFinite(largest)
@@ -56,64 +116,103 @@ public final class Ray {
     }
 
     /**
-     * Копирует начало луча.
+     * Copies the ray origin.
      *
-     * @param out переиспользуемый вектор в единицах сцены.
+     * @param out reusable vector in scene units.
      * @return out.
      */
-    public MutableVec3 origin(MutableVec3 out) {
+    @WikiMethod(section = "Ray", sectionOrder = 10, order = 30,
+            summary = "Copies the ray origin.")
+    @WikiReturn("out")
+    @AiDoc(section = "Ray", sectionOrder = 10, order = 30,
+            summary = "Copies the ray origin.")
+    public MutableVec3 origin(
+            @WikiParameter(description = "reusable vector in scene units.") MutableVec3 out) {
         return out.set(origin);
     }
 
     /**
-     * Копирует единичное направление.
+     * Copies the unit direction.
      *
-     * @param out переиспользуемый безразмерный вектор.
+     * @param out reusable dimensionless vector.
      * @return out.
      */
-    public MutableVec3 direction(MutableVec3 out) {
+    @WikiMethod(section = "Ray", sectionOrder = 10, order = 40,
+            summary = "Copies the unit direction.")
+    @WikiReturn("out")
+    @AiDoc(section = "Ray", sectionOrder = 10, order = 40,
+            summary = "Copies the unit direction.")
+    public MutableVec3 direction(
+            @WikiParameter(description = "reusable dimensionless vector.") MutableVec3 out) {
         return out.set((float) dx, (float) dy, (float) dz);
     }
 
     /**
-     * Вычисляет точку {@code origin + t * direction}.
+     * Evaluates {@code origin + t * direction}.
      *
-     * @param t   расстояние от начала луча в единицах сцены. Отрицательное значение продолжает прямую назад.
-     * @param out переиспользуемый вектор в единицах сцены.
+     * @param t distance from the origin in scene units. A negative value extends the line backward.
+     * @param out reusable vector in scene units.
      * @return out.
      */
-    public MutableVec3 pointAt(double t, MutableVec3 out) {
+    @WikiMethod(section = "Ray", sectionOrder = 10, order = 50,
+            summary = "Evaluates `origin + t * direction`.")
+    @WikiReturn("out")
+    @AiDoc(section = "Ray", sectionOrder = 10, order = 50,
+            summary = "Evaluates `origin + t * direction`.")
+    public MutableVec3 pointAt(
+            @WikiParameter(description =
+                    "distance from the origin in scene units. A negative value extends the line backward.")
+            double t,
+            @WikiParameter(description = "reusable vector in scene units.") MutableVec3 out) {
         return out.set((float) (origin.x() + t * dx), (float) (origin.y() + t * dy),
                 (float) (origin.z() + t * dz));
     }
 
     /**
-     * Пересекает луч с замкнутым AABB методом интервалов. По каждой оси грани дают
-     * интервал между {@code (min - origin) / direction} и {@code (max - origin) / direction}.
-     * Искомое t — начало пересечения трёх интервалов с {@code [0, +∞)}.
-     * При нулевой компоненте направления начало луча должно лежать между гранями этой оси.
+     * Intersects a closed AABB with the slab method. Along each axis, the slab interval lies
+     * between {@code (min - origin) / direction} and {@code (max - origin) / direction}. The hit t is
+     * the start of the intersection of all three intervals with {@code [0, +∞)}. A zero direction component
+     * requires the origin to lie inside the corresponding slab.
      *
-     * @param min нижние границы параллелепипеда в единицах сцены.
-     * @param max верхние границы параллелепипеда в единицах сцены.
-     * @return расстояние до входа, 0 внутри или на границе, +∞ при промахе или недопустимых границах.
+     * @param min lower coordinates in scene units.
+     * @param max upper coordinates in scene units.
+     * @return entry distance, zero on or inside the box, or positive infinity for a miss or invalid bounds.
      */
-    public double intersectAabb(Vec3View min, Vec3View max) {
+    @WikiMethod(section = "Intersections", sectionOrder = 20, order = 10,
+            summary = "Intersects a closed AABB with the slab method. Along each axis, the slab interval lies between `(min - origin) / direction` and `(max - origin) / direction`. The hit t is the start of the intersection of all three intervals with `[0, +∞)`. A zero direction component requires the origin to lie inside the corresponding slab.")
+    @WikiReturn("entry distance, zero on or inside the box, or positive infinity for a miss or invalid bounds")
+    @AiDoc(section = "Intersections", sectionOrder = 20, order = 10,
+            summary = "Intersects a closed AABB with the slab method. Along each axis, the slab interval lies between `(min - origin) / direction` and `(max - origin) / direction`. The hit t is the start of the intersection of all three intervals with `[0, +∞)`. A zero direction component requires the origin to lie inside the corresponding slab.")
+    public double intersectAabb(
+            @WikiParameter(description = "lower coordinates in scene units.") Vec3View min,
+            @WikiParameter(description = "upper coordinates in scene units.") Vec3View max) {
         return intersectAabb(min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
     }
 
     /**
-     * Пересекает замкнутый AABB, заданный компонентами двух углов.
-     * Использует тот же метод интервалов, что и {@link #intersectAabb(Vec3View, Vec3View)}.
+     * Intersects a closed AABB specified by two corners. Uses the slab method from
+     * {@link #intersectAabb(Vec3View, Vec3View)}.
      *
-     * @param minX минимальная координата X.
-     * @param minY минимальная координата Y.
-     * @param minZ минимальная координата Z.
-     * @param maxX максимальная координата X.
-     * @param maxY максимальная координата Y.
-     * @param maxZ максимальная координата Z.
-     * @return расстояние до входа, ноль внутри или +∞ при промахе.
+     * @param minX minimum X.
+     * @param minY minimum Y.
+     * @param minZ minimum Z.
+     * @param maxX maximum X.
+     * @param maxY maximum Y.
+     * @param maxZ maximum Z.
+     * @return entry distance, zero on or inside the box, or positive infinity for a miss.
      */
-    public double intersectAabb(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+    @WikiMethod(section = "Intersections", sectionOrder = 20, order = 10,
+            summary = "Intersects a closed AABB specified by two corners. Uses the slab method from `intersectAabb(Vec3View, Vec3View)`.")
+    @WikiReturn("entry distance, zero on or inside the box, or positive infinity for a miss")
+    @AiDoc(section = "Intersections", sectionOrder = 20, order = 10,
+            summary = "Intersects a closed AABB specified by two corners. Uses the slab method from `intersectAabb(Vec3View, Vec3View)`.")
+    public double intersectAabb(
+            @WikiParameter(description = "minimum X.") float minX,
+            @WikiParameter(description = "minimum Y.") float minY,
+            @WikiParameter(description = "minimum Z.") float minZ,
+            @WikiParameter(description = "maximum X.") float maxX,
+            @WikiParameter(description = "maximum Y.") float maxY,
+            @WikiParameter(description = "maximum Z.") float maxZ) {
         double enter = 0.0;
         double exit = Double.POSITIVE_INFINITY;
         for (int axis = 0; axis < 3; axis++) {
@@ -138,19 +237,26 @@ public final class Ray {
     }
 
     /**
-     * Пересекает луч с обеими сторонами треугольника методом Мёллера — Трумбора.
-     * Для рёбер {@code e1 = b - a}, {@code e2 = c - a} находит решение
-     * {@code origin + t*d = a + u*e1 + v*e2}. При {@code p = d × e2}, {@code s = origin - a}
-     * и {@code q = s × e1} барицентрические координаты равны {@code u = dot(s,p)/dot(e1,p)}
-     * и {@code v = dot(d,q)/dot(e1,p)}, а {@code t = dot(e2,q)/dot(e1,p)}.
-     * Точка принадлежит треугольнику при {@code u >= 0, v >= 0, u + v <= 1}.
+     * Intersects both sides of a triangle using Möller-Trumbore. For edges {@code e1 = b - a} and
+     * {@code e2 = c - a}, solves {@code origin + t*d = a + u*e1 + v*e2}, where d is the unit ray direction.
+     * Set {@code p = d × e2}, {@code s = origin - a} and {@code q = s × e1}. Then
+     * {@code u = dot(s,p)/dot(e1,p)}, {@code v = dot(d,q)/dot(e1,p)} and {@code t = dot(e2,q)/dot(e1,p)}.
+     * The point lies in the triangle when {@code u >= 0, v >= 0, u + v <= 1}.
      *
-     * @param a первая вершина в единицах сцены.
-     * @param b вторая вершина в единицах сцены.
-     * @param c третья вершина в единицах сцены.
-     * @return расстояние до пересечения или +∞ при промахе, параллельности или вырожденном треугольнике.
+     * @param a first vertex in scene units.
+     * @param b second vertex in scene units.
+     * @param c third vertex in scene units.
+     * @return intersection distance, or positive infinity for a miss, parallel ray or degenerate triangle.
      */
-    public double intersectTriangle(Vec3View a, Vec3View b, Vec3View c) {
+    @WikiMethod(section = "Intersections", sectionOrder = 20, order = 20,
+            summary = "Intersects both sides of a triangle using Möller-Trumbore. For edges `e1 = b - a` and `e2 = c - a`, solves `origin + t*d = a + u*e1 + v*e2`, where d is the unit ray direction. Set `p = d × e2`, `s = origin - a` and `q = s × e1`. Then `u = dot(s,p)/dot(e1,p)`, `v = dot(d,q)/dot(e1,p)` and `t = dot(e2,q)/dot(e1,p)`. The point lies in the triangle when `u >= 0, v >= 0, u + v <= 1`.")
+    @WikiReturn("intersection distance, or positive infinity for a miss, parallel ray or degenerate triangle")
+    @AiDoc(section = "Intersections", sectionOrder = 20, order = 20,
+            summary = "Intersects both sides of a triangle using Möller-Trumbore. For edges `e1 = b - a` and `e2 = c - a`, solves `origin + t*d = a + u*e1 + v*e2`, where d is the unit ray direction. Set `p = d × e2`, `s = origin - a` and `q = s × e1`. Then `u = dot(s,p)/dot(e1,p)`, `v = dot(d,q)/dot(e1,p)` and `t = dot(e2,q)/dot(e1,p)`. The point lies in the triangle when `u >= 0, v >= 0, u + v <= 1`.")
+    public double intersectTriangle(
+            @WikiParameter(description = "first vertex in scene units.") Vec3View a,
+            @WikiParameter(description = "second vertex in scene units.") Vec3View b,
+            @WikiParameter(description = "third vertex in scene units.") Vec3View c) {
         double ax = a.x(), ay = a.y(), az = a.z();
         double e1x = b.x() - ax, e1y = b.y() - ay, e1z = b.z() - az;
         double e2x = c.x() - ax, e2y = c.y() - ay, e2z = c.z() - az;
@@ -173,14 +279,21 @@ public final class Ray {
     }
 
     /**
-     * Пересекает луч с плоскостью по формуле {@code t = dot(point - origin, n) / dot(d, n)},
-     * где n — нормаль плоскости, а d — единичное направление луча.
+     * Intersects a plane using {@code t = dot(point - origin, n) / dot(d, n)}, where n is the plane
+     * normal and d is the unit ray direction.
      *
-     * @param point  точка плоскости в единицах сцены.
-     * @param normal конечная ненулевая нормаль, произвольной длины.
-     * @return расстояние до пересечения или +∞, если пересечение позади, параллельно или не определено.
+     * @param point point on the plane in scene units.
+     * @param normal finite nonzero normal of arbitrary length.
+     * @return intersection distance, or positive infinity if behind the ray origin, parallel or undefined.
      */
-    public double intersectPlane(Vec3View point, Vec3View normal) {
+    @WikiMethod(section = "Intersections", sectionOrder = 20, order = 30,
+            summary = "Intersects a plane using `t = dot(point - origin, n) / dot(d, n)`, where n is the plane normal and d is the unit ray direction.")
+    @WikiReturn("intersection distance, or positive infinity if behind the ray origin, parallel or undefined")
+    @AiDoc(section = "Intersections", sectionOrder = 20, order = 30,
+            summary = "Intersects a plane using `t = dot(point - origin, n) / dot(d, n)`, where n is the plane normal and d is the unit ray direction.")
+    public double intersectPlane(
+            @WikiParameter(description = "point on the plane in scene units.") Vec3View point,
+            @WikiParameter(description = "finite nonzero normal of arbitrary length.") Vec3View normal) {
         double nx = normal.x(), ny = normal.y(), nz = normal.z();
         double denominator = dx * nx + dy * ny + dz * nz;
         if (denominator == 0.0 || !Double.isFinite(denominator)) return Double.POSITIVE_INFINITY;
@@ -190,11 +303,11 @@ public final class Ray {
     }
 
     /**
-     * Читает компоненту вектора по числовому индексу оси.
+     * Reads a vector component by numeric axis index.
      *
-     * @param vector входной вектор.
-     * @param axis   индекс 0, 1 или 2.
-     * @return компонента X, Y или Z соответственно.
+     * @param vector source vector.
+     * @param axis 0, 1 or 2.
+     * @return X, Y or Z respectively.
      */
     private static float component(Vec3View vector, int axis) {
         return axis == 0 ? vector.x() : axis == 1 ? vector.y() : vector.z();

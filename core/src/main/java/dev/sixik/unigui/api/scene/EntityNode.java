@@ -1,52 +1,97 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.math.Aabb;
 
 import java.util.Objects;
 
 /**
- * Модель сущности Minecraft, стоящая ногами в начале координат, единая для всех версий игры.
+ * A Minecraft entity model with its feet at the local origin.
  *
  * <pre>{@code
- * new EntityNode("minecraft:zombie");      // превью по типу
- * EntityNode.of(entity);                   // готовая сущность версии
- * EntityNode.of(EntityType.ZOMBIE);        // тип версии
+ * new EntityNode("minecraft:zombie");
+ * EntityNode.of(entity);
+ * EntityNode.of(EntityType.ZOMBIE);
  * }</pre>
- *
- * <p>Превью по типу создаётся, когда у клиента есть мир, и пересоздаётся при смене мира. Без мира узел
- * ничего не рисует и повторяет попытку позже. Типизированный доступ к сущности даёт помощник платформы,
- * например {@code MinecraftScene.entity(node)}. Версии без поддержки сущностей в сцене ничего не рисуют и
- * один раз пишут предупреждение в лог.</p>
+ * <p>A preview by type requires a client world and is recreated when the world changes. While no world is
+ * loaded the node retries later. For typed access use a helper such as {@code MinecraftScene.entity(node)}.
+ * Unsupported platforms skip rendering and log a warning once.</p>
  */
+@WikiPage(
+        title = "EntityNode", slug = "entity-node",
+        category = "API/3D Scene", order = 150,
+        summary = "A Minecraft entity preview with body transform and optional head rotation.")
+@WikiSection(title = "Sources and pose", order = 10, markdown = """
+        Create a type preview using a registry ID, or pass a native entity or type to `EntityNode.of(...)`. A type
+        preview is temporarily absent until its world is available. `clearHead()` removes the explicit head
+        override.
+        """)
+@WikiExample(title = "Preview a zombie looking down", code = """
+        EntityNode zombie = new EntityNode("minecraft:zombie");
+        zombie.setPosition(2, 0, 0).setHead(0.35f, 0.2f);
+        viewport.highlightObjects(true).scene().addRoot(zombie);
+        """)
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@WikiLink(label = "ScenePlatform", target = "page:scene-platform")
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
+@AiDoc(
+        summary = "A Minecraft entity preview with body transform and optional head rotation.",
+        purpose = "Display an entity or an entity type in a UI scene.",
+        criticalRules = {
+                "The local origin is at the feet and the unrotated body faces +Z.",
+                "A type preview may need a loaded client world and can be recreated on world change.",
+                "`setHead` uses radians. Positive yaw turns toward the entity's right shoulder. Positive pitch tilts down. Use the node's rotation for the body."
+        },
+        related = {"SceneNode", "ScenePlatform", "Scene3D", "SceneTimeline"},
+        examples = @AiDoc.Example(title = "Preview a zombie looking down", code = """
+                EntityNode zombie = new EntityNode("minecraft:zombie");
+                zombie.setPosition(2, 0, 0).setHead(0.35f, 0.2f);
+                viewport.highlightObjects(true).scene().addRoot(zombie);
+                """))
 public final class EntityNode extends SceneNode {
     /**
-     * Идентификатор типа или null для нативного источника.
+     * Entity type ID, or null for native input.
      */
     private final String typeId;
     /**
-     * Нативный объект пользователя или null для идентификатора.
+     * Native source object, or null for a type ID.
      */
     private final Object nativeSource;
     /**
-     * Кэш разрешённой сущности.
+     * Cache of the resolved entity.
      */
     private final ResolvedContent entity = new ResolvedContent();
     /**
-     * Задан ли поворот головы. Без него голова смотрит так, как её оставила сущность.
+     * Whether the head orientation overrides the entity's own pose.
      */
     private boolean head;
     /**
-     * Поворот головы относительно тела в радианах: рыскание и тангаж.
+     * Head yaw and pitch relative to the body, in radians.
      */
     private float headYaw, headPitch;
 
     /**
-     * Создаёт превью сущности по идентификатору типа.
+     * Creates an entity preview from a type ID.
      *
-     * @param typeId идентификатор, например {@code minecraft:zombie}.
-     * @throws IllegalArgumentException если идентификатор пуст.
+     * @param typeId entity type ID such as {@code minecraft:zombie}.
+     * @throws IllegalArgumentException if typeId is blank.
      */
-    public EntityNode(String typeId) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 10,
+            summary = "Creates an entity preview from a type ID.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if typeId is blank.")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 10,
+            summary = "Creates an entity preview from a type ID.")
+    public EntityNode(
+            @WikiParameter(description = "entity type ID such as `minecraft:zombie`.") String typeId) {
         String trimmed = Objects.requireNonNull(typeId, "typeId").trim();
         if (trimmed.isEmpty()) throw new IllegalArgumentException("Entity type id is empty");
         this.typeId = trimmed;
@@ -54,9 +99,9 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Внутренний конструктор для нативного источника.
+     * Creates a node from native input.
      *
-     * @param source объект версии.
+     * @param source native entity or type object.
      */
     private EntityNode(Object source) {
         this.typeId = null;
@@ -64,28 +109,42 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Создаёт узел из нативной сущности, её типа или строки-идентификатора.
+     * Creates a node from an entity, native type or ID.
      *
-     * @param entity объект версии.
-     * @return новый узел.
-     * @throws NullPointerException если entity равен null.
+     * @param entity native entity, native type or ID string.
+     * @return a new node.
+     * @throws NullPointerException if entity is null.
      */
-    public static EntityNode of(Object entity) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 20,
+            summary = "Creates a node from an entity, native type or ID.")
+    @WikiReturn("a new node")
+    @WikiThrows(type = NullPointerException.class, description = "if entity is null.")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 20,
+            summary = "Creates a node from an entity, native type or ID.")
+    public static EntityNode of(
+            @WikiParameter(description = "native entity, native type or ID string.") Object entity) {
         if (entity instanceof String text) return new EntityNode(text);
         return new EntityNode(entity);
     }
 
     /**
-     * Поворачивает голову относительно тела, как это делает Minecraft: рыскание 0 смотрит вперёд (+Z узла),
-     * положительное поворачивает к правому плечу сущности, положительный тангаж наклоняет голову вниз.
-     * Тело поворачивают через {@link #setRotation}.
+     * Rotates the head relative to the body. Zero yaw faces local +Z, positive yaw turns toward
+     * the entity's right shoulder, and positive pitch tilts down. Use {@link #setRotation} for the body.
      *
-     * @param yaw   рыскание в радианах.
-     * @param pitch тангаж в радианах.
-     * @return этот узел.
-     * @throws IllegalArgumentException если угол не конечен.
+     * @param yaw yaw in radians.
+     * @param pitch pitch in radians.
+     * @return this node.
+     * @throws IllegalArgumentException if either angle is nonfinite.
      */
-    public EntityNode setHead(float yaw, float pitch) {
+    @WikiMethod(section = "Pose", sectionOrder = 20, order = 10,
+            summary = "Rotates the head relative to the body. Zero yaw faces local +Z, positive yaw turns toward the entity's right shoulder, and positive pitch tilts down. Use `setRotation` for the body.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if either angle is nonfinite.")
+    @AiDoc(section = "Pose", sectionOrder = 20, order = 10,
+            summary = "Rotates the head relative to the body. Zero yaw faces local +Z, positive yaw turns toward the entity's right shoulder, and positive pitch tilts down. Use `setRotation` for the body.")
+    public EntityNode setHead(
+            @WikiParameter(description = "yaw in radians.") float yaw,
+            @WikiParameter(description = "pitch in radians.") float pitch) {
         if (!Float.isFinite(yaw) || !Float.isFinite(pitch)) throw new IllegalArgumentException("Head angles must be finite");
         if (!head || headYaw != yaw || headPitch != pitch) {
             head = true;
@@ -97,10 +156,15 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Возвращает голове позу самой сущности.
+     * Restores the entity's own head pose.
      *
-     * @return этот узел.
+     * @return this node.
      */
+    @WikiMethod(section = "Pose", sectionOrder = 20, order = 20,
+            summary = "Restores the entity's own head pose.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Pose", sectionOrder = 20, order = 20,
+            summary = "Restores the entity's own head pose.")
     public EntityNode clearHead() {
         if (head) {
             head = false;
@@ -110,68 +174,115 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * @return задан ли поворот головы через {@link #setHead}.
+     * Checks whether the node overrides the head pose.
+     *
+     * @return true after {@link #setHead}, until {@link #clearHead}.
      */
+    @WikiMethod(section = "Pose", sectionOrder = 20, order = 30,
+            summary = "Checks whether the node overrides the head pose.")
+    @WikiReturn("true after `setHead`, until `clearHead`")
+    @AiDoc(section = "Pose", sectionOrder = 20, order = 30,
+            summary = "Checks whether the node overrides the head pose.")
     public boolean hasHead() {
         return head;
     }
 
     /**
-     * @return рыскание головы относительно тела в радианах.
+     * Reads the head yaw.
+     *
+     * @return yaw relative to the body in radians.
      */
+    @WikiMethod(section = "Pose", sectionOrder = 20, order = 40,
+            summary = "Reads the head yaw.")
+    @WikiReturn("yaw relative to the body in radians")
+    @AiDoc(section = "Pose", sectionOrder = 20, order = 40,
+            summary = "Reads the head yaw.")
     public float headYaw() {
         return headYaw;
     }
 
     /**
-     * @return тангаж головы в радианах, положительный — вниз.
+     * Reads the head pitch.
+     *
+     * @return pitch in radians, positive downward.
      */
+    @WikiMethod(section = "Pose", sectionOrder = 20, order = 50,
+            summary = "Reads the head pitch.")
+    @WikiReturn("pitch in radians, positive downward")
+    @AiDoc(section = "Pose", sectionOrder = 20, order = 50,
+            summary = "Reads the head pitch.")
     public float headPitch() {
         return headPitch;
     }
 
     /**
-     * @return идентификатор типа или null для нативного источника.
+     * Reads the entity type ID.
+     *
+     * @return the ID, or null for native input.
      */
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 30,
+            summary = "Reads the entity type ID.")
+    @WikiReturn("the ID, or null for native input")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 30,
+            summary = "Reads the entity type ID.")
     public String typeId() {
         return typeId;
     }
 
     /**
-     * Читает нативный объект, которым задан узел.
+     * Reads the native input object.
      *
-     * @return объект пользователя или null, если узел задан идентификатором.
+     * @return the native input object, or null for a type ID.
      */
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 40,
+            summary = "Reads the native input object.")
+    @WikiReturn("the native input object, or null for a type ID")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 40,
+            summary = "Reads the native input object.")
     public Object nativeSource() {
         return nativeSource;
     }
 
     /**
-     * Разрешает сущность для бэкенда или помощника платформы.
+     * Resolves the entity for the renderer or a platform helper.
      *
-     * @param platform платформа версии или null.
-     * @return нативная сущность платформы или null, если она недоступна или неверна.
+     * @param platform platform adapter, or null.
+     * @return the native entity, or null if unavailable or invalid.
      */
-    public Object nativeEntity(ScenePlatform platform) {
+    @WikiMethod(section = "Resolution", sectionOrder = 30, order = 10,
+            summary = "Resolves the entity for the renderer or a platform helper.")
+    @WikiReturn("the native entity, or null if unavailable or invalid")
+    @AiDoc(section = "Resolution", sectionOrder = 30, order = 10,
+            summary = "Resolves the entity for the renderer or a platform helper.")
+    public Object nativeEntity(
+            @WikiParameter(description = "platform adapter, or null.") ScenePlatform platform) {
         return entity.get(platform, this::resolve, this, false);
     }
 
     /**
-     * Разрешает сущность и бросает ошибку неверного источника.
+     * Resolves the entity and propagates resolution errors.
      *
-     * @param platform платформа версии.
-     * @return нативная сущность или null, если её пока нельзя создать.
-     * @throws IllegalArgumentException      если тип неизвестен.
-     * @throws UnsupportedOperationException если версия не рисует сущности в сцене.
+     * @param platform platform adapter.
+     * @return the native entity, or null if temporarily unavailable.
+     * @throws IllegalArgumentException if the type is unknown.
+     * @throws UnsupportedOperationException if the platform cannot render scene entities.
      */
-    public Object requireNativeEntity(ScenePlatform platform) {
+    @WikiMethod(section = "Resolution", sectionOrder = 30, order = 20,
+            summary = "Resolves the entity and propagates resolution errors.")
+    @WikiReturn("the native entity, or null if temporarily unavailable")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the type is unknown.")
+    @WikiThrows(type = UnsupportedOperationException.class, description = "if the platform cannot render scene entities.")
+    @AiDoc(section = "Resolution", sectionOrder = 30, order = 20,
+            summary = "Resolves the entity and propagates resolution errors.")
+    public Object requireNativeEntity(
+            @WikiParameter(description = "platform adapter.") ScenePlatform platform) {
         return entity.get(Objects.requireNonNull(platform, "platform"), this::resolve, this, true);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Границы берутся из размеров сущности, а без них — из собственного меша узла.</p>
+     * <p>Uses the entity's dimensions when available and otherwise falls back to the node's custom mesh.</p>
      */
     @Override
     protected Aabb contentBounds() {
@@ -182,9 +293,9 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Описание для логов и отладки.
+     * Formats the source for logging and debugging.
      *
-     * @return идентификатор или нативный объект.
+     * @return a description of the type ID or native source.
      */
     @Override
     public String toString() {
@@ -192,10 +303,10 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Вызывает платформу для текущего источника.
+     * Resolves the current source with the given platform.
      *
-     * @param platform платформа версии.
-     * @return нативная сущность или null.
+     * @param platform platform adapter.
+     * @return the native entity, or null.
      */
     private Object resolve(ScenePlatform platform) {
         return typeId != null ? platform.resolveEntity(typeId) : platform.nativeEntity(nativeSource);

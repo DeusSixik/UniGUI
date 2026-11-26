@@ -1,5 +1,14 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransitionSpec;
 import dev.sixik.unigui.api.math.Aabb;
@@ -15,169 +24,264 @@ import java.util.LinkedHashMap;
 import java.util.Objects;
 
 /**
- * Разреженная структура блоков, общая для всех версий Minecraft. Координаты блоков целые и задаются относительно
- * начала узла, одна единица сцены на блок.
+ * A sparse Minecraft block structure with one scene unit per block and integer positions relative to the node origin.
  *
- * <p>Структура хранит нативные состояния платформы ({@link ScenePlatform}): строки и объекты пользователя
- * приводятся к ним сразу при записи. Платформа фиксируется при первой записи: это переданная в конструктор
- * платформа или установленная через {@link ScenePlatform#install}. Чтение файлов структур и запекание секций
- * выполняют платформа и её рендерер.</p>
- *
- * <p>Блоки сгруппированы в секции 16×16×16. Секция хранит плотный массив из {@value Section#VOLUME} ячеек и
- * версию, которую рендерер сравнивает со своим кэшем геометрии.</p>
- *
+ * <p>The structure resolves input to native states as blocks are written. The platform is chosen at the first
+ * write unless passed to the constructor. The platform loads structure resources, and its renderer bakes sections.</p>
+ * <p>Blocks are grouped into 16×16×16 sections. Each section stores a dense array of {@value Section#VOLUME}
+ * cells and a revision for the renderer's geometry cache.</p>
  * <pre>{@code
  * StructureNode tower = new StructureNode();
  * for (int y = 0; y < 4; y++) tower.setBlock(0, y, 0, "minecraft:stone_bricks");
  * tower.setBlock(0, 4, 0, "minecraft:lantern[hanging=false]");
  * }</pre>
  */
+@WikiPage(
+        title = "StructureNode", slug = "structure-node",
+        category = "API/3D Scene", order = 160,
+        summary = "Sparse block structure with layer slicing, assembly and optional distant geometry.")
+@WikiSection(title = "Blocks and resources", order = 10, markdown = """
+        Populate cells with `setBlock` and remove cells with `removeBlock`. A platform that supports structure
+        templates can load them by ID using `ScenePlatform.loadStructure`. 1.7.10 supports building the structure in
+        code.
+        """)
+@WikiSection(title = "Layer views and distant meshes", order = 20, markdown = """
+        Layer slicing affects rendering and picking. `block()` still reads hidden cells and `visibleBlock()` applies
+        the cutoff. A distant mesh can replace block rendering outside a configured distance from the world-space
+        block AABB. Keep it within the structure's local bounds and update it after edits.
+        """)
+@WikiExample(title = "Assemble a three-layer column", code = """
+        StructureNode column = new StructureNode();
+        for (int y = 0; y < 3; y++) {
+            column.setBlock(0, y, 0, "minecraft:stone");
+        }
+        viewport.scene().addRoot(column);
+        column.playAssembly(viewport, 2, Integer.MAX_VALUE);
+        """)
+@WikiLink(label = "BlockNode", target = "page:block-node")
+@WikiLink(label = "BlockSpec", target = "page:block-spec")
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@WikiLink(label = "ScenePlatform", target = "page:scene-platform")
+@WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@AiDoc(
+        summary = "Sparse block structure with layer slicing, assembly and optional distant geometry.",
+        purpose = "Build and animate groups of Minecraft blocks as a single transformable node.",
+        criticalRules = {
+                "Use integer coordinates local to the structure. Writes resolve native block states immediately and require an installed or explicit platform.",
+                "Set `topVisibleY` to the highest visible local layer, inclusive. `Integer.MAX_VALUE` reveals all layers.",
+                "Attach the node to the viewport's scene before calling `playAssembly`. For seeking use `SceneTimeline.assemble` and `sample`.",
+                "Distant meshes render in a perspective view with the full structure visible. Picking still uses the source blocks."
+        },
+        related = {"BlockNode", "BlockSpec", "SceneNode", "ScenePlatform", "SceneTimeline", "Scene3D"},
+        examples = @AiDoc.Example(title = "Assemble a three-layer column", code = """
+                StructureNode column = new StructureNode();
+                for (int y = 0; y < 3; y++) {
+                    column.setBlock(0, y, 0, "minecraft:stone");
+                }
+                viewport.scene().addRoot(column);
+                column.playAssembly(viewport, 2, Integer.MAX_VALUE);
+                """))
 public final class StructureNode extends SceneNode {
     /**
-     * Наименьшая координата блока по X и Z, совпадает с пределом упаковки позиции Minecraft.
+     * Minimum block X or Z supported by Minecraft's packed positions.
      */
     public static final int MIN_HORIZONTAL = -(1 << 25);
     /**
-     * Наибольшая координата блока по X и Z.
+     * Maximum block X or Z.
      */
     public static final int MAX_HORIZONTAL = (1 << 25) - 1;
     /**
-     * Наименьшая координата блока по Y.
+     * Minimum block Y.
      */
     public static final int MIN_Y = -2048;
     /**
-     * Наибольшая координата блока по Y.
+     * Maximum block Y.
      */
     public static final int MAX_Y = 2047;
 
     /**
-     * Непустые секции в порядке создания по упакованным координатам секции.
+     * Nonempty sections in insertion order, keyed by packed section coordinates.
      */
     private final LinkedHashMap<Long, Section> sections = new LinkedHashMap<>();
     /**
-     * Только для чтения представление секций для рендереров.
+     * Read-only section view for renderers.
      */
     private final Collection<Section> sectionView = Collections.unmodifiableCollection(sections.values());
     /**
-     * Платформа нативных состояний или null до первой записи.
+     * Adapter for native states, or null before the first write.
      */
     private ScenePlatform platform;
     /**
-     * Внешние границы видимых блоков в локальных координатах.
+     * Outer bounds of visible blocks in local coordinates.
      */
     private Aabb blockBounds;
     /**
-     * Границы меша узла, для которых рассчитан общий AABB.
+     * Bounds of the node mesh used for the cached union.
      */
     private Aabb previousMeshBounds;
     /**
-     * Объединённые границы блоков и меша узла.
+     * Combined block and mesh bounds.
      */
     private Aabb combinedBounds;
     /**
-     * Помечает кэш границ при изменении набора видимых блоков.
+     * Whether the visible block bounds need recomputing.
      */
     private boolean boundsDirty;
     /**
-     * Последняя видимая координата блока по Y включительно.
+     * Highest visible block Y, inclusive.
      */
     private int topVisibleY = Integer.MAX_VALUE;
     /**
-     * Необязательная упрощённая модель для полностью видимой структуры.
+     * Optional simplified mesh for the entire structure.
      */
     private DistantMesh distantMesh;
     /**
-     * Нижний и верхний непустые слои для сборки или null, если их нужно пересчитать.
+     * Lowest and highest occupied layers for assembly, or null when stale.
      */
     private int[] layers;
     /**
-     * Число непустых блоков.
+     * Number of nonempty blocks.
      */
     private int blockCount;
 
     /**
-     * Создаёт пустую структуру. Платформа берётся из {@link ScenePlatform#current()} при первой записи.
+     * Creates an empty structure. The first write uses {@link ScenePlatform#current()}.
      */
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 10,
+            summary = "Creates an empty structure. The first write uses `ScenePlatform#current()`.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 10,
+            summary = "Creates an empty structure. The first write uses `ScenePlatform#current()`.")
     public StructureNode() {
     }
 
     /**
-     * Создаёт пустую структуру с явной платформой, например при чтении файла самой платформой.
+     * Creates an empty structure for a specific platform.
      *
-     * @param platform платформа нативных состояний.
+     * @param platform adapter for native block states.
      */
-    public StructureNode(ScenePlatform platform) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 10,
+            summary = "Creates an empty structure for a specific platform.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 10,
+            summary = "Creates an empty structure for a specific platform.")
+    public StructureNode(
+            @WikiParameter(description = "adapter for native block states.") ScenePlatform platform) {
         this.platform = Objects.requireNonNull(platform, "platform");
     }
 
     /**
-     * Читает платформу, которой принадлежат нативные состояния структуры.
+     * Reads the platform associated with the structure's native states.
      *
-     * @return платформа или null, если в структуру ещё ничего не записано.
+     * @return the adapter, or null if it has not been selected.
      */
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 20,
+            summary = "Reads the platform associated with the structure's native states.")
+    @WikiReturn("the adapter, or null if it has not been selected")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 20,
+            summary = "Reads the platform associated with the structure's native states.")
     public ScenePlatform platform() {
         return platform;
     }
 
     /**
-     * Считает непустые блоки.
+     * Counts nonempty blocks.
      *
-     * @return число блоков, включая скрытые срезом {@link #topVisibleY()}.
+     * @return count including layers hidden by {@link #topVisibleY()}.
      */
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 30,
+            summary = "Counts nonempty blocks.")
+    @WikiReturn("count including layers hidden by `topVisibleY()`")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 30,
+            summary = "Counts nonempty blocks.")
     public int blockCount() {
         return blockCount;
     }
 
     /**
-     * Читает нативное состояние блока.
+     * Reads a native block state.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @param z локальная координата Z.
-     * @return состояние или null для пустой ячейки и позиции вне структуры.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return the state, or null for an empty or out-of-range cell.
      */
-    public Object block(int x, int y, int z) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 40,
+            summary = "Reads a native block state.")
+    @WikiReturn("the state, or null for an empty or out-of-range cell")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 40,
+            summary = "Reads a native block state.")
+    public Object block(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z) {
         Section section = section(x, y, z);
         return section == null ? null : section.states[Section.index(x, y, z)];
     }
 
     /**
-     * Читает блок с учётом среза слоёв. Рендереры используют его для отсечения граней и AO у верхнего видимого слоя.
+     * Reads a block subject to the layer cutoff. Renderers use this lookup for face culling and ambient occlusion.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @param z локальная координата Z.
-     * @return состояние или null для пустой либо скрытой ячейки.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return the state, or null for an empty or hidden cell.
      */
-    public Object visibleBlock(int x, int y, int z) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 50,
+            summary = "Reads a block subject to the layer cutoff. Renderers use this lookup for face culling and ambient occlusion.")
+    @WikiReturn("the state, or null for an empty or hidden cell")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 50,
+            summary = "Reads a block subject to the layer cutoff. Renderers use this lookup for face culling and ambient occlusion.")
+    public Object visibleBlock(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z) {
         return y <= topVisibleY ? block(x, y, z) : null;
     }
 
     /**
-     * Читает block entity для настройки данных. После изменения данных вызовите {@link #invalidateContent()}.
+     * Reads a block entity for configuration. Call {@link #invalidateContent()} after editing its data.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @param z локальная координата Z.
-     * @return нативный block entity или null.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return the native block entity, or null.
      */
-    public Object blockEntity(int x, int y, int z) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 80,
+            summary = "Reads a block entity for configuration. Call `invalidateContent()` after editing its data.")
+    @WikiReturn("the native block entity, or null")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 80,
+            summary = "Reads a block entity for configuration. Call `invalidateContent()` after editing its data.")
+    public Object blockEntity(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z) {
         Section section = section(x, y, z);
         return section == null ? null : section.blockEntity(Section.index(x, y, z));
     }
 
     /**
-     * Ставит блок по строке вида {@code minecraft:furnace[facing=south]} или {@code minecraft:wool@14}.
+     * Sets a block using a {@link BlockSpec}.
      *
-     * @param x     локальная координата X.
-     * @param y     локальная координата Y.
-     * @param z     локальная координата Z.
-     * @param block строка блока. Воздух удаляет блок.
-     * @return этот узел.
-     * @throws IllegalArgumentException если строка некорректна, блок неизвестен или позиция вне допустимых границ.
-     * @throws IllegalStateException    если платформа не установлена или блоки ещё не загружены.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @param block block specification. Air removes the cell.
+     * @return this node.
+     * @throws IllegalArgumentException if the specification, block or position is invalid.
+     * @throws IllegalStateException if the platform or block data is unavailable.
      */
-    public StructureNode setBlock(int x, int y, int z, String block) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a block using a `BlockSpec`.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the specification, block or position is invalid.")
+    @WikiThrows(type = IllegalStateException.class, description = "if the platform or block data is unavailable.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a block using a `BlockSpec`.")
+    public StructureNode setBlock(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z,
+            @WikiParameter(description = "block specification. Air removes the cell.") String block) {
         BlockSpec spec = BlockSpec.parse(block);
         checkPosition(x, y, z);
         ScenePlatform target = writer();
@@ -185,33 +289,56 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Ставит нативное состояние или блок с состоянием по умолчанию.
+     * Sets a native block state or a native block with its default state.
      *
-     * @param x     локальная координата X.
-     * @param y     локальная координата Y.
-     * @param z     локальная координата Z.
-     * @param block {@code BlockState}, {@code IBlockState}, {@code Block} или нативное состояние платформы.
-     * @return этот узел.
-     * @throws IllegalArgumentException если тип объекта не подходит версии или позиция вне границ.
-     * @throws IllegalStateException    если платформа не установлена.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @param block native state or block for the current platform.
+     * @return this node.
+     * @throws IllegalArgumentException if the object type or position is invalid.
+     * @throws IllegalStateException if the platform is unavailable.
      */
-    public StructureNode setBlock(int x, int y, int z, Object block) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a native block state or a native block with its default state.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the object type or position is invalid.")
+    @WikiThrows(type = IllegalStateException.class, description = "if the platform is unavailable.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a native block state or a native block with its default state.")
+    public StructureNode setBlock(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z,
+            @WikiParameter(description = "native state or block for the current platform.") Object block) {
         return setBlock(x, y, z, block, -1);
     }
 
     /**
-     * Ставит блок с метаданными на 1.7.10 и 1.12.2.
+     * Sets a block with metadata on 1.7.10 and 1.12.2.
      *
-     * @param x     локальная координата X.
-     * @param y     локальная координата Y.
-     * @param z     локальная координата Z.
-     * @param block блок версии.
-     * @param meta  метаданные от 0 до 15 или {@code -1}.
-     * @return этот узел.
-     * @throws IllegalArgumentException если тип объекта или метаданные не подходят версии.
-     * @throws IllegalStateException    если платформа не установлена.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @param block native block.
+     * @param meta metadata from 0 to 15, or -1 for the default.
+     * @return this node.
+     * @throws IllegalArgumentException if the object, metadata or position is invalid.
+     * @throws IllegalStateException if the platform is unavailable.
      */
-    public StructureNode setBlock(int x, int y, int z, Object block, int meta) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a block with metadata on 1.7.10 and 1.12.2.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the object, metadata or position is invalid.")
+    @WikiThrows(type = IllegalStateException.class, description = "if the platform is unavailable.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 60,
+            summary = "Sets a block with metadata on 1.7.10 and 1.12.2.")
+    public StructureNode setBlock(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z,
+            @WikiParameter(description = "native block.") Object block,
+            @WikiParameter(description = "metadata from 0 to 15, or -1 for the default.") int meta) {
         Objects.requireNonNull(block, "block");
         checkPosition(x, y, z);
         ScenePlatform target = writer();
@@ -219,29 +346,47 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Удаляет блок и его block entity.
+     * Removes a block and its block entity.
      *
-     * @param x локальная координата X.
-     * @param y локальная координата Y.
-     * @param z локальная координата Z.
-     * @return этот узел.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return this node.
      */
-    public StructureNode removeBlock(int x, int y, int z) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 70,
+            summary = "Removes a block and its block entity.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 70,
+            summary = "Removes a block and its block entity.")
+    public StructureNode removeBlock(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z) {
         if (!inBounds(x, y, z) || block(x, y, z) == null) return this;
         return put(x, y, z, null);
     }
 
     /**
-     * Заменяет block entity существующего блока, например данными из файла структуры.
+     * Replaces an existing block's block entity, for example with data from a structure template.
      *
-     * @param x            локальная координата X.
-     * @param y            локальная координата Y.
-     * @param z            локальная координата Z.
-     * @param blockEntity  нативный block entity или null для удаления.
-     * @return этот узел.
-     * @throws IllegalArgumentException если в позиции нет блока.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @param blockEntity native block entity, or null to remove it.
+     * @return this node.
+     * @throws IllegalArgumentException if the position has no block.
      */
-    public StructureNode setBlockEntity(int x, int y, int z, Object blockEntity) {
+    @WikiMethod(section = "Block data", sectionOrder = 10, order = 90,
+            summary = "Replaces an existing block's block entity, for example with data from a structure template.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the position has no block.")
+    @AiDoc(section = "Block data", sectionOrder = 10, order = 90,
+            summary = "Replaces an existing block's block entity, for example with data from a structure template.")
+    public StructureNode setBlockEntity(
+            @WikiParameter(description = "local block X.") int x,
+            @WikiParameter(description = "local block Y.") int y,
+            @WikiParameter(description = "local block Z.") int z,
+            @WikiParameter(description = "native block entity, or null to remove it.") Object blockEntity) {
         Section section = section(x, y, z);
         int index = Section.index(x, y, z);
         if (section == null || section.states[index] == null) {
@@ -255,24 +400,34 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Читает последний видимый слой структуры.
+     * Reads the layer cutoff.
      *
-     * @return максимальная видимая координата блока по Y включительно.
+     * @return highest visible local block Y, inclusive.
      */
+    @WikiMethod(section = "Layer slicing and assembly", sectionOrder = 20, order = 10,
+            summary = "Reads the layer cutoff.")
+    @WikiReturn("highest visible local block Y, inclusive")
+    @AiDoc(section = "Layer slicing and assembly", sectionOrder = 20, order = 10,
+            summary = "Reads the layer cutoff.")
     public int topVisibleY() {
         return topVisibleY;
     }
 
     /**
-     * Показывает блоки до указанного слоя включительно. Увеличение границы по одному блоку
-     * позволяет проиграть сборку структуры. {@link Integer#MAX_VALUE} показывает все слои.
+     * Shows blocks through the specified layer, inclusive. Use {@link Integer#MAX_VALUE} to show all layers.
      *
-     * @param topVisibleY максимальная видимая локальная координата блока по Y.
-     * @return этот узел.
+     * @param topVisibleY highest visible local block Y.
+     * @return this node.
      */
-    public StructureNode setTopVisibleY(int topVisibleY) {
+    @WikiMethod(section = "Layer slicing and assembly", sectionOrder = 20, order = 20,
+            summary = "Shows blocks through the specified layer, inclusive. Use `Integer#MAX_VALUE` to show all layers.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Layer slicing and assembly", sectionOrder = 20, order = 20,
+            summary = "Shows blocks through the specified layer, inclusive. Use `Integer#MAX_VALUE` to show all layers.")
+    public StructureNode setTopVisibleY(
+            @WikiParameter(description = "highest visible local block Y.") int topVisibleY) {
         if (this.topVisibleY == topVisibleY) return this;
-        // Учитываем пробы AO и жидкости на расстоянии до двух блоков.
+        // Include ambient occlusion and fluid probes up to two blocks away.
         long firstAffectedY = (long) Math.min(this.topVisibleY, topVisibleY) - 1L;
         int lastAffectedY = Math.max(this.topVisibleY, topVisibleY);
         for (Section section : sections.values()) {
@@ -286,11 +441,11 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Находит нижний и верхний непустые слои не выше границы. Результат без границы кэшируется до изменения
-     * набора блоков.
+     * Finds the lowest and highest occupied layers through an inclusive limit. An unrestricted result is cached
+     * until the block set changes.
      *
-     * @param targetTopY верхняя граница поиска, включительно.
-     * @return массив {@code {lowestY, highestY}} или null для пустой структуры.
+     * @param targetTopY highest layer to search, inclusive.
+     * @return {@code {lowestY, highestY}}, or null if no blocks were found.
      */
     int[] layerRange(int targetTopY) {
         boolean cacheable = targetTopY == Integer.MAX_VALUE;
@@ -315,19 +470,28 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Проигрывает сборку снизу вверх. За первый интервал видимых блоков ещё нет.
-     * Для прогресса {@code p} от 0 до 1 отображаются слои до
-     * {@code floor(lowestY - 1 + p * (highestY - lowestY + 1))}, где границы берутся
-     * по блокам не выше {@code targetTopY}. В конце устанавливает {@code targetTopY}.
+     * Reveals layers from bottom to top. For progress p in [0, 1], visible layers end at
+     * {@code floor(lowestY - 1 + p * (highestY - lowestY + 1))}. The occupied range is computed through
+     * targetTopY. The first interval is empty, and completion restores the exact target cutoff.
      *
-     * @param viewport   виджет, которому принадлежит узел и который обновляет анимацию.
-     * @param seconds    длительность сборки в секундах. Ноль сразу показывает результат.
-     * @param targetTopY последний видимый локальный слой после сборки, включительно.
-     * @return этот узел.
-     * @throws IllegalArgumentException если узел находится в другой сцене, ещё не добавлен или длительность не конечна
-     *                                  либо отрицательна.
+     * @param viewport viewport whose scene owns this node and whose clock drives the animation.
+     * @param seconds duration in seconds. Zero applies the final cutoff immediately.
+     * @param targetTopY final inclusive local block Y cutoff.
+     * @return this node.
+     * @throws IllegalArgumentException if the node belongs to a different scene or the duration is negative or nonfinite.
      */
-    public StructureNode playAssembly(Scene3D viewport, float seconds, int targetTopY) {
+    @WikiMethod(section = "Layer slicing and assembly", sectionOrder = 20, order = 30,
+            summary = "Reveals layers from bottom to top. For progress p in [0, 1], visible layers end at `floor(lowestY - 1 + p * (highestY - lowestY + 1))`. The occupied range is computed through targetTopY. The first interval is empty, and completion restores the exact target cutoff.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the node belongs to a different scene or the duration is negative or nonfinite.")
+    @AiDoc(section = "Layer slicing and assembly", sectionOrder = 20, order = 30,
+            summary = "Reveals layers from bottom to top. For progress p in [0, 1], visible layers end at `floor(lowestY - 1 + p * (highestY - lowestY + 1))`. The occupied range is computed through targetTopY. The first interval is empty, and completion restores the exact target cutoff.")
+    public StructureNode playAssembly(
+            @WikiParameter(description =
+                    "viewport whose scene owns this node and whose clock drives the animation.")
+            Scene3D viewport,
+            @WikiParameter(description = "duration in seconds. Zero applies the final cutoff immediately.") float seconds,
+            @WikiParameter(description = "final inclusive local block Y cutoff.") int targetTopY) {
         if (scene() != viewport.scene() || !Float.isFinite(seconds) || seconds < 0) {
             throw new IllegalArgumentException("Assembly requires an attached structure and a finite nonnegative duration");
         }
@@ -348,19 +512,28 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Задаёт меш, заменяющий геометрию блоков и модели block entity вдали от камеры.
-     * Меш должен лежать в локальных границах блоков. При активном срезе и в ортографическом
-     * режиме используются модели блоков. Выбор блока курсором использует исходные блоки.
-     * После редактирования блоков обновите упрощённую модель при необходимости.
+     * Sets a distant replacement mesh for the blocks and block entities. Keep the mesh inside the local block bounds.
+     * Layer slicing and orthographic views use block models. Picking always uses the original blocks.
+     * Update the mesh when the structure changes as needed.
      *
-     * @param mesh        упрощённая геометрия в координатах структуры или null для отключения.
-     * @param material    материал меша или null для {@link Material#DEFAULT}.
-     * @param minDistance минимальное расстояние от камеры до мирового AABB структуры в единицах сцены.
-     *                    Игнорируется при mesh равном null.
-     * @return этот узел.
-     * @throws IllegalArgumentException если задан меш с неположительным или неконечным расстоянием.
+     * @param mesh simplified geometry in structure-local space, or null to disable it.
+     * @param material mesh material, or null for {@link Material#DEFAULT}.
+     * @param minDistance minimum distance from the camera to the world-space block AABB, in scene units.
+     * @return this node.
+     * @throws IllegalArgumentException if a supplied mesh has a nonpositive or nonfinite distance.
      */
-    public StructureNode setDistantMesh(Mesh3D mesh, Material material, float minDistance) {
+    @WikiMethod(section = "Renderer integration", sectionOrder = 30, order = 10,
+            summary = "Sets a distant replacement mesh for the blocks and block entities. Keep the mesh inside the local block bounds. Layer slicing and orthographic views use block models. Picking always uses the original blocks. Update the mesh when the structure changes as needed.")
+    @WikiReturn("this node")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a supplied mesh has a nonpositive or nonfinite distance.")
+    @AiDoc(section = "Renderer integration", sectionOrder = 30, order = 10,
+            summary = "Sets a distant replacement mesh for the blocks and block entities. Keep the mesh inside the local block bounds. Layer slicing and orthographic views use block models. Picking always uses the original blocks. Update the mesh when the structure changes as needed.")
+    public StructureNode setDistantMesh(
+            @WikiParameter(description = "simplified geometry in structure-local space, or null to disable it.") Mesh3D mesh,
+            @WikiParameter(description = "mesh material, or null for `Material#DEFAULT`.") Material material,
+            @WikiParameter(description =
+                    "minimum distance from the camera to the world-space block AABB, in scene units.")
+            float minDistance) {
         if (mesh != null && (!(minDistance > 0) || !Float.isFinite(minDistance))) {
             throw new IllegalArgumentException("Distant mesh requires a positive finite distance");
         }
@@ -374,13 +547,22 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Выбирает дальний меш для камеры вне AABB структуры на заданном расстоянии. Вызывается рендерером.
+     * Selects a distant mesh for a camera far enough outside the structure's AABB.
      *
-     * @param eye   мировые координаты перспективной камеры или null для ортографической.
-     * @param world матрица из координат структуры в мировые.
-     * @return подходящий дальний меш или null для геометрии блоков.
+     * @param eye world-space perspective camera position, or null for an orthographic camera.
+     * @param world transform from structure space to world space.
+     * @return the applicable distant mesh, or null to draw blocks.
      */
-    public DistantMesh distantMesh(Vec3View eye, MutableMat4 world) {
+    @WikiMethod(section = "Renderer integration", sectionOrder = 30, order = 20,
+            summary = "Selects a distant mesh for a camera far enough outside the structure's AABB.")
+    @WikiReturn("the applicable distant mesh, or null to draw blocks")
+    @AiDoc(section = "Renderer integration", sectionOrder = 30, order = 20,
+            summary = "Selects a distant mesh for a camera far enough outside the structure's AABB.")
+    public DistantMesh distantMesh(
+            @WikiParameter(description =
+                    "world-space perspective camera position, or null for an orthographic camera.")
+            Vec3View eye,
+            @WikiParameter(description = "transform from structure space to world space.") MutableMat4 world) {
         DistantMesh candidate = distantMesh;
         if (candidate == null || eye == null || topVisibleY != Integer.MAX_VALUE) return null;
         contentBounds();
@@ -398,15 +580,15 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Считает расстояние вдоль одной оси до мирового AABB. Для строки R матрицы world и точки камеры e
-     * это {@code max(0, |e - (R · center + translation)| - |R| · halfSize)}.
-     * Здесь center и halfSize берутся из локальных границ блоков, а |R| берётся поэлементно.
+     * Measures separation from the world AABB on one axis. For world matrix row R and eye coordinate e,
+     * the distance is {@code max(0, |e - (R · center + translation)| - |R| · halfSize)}.
+     * The center and half-size come from the local block AABB, and |R| is componentwise absolute value.
      *
-     * @param bounds локальный AABB структуры в блоках.
-     * @param world  аффинная матрица из локальной системы в мировую.
-     * @param axis   номер мировой оси от 0 до 2.
-     * @param eye    мировая координата камеры на этой оси.
-     * @return расстояние до AABB вдоль этой оси в мировых единицах.
+     * @param bounds local structure AABB in blocks.
+     * @param world local-to-world affine transform.
+     * @param axis world axis index from 0 to 2.
+     * @param eye world camera coordinate on that axis.
+     * @return the distance to the AABB on that axis in world units.
      */
     private static double distanceToWorldBounds(Aabb bounds, MutableMat4 world, int axis, double eye) {
         double center = world.transformComponent(axis, (bounds.minX() + (double) bounds.maxX()) * 0.5,
@@ -418,28 +600,33 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Подготовленная упрощённая модель структуры.
+     * Prepared simplified mesh for a structure.
      *
-     * @param mesh            геометрия в локальных координатах структуры.
-     * @param material        материал меша.
-     * @param distanceSquared квадрат порога расстояния в мировых единицах.
+     * @param mesh geometry in structure-local space.
+     * @param material surface settings.
+     * @param distanceSquared squared threshold in scene units squared.
      */
     public record DistantMesh(Mesh3D mesh, Material material, double distanceSquared) {
     }
 
     /**
-     * Читает секции структуры для запекания геометрии.
+     * Reads sections for geometry baking.
      *
-     * @return неизменяемое представление, отражающее последующие изменения структуры.
+     * @return a live, read-only collection.
      */
+    @WikiMethod(section = "Renderer integration", sectionOrder = 30, order = 30,
+            summary = "Reads sections for geometry baking.")
+    @WikiReturn("a live, read-only collection")
+    @AiDoc(section = "Renderer integration", sectionOrder = 30, order = 30,
+            summary = "Reads sections for geometry baking.")
     public Collection<Section> sections() {
         return sectionView;
     }
 
     /**
-     * Пересчитывает границы после изменения блоков, включая верхние и боковые грани крайних блоков.
+     * Recomputes content bounds after block changes, including the outer faces of edge blocks.
      *
-     * @return локальные границы геометрии или null для пустого узла.
+     * @return local geometry bounds, or null for an empty node.
      */
     @Override
     protected Aabb contentBounds() {
@@ -507,14 +694,14 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Записывает приведённое состояние. Воздух и null удаляют запись. При изменении помечаются секции, где
-     * геометрия, жидкость или ambient occlusion могут зависеть от изменённой позиции.
+     * Writes a native state. Null and air remove the cell. Marks sections whose geometry, fluid surfaces
+     * or ambient occlusion can be affected by the update.
      *
-     * @param x     локальная координата X в допустимых границах.
-     * @param y     локальная координата Y в допустимых границах.
-     * @param z     локальная координата Z в допустимых границах.
-     * @param state нативное состояние или null.
-     * @return этот узел.
+     * @param x valid local block X.
+     * @param y valid local block Y.
+     * @param z valid local block Z.
+     * @param state native state, or null.
+     * @return this node.
      */
     private StructureNode put(int x, int y, int z, Object state) {
         if (state != null && platform.isAirBlock(state)) state = null;
@@ -540,7 +727,7 @@ public final class StructureNode extends SceneNode {
             section.states[index] = state;
             section.setBlockEntity(index, platform.blockEntity(state, section.blockEntity(index), x, y, z));
         }
-        // Запросы к соседним блокам включают угловые пробы AO и высоту соседнего столбца жидкости.
+        // Neighbor queries include corner AO samples and the height of nearby fluid columns.
         for (int sy = (y - 2) >> 4; sy <= (y + 2) >> 4; sy++) {
             for (int sz = (z - 2) >> 4; sz <= (z + 2) >> 4; sz++) {
                 for (int sx = (x - 2) >> 4; sx <= (x + 2) >> 4; sx++) {
@@ -556,10 +743,10 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Фиксирует платформу записи.
+     * Selects and retains the adapter used for writes.
      *
-     * @return платформа структуры.
-     * @throws IllegalStateException если платформа не задана и не установлена.
+     * @return the structure platform.
+     * @throws IllegalStateException if no platform was supplied or installed.
      */
     private ScenePlatform writer() {
         if (platform == null) {
@@ -573,12 +760,12 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Проверяет, что платформа уже может создать состояние.
+     * Checks that a platform produced a block state.
      *
-     * @param state  результат платформы.
-     * @param source исходный блок для сообщения.
-     * @return непустое состояние.
-     * @throws IllegalStateException если блоки ещё не загружены.
+     * @param state platform result.
+     * @param source original block input used in the error message.
+     * @return non-null native state.
+     * @throws IllegalStateException if the state is unavailable.
      */
     private static Object available(Object state, Object source) {
         if (state == null) throw new IllegalStateException("Blocks are not available yet: " + source);
@@ -586,24 +773,24 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Находит секцию блока.
+     * Finds the section that contains the block.
      *
-     * @param x координата блока X.
-     * @param y координата блока Y.
-     * @param z координата блока Z.
-     * @return секция или null.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return the section, or null.
      */
     private Section section(int x, int y, int z) {
         return inBounds(x, y, z) ? sections.get(sectionKey(x >> 4, y >> 4, z >> 4)) : null;
     }
 
     /**
-     * Проверяет координаты по пределам позиции блока Minecraft.
+     * Checks coordinates against the packed block position limits.
      *
-     * @param x координата X.
-     * @param y координата Y.
-     * @param z координата Z.
-     * @return true, если позиция представима.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @return true if the position is representable.
      */
     private static boolean inBounds(int x, int y, int z) {
         return x >= MIN_HORIZONTAL && x <= MAX_HORIZONTAL && z >= MIN_HORIZONTAL && z <= MAX_HORIZONTAL
@@ -611,12 +798,12 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Отклоняет позицию вне пределов.
+     * Rejects an out-of-range position.
      *
-     * @param x координата X.
-     * @param y координата Y.
-     * @param z координата Z.
-     * @throws IllegalArgumentException если позиция не представима в Minecraft.
+     * @param x local block X.
+     * @param y local block Y.
+     * @param z local block Z.
+     * @throws IllegalArgumentException if the position is outside the supported range.
      */
     private static void checkPosition(int x, int y, int z) {
         if (!inBounds(x, y, z)) {
@@ -626,57 +813,56 @@ public final class StructureNode extends SceneNode {
     }
 
     /**
-     * Упаковывает координаты секции: 22 бита X, 22 бита Z и 8 бит Y.
+     * Packs section coordinates using 22 bits for X, 22 for Z and 8 for Y.
      *
-     * @param x координата секции X.
-     * @param y координата секции Y.
-     * @param z координата секции Z.
-     * @return ключ секции.
+     * @param x section X.
+     * @param y section Y.
+     * @param z section Z.
+     * @return packed section key.
      */
     private static long sectionKey(int x, int y, int z) {
         return ((long) (x & 0x3FFFFF) << 30) | ((long) (z & 0x3FFFFF) << 8) | (y & 0xFF);
     }
 
     /**
-     * Одна секция 16×16×16. Ячейка с индексом {@code (y << 8) | (z << 4) | x} хранит состояние блока
-     * с локальными координатами секции x, y, z.
+     * A 16×16×16 section. Index {@code (y << 8) | (z << 4) | x} uses coordinates relative to the section.
      */
     public static final class Section {
         /**
-         * Число ячеек секции.
+         * Number of cells in a section.
          */
         public static final int VOLUME = 16 * 16 * 16;
         /**
-         * Координаты секции в сетке 16×16×16.
+         * Section coordinates in the grid of 16-block sections.
          */
         private final int x, y, z;
         /**
-         * Нативные состояния по индексу ячейки или null.
+         * Native block states by cell index, or null for air.
          */
         private final Object[] states = new Object[VOLUME];
         /**
-         * Block entity по индексу ячейки. Создаётся с первым таким блоком.
+         * Block entities by cell index. The array is allocated when needed.
          */
         private Object[] blockEntities;
         /**
-         * Число непустых ячеек.
+         * Number of occupied cells.
          */
         private int blockCount;
         /**
-         * Число block entity.
+         * Number of block entities.
          */
         private int blockEntityCount;
         /**
-         * Версия блоков секции и ближайших соседей для кэша геометрии.
+         * Geometry cache revision for this section and affected neighbor changes.
          */
         private long revision;
 
         /**
-         * Создаёт пустую секцию.
+         * Creates an empty section.
          *
-         * @param x координата секции X.
-         * @param y координата секции Y.
-         * @param z координата секции Z.
+         * @param x section X.
+         * @param y section Y.
+         * @param z section Z.
          */
         private Section(int x, int y, int z) {
             this.x = x;
@@ -685,110 +871,126 @@ public final class StructureNode extends SceneNode {
         }
 
         /**
-         * Вычисляет индекс ячейки по координатам блока.
+         * Computes the cell index from block coordinates.
          *
-         * @param x координата блока X в структуре.
-         * @param y координата блока Y в структуре.
-         * @param z координата блока Z в структуре.
-         * @return индекс от 0 до {@link #VOLUME} - 1.
+         * @param x block X in structure coordinates.
+         * @param y block Y in structure coordinates.
+         * @param z block Z in structure coordinates.
+         * @return index from 0 through {@link #VOLUME} - 1.
          */
         public static int index(int x, int y, int z) {
             return ((y & 15) << 8) | ((z & 15) << 4) | (x & 15);
         }
 
         /**
-         * @param index индекс ячейки.
-         * @return локальная координата X внутри секции.
+         * Decodes the local X coordinate.
+         *
+         * @param index cell index.
+         * @return X within the section.
          */
         public static int localX(int index) {
             return index & 15;
         }
 
         /**
-         * @param index индекс ячейки.
-         * @return локальная координата Y внутри секции.
+         * Decodes the local Y coordinate.
+         *
+         * @param index cell index.
+         * @return Y within the section.
          */
         public static int localY(int index) {
             return index >>> 8;
         }
 
         /**
-         * @param index индекс ячейки.
-         * @return локальная координата Z внутри секции.
+         * Decodes the local Z coordinate.
+         *
+         * @param index cell index.
+         * @return Z within the section.
          */
         public static int localZ(int index) {
             return (index >>> 4) & 15;
         }
 
         /**
-         * @return координата X первого блока секции.
+         * Reads the section origin along X.
+         *
+         * @return X of the first block in the section.
          */
         public int minBlockX() {
             return x << 4;
         }
 
         /**
-         * @return координата Y первого блока секции.
+         * Reads the section origin along Y.
+         *
+         * @return Y of the first block in the section.
          */
         public int minBlockY() {
             return y << 4;
         }
 
         /**
-         * @return координата Z первого блока секции.
+         * Reads the section origin along Z.
+         *
+         * @return Z of the first block in the section.
          */
         public int minBlockZ() {
             return z << 4;
         }
 
         /**
-         * Читает версию для сравнения с кэшем геометрии.
+         * Reads the geometry revision.
          *
-         * @return число изменений блоков секции, соседей и среза слоёв.
+         * @return change counter affected by blocks, neighbors and the layer cutoff.
          */
         public long revision() {
             return revision;
         }
 
         /**
-         * @return число непустых ячеек.
+         * Counts occupied cells.
+         *
+         * @return number of occupied cells.
          */
         public int blockCount() {
             return blockCount;
         }
 
         /**
-         * @return число block entity в секции.
+         * Counts block entities.
+         *
+         * @return number of block entities.
          */
         public int blockEntityCount() {
             return blockEntityCount;
         }
 
         /**
-         * Читает состояние ячейки.
+         * Reads a cell's state.
          *
-         * @param index индекс ячейки.
-         * @return нативное состояние или null.
+         * @param index cell index.
+         * @return native state, or null.
          */
         public Object state(int index) {
             return states[index];
         }
 
         /**
-         * Читает block entity ячейки.
+         * Reads a cell's block entity.
          *
-         * @param index индекс ячейки.
-         * @return нативный block entity или null.
+         * @param index cell index.
+         * @return native block entity, or null.
          */
         public Object blockEntity(int index) {
             return blockEntities == null ? null : blockEntities[index];
         }
 
         /**
-         * Заменяет block entity ячейки и обновляет счётчик.
+         * Replaces a cell's block entity and updates the count.
          *
-         * @param index индекс ячейки.
-         * @param value новый объект или null.
+         * @param index cell index.
+         * @param value new block entity, or null.
          */
         private void setBlockEntity(int index, Object value) {
             if (blockEntities == null) {

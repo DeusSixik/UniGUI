@@ -322,20 +322,26 @@ def wikiAssetsDirectory = providers.gradleProperty("wikiAssetsDir")
         .map { file(it) }
         .orElse(providers.provider { rootProject.file("docs/assets") })
 
+// Compile only the documentation tools so generation works independently of version-specific test sources.
+def documentation = sourceSets.create("documentation") {
+    java.setSrcDirs(["src/test/java"])
+    java.include("dev/sixik/unigui/tests/AiMarkdownGenerator.java",
+            "dev/sixik/unigui/tests/WikiMarkdownGenerator.java",
+            "dev/sixik/unigui/tests/WikiLocalization.java")
+    compileClasspath += sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.runtimeClasspath
+}
+
 tasks.register("generateWiki", JavaExec) {
     group = "documentation"
     description = "Generates site-ready Markdown wiki pages from @WikiPage annotations."
-    dependsOn tasks.named("testClasses")
-    dependsOn project(":demo").tasks.named("classes")
-    classpath = sourceSets.test.runtimeClasspath
-    classpath += project(":demo").sourceSets.main.runtimeClasspath
+    classpath = documentation.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.WikiMarkdownGenerator"
     args wikiOutputDirectory.get().absolutePath,
             wikiLanguageDirectory.get().absolutePath,
             wikiAssetsDirectory.get().absolutePath
     inputs.dir(wikiLanguageDirectory)
     inputs.dir(wikiAssetsDirectory)
-    inputs.files(project(":demo").sourceSets.main.output)
     outputs.dir(wikiOutputDirectory)
 }
 
@@ -346,13 +352,9 @@ def aiDocsOutputDirectory = providers.gradleProperty("aiDocsOutputDir")
 tasks.register("generateAiDocs", JavaExec) {
     group = "documentation"
     description = "Generates a separate Markdown collection exclusively from @AiDoc annotations."
-    dependsOn tasks.named("testClasses")
-    dependsOn project(":demo").tasks.named("classes")
-    classpath = sourceSets.test.runtimeClasspath
-    classpath += project(":demo").sourceSets.main.runtimeClasspath
+    classpath = documentation.runtimeClasspath
     mainClass = "dev.sixik.unigui.tests.AiMarkdownGenerator"
     args aiDocsOutputDirectory.get().absolutePath
-    inputs.files(project(":demo").sourceSets.main.output)
     outputs.dir(aiDocsOutputDirectory)
 }
 

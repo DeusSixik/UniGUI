@@ -1,5 +1,14 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.scene.BlockNode;
@@ -31,39 +40,68 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Платформа 3D-сцены для 1.20.1, 1.21.1 и 26.x и типизированный доступ к нативным объектам узлов.
+ * Scene platform for Minecraft 1.20.1, 1.21.1 and 26.x with typed access to native content.
  *
  * <pre>{@code
  * BlockNode furnace = BlockNode.of(Blocks.FURNACE.defaultBlockState());
  * BlockState state = MinecraftScene.state(furnace);
  * BlockEntity entity = MinecraftScene.blockEntity(furnace);
  *
- * StructureNode altar = MinecraftScene.loadStructure("mymod:altar");
+ * StructureNode altar = MinecraftScene.PLATFORM.loadStructure("mymod:altar");
  * MinecraftScene.setBlock(altar, new BlockPos(0, 3, 0), Blocks.BEACON.defaultBlockState());
  * }</pre>
- *
- * <p>Строки блоков разбираются ванильным парсером команд, поэтому поддерживают тот же синтаксис, что
- * {@code /setblock}. Метаданные {@code @meta} в этих версиях не существуют и отклоняются.</p>
+ * <p>Block specifications use the vanilla command parser and follow {@code /setblock} state syntax.
+ * These versions reject legacy {@code @meta}.</p>
  */
+@WikiPage(
+        title = "MinecraftScene", slug = "minecraft-scene",
+        category = "API/3D Scene", order = 210,
+        summary = "Typed access to native scene content on modern Minecraft.")
+@WikiSection(title = "Typed Minecraft helpers", order = 10, markdown = """
+        Use the static accessors to inspect the objects resolved by portable nodes. `readStructure` accepts a
+        gzip-compressed template stream or a decoded `CompoundTag`. Resource lookups accept a namespaced ID without
+        `structure/` or `.nbt`.
+        """)
+@WikiExample(title = "Read the native block state", code = """
+        BlockNode furnace = BlockNode.of(Blocks.FURNACE.defaultBlockState());
+        BlockState state = MinecraftScene.state(furnace);
+        """)
+@WikiLink(label = "ScenePlatform", target = "page:scene-platform")
+@WikiLink(label = "BlockNode", target = "page:block-node")
+@WikiLink(label = "ItemNode", target = "page:item-node")
+@WikiLink(label = "EntityNode", target = "page:entity-node")
+@WikiLink(label = "StructureNode", target = "page:structure-node")
+@AiDoc(
+        summary = "Typed access to native scene content on modern Minecraft.",
+        purpose = "Use BlockState, BlockEntity, ItemStack, Entity and structure NBT from Java code targeting modern Minecraft.",
+        criticalRules = {
+                "Use `MinecraftScene.PLATFORM` to access the installed modern adapter's structure loading API.",
+                "`state` tolerates invalid content. `requireState` propagates invalid state errors.",
+                "`stack` returns a copy. Call `invalidateContent()` after changing a returned block entity used in an on-change viewport."
+        },
+        related = {"ScenePlatform", "BlockNode", "ItemNode", "EntityNode", "StructureNode"},
+        examples = @AiDoc.Example(title = "Read the native block state", code = """
+                BlockNode furnace = BlockNode.of(Blocks.FURNACE.defaultBlockState());
+                BlockState state = MinecraftScene.state(furnace);
+                """))
 public final class MinecraftScene implements ScenePlatform {
     /**
-     * Направления на два ванильных источника света мира: так игра освещает предметы и сущности в мире.
-     * Векторы смотрят к свету, освещённость грани {@code 0.4 + 0.6 * (max(0, n·l0) + max(0, n·l1))}.
+     * Direction toward the first of two vanilla world lights. For a unit normal n and directions l0 and l1,
+     * illumination is {@code 0.4 + 0.6 * (max(0, n·l0) + max(0, n·l1))}.
      */
     private static final Vector3fc LIGHT_0 = new Vector3f(0.2f, 1, -0.7f).normalize();
     /**
-     * Второй источник ванильного света мира.
+     * Direction toward the second vanilla world light.
      */
     private static final Vector3fc LIGHT_1 = new Vector3f(-0.2f, 1, 0.7f).normalize();
 
     /**
-     * Переводит ванильный свет мира в координаты камеры. Нормали предметов и сущностей сцены проходят через
-     * {@code view * world}, поэтому направления на свет тоже поворачиваются видом: свет остаётся закреплён в мире
-     * сцены и не крутится вместе с камерой.
+     * Transforms the vanilla world lights into camera space. Item and entity normals go through
+     * {@code view * world}, so applying the view rotation to the light directions keeps the lights fixed in world space.
      *
-     * @param view   матрица вида сцены.
-     * @param light0 первое направление в координатах камеры.
-     * @param light1 второе направление в координатах камеры.
+     * @param view scene view matrix.
+     * @param light0 output vector for the first camera-space direction.
+     * @param light1 output vector for the second camera-space direction.
      */
     static void lightsInView(Matrix4fc view, Vector3f light0, Vector3f light1) {
         view.transformDirection(LIGHT_0, light0).normalize();
@@ -71,11 +109,11 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Единственный экземпляр платформы.
+     * Shared platform instance.
      */
     public static final MinecraftScene PLATFORM = new MinecraftScene();
     /**
-     * Лимит распакованного NBT структуры в байтах.
+     * Limit for decompressed structure NBT in bytes.
      */
     private static final long NBT_LIMIT = 64L * 1024 * 1024;
 
@@ -83,75 +121,113 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Читает состояние блока узла.
+     * Reads the node's block state.
      *
-     * @param node узел блока.
-     * @return состояние или null, если строка неверна.
+     * @param node block node.
+     * @return block state, or null if unavailable or invalid.
      */
-    public static BlockState state(BlockNode node) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 10,
+            summary = "Reads the node's block state.")
+    @WikiReturn("block state, or null if unavailable or invalid")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 10,
+            summary = "Reads the node's block state.")
+    public static BlockState state(
+            @WikiParameter(description = "block node.") BlockNode node) {
         return (BlockState) node.nativeState(PLATFORM);
     }
 
     /**
-     * Читает состояние блока и бросает ошибку неверной строки.
+     * Reads the block state and propagates resolution errors.
      *
-     * @param node узел блока.
-     * @return состояние блока.
-     * @throws IllegalArgumentException если блок, свойство или значение неизвестны.
+     * @param node block node.
+     * @return block state, or null if temporarily unavailable.
+     * @throws IllegalArgumentException if a block, property or value is unknown.
      */
-    public static BlockState requireState(BlockNode node) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 20,
+            summary = "Reads the block state and propagates resolution errors.")
+    @WikiReturn("block state, or null if temporarily unavailable")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if a block, property or value is unknown.")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 20,
+            summary = "Reads the block state and propagates resolution errors.")
+    public static BlockState requireState(
+            @WikiParameter(description = "block node.") BlockNode node) {
         return (BlockState) node.requireNativeState(PLATFORM);
     }
 
     /**
-     * Читает block entity узла для настройки данных и анимации.
+     * Reads the block entity for data or animation changes.
      *
-     * @param node узел блока.
-     * @return block entity или null для блока без неё.
+     * @param node block node.
+     * @return block entity, or null if absent.
      */
-    public static BlockEntity blockEntity(BlockNode node) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 30,
+            summary = "Reads the block entity for data or animation changes.")
+    @WikiReturn("block entity, or null if absent")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 30,
+            summary = "Reads the block entity for data or animation changes.")
+    public static BlockEntity blockEntity(
+            @WikiParameter(description = "block node.") BlockNode node) {
         return (BlockEntity) node.blockEntity(PLATFORM);
     }
 
     /**
-     * Читает копию стека узла.
+     * Copies the node's resolved stack.
      *
-     * @param node узел предмета.
-     * @return копия стека или {@link ItemStack#EMPTY}, если предмет недоступен.
+     * @param node item node.
+     * @return stack copy, or {@link ItemStack#EMPTY} if the item is unavailable.
      */
-    public static ItemStack stack(ItemNode node) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 40,
+            summary = "Copies the node's resolved stack.")
+    @WikiReturn("stack copy, or `ItemStack#EMPTY` if the item is unavailable")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 40,
+            summary = "Copies the node's resolved stack.")
+    public static ItemStack stack(
+            @WikiParameter(description = "item node.") ItemNode node) {
         return renderStack(node).copy();
     }
 
     /**
-     * Читает сущность узла.
+     * Reads the node's entity.
      *
-     * @param node узел сущности.
-     * @return сущность или null, если превью ждёт мир либо источник — готовое состояние рендера.
+     * @param node entity node.
+     * @return entity, or null while waiting for a world or when the source is a render state.
      */
-    public static Entity entity(EntityNode node) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 50,
+            summary = "Reads the node's entity.")
+    @WikiReturn("entity, or null while waiting for a world or when the source is a render state")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 50,
+            summary = "Reads the node's entity.")
+    public static Entity entity(
+            @WikiParameter(description = "entity node.") EntityNode node) {
         SceneEntity handle = handle(node);
         return handle == null ? null : handle.entity();
     }
 
     /**
-     * Читает блок структуры.
+     * Reads a structure's block state.
      *
-     * @param structure структура этой платформы.
-     * @param pos       локальная позиция.
-     * @return состояние или воздух для пустой ячейки.
+     * @param structure structure bound to this platform.
+     * @param pos local block position.
+     * @return block state, or air for an empty cell.
      */
-    public static BlockState block(StructureNode structure, BlockPos pos) {
+    @WikiMethod(section = "Structures", sectionOrder = 20, order = 10,
+            summary = "Reads a structure's block state.")
+    @WikiReturn("block state, or air for an empty cell")
+    @AiDoc(section = "Structures", sectionOrder = 20, order = 10,
+            summary = "Reads a structure's block state.")
+    public static BlockState block(
+            @WikiParameter(description = "structure bound to this platform.") StructureNode structure,
+            @WikiParameter(description = "local block position.") BlockPos pos) {
         Object state = structure.block(pos.getX(), pos.getY(), pos.getZ());
         return state == null ? Blocks.AIR.defaultBlockState() : (BlockState) state;
     }
 
     /**
-     * Читает блок с учётом среза слоёв для запекания граней и AO.
+     * Reads a structure's block state with the layer cutoff applied, for face baking and ambient occlusion.
      *
-     * @param structure структура этой платформы.
-     * @param pos       локальная позиция.
-     * @return состояние или воздух для пустой либо скрытой ячейки.
+     * @param structure structure bound to this platform.
+     * @param pos local block position.
+     * @return block state, or air for an empty or hidden cell.
      */
     static BlockState visibleBlock(StructureNode structure, BlockPos pos) {
         Object state = structure.visibleBlock(pos.getX(), pos.getY(), pos.getZ());
@@ -159,62 +235,95 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Ставит блок структуры. Воздух удаляет запись.
+     * Sets a cell. Air removes it.
      *
-     * @param structure структура этой платформы.
-     * @param pos       локальная позиция.
-     * @param state     новое состояние.
-     * @return та же структура.
+     * @param structure structure bound to this platform.
+     * @param pos local block position.
+     * @param state new block state.
+     * @return the supplied structure.
      */
-    public static StructureNode setBlock(StructureNode structure, BlockPos pos, BlockState state) {
+    @WikiMethod(section = "Structures", sectionOrder = 20, order = 20,
+            summary = "Sets a cell. Air removes it.")
+    @WikiReturn("the supplied structure")
+    @AiDoc(section = "Structures", sectionOrder = 20, order = 20,
+            summary = "Sets a cell. Air removes it.")
+    public static StructureNode setBlock(
+            @WikiParameter(description = "structure bound to this platform.") StructureNode structure,
+            @WikiParameter(description = "local block position.") BlockPos pos,
+            @WikiParameter(description = "new block state.") BlockState state) {
         return structure.setBlock(pos.getX(), pos.getY(), pos.getZ(), state);
     }
 
     /**
-     * Читает block entity структуры для настройки данных. После изменения вызовите
-     * {@link StructureNode#invalidateContent()}.
+     * Reads a structure block entity for data changes. Call {@link StructureNode#invalidateContent()} afterward.
      *
-     * @param structure структура этой платформы.
-     * @param pos       локальная позиция.
-     * @return block entity или null.
+     * @param structure structure bound to this platform.
+     * @param pos local block position.
+     * @return block entity, or null if absent.
      */
-    public static BlockEntity blockEntity(StructureNode structure, BlockPos pos) {
+    @WikiMethod(section = "Native content", sectionOrder = 10, order = 30,
+            summary = "Reads a structure block entity for data changes. Call `StructureNode#invalidateContent()` afterward.")
+    @WikiReturn("block entity, or null if absent")
+    @AiDoc(section = "Native content", sectionOrder = 10, order = 30,
+            summary = "Reads a structure block entity for data changes. Call `StructureNode#invalidateContent()` afterward.")
+    public static BlockEntity blockEntity(
+            @WikiParameter(description = "structure bound to this platform.") StructureNode structure,
+            @WikiParameter(description = "local block position.") BlockPos pos) {
         return (BlockEntity) structure.blockEntity(pos.getX(), pos.getY(), pos.getZ());
     }
 
     /**
-     * Загружает блоки и данные block entity из сжатого шаблона структуры Minecraft.
-     * В многопалитровом шаблоне используется первая палитра.
+     * Loads blocks and block entity data from a compressed Minecraft template. Uses the first palette
+     * when the template has multiple palettes.
      *
-     * @param source поток с gzip-сжатым NBT. Чтение закрывает поток.
-     * @return структура в координатах шаблона.
-     * @throws IOException если поток не читается или поля блока не соответствуют формату.
+     * @param source stream with gzip-compressed NBT, closed by this method.
+     * @return structure in template coordinates.
+     * @throws IOException if the input cannot be read or a block entry is invalid.
      */
-    public static StructureNode readStructure(InputStream source) throws IOException {
+    @WikiMethod(section = "Structures", sectionOrder = 20, order = 30,
+            summary = "Loads blocks and block entity data from a compressed Minecraft template. Uses the first palette when the template has multiple palettes.")
+    @WikiReturn("structure in template coordinates")
+    @WikiThrows(type = IOException.class, description = "if the input cannot be read or a block entry is invalid.")
+    @AiDoc(section = "Structures", sectionOrder = 20, order = 30,
+            summary = "Loads blocks and block entity data from a compressed Minecraft template. Uses the first palette when the template has multiple palettes.")
+    public static StructureNode readStructure(
+            @WikiParameter(description = "stream with gzip-compressed NBT, closed by this method.") InputStream source) throws IOException {
         try (source) {
             return readStructure(SceneStructureNbt.readCompressed(source, NBT_LIMIT));
         }
     }
 
     /**
-     * Читает позиции и состояния блоков из уже загруженного шаблона.
+     * Loads blocks from an already decoded Minecraft template.
      *
-     * @param template NBT шаблона Minecraft с полями palette или palettes и blocks.
-     * @return структура в координатах шаблона.
-     * @throws IOException если запись блока или индекс палитры недействительны.
+     * @param template template NBT containing palette or palettes and blocks.
+     * @return structure in template coordinates.
+     * @throws IOException if a block entry or palette index is invalid.
      */
-    public static StructureNode readStructure(CompoundTag template) throws IOException {
+    @WikiMethod(section = "Structures", sectionOrder = 20, order = 30,
+            summary = "Loads blocks from an already decoded Minecraft template.")
+    @WikiReturn("structure in template coordinates")
+    @WikiThrows(type = IOException.class, description = "if a block entry or palette index is invalid.")
+    @AiDoc(section = "Structures", sectionOrder = 20, order = 30,
+            summary = "Loads blocks from an already decoded Minecraft template.")
+    public static StructureNode readStructure(
+            @WikiParameter(description = "template NBT containing palette or palettes and blocks.") CompoundTag template) throws IOException {
         return SceneStructureNbt.read(template);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Ищет {@code structure/<path>.nbt} и {@code structures/<path>.nbt} в ресурсах клиента, данных
-     * встроенного сервера и на classpath в {@code data/<namespace>/}.</p>
+     * <p>Searches {@code structure/<path>.nbt} and {@code structures/<path>.nbt} in client resources,
+     * integrated server data and under {@code data/<namespace>/} on the classpath.</p>
      */
+    @WikiMethod(section = "Structures", sectionOrder = 20, order = 40,
+            summary = "Loads a Minecraft structure resource by namespaced ID using client, server or classpath resources.")
+    @AiDoc(section = "Structures", sectionOrder = 20, order = 40,
+            summary = "Loads a Minecraft structure resource by namespaced ID using client, server or classpath resources.")
     @Override
-    public StructureNode loadStructure(String id) throws IOException {
+    public StructureNode loadStructure(
+            @WikiParameter(description = "Namespaced structure resource ID without the directory or file extension.") String id) throws IOException {
         var name = SceneXmlCompat.id(id.trim());
         Minecraft client = Minecraft.getInstance();
         for (String directory : new String[]{"structure/", "structures/"}) {
@@ -237,10 +346,10 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Читает собственный стек узла без копирования.
+     * Reads the resolved stack without copying it.
      *
-     * @param node узел предмета.
-     * @return стек или {@link ItemStack#EMPTY}.
+     * @param node item node.
+     * @return resolved stack, or {@link ItemStack#EMPTY}.
      */
     static ItemStack renderStack(ItemNode node) {
         SceneItem item = (SceneItem) node.nativeItem(PLATFORM);
@@ -248,22 +357,22 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Читает обёртку сущности для рендерера.
+     * Reads the renderer's entity wrapper.
      *
-     * @param node узел сущности.
-     * @return обёртка или null.
+     * @param node entity node.
+     * @return wrapper, or null.
      */
     static SceneEntity handle(EntityNode node) {
         return (SceneEntity) node.nativeEntity(PLATFORM);
     }
 
     /**
-     * Обновляет состояние совместимого block entity с сохранением его данных и анимации.
+     * Updates a compatible block entity and retains its data and animation.
      *
-     * @param pos      локальная позиция блока.
-     * @param state    новое состояние блока.
-     * @param previous текущий block entity или null.
-     * @return совместимый block entity или null для блока без неё.
+     * @param pos local block position.
+     * @param state new block state.
+     * @param previous current block entity, or null.
+     * @return compatible block entity, or null if absent.
      */
     static BlockEntity updateBlockEntity(BlockPos pos, BlockState state, BlockEntity previous) {
         if (previous != null && previous.getType().isValid(state)) {
@@ -319,7 +428,7 @@ public final class MinecraftScene implements ScenePlatform {
     /**
      * {@inheritDoc}
      *
-     * <p>В 26.x стек нельзя создать до загрузки мира, поэтому до этого момента возвращается null.</p>
+     * <p>On 26.x, item resolution can return null before the required game data is loaded.</p>
      */
     @Override
     public Object resolveItem(String id) {
@@ -359,10 +468,10 @@ public final class MinecraftScene implements ScenePlatform {
     }
 
     /**
-     * Переводит расположение узла в ванильный контекст модели.
+     * Maps the item's placement to the vanilla model context.
      *
-     * @param display расположение предмета в сцене.
-     * @return контекст ItemRenderer.
+     * @param display item placement in the scene.
+     * @return vanilla item display context.
      */
     static ItemDisplayContext context(ItemNode.Display display) {
         return switch (display) {

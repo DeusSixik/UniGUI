@@ -1,42 +1,85 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /**
- * Разобранная строка блока, общая для всех версий Minecraft.
+ * Parsed Minecraft block specification shared across game versions.
  *
- * <p>Формат: {@code namespace:path[name=value,...]} или {@code namespace:path@meta}.</p>
- *
+ * <p>Use {@code namespace:path[name=value,...]} or {@code namespace:path@meta}.</p>
  * <ul>
- *     <li>Пространство имён можно опустить: {@code stone} читается как {@code minecraft:stone}.</li>
- *     <li>Свойства в квадратных скобках задают состояние блока на 1.12.2 и новее,
- *     например {@code minecraft:furnace[facing=north,lit=true]}.</li>
- *     <li>Метаданные после {@code @} нужны 1.7.10 и поддерживаются на 1.12.2,
- *     например {@code minecraft:wool@14}.</li>
+ * <li>Omit the namespace to default to {@code minecraft}.</li>
+ * <li>Use bracketed block-state properties on 1.12.2 and later, for example {@code minecraft:furnace[facing=north]}.</li>
+ * <li>Use {@code @meta} for legacy metadata on 1.7.10 and 1.12.2, for example {@code minecraft:wool@14}.</li>
  * </ul>
+ * <p>Parsing checks syntax. The installed {@link ScenePlatform} resolves IDs, properties and values.</p>
  *
- * <p>Синтаксис проверяется здесь, а существование блока и свойств проверяет {@link ScenePlatform} версии игры.</p>
- *
- * @param text       исходная строка без пробелов по краям.
- * @param id         идентификатор блока с пространством имён.
- * @param properties свойства в порядке записи, неизменяемая карта.
- * @param meta       метаданные или {@code -1}, если они не заданы.
+ * @param text trimmed source string.
+ * @param id namespaced block ID.
+ * @param properties immutable map of properties in source order.
+ * @param meta legacy metadata, or {@code -1} when omitted.
  */
+@WikiPage(
+        title = "BlockSpec", slug = "block-spec",
+        category = "API/3D Scene", order = 125,
+        summary = "Parsed block ID, state properties and legacy metadata.")
+@WikiSection(title = "Syntax", order = 10, markdown = """
+        Use `namespace:block`, `namespace:block[property=value,...]` or `namespace:block@meta`. The property map is
+        read-only and preserves input order. `meta()` returns `-1` when omitted.
+        """)
+@WikiExample(title = "Parse a state and a legacy block", code = """
+        BlockSpec furnace = BlockSpec.parse("minecraft:furnace[facing=south]");
+        BlockSpec wool = BlockSpec.parse("minecraft:wool@14");
+        """)
+@WikiLink(label = "BlockNode", target = "page:block-node")
+@WikiLink(label = "StructureNode", target = "page:structure-node")
+@WikiLink(label = "ScenePlatform", target = "page:scene-platform")
+@AiDoc(
+        summary = "Parsed block ID, state properties and legacy metadata.",
+        purpose = "Decode a portable block specification before a platform resolves it to a native state.",
+        criticalRules = {
+                "An unqualified ID uses the `minecraft` namespace.",
+                "Use state properties in brackets on platforms with block states. Use `@meta` on 1.7.10 or 1.12.2.",
+                "Parsing checks syntax. The platform validates registered block IDs, properties and values."
+        },
+        related = {"BlockNode", "StructureNode", "ScenePlatform"},
+        examples = @AiDoc.Example(title = "Parse a state and a legacy block", code = """
+                BlockSpec furnace = BlockSpec.parse("minecraft:furnace[facing=south]");
+                BlockSpec wool = BlockSpec.parse("minecraft:wool@14");
+                """))
 public record BlockSpec(String text, String id, Map<String, String> properties, int meta) {
     /**
-     * Пространство имён для идентификатора без двоеточия.
+     * Default namespace for an ID without a colon.
      */
     private static final String DEFAULT_NAMESPACE = "minecraft";
 
     /**
-     * Проверяет поля и делает карту свойств неизменяемой.
+     * Validates the fields and makes the property map immutable.
      *
-     * @throws NullPointerException     если строка, идентификатор или карта равны null.
-     * @throws IllegalArgumentException если метаданные меньше {@code -1}.
+     * @param text source block specification.
+     * @param id namespaced block ID.
+     * @param properties block-state properties.
+     * @param meta nonnegative metadata, or -1 when omitted.
+     * @throws NullPointerException if text, id or properties is null.
+     * @throws IllegalArgumentException if meta is below -1.
      */
+    @WikiMethod(section = "Parsing", sectionOrder = 10, order = 10,
+            summary = "Validates the fields and makes the property map immutable.")
+    @WikiThrows(type = NullPointerException.class, description = "if text, id or properties is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if meta is below -1.")
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 10,
+            summary = "Validates the fields and makes the property map immutable.")
     public BlockSpec {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(id, "id");
@@ -45,14 +88,22 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Разбирает строку блока.
+     * Parses a block specification.
      *
-     * @param value строка вида {@code minecraft:furnace[facing=north]} или {@code minecraft:wool@14}.
-     * @return разобранная строка.
-     * @throws NullPointerException     если value равен null.
-     * @throws IllegalArgumentException если синтаксис неверен.
+     * @param value text such as {@code minecraft:furnace[facing=north]} or {@code minecraft:wool@14}.
+     * @return parsed block specification.
+     * @throws NullPointerException if value is null.
+     * @throws IllegalArgumentException if the syntax is invalid.
      */
-    public static BlockSpec parse(String value) {
+    @WikiMethod(section = "Parsing", sectionOrder = 10, order = 20,
+            summary = "Parses a block specification.")
+    @WikiReturn("parsed block specification")
+    @WikiThrows(type = NullPointerException.class, description = "if value is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the syntax is invalid.")
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 20,
+            summary = "Parses a block specification.")
+    public static BlockSpec parse(
+            @WikiParameter(description = "text such as `minecraft:furnace[facing=north]` or `minecraft:wool@14`.") String value) {
         String text = Objects.requireNonNull(value, "value").trim();
         if (text.isEmpty()) throw invalid(value, "empty block id");
 
@@ -83,16 +134,21 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Проверяет, заданы ли метаданные.
+     * Checks whether the specification includes metadata.
      *
-     * @return true для строки с {@code @meta}.
+     * @return true if the source includes {@code @meta}.
      */
+    @WikiMethod(section = "Parsing", sectionOrder = 10, order = 30,
+            summary = "Checks whether the specification includes metadata.")
+    @WikiReturn("true if the source includes `@meta`")
+    @AiDoc(section = "Parsing", sectionOrder = 10, order = 30,
+            summary = "Checks whether the specification includes metadata.")
     public boolean hasMeta() {
         return meta >= 0;
     }
 
     /**
-     * Возвращает исходную строку.
+     * Returns the source string.
      *
      * @return {@link #text()}.
      */
@@ -102,11 +158,11 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Добавляет пространство имён по умолчанию и проверяет символы идентификатора.
+     * Adds the default namespace and validates the characters in the ID.
      *
-     * @param source исходная строка для сообщения об ошибке.
-     * @param id     идентификатор до свойств и метаданных.
-     * @return идентификатор с пространством имён.
+     * @param source source string for error messages.
+     * @param id ID without properties or metadata.
+     * @return the namespaced ID.
      */
     private static String normalizeId(String source, String id) {
         String trimmed = id.trim();
@@ -124,11 +180,11 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Разбирает список {@code name=value} через запятую.
+     * Parses comma-separated {@code name=value} properties.
      *
-     * @param source исходная строка для сообщения об ошибке.
-     * @param body   текст между скобками.
-     * @param out    карта для найденных свойств.
+     * @param source source string for error messages.
+     * @param body text inside the brackets.
+     * @param out output map for parsed properties.
      */
     private static void parseProperties(String source, String body, Map<String, String> out) {
         if (body.isBlank()) return;
@@ -143,11 +199,11 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Разбирает неотрицательные метаданные.
+     * Parses nonnegative legacy metadata.
      *
-     * @param source исходная строка для сообщения об ошибке.
-     * @param value  текст после {@code @}.
-     * @return метаданные.
+     * @param source source string for error messages.
+     * @param value text after {@code @}.
+     * @return the metadata.
      */
     private static int parseMeta(String source, String value) {
         try {
@@ -160,11 +216,11 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     }
 
     /**
-     * Создаёт ошибку разбора с исходной строкой.
+     * Creates a parse error that identifies the source string.
      *
-     * @param source исходная строка.
-     * @param reason причина.
-     * @return исключение для броска.
+     * @param source source string.
+     * @param reason error explanation.
+     * @return the exception to throw.
      */
     private static IllegalArgumentException invalid(String source, String reason) {
         return new IllegalArgumentException("Invalid block '" + source + "': " + reason);

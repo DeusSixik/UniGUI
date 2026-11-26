@@ -1,5 +1,13 @@
 package dev.sixik.unigui.widgets.rendering;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.UIContext;
@@ -29,64 +37,94 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Рендерит содержимое в offscreen-текстуру и отдаёт её как обычную {@link TextureHandle}.
+ * Renders widget content offscreen and exposes the result as a {@link TextureHandle}.
  *
- * <p>Содержимое — дочерний виджет ({@link #content(Widget)}), функция отрисовки ({@link #painter(Painter)}) или
- * оба сразу (сначала painter, поверх него дочерний виджет). Текстуру можно показать на месте виджета
- * ({@link #displayed(boolean)}, {@link #fit(ImageFit)}, {@link #filter(TextureFilter)}) или забрать через
- * {@link #texture()} и использовать в другом месте: фон {@code Surface}, картинка, шейдер, материал.</p>
+ * <p>Set a child via {@link #content(Widget)}, draw commands via {@link #painter(Painter)}, or both.
+ * The painter draws beneath the child. Display the texture with {@link #displayed(boolean)},
+ * {@link #fit(ImageFit)} and {@link #filter(TextureFilter)}, or sample it elsewhere via {@link #texture()}.</p>
  *
- * <p><b>Размеры.</b> Логический холст — область, в координатах которой рисует содержимое: по умолчанию размер
- * виджета, или {@link #canvasSize(float, float)}. Пиксельный размер текстуры по умолчанию равен
- * {@code холст × pixelScale × resolutionScale}, где {@code pixelScale} — плотность пикселей экрана
- * ({@link RenderContext#pixelScale()}), так что текстура на месте виджета не размыта; {@code resolutionScale}
- * больше {@code 1} даёт суперсэмплинг. {@link #textureSize(int, int)} задаёт размер явно (например 64×64 для
- * пиксель-арта с {@link TextureFilter#NEAREST}); тогда холст рисуется с равномерным масштабом от левого
- * верхнего угла.</p>
+ * <p>Content uses logical canvas units. The canvas defaults to the widget size and can be set via
+ * {@link #canvasSize(float, float)}. Automatic texture dimensions scale the canvas dimensions by
+ * {@link RenderContext#pixelScale()} and {@link #resolutionScale()}. A resolution scale above one
+ * supersamples. {@link #textureSize(int, int)} sets explicit physical dimensions and fits the canvas
+ * uniformly from the top left.</p>
  *
- * <p><b>Обновление.</b> {@link UpdateMode#EVERY_FRAME} перерисовывает текстуру каждый кадр (анимации, 3D),
- * {@link UpdateMode#ON_CHANGE} — когда изменились размер, параметры или поддерево содержимого, а также после
- * {@link #requestRender()}; {@link UpdateMode#MANUAL} — только после {@link #requestRender()}. Painter не
- * сообщает об изменениях сам: в режиме {@code ON_CHANGE} после смены его данных нужен
- * {@link #requestRender()}.</p>
+ * <p>{@link UpdateMode#EVERY_FRAME} refreshes continuously. {@link UpdateMode#ON_CHANGE} also tracks size,
+ * settings and child invalidations. Call {@link #requestRender()} when an external painter dependency changes.
+ * {@link UpdateMode#MANUAL} requires a request after the initial render and automatic target changes.</p>
  *
- * <p><b>Ввод.</b> Дочерний виджет раскладывается в экранных координатах на месте этого виджета, поэтому
- * клики и наведение доходят до него напрямую, если холст совпадает с размером виджета и текстура показывается
- * растянутой ({@link ImageFit#STRETCH}).</p>
+ * <p>Child input uses the widget's layout coordinates. To align input with displayed pixels, match the logical
+ * canvas to the widget size and use {@link ImageFit#STRETCH}.</p>
  *
- * <p>Текстура рисуется только во время {@link #render(RenderContext)}: невидимый или не вставленный в дерево
- * виджет её не обновляет. Чтобы текстура обновлялась, но не показывалась, используйте
- * {@link #displayed(boolean) displayed(false)}.</p>
+ * <p>The texture updates during rendering while the widget is visible in the tree.
+ * Use {@link #displayed(boolean) displayed(false)} to continue updating without drawing the texture here.</p>
  */
+@WikiPage(
+        title = "RenderToTexture", slug = "render-to-texture",
+        category = "API/3D Scene", order = 200,
+        summary = "Offscreen widget that exposes its rendered content as a texture.")
+@WikiSection(title = "Canvas and texture", order = 10, markdown = """
+        The canvas defaults to the widget's layout size. `canvasSize` changes logical coordinates and `textureSize`
+        sets physical pixels. `resolutionScale(2)` supersamples when physical dimensions are automatic. Match the
+        canvas and widget sizes with `ImageFit.STRETCH` for child input to align with the texture.
+        """)
+@WikiSection(title = "Updating and sampling", order = 20, markdown = """
+        Choose `EVERY_FRAME` for continuous redraws, `ON_CHANGE` to respond to child changes and explicit
+        invalidation, or `MANUAL` for explicit requests after target setup. `texture()` exposes the current result.
+        Re-read it after target size or backend changes.
+        """)
+@WikiExample(title = "Render a widget into a texture", code = """
+        RenderToTexture preview = new RenderToTexture(new Label("Preview"));
+        preview.layout(style -> style.width(160).height(48));
+        preview.updateMode(RenderToTexture.UpdateMode.ON_CHANGE);
+        preview.resolutionScale(2);
+        """)
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@AiDoc(
+        summary = "Offscreen widget that exposes its rendered content as a texture.",
+        purpose = "Composite painter commands and child widgets into a texture for display or sampling.",
+        criticalRules = {
+                "The painter draws before the child. Scene3D runs its 3D pass before both.",
+                "Canvas dimensions are logical. Automatic physical texture dimensions use pixel density and resolution scale.",
+                "With ON_CHANGE, use `requestRender()` when external painter data changes.",
+                "`displayed(false)` hides texture output while attached and visible. `texture()` returns null until the first successful offscreen render."
+        },
+        related = {"Scene3D"},
+        examples = @AiDoc.Example(title = "Render a widget into a texture", code = """
+                RenderToTexture preview = new RenderToTexture(new Label("Preview"));
+                preview.layout(style -> style.width(160).height(48));
+                preview.updateMode(RenderToTexture.UpdateMode.ON_CHANGE);
+                preview.resolutionScale(2);
+                """))
 @XamlWidget("RenderToTexture")
 public class RenderToTexture extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RENDER_TO_TEXTURE;
 
     /**
-     * Самая большая сторона текстуры, которую виджет создаст.
+     * Maximum physical width or height of a texture created by this widget.
      */
     public static final int MAX_TEXTURE_SIZE = 8192;
 
     /**
-     * Когда перерисовывать текстуру.
+     * When to refresh the texture.
      */
     public enum UpdateMode {
         /**
-         * Каждый кадр.
+         * Refreshes every rendered frame.
          */
         EVERY_FRAME,
         /**
-         * При изменении размера, параметров или поддерева содержимого и после {@link #requestRender()}.
+         * Refreshes after size, settings or child changes and explicit requests.
          */
         ON_CHANGE,
         /**
-         * Только после {@link #requestRender()} (и при первом показе).
+         * Uses explicit requests after initialization and automatic target changes.
          */
         MANUAL
     }
 
     /**
-     * Почему текстура перерисована (или {@link #NONE}, если взята прежняя).
+     * Why the texture was redrawn. {@link #NONE} indicates reuse.
      */
     public enum RenderReason {
         NONE,
@@ -102,14 +140,14 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Рисует содержимое текстуры.
+     * Draws content into the offscreen texture.
      */
     @FunctionalInterface
     public interface Painter {
         /**
-         * @param context context offscreen-кадра; координаты от {@code (0, 0)} до {@code (width, height)}
-         * @param width   ширина логического холста
-         * @param height  высота логического холста
+         * @param context offscreen context, with logical coordinates starting at (0, 0).
+         * @param width logical canvas width.
+         * @param height logical canvas height.
          */
         void paint(RenderContext context, float width, float height);
     }
@@ -118,7 +156,7 @@ public class RenderToTexture extends WidgetBase {
     private final MutableColor clearColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private final Transform contentShift = new Transform();
     /**
-     * Переиспользуемый результат расчёта размеров и масштаба цели.
+     * Reusable target size and scale calculation.
      */
     private final TargetSize measuredTarget = new TargetSize();
     private Widget content;
@@ -143,7 +181,7 @@ public class RenderToTexture extends WidgetBase {
     private float renderedCanvasWidth;
     private float renderedCanvasHeight;
     /**
-     * Масштаб 2D-прохода в последней успешно отрисованной текстуре.
+     * 2D pass scale used in the most recently rendered texture.
      */
     private float renderedCoordinateScale;
     private boolean renderRequested = true;
@@ -152,13 +190,30 @@ public class RenderToTexture extends WidgetBase {
     private long renderCount;
     private RenderReason lastRenderReason = RenderReason.NONE;
 
+    /**
+     * Creates an empty widget with automatic texture dimensions and per-frame updates.
+     */
+    @WikiMethod(section = "Content and updates", sectionOrder = 10,
+            summary = "Creates an empty offscreen widget.")
+    @AiDoc(section = "Content and updates", sectionOrder = 10,
+            summary = "Creates an empty widget in EVERY_FRAME mode.")
     public RenderToTexture() {
         renderCachingEnabled(false);
         tint.onChanged(() -> invalidate(InvalidationFlags.VISUAL));
         clearColor.onChanged(this::requestRender);
     }
 
-    public RenderToTexture(Widget content) {
+    /**
+     * Creates a widget that draws the supplied child into its texture.
+     *
+     * @param content initial child widget, or null.
+     */
+    @WikiMethod(section = "Content and updates", sectionOrder = 10,
+            summary = "Creates an offscreen widget with a child.")
+    @AiDoc(section = "Content and updates", sectionOrder = 10,
+            summary = "Creates an offscreen widget with a child.")
+    public RenderToTexture(
+            @WikiParameter(description = "initial child widget, or null.") Widget content) {
         this();
         content(content);
     }
@@ -170,12 +225,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Задаёт дочерний виджет, который рисуется в текстуру.
+     * Sets the child drawn into the texture.
      *
-     * @param content виджет или {@code null}
-     * @return этот виджет
+     * @param content child widget, or null.
+     * @return this widget.
      */
-    public RenderToTexture content(Widget content) {
+    @WikiMethod(section = "Content and updates", sectionOrder = 10, order = 10,
+            summary = "Sets the child drawn into the texture.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Content and updates", sectionOrder = 10, order = 10,
+            summary = "Sets the child drawn into the texture.")
+    public RenderToTexture content(
+            @WikiParameter(description = "child widget, or null.") Widget content) {
         if (this.content == content) return this;
         if (content == this) throw new IllegalArgumentException("RenderToTexture cannot contain itself");
 
@@ -193,12 +254,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Задаёт функцию отрисовки. Она рисует под дочерним виджетом, если он тоже задан.
+     * Sets the painter drawn beneath any child widget.
      *
-     * @param painter функция или {@code null}
-     * @return этот виджет
+     * @param painter painter callback, or null.
+     * @return this widget.
      */
-    public RenderToTexture painter(Painter painter) {
+    @WikiMethod(section = "Content and updates", sectionOrder = 10, order = 20,
+            summary = "Sets the painter drawn beneath any child widget.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Content and updates", sectionOrder = 10, order = 20,
+            summary = "Sets the painter drawn beneath any child widget.")
+    public RenderToTexture painter(
+            @WikiParameter(description = "painter callback, or null.") Painter painter) {
         if (this.painter == painter) return this;
         this.painter = painter;
         requestRender();
@@ -211,14 +278,30 @@ public class RenderToTexture extends WidgetBase {
         return updateMode;
     }
 
-    public RenderToTexture updateMode(UpdateMode updateMode) {
+    /**
+     * Sets how the offscreen texture is refreshed.
+     *
+     * @param updateMode refresh policy, or null for {@link UpdateMode#EVERY_FRAME}.
+     * @return this widget.
+     */
+    @WikiMethod(section = "Content and updates", sectionOrder = 10, order = 25,
+            summary = "Sets how the offscreen texture is refreshed.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Content and updates", sectionOrder = 10, order = 25,
+            summary = "Selects EVERY_FRAME, ON_CHANGE or MANUAL refresh.")
+    public RenderToTexture updateMode(
+            @WikiParameter(description = "refresh policy, or null for `UpdateMode#EVERY_FRAME`.") UpdateMode updateMode) {
         this.updateMode = updateMode == null ? UpdateMode.EVERY_FRAME : updateMode;
         return this;
     }
 
     /**
-     * Просит перерисовать текстуру при следующей отрисовке виджета (в любом режиме обновления).
+     * Requests a texture refresh on the next render in any update mode.
      */
+    @WikiMethod(section = "Content and updates", sectionOrder = 10, order = 30,
+            summary = "Requests a texture refresh on the next render in any update mode.")
+    @AiDoc(section = "Content and updates", sectionOrder = 10, order = 30,
+            summary = "Requests a texture refresh on the next render in any update mode.")
     public void requestRender() {
         renderRequested = true;
         invalidate(InvalidationFlags.TEXTURE | InvalidationFlags.VISUAL);
@@ -227,9 +310,20 @@ public class RenderToTexture extends WidgetBase {
     // ------------------------------------------------------------------ size
 
     /**
-     * Задаёт логический размер холста. По умолчанию холст равен размеру виджета.
+     * Sets the logical canvas size, which defaults to the widget size.
+     *
+     * @param width logical width.
+     * @param height logical height.
+     * @return this widget.
      */
-    public RenderToTexture canvasSize(float width, float height) {
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 10,
+            summary = "Sets the logical canvas size, which defaults to the widget size.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 10,
+            summary = "Sets the logical canvas size, which defaults to the widget size.")
+    public RenderToTexture canvasSize(
+            @WikiParameter(description = "logical width.") float width,
+            @WikiParameter(description = "logical height.") float height) {
         if (!(width > 0.0f) || !(height > 0.0f) || !Float.isFinite(width) || !Float.isFinite(height)) {
             throw new IllegalArgumentException("Canvas size must be positive, got " + width + "x" + height);
         }
@@ -241,8 +335,15 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Возвращает холст к размеру виджета.
+     * Restores the widget's layout size as the canvas size.
+     *
+     * @return this widget.
      */
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 20,
+            summary = "Restores the widget's layout size as the canvas size.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 20,
+            summary = "Restores the widget's layout size as the canvas size.")
     public RenderToTexture clearCanvasSize() {
         canvasWidth = Float.NaN;
         canvasHeight = Float.NaN;
@@ -252,16 +353,34 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * @return {@code true}, если холст задан явно
+     * Checks for an explicit logical canvas size.
+     *
+     * @return true if an explicit size is configured.
      */
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 30,
+            summary = "Checks for an explicit logical canvas size.")
+    @WikiReturn("true if an explicit size is configured")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 30,
+            summary = "Checks for an explicit logical canvas size.")
     public boolean hasCanvasSize() {
         return Float.isFinite(canvasWidth);
     }
 
     /**
-     * Задаёт пиксельный размер текстуры явно. {@code 0} по любой стороне возвращает автоматический размер.
+     * Sets physical texture dimensions. Zero on either axis restores automatic sizing.
+     *
+     * @param width physical width in pixels.
+     * @param height physical height in pixels.
+     * @return this widget.
      */
-    public RenderToTexture textureSize(int width, int height) {
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 40,
+            summary = "Sets physical texture dimensions. Zero on either axis restores automatic sizing.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 40,
+            summary = "Sets physical texture dimensions. Zero on either axis restores automatic sizing.")
+    public RenderToTexture textureSize(
+            @WikiParameter(description = "physical width in pixels.") int width,
+            @WikiParameter(description = "physical height in pixels.") int height) {
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("Texture size cannot be negative, got " + width + "x" + height);
         }
@@ -276,10 +395,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Множитель автоматического размера текстуры: {@code 2} — суперсэмплинг, {@code 0.5} — половинное
-     * разрешение.
+     * Scales the automatic texture dimensions. Two supersamples and 0.5 halves the resolution.
+     *
+     * @param resolutionScale positive multiplier.
+     * @return this widget.
      */
-    public RenderToTexture resolutionScale(float resolutionScale) {
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 50,
+            summary = "Scales the automatic texture dimensions. Two supersamples and 0.5 halves the resolution.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 50,
+            summary = "Scales the automatic texture dimensions. Two supersamples and 0.5 halves the resolution.")
+    public RenderToTexture resolutionScale(
+            @WikiParameter(description = "positive multiplier.") float resolutionScale) {
         if (!(resolutionScale > 0.0f) || !Float.isFinite(resolutionScale)) {
             throw new IllegalArgumentException("Resolution scale must be positive, got " + resolutionScale);
         }
@@ -296,9 +423,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Задаёт параметры offscreen-цели, например {@link RenderTargetOptions#COLOR_DEPTH} для 3D.
+     * Sets target options such as {@link RenderTargetOptions#COLOR_DEPTH}.
+     *
+     * @param targetOptions offscreen target options.
+     * @return this widget.
      */
-    public RenderToTexture targetOptions(RenderTargetOptions targetOptions) {
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 60,
+            summary = "Sets target options such as `RenderTargetOptions#COLOR_DEPTH`.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 60,
+            summary = "Sets target options such as `RenderTargetOptions#COLOR_DEPTH`.")
+    public RenderToTexture targetOptions(
+            @WikiParameter(description = "offscreen target options.") RenderTargetOptions targetOptions) {
         RenderTargetOptions safeOptions = targetOptions == null ? RenderTargetOptions.COLOR : targetOptions;
         if (safeOptions.equals(this.targetOptions)) return this;
         this.targetOptions = safeOptions;
@@ -309,15 +445,31 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Включает буфер глубины (нужен для 3D).
+     * Enables or disables the target's depth attachment.
+     *
+     * @param depth true to use a depth buffer.
+     * @return this widget.
      */
-    public RenderToTexture depth(boolean depth) {
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 70,
+            summary = "Enables or disables the target's depth attachment.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 70,
+            summary = "Enables or disables the target's depth attachment.")
+    public RenderToTexture depth(
+            @WikiParameter(description = "true to use a depth buffer.") boolean depth) {
         return targetOptions(depth ? RenderTargetOptions.COLOR_DEPTH : RenderTargetOptions.COLOR);
     }
 
     /**
-     * @return цвет, которым текстура заливается перед отрисовкой (по умолчанию прозрачный)
+     * Reads the mutable clear color.
+     *
+     * @return the color used before drawing content, initially transparent.
      */
+    @WikiMethod(section = "Canvas and target", sectionOrder = 20, order = 80,
+            summary = "Reads the mutable clear color.")
+    @WikiReturn("the color used before drawing content, initially transparent")
+    @AiDoc(section = "Canvas and target", sectionOrder = 20, order = 80,
+            summary = "Reads the mutable clear color.")
     public MutableColor clearColor() {
         return clearColor;
     }
@@ -329,9 +481,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Показывать ли текстуру на месте виджета. При {@code false} текстура обновляется, но не рисуется.
+     * Controls whether the texture is drawn at this widget. A visible widget can still update the texture when false.
+     *
+     * @param displayed true to draw the texture here.
+     * @return this widget.
      */
-    public RenderToTexture displayed(boolean displayed) {
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 10,
+            summary = "Controls whether the texture is drawn at this widget. A visible widget can still update the texture when false.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 10,
+            summary = "Controls whether the texture is drawn at this widget. A visible widget can still update the texture when false.")
+    public RenderToTexture displayed(
+            @WikiParameter(description = "true to draw the texture here.") boolean displayed) {
         if (this.displayed == displayed) return this;
         this.displayed = displayed;
         invalidate(InvalidationFlags.VISUAL);
@@ -343,10 +504,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Как текстура вписывается в виджет. {@link ImageFit#NINE_SLICE} не поддерживается и рисуется как
-     * {@link ImageFit#STRETCH}.
+     * Sets how the texture fits the widget. {@link ImageFit#NINE_SLICE} falls back to {@link ImageFit#STRETCH}.
+     *
+     * @param fit texture fit mode.
+     * @return this widget.
      */
-    public RenderToTexture fit(ImageFit fit) {
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 20,
+            summary = "Sets how the texture fits the widget. `ImageFit#NINE_SLICE` falls back to `ImageFit#STRETCH`.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 20,
+            summary = "Sets how the texture fits the widget. `ImageFit#NINE_SLICE` falls back to `ImageFit#STRETCH`.")
+    public RenderToTexture fit(
+            @WikiParameter(description = "texture fit mode.") ImageFit fit) {
         this.fit = fit == null ? ImageFit.STRETCH : fit;
         invalidate(InvalidationFlags.VISUAL);
         return this;
@@ -357,10 +526,18 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Фильтрация текстуры при выводе и для {@link #texture()}: {@link TextureFilter#LINEAR} или
-     * {@link TextureFilter#NEAREST} для пиксель-арта.
+     * Sets sampling for display and for {@link #texture()}. Use {@link TextureFilter#NEAREST} for pixel art.
+     *
+     * @param filter texture sampling filter.
+     * @return this widget.
      */
-    public RenderToTexture filter(TextureFilter filter) {
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 30,
+            summary = "Sets sampling for display and for `texture()`. Use `TextureFilter#NEAREST` for pixel art.")
+    @WikiReturn("this widget")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 30,
+            summary = "Sets sampling for display and for `texture()`. Use `TextureFilter#NEAREST` for pixel art.")
+    public RenderToTexture filter(
+            @WikiParameter(description = "texture sampling filter.") TextureFilter filter) {
         TextureFilter safe = filter == null ? TextureFilter.LINEAR : filter;
         if (this.filter == safe) return this;
         this.filter = safe;
@@ -376,36 +553,71 @@ public class RenderToTexture extends WidgetBase {
     // ------------------------------------------------------------------ result
 
     /**
-     * @return текстура с результатом или {@code null}, пока виджет ни разу не отрисовался
+     * Reads the result texture.
+     *
+     * @return the texture, or null before the first render.
      */
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 40,
+            summary = "Reads the result texture.")
+    @WikiReturn("the texture, or null before the first render")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 40,
+            summary = "Reads the result texture.")
     public TextureHandle texture() {
         return texture;
     }
 
     /**
-     * @return ширина текстуры в пикселях ({@code 0} до первой отрисовки)
+     * Reads the physical result width.
+     *
+     * @return width in pixels, or zero before the first render.
      */
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 50,
+            summary = "Reads the physical result width.")
+    @WikiReturn("width in pixels, or zero before the first render")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 50,
+            summary = "Reads the physical result width.")
     public int textureWidth() {
         return textureWidth;
     }
 
     /**
-     * @return высота текстуры в пикселях ({@code 0} до первой отрисовки)
+     * Reads the physical result height.
+     *
+     * @return height in pixels, or zero before the first render.
      */
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 60,
+            summary = "Reads the physical result height.")
+    @WikiReturn("height in pixels, or zero before the first render")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 60,
+            summary = "Reads the physical result height.")
     public int textureHeight() {
         return textureHeight;
     }
 
     /**
-     * @return сколько раз текстура перерисовывалась
+     * Counts texture refreshes.
+     *
+     * @return number of times the texture was rendered.
      */
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 70,
+            summary = "Counts texture refreshes.")
+    @WikiReturn("number of times the texture was rendered")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 70,
+            summary = "Counts texture refreshes.")
     public long renderCount() {
         return renderCount;
     }
 
     /**
-     * @return причина последней перерисовки
+     * Reads the reason for the last render decision.
+     *
+     * @return redraw reason or {@link RenderReason#NONE}.
      */
+    @WikiMethod(section = "Displaying the result", sectionOrder = 30, order = 80,
+            summary = "Reads the reason for the last render decision.")
+    @WikiReturn("redraw reason or `RenderReason#NONE`")
+    @AiDoc(section = "Displaying the result", sectionOrder = 30, order = 80,
+            summary = "Reads the reason for the last render decision.")
     public RenderReason lastRenderReason() {
         return lastRenderReason;
     }
@@ -455,7 +667,7 @@ public class RenderToTexture extends WidgetBase {
         super.tick(frame);
         if (content != null) content.tick(frame);
         if (updateMode == UpdateMode.EVERY_FRAME) {
-            // Кэширующие экраны пересобирают кадр только после invalidation.
+            // Cached screens rebuild the frame only after invalidation.
             invalidate(InvalidationFlags.TEXTURE | InvalidationFlags.VISUAL);
         }
     }
@@ -468,7 +680,7 @@ public class RenderToTexture extends WidgetBase {
         try {
             RenderBackend backend = context.backend();
             if (backend == null) {
-                // Без backend'а текстуру не создать: рисуем содержимое напрямую.
+                // Without a backend, draw the 2D content directly.
                 renderDirect(context);
                 return;
             }
@@ -498,113 +710,116 @@ public class RenderToTexture extends WidgetBase {
     // ------------------------------------------------------------------ hooks for subclasses
 
     /**
-     * Вызывается после каждого решения, перерисовывать ли текстуру.
+     * Runs after each texture refresh decision.
      *
-     * @param reason причина перерисовки или {@link RenderReason#NONE}, если взята прежняя текстура
+     * @param reason redraw reason or {@link RenderReason#NONE} when reusing the texture.
      */
     protected void afterTextureUpdate(RenderReason reason) {
     }
 
     /**
-     * Рисует поверх текстуры (например, отладочную плашку).
+     * Draws above the texture, for example to show debug information.
+     *
+     * @param draw widget draw scope in layout coordinates.
+     * @param reason redraw reason or {@link RenderReason#NONE} when the texture was reused.
      */
     protected void renderOverlay(DrawScope draw, RenderReason reason) {
     }
 
     /**
-     * Проверяет, нужен ли подклассу сырой проход, в том числе при пустом 2D-содержимом.
+     * Reports whether the subclass needs a raw pass even without 2D content.
      *
-     * @return true, если при обновлении текстуры нужно вызвать {@link #renderRawPass}.
+     * @return true to invoke {@link #renderRawPass} when refreshing the texture.
      */
     protected boolean hasRawPass() {
         return false;
     }
 
     /**
-     * Рисует в цель перед 2D-командами. При включённом сыром проходе он также очищает цель
-     * цветом {@link #clearColor()}, а options должны отключать автоочистку перед 2D.
+     * Draws into the target before the 2D commands. A raw pass clears with {@link #clearColor()}
+     * and requires target options with automatic 2D clearing disabled.
      *
-     * @param backend         текущий бэкенд.
-     * @param target          уже выделенная offscreen-цель.
-     * @param logicalWidth    логическая ширина холста.
-     * @param logicalHeight   логическая высота холста.
-     * @param coordinateScale физических пикселей на единицу холста.
+     * @param backend active renderer backend.
+     * @param target allocated offscreen target.
+     * @param logicalWidth logical canvas width.
+     * @param logicalHeight logical canvas height.
+     * @param coordinateScale physical pixels per canvas unit.
      */
     protected void renderRawPass(RenderBackend backend, RenderTarget target, float logicalWidth,
                                  float logicalHeight, float coordinateScale) {
     }
 
     /**
-     * Переиспользуемый результат измерения логического холста и физической цели.
+     * Reusable measurement of the logical canvas and physical target.
      */
     protected static final class TargetSize {
         /**
-         * Ширина холста в единицах UI.
+         * Canvas width in logical UI units.
          */
         private float logicalWidth;
         /**
-         * Высота холста в единицах UI.
+         * Canvas height in logical UI units.
          */
         private float logicalHeight;
         /**
-         * Ширина цели в физических пикселях.
+         * Target width in physical pixels.
          */
         private int width;
         /**
-         * Высота цели в физических пикселях.
+         * Target height in physical pixels.
          */
         private int height;
         /**
-         * Число физических пикселей на единицу UI.
+         * Physical pixels per logical UI unit.
          */
         private float coordinateScale;
 
         /**
-         * Создаёт буфер для расчётов {@link RenderToTexture#targetSize(float)}.
+         * Creates the workspace for {@link RenderToTexture#targetSize(float)}.
          */
         private TargetSize() {
         }
 
         /**
-         * Читает ширину холста.
+         * Reads the canvas width.
          *
-         * @return ширина в единицах UI.
+         * @return width in logical UI units.
          */
         public float logicalWidth() {
             return logicalWidth;
         }
 
         /**
-         * Читает высоту холста.
+         * Reads the canvas height.
          *
-         * @return высота в единицах UI.
+         * @return height in logical UI units.
          */
         public float logicalHeight() {
             return logicalHeight;
         }
 
         /**
-         * Читает ширину цели.
+         * Reads the target width.
          *
-         * @return ширина в физических пикселях.
+         * @return width in physical pixels.
          */
         public int width() {
             return width;
         }
 
         /**
-         * Читает высоту цели.
+         * Reads the target height.
          *
-         * @return высота в физических пикселях.
+         * @return height in physical pixels.
          */
         public int height() {
             return height;
         }
 
         /**
-         * Читает масштаб рендера в цель.
+         * Reads the target drawing scale.
          *
-         * @return число физических пикселей на единицу UI.
+         * @return physical pixels per logical UI unit.
          */
         public float coordinateScale() {
             return coordinateScale;
@@ -612,10 +827,10 @@ public class RenderToTexture extends WidgetBase {
     }
 
     /**
-     * Считает размер цели теми же правилами, которыми пользуется offscreen-проход.
+     * Calculates the dimensions used by the offscreen pass.
      *
-     * @param pixelScale коэффициент плотности внешнего контекста.
-     * @return внутренний буфер. Значения действительны до следующего измерения.
+     * @param pixelScale density of the outer render context.
+     * @return reused result, valid until the next calculation.
      */
     protected final TargetSize targetSize(float pixelScale) {
         RectView bounds = layoutBounds();
@@ -633,7 +848,7 @@ public class RenderToTexture extends WidgetBase {
             coordinateScale = safeScale(pixelScale) * resolutionScale;
             width = textureSide(logicalWidth * coordinateScale);
             height = textureSide(logicalHeight * coordinateScale);
-            // Не больше MAX_TEXTURE_SIZE: масштаб уменьшается вместе с размером.
+            // Keep the target within MAX_TEXTURE_SIZE by reducing the scale with the dimensions.
             float limit = Math.min(width / (logicalWidth * coordinateScale), height / (logicalHeight * coordinateScale));
             if (limit < 1.0f) coordinateScale *= limit;
         }
@@ -689,8 +904,8 @@ public class RenderToTexture extends WidgetBase {
             painter.paint(offscreen, width, height);
         }
         if (content != null && content.visibility() != Visibility.COLLAPSED) {
-            // Дочерний виджет разложен в экранных координатах (так до него доходит ввод). Внешний слой
-            // трансформации сдвигает все его команды, включая clip, mesh и вложенные трансформации, в (0, 0).
+            // The child keeps screen-space layout coordinates for input routing.
+            // Translate its offscreen commands, including clips, meshes and nested transforms, to the canvas origin.
             contentShift.position().set(-bounds.x(), -bounds.y());
             offscreen.pushTransform(bounds, contentShift);
             try {

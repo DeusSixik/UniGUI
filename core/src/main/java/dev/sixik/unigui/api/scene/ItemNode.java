@@ -1,80 +1,131 @@
 package dev.sixik.unigui.api.scene;
 
+import dev.sixik.unigui.api.docs.AiDoc;
+import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
+import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
+import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.math.Aabb;
 
 import java.util.Objects;
 
 /**
- * 3D-модель предмета Minecraft с центром в начале координат, единая для всех версий игры.
+ * A Minecraft item model centered at the local origin.
  *
  * <pre>{@code
  * new ItemNode("minecraft:diamond_sword");
- * ItemNode.of(new ItemStack(Items.DIAMOND_SWORD));   // нативный стек версии
+ * ItemNode.of(new ItemStack(Items.DIAMOND_SWORD));
  * }</pre>
- *
- * <p>Нативный стек копируется платформой при разрешении, поэтому его дальнейшие изменения на узел не влияют.
- * Типизированный доступ к стеку даёт помощник платформы, например {@code MinecraftScene.stack(node)}.
- * Версии без поддержки предметов в сцене ничего не рисуют и один раз пишут предупреждение в лог.</p>
+ * <p>The platform copies native stacks when it resolves them. For typed access use the platform helper,
+ * such as {@code MinecraftScene.stack(node)}. Unsupported platforms skip rendering and log a warning once.</p>
  */
+@WikiPage(
+        title = "ItemNode", slug = "item-node",
+        category = "API/3D Scene", order = 140,
+        summary = "A centered Minecraft item model in the scene graph.")
+@WikiSection(title = "Display modes", order = 10, markdown = """
+        Choose `FIXED` for frame-style placement, `GROUND` for a dropped-item look, or `GUI` for inventory styling.
+        Scene transforms apply after the model placement. On modern versions use `MinecraftScene.stack(node)` for a
+        typed view of the resolved stack.
+        """)
+@WikiExample(title = "Preview a sword", code = """
+        ItemNode sword = new ItemNode("minecraft:diamond_sword");
+        sword.setDisplay(ItemNode.Display.FIXED).setPosition(0, 1, 0);
+        viewport.highlightObjects(true).scene().addRoot(sword);
+        """)
+@WikiLink(label = "SceneNode", target = "page:scene-node")
+@WikiLink(label = "ScenePlatform", target = "page:scene-platform")
+@WikiLink(label = "Scene3D", target = "page:scene-3d")
+@AiDoc(
+        summary = "A centered Minecraft item model in the scene graph.",
+        purpose = "Render an item preview with a selectable vanilla display placement and scene transform.",
+        criticalRules = {
+                "Pass a registry ID or use `ItemNode.of` with a native item or stack. The platform copies native stacks when resolving them.",
+                "`Display.FIXED` is the default. Supported display placements vary by Minecraft version.",
+                "Model bounds drive object picking and highlighting when available. A centered unit cube supplies fallback bounds while a model is unavailable."
+        },
+        related = {"SceneNode", "ScenePlatform", "Scene3D"},
+        examples = @AiDoc.Example(title = "Preview a sword", code = """
+                ItemNode sword = new ItemNode("minecraft:diamond_sword");
+                sword.setDisplay(ItemNode.Display.FIXED).setPosition(0, 1, 0);
+                viewport.highlightObjects(true).scene().addRoot(sword);
+                """))
 public final class ItemNode extends SceneNode {
     /**
-     * Границы, пока модель предмета неизвестна.
+     * Fallback bounds before the item's model bounds become available.
      */
     private static final Aabb FALLBACK_BOUNDS = new Aabb(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f);
 
     /**
-     * Идентификатор предмета или null для нативного источника.
+     * Item ID, or null for native input.
      */
     private String id;
     /**
-     * Нативный объект пользователя или null для идентификатора.
+     * Native source object, or null for an item ID.
      */
     private Object nativeSource;
     /**
-     * Кэш разрешённого предмета.
+     * Cache of the resolved item.
      */
     private final ResolvedContent item = new ResolvedContent();
     /**
-     * Как модель предмета расположена вокруг начала координат.
+     * Model placement relative to the local origin.
      */
     private Display display = Display.FIXED;
 
     /**
-     * Ванильное расположение модели предмета.
+     * Vanilla model placement presets.
      */
     public enum Display {
         /**
-         * Как в рамке: плоские предметы стоят вертикально, блоки уменьшены вдвое.
+         * Item-frame placement, with flat items upright and block models at half size.
          */
         FIXED,
         /**
-         * Как выброшенный на землю предмет: в четверть-полблока.
+         * Dropped-item placement, typically a quarter to half a block across.
          */
         GROUND,
         /**
-         * Как иконка в инвентаре: блоки повёрнуты в изометрию.
+         * Inventory icon placement, with an isometric view of block models.
          */
         GUI
     }
 
     /**
-     * Создаёт узел по идентификатору предмета.
+     * Creates a node from an item ID.
      *
-     * @param id идентификатор, например {@code minecraft:diamond_sword}.
-     * @throws IllegalArgumentException если идентификатор пуст.
+     * @param id item ID such as {@code minecraft:diamond_sword}.
+     * @throws IllegalArgumentException if id is blank.
      */
-    public ItemNode(String id) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 10,
+            summary = "Creates a node from an item ID.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if id is blank.")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 10,
+            summary = "Creates a node from an item ID.")
+    public ItemNode(
+            @WikiParameter(description = "item ID such as `minecraft:diamond_sword`.") String id) {
         this.id = requireId(id);
     }
 
     /**
-     * Создаёт узел из нативного стека или предмета версии.
+     * Creates a node from a native stack or item.
      *
-     * @param item стек, предмет или строка-идентификатор.
-     * @return новый узел.
-     * @throws NullPointerException если item равен null.
+     * @param item stack, item or ID string.
+     * @return a new node.
+     * @throws NullPointerException if item is null.
      */
-    public static ItemNode of(Object item) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 20,
+            summary = "Creates a node from a native stack or item.")
+    @WikiReturn("a new node")
+    @WikiThrows(type = NullPointerException.class, description = "if item is null.")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 20,
+            summary = "Creates a node from a native stack or item.")
+    public static ItemNode of(
+            @WikiParameter(description = "stack, item or ID string.") Object item) {
         if (item instanceof String text) return new ItemNode(text);
         ItemNode node = new ItemNode();
         node.nativeSource = Objects.requireNonNull(item, "item");
@@ -82,25 +133,38 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Внутренний конструктор для нативного источника.
+     * Creates an empty node for native input.
      */
     private ItemNode() {
     }
 
     /**
-     * @return расположение модели, по умолчанию {@link Display#FIXED}.
+     * Reads the model placement.
+     *
+     * @return the placement, defaulting to {@link Display#FIXED}.
      */
+    @WikiMethod(section = "Display", sectionOrder = 20, order = 10,
+            summary = "Reads the model placement.")
+    @WikiReturn("the placement, defaulting to `Display#FIXED`")
+    @AiDoc(section = "Display", sectionOrder = 20, order = 10,
+            summary = "Reads the model placement.")
     public Display display() {
         return display;
     }
 
     /**
-     * Меняет расположение модели. На 1.7.10 различается только размер {@link Display#GROUND}.
+     * Changes the model placement. On 1.7.10 only {@link Display#GROUND} changes the size.
      *
-     * @param display расположение.
-     * @return этот узел.
+     * @param display new model placement.
+     * @return this node.
      */
-    public ItemNode setDisplay(Display display) {
+    @WikiMethod(section = "Display", sectionOrder = 20, order = 20,
+            summary = "Changes the model placement. On 1.7.10 only `Display#GROUND` changes the size.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Display", sectionOrder = 20, order = 20,
+            summary = "Changes the model placement. On 1.7.10 only `Display#GROUND` changes the size.")
+    public ItemNode setDisplay(
+            @WikiParameter(description = "new model placement.") Display display) {
         Objects.requireNonNull(display, "display");
         if (this.display != display) {
             this.display = display;
@@ -110,28 +174,46 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * @return идентификатор предмета или null для нативного источника.
+     * Reads the item ID.
+     *
+     * @return the item ID, or null for native input.
      */
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 30,
+            summary = "Reads the item ID.")
+    @WikiReturn("the item ID, or null for native input")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 30,
+            summary = "Reads the item ID.")
     public String id() {
         return id;
     }
 
     /**
-     * Читает нативный объект, которым задан узел.
+     * Reads the native input object.
      *
-     * @return объект пользователя или null, если узел задан идентификатором.
+     * @return the native input object, or null for an item ID.
      */
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 40,
+            summary = "Reads the native input object.")
+    @WikiReturn("the native input object, or null for an item ID")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 40,
+            summary = "Reads the native input object.")
     public Object nativeSource() {
         return nativeSource;
     }
 
     /**
-     * Меняет предмет по идентификатору. Тот же идентификатор ничего не меняет.
+     * Replaces the item by ID. Passing the same ID preserves the cache.
      *
-     * @param id идентификатор предмета.
-     * @return этот узел.
+     * @param id item ID.
+     * @return this node.
      */
-    public ItemNode setItem(String id) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 50,
+            summary = "Replaces the item by ID. Passing the same ID preserves the cache.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 50,
+            summary = "Replaces the item by ID. Passing the same ID preserves the cache.")
+    public ItemNode setItem(
+            @WikiParameter(description = "item ID.") String id) {
         String next = requireId(id);
         if (next.equals(this.id)) return this;
         this.id = next;
@@ -141,12 +223,18 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Меняет предмет на нативный стек или предмет. Тот же объект ничего не меняет.
+     * Replaces the item using a native object. Reusing the same object preserves the cache.
      *
-     * @param item стек, предмет или строка-идентификатор.
-     * @return этот узел.
+     * @param item stack, item or ID string.
+     * @return this node.
      */
-    public ItemNode setItem(Object item) {
+    @WikiMethod(section = "Sources", sectionOrder = 10, order = 50,
+            summary = "Replaces the item using a native object. Reusing the same object preserves the cache.")
+    @WikiReturn("this node")
+    @AiDoc(section = "Sources", sectionOrder = 10, order = 50,
+            summary = "Replaces the item using a native object. Reusing the same object preserves the cache.")
+    public ItemNode setItem(
+            @WikiParameter(description = "stack, item or ID string.") Object item) {
         if (item instanceof String text) return setItem(text);
         Objects.requireNonNull(item, "item");
         if (nativeSource == item) return this;
@@ -157,32 +245,46 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Разрешает предмет для бэкенда или помощника платформы.
+     * Resolves the item for the renderer or a platform helper.
      *
-     * @param platform платформа версии или null.
-     * @return нативный предмет или null, если он недоступен или неверен.
+     * @param platform platform adapter, or null.
+     * @return the native item, or null if unavailable or invalid.
      */
-    public Object nativeItem(ScenePlatform platform) {
+    @WikiMethod(section = "Resolution", sectionOrder = 30, order = 10,
+            summary = "Resolves the item for the renderer or a platform helper.")
+    @WikiReturn("the native item, or null if unavailable or invalid")
+    @AiDoc(section = "Resolution", sectionOrder = 30, order = 10,
+            summary = "Resolves the item for the renderer or a platform helper.")
+    public Object nativeItem(
+            @WikiParameter(description = "platform adapter, or null.") ScenePlatform platform) {
         return item.get(platform, this::resolve, this, false);
     }
 
     /**
-     * Разрешает предмет и бросает ошибку неверного источника.
+     * Resolves the item and propagates resolution errors.
      *
-     * @param platform платформа версии.
-     * @return нативный предмет или null, если предметы ещё недоступны.
-     * @throws IllegalArgumentException      если предмет неизвестен.
-     * @throws UnsupportedOperationException если версия не рисует предметы в сцене.
+     * @param platform platform adapter.
+     * @return the native item, or null if temporarily unavailable.
+     * @throws IllegalArgumentException if the item is unknown.
+     * @throws UnsupportedOperationException if the platform cannot render scene items.
      */
-    public Object requireNativeItem(ScenePlatform platform) {
+    @WikiMethod(section = "Resolution", sectionOrder = 30, order = 20,
+            summary = "Resolves the item and propagates resolution errors.")
+    @WikiReturn("the native item, or null if temporarily unavailable")
+    @WikiThrows(type = IllegalArgumentException.class, description = "if the item is unknown.")
+    @WikiThrows(type = UnsupportedOperationException.class, description = "if the platform cannot render scene items.")
+    @AiDoc(section = "Resolution", sectionOrder = 30, order = 20,
+            summary = "Resolves the item and propagates resolution errors.")
+    public Object requireNativeItem(
+            @WikiParameter(description = "platform adapter.") ScenePlatform platform) {
         return item.get(Objects.requireNonNull(platform, "platform"), this::resolve, this, true);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Объединяет границы модели предмета и собственного меша узла. Пока модель неизвестна, используется куб
-     * со стороной 1 вокруг начала координат. Пустой стек даёт только границы меша.</p>
+     * <p>Combines item model bounds and custom mesh bounds. Until the item model is available,
+     * a unit cube centered at the origin supplies fallback bounds. An empty stack contributes no bounds.</p>
      */
     @Override
     protected Aabb contentBounds() {
@@ -195,9 +297,9 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Описание для логов и отладки.
+     * Formats the source for logging and debugging.
      *
-     * @return идентификатор или нативный объект.
+     * @return a description of the item ID or native object.
      */
     @Override
     public String toString() {
@@ -205,11 +307,11 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Объединяет границы модели и меша.
+     * Combines model and mesh bounds.
      *
-     * @param model границы модели.
-     * @param mesh  границы меша или null.
-     * @return общие границы.
+     * @param model model bounds.
+     * @param mesh mesh bounds, or null.
+     * @return the union of the bounds.
      */
     private static Aabb union(Aabb model, Aabb mesh) {
         if (mesh == null) return model;
@@ -219,17 +321,17 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Вызывает платформу для текущего источника.
+     * Resolves the current source with the given platform.
      *
-     * @param platform платформа версии.
-     * @return нативный предмет или null.
+     * @param platform platform adapter.
+     * @return the native item, or null.
      */
     private Object resolve(ScenePlatform platform) {
         return id != null ? platform.resolveItem(id) : platform.nativeItem(nativeSource);
     }
 
     /**
-     * Сбрасывает кэш после смены источника.
+     * Clears the resolution cache after a source change.
      */
     private void sourceChanged() {
         item.reset();
@@ -237,10 +339,10 @@ public final class ItemNode extends SceneNode {
     }
 
     /**
-     * Проверяет идентификатор.
+     * Validates the ID.
      *
-     * @param id идентификатор.
-     * @return идентификатор без пробелов по краям.
+     * @param id item ID.
+     * @return the ID with surrounding whitespace removed.
      */
     private static String requireId(String id) {
         String trimmed = Objects.requireNonNull(id, "id").trim();

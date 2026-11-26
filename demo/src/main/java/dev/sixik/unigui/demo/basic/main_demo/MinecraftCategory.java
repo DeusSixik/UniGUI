@@ -8,6 +8,7 @@ import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleBlock;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleEntity;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleItem;
+import dev.sixik.unigui.demo.ui.scene.SceneGizmoDemo;
 import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
@@ -175,6 +176,9 @@ final class MinecraftCategory extends DemoCategory {
                         + "viewport.content(controlPanel); // UI drawn over the scene\n"
                         + "house.playAssembly(viewport, 4.0f, Integer.MAX_VALUE);"));
         addFurnaceTutorial(root, host);
+        root.addChild(samplePanel("Transform gizmo & fly camera",
+                "Click a block to select it, then drag a colored axis or ring. Switch between Move, Rotate and Scale.",
+                new SceneGizmoDemo(blocks), "new SceneGizmoDemo(blocks);"));
     }
 
     /**
