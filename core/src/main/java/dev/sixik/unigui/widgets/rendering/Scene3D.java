@@ -18,6 +18,7 @@ import dev.sixik.unigui.api.event.PointerReleasedEvent;
 import dev.sixik.unigui.api.event.ScrollEvent;
 import dev.sixik.unigui.api.input.MouseCursor;
 import dev.sixik.unigui.api.input.PointerButton;
+import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec2;
@@ -142,15 +143,23 @@ public final class Scene3D extends RenderToTexture {
      */
     private boolean cameraControls = true;
     /**
+     * Максимальный радиус орбиты при зуме колесом в единицах сцены. Ноль использует дальнюю плоскость.
+     */
+    private float maxZoomDistance;
+    /**
      * Разрешена ли подсветка единичных ячеек под мышью.
      */
     private boolean highlightBlocks;
+    /**
+     * Разрешена ли подсветка объектов, выбранных без попадания в единичную ячейку.
+     */
+    private boolean highlightObjects;
     /**
      * Нижний угол ячейки, найденной при последнем наведении.
      */
     private final MutableVec3 hoverCell = new MutableVec3();
     /**
-     * Ячейка, показанная в этом viewport, и её рабочие данные.
+     * Подсветка в этом viewport и её рабочие данные.
      */
     private HoverHighlight highlight;
 
@@ -300,6 +309,31 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
+     * Задаёт максимальный радиус орбиты при зуме колесом в перспективной проекции.
+     * Значение ограничивается диапазоном плоскостей отсечения при прокрутке.
+     *
+     * @param distance конечная дистанция в единицах сцены, не меньше нуля. Ноль использует дальнюю плоскость.
+     * @return этот виджет.
+     * @throws IllegalArgumentException если дистанция отрицательна или не конечна.
+     */
+    public Scene3D maxZoomDistance(float distance) {
+        if (distance < 0 || !Float.isFinite(distance)) {
+            throw new IllegalArgumentException("Maximum zoom distance must be finite and nonnegative");
+        }
+        maxZoomDistance = distance;
+        return this;
+    }
+
+    /**
+     * Читает настроенное ограничение зума колесом.
+     *
+     * @return максимальный радиус орбиты в единицах сцены или ноль, если используется дальняя плоскость.
+     */
+    public float maxZoomDistance() {
+        return maxZoomDistance;
+    }
+
+    /**
      * Включает подсветку блоков, которые поддерживают выбор единичной ячейки.
      *
      * @param enabled true включает подсветку.
@@ -309,8 +343,7 @@ public final class Scene3D extends RenderToTexture {
         if (highlightBlocks != enabled) {
             highlightBlocks = enabled;
             hoverSampleValid = false;
-            if (!enabled) updateHighlight(null);
-            else refreshHover();
+            refreshHover();
         }
         return this;
     }
@@ -322,6 +355,31 @@ public final class Scene3D extends RenderToTexture {
      */
     public boolean highlightBlocks() {
         return highlightBlocks;
+    }
+
+    /**
+     * Включает подсветку выбранного объекта, например предмета или моба.
+     * Узел может предоставить свою геометрию через {@link SceneNode#hoverHighlight(Vec3View)}.
+     *
+     * @param enabled true включает подсветку при наведении.
+     * @return этот виджет.
+     */
+    public Scene3D highlightObjects(boolean enabled) {
+        if (highlightObjects != enabled) {
+            highlightObjects = enabled;
+            hoverSampleValid = false;
+            refreshHover();
+        }
+        return this;
+    }
+
+    /**
+     * Читает настройку подсветки объектов.
+     *
+     * @return true, если объекты выделяются при наведении.
+     */
+    public boolean highlightObjects() {
+        return highlightObjects;
     }
 
     /**
@@ -924,7 +982,7 @@ public final class Scene3D extends RenderToTexture {
 
     /**
      * Меняет масштаб по формуле {@code factor = WHEEL_SCALE^delta}.
-     * Перспективное расстояние ограничено текущими плоскостями отсечения.
+     * Перспективное расстояние ограничено плоскостями отсечения и {@link #maxZoomDistance()}.
      *
      * @param scroll колесо в локальных координатах сцены.
      */
@@ -934,14 +992,16 @@ public final class Scene3D extends RenderToTexture {
         prepareViewport();
         if (!viewport.toCanvas(scroll.localX(), scroll.localY(), mapped)) return;
         double factor = Math.pow(WHEEL_SCALE, Math.max(-10, Math.min(10, delta)));
-        if (!camera.orthographic()) {
-            double distance = orbit.distance();
-            factor = Math.max(camera.near() / distance, Math.min(camera.far() / distance, factor));
+        if (camera.orthographic()) {
+            float zoom = (float) factor;
+            float height = camera.orthographicHeight() * zoom;
+            if (!(height > 0) || !Float.isFinite(height)) return;
+            orbit.zoom(zoom);
+        } else {
+            float limit = maxZoomDistance > 0 ? Math.min(camera.far(), maxZoomDistance) : camera.far();
+            float distance = (float) Math.max(camera.near(), Math.min(limit, orbit.distance() * factor));
+            orbit.setDistance(distance);
         }
-        float zoom = (float) factor;
-        float scaled = (camera.orthographic() ? camera.orthographicHeight() : orbit.distance()) * zoom;
-        if (!(scaled > 0) || !Float.isFinite(scaled) || !(zoom > 0) || !Float.isFinite(zoom)) return;
-        orbit.zoom(zoom);
         scroll.cancel();
         synchronizeTexture();
         projectAnchors();
@@ -973,8 +1033,9 @@ public final class Scene3D extends RenderToTexture {
         sampledCameraRevision = cameraRevision;
         sampledViewportRevision = viewportRevision;
         hoverSampleValid = true;
-        SceneNode hit = pickPrepared(pointerX, pointerY, highlightBlocks ? hoverCell : null);
-        if (highlightBlocks) updateHighlight(hit);
+        boolean highlights = highlightBlocks || highlightObjects;
+        SceneNode hit = pickPrepared(pointerX, pointerY, highlights ? hoverCell : null);
+        updateHighlight(highlights ? hit : null);
         setHoveredNode(hit);
     }
 
@@ -1010,26 +1071,39 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
-     * Меняет подсвеченную ячейку текущего viewport.
+     * Меняет подсвеченный объект или ячейку текущего viewport.
      *
-     * @param node узел с найденной ячейкой или null для сброса.
+     * @param node узел под указателем или null для сброса.
      */
     private void updateHighlight(SceneNode node) {
-        if (node == null || !Float.isFinite(hoverCell.x())) {
+        boolean cellHit = node != null && Float.isFinite(hoverCell.x());
+        boolean showCell = cellHit && highlightBlocks;
+        boolean showObject = node != null && !cellHit && highlightObjects;
+        SceneNode.HoverHighlight custom = showCell || showObject
+                ? node.hoverHighlight(showCell ? hoverCell : null) : null;
+        Aabb bounds = showObject && custom == null ? node.bounds() : null;
+        if (!showCell && bounds == null && custom == null) {
             if (highlight == null || highlight.node == null) return;
             highlight.node = null;
+            highlight.bounds = null;
+            highlight.setCustom(null);
         } else {
             if (highlight == null) highlight = new HoverHighlight();
-            if (highlight.node == node && highlight.cell.x() == hoverCell.x()
-                    && highlight.cell.y() == hoverCell.y() && highlight.cell.z() == hoverCell.z()) return;
+            boolean customChanged = highlight.setCustom(custom);
+            float x = showCell ? hoverCell.x() : 0;
+            float y = showCell ? hoverCell.y() : 0;
+            float z = showCell ? hoverCell.z() : 0;
+            if (!customChanged && highlight.node == node && Objects.equals(highlight.bounds, bounds)
+                    && highlight.origin.x() == x && highlight.origin.y() == y && highlight.origin.z() == z) return;
             highlight.node = node;
-            highlight.cell.set(hoverCell);
+            highlight.bounds = bounds;
+            highlight.origin.set(x, y, z);
         }
         if (updateMode() == UpdateMode.ON_CHANGE) requestRender();
     }
 
     /**
-     * Строит подсветку на основе локального угла ячейки и текущей матрицы узла.
+     * Помещает стандартный или пользовательский меш подсветки в мировые координаты.
      */
     private static final class HoverHighlight {
         /**
@@ -1039,7 +1113,7 @@ public final class Scene3D extends RenderToTexture {
         /**
          * Одна полупрозрачная оболочка вокруг единичной ячейки.
          */
-        private static final Mesh3D MESH = new Mesh3D(new float[]{
+        private static final Mesh3D BLOCK_MESH = new Mesh3D(new float[]{
                 -OFFSET, -OFFSET, -OFFSET, 1 + OFFSET, -OFFSET, -OFFSET,
                 1 + OFFSET, 1 + OFFSET, -OFFSET, -OFFSET, 1 + OFFSET, -OFFSET,
                 -OFFSET, -OFFSET, 1 + OFFSET, 1 + OFFSET, -OFFSET, 1 + OFFSET,
@@ -1052,47 +1126,143 @@ public final class Scene3D extends RenderToTexture {
         /**
          * Тёплый полупрозрачный цвет для выделения поверхности.
          */
-        private static final Material MATERIAL = new Material(0x73FFE18C, null, Material.Shading.UNLIT,
+        private static final Material BLOCK_MATERIAL = new Material(0x73FFE18C, null, Material.Shading.UNLIT,
                 Material.AlphaMode.TRANSLUCENT, 0, Material.Culling.BACK);
         /**
-         * Нижний угол ячейки в локальных координатах узла.
+         * Отступ рамки от объекта с каждой стороны, в локальных единицах сцены.
          */
-        private final MutableVec3 cell = new MutableVec3();
+        private static final float FRAME_PADDING = 0.04f;
+        /**
+         * Ширина полосы в долях размера соответствующей стороны рамки.
+         */
+        private static final float FRAME_EDGE = 0.04f;
+        /**
+         * Грани единичного куба с вырезанным центром.
+         */
+        private static final Mesh3D FRAME_MESH = frameMesh();
+        /**
+         * Светло-голубая рамка, проходящая тест глубины сцены.
+         */
+        private static final Material FRAME_MATERIAL = new Material(0xE095DEFF, null, Material.Shading.UNLIT,
+                Material.AlphaMode.TRANSLUCENT, 0, Material.Culling.BACK);
+        /**
+         * Нижний угол ячейки или начало узла в локальных единицах сцены.
+         */
+        private final MutableVec3 origin = new MutableVec3();
         /**
          * Вращение единичного преобразования.
          */
         private final MutableQuat rotation = new MutableQuat();
         /**
-         * Масштаб единичного преобразования.
+         * Размер рамки по локальным осям. Равен единице для ячейки.
          */
         private final MutableVec3 scale = new MutableVec3(1, 1, 1);
         /**
-         * Перенос от начала ячейки к началу узла.
+         * Локальная позиция первого угла рамки, в единицах сцены.
+         */
+        private final MutableVec3 frameOrigin = new MutableVec3();
+        /**
+         * Преобразование меша подсветки в систему узла.
          */
         private final MutableMat4 local = new MutableMat4();
         /**
-         * Преобразование геометрии ячейки в мировые координаты.
+         * Преобразование геометрии подсветки в мировые координаты.
          */
         private final MutableMat4 world = new MutableMat4();
         /**
-         * Переиспользуемый пакет для рендерера.
+         * Переиспользуемый пакет подсветки ячейки.
          */
-        private final Scene3DRenderer.Highlight renderable = new Scene3DRenderer.Highlight(MESH, MATERIAL, world);
+        private final Scene3DRenderer.Highlight block = new Scene3DRenderer.Highlight(BLOCK_MESH, BLOCK_MATERIAL, world);
+        /**
+         * Переиспользуемый пакет рамки объекта.
+         */
+        private final Scene3DRenderer.Highlight frame = new Scene3DRenderer.Highlight(FRAME_MESH, FRAME_MATERIAL, world);
         /**
          * Подсвеченный узел или null.
          */
         private SceneNode node;
+        /**
+         * Локальные границы объекта для стандартной рамки, иначе null.
+         */
+        private Aabb bounds;
+        /**
+         * Геометрия и материал от узла или null для стандартной подсветки.
+         */
+        private SceneNode.HoverHighlight custom;
+        /**
+         * Пакет пользовательской подсветки, переиспользуемый пока геометрия и материал совпадают.
+         */
+        private Scene3DRenderer.Highlight customRenderable;
 
         /**
-         * Умножает мировое преобразование узла на перенос ячейки.
+         * Обновляет пакет пользовательской подсветки при изменении её геометрии или материала.
+         *
+         * @param next новая подсветка узла или null для стандартной подсветки.
+         * @return true, если пакет изменился.
+         */
+        private boolean setCustom(SceneNode.HoverHighlight next) {
+            if (Objects.equals(custom, next)) return false;
+            custom = next;
+            customRenderable = next == null ? null : new Scene3DRenderer.Highlight(next.mesh(), next.material(), world);
+            return true;
+        }
+
+        /**
+         * Умножает мировое преобразование узла на локальное преобразование подсветки.
          *
          * @return подсветка этого viewport или null.
          */
         private Scene3DRenderer.Highlight renderable() {
             if (node == null) return null;
-            local.setTransform(cell, rotation, scale);
+            if (bounds == null) {
+                local.setTransform(origin, rotation, scale.set(1, 1, 1));
+            } else {
+                float width = bounds.maxX() - bounds.minX() + 2 * FRAME_PADDING;
+                float height = bounds.maxY() - bounds.minY() + 2 * FRAME_PADDING;
+                float depth = bounds.maxZ() - bounds.minZ() + 2 * FRAME_PADDING;
+                if (!Float.isFinite(width) || !Float.isFinite(height) || !Float.isFinite(depth)) return null;
+                frameOrigin.set(bounds.minX() - FRAME_PADDING, bounds.minY() - FRAME_PADDING,
+                        bounds.minZ() - FRAME_PADDING);
+                local.setTransform(frameOrigin, rotation, scale.set(width, height, depth));
+            }
             world.setProduct(node.worldMatrix(world), local);
-            return renderable;
+            if (customRenderable != null) return customRenderable;
+            return bounds == null ? block : frame;
+        }
+
+        /**
+         * Строит рамку из четырёх полос на каждой грани единичного куба. Внутренний угол
+         * равен {@code outer + FRAME_EDGE * (opposite - outer)}, где opposite лежит на той же грани по диагонали.
+         *
+         * @return неизменяемый меш рамки с треугольниками, направленными наружу.
+         */
+        private static Mesh3D frameMesh() {
+            float[] corners = {0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1};
+            int[][] faces = {{0, 3, 2, 1}, {4, 5, 6, 7}, {0, 4, 7, 3}, {1, 2, 6, 5}, {0, 1, 5, 4}, {3, 7, 6, 2}};
+            int outerVertices = corners.length / 3;
+            float[] positions = java.util.Arrays.copyOf(corners, corners.length + faces.length * 4 * 3);
+            int[] indices = new int[faces.length * 4 * 6];
+            int index = 0;
+            for (int face = 0; face < faces.length; face++) {
+                int[] outer = faces[face];
+                int inner = outerVertices + face * 4;
+                for (int corner = 0; corner < outer.length; corner++) {
+                    int next = (corner + 1) % outer.length;
+                    int opposite = outer[(corner + 2) % outer.length];
+                    for (int axis = 0; axis < 3; axis++) {
+                        float from = corners[outer[corner] * 3 + axis];
+                        float to = corners[opposite * 3 + axis];
+                        positions[(inner + corner) * 3 + axis] = from + FRAME_EDGE * (to - from);
+                    }
+                    indices[index++] = outer[corner];
+                    indices[index++] = outer[next];
+                    indices[index++] = inner + next;
+                    indices[index++] = outer[corner];
+                    indices[index++] = inner + next;
+                    indices[index++] = inner + corner;
+                }
+            }
+            return new Mesh3D(positions, null, null, null, indices);
         }
     }
 

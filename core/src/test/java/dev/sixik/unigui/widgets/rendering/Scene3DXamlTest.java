@@ -22,6 +22,7 @@ final class Scene3DXamlTest {
     void preview_withCameraAndOverlay_createsConfiguredScene() {
         var document = XamlFormat.INSTANCE.read("""
                 <Scene3D width="320" height="200" camera="fixed" yaw="30" pitch="25" distance="8"
+                         farClip="128" maxZoomDistance="60" highlightObjects="true"
                          updateMode="every-frame" resolutionScale="2">
                     <Label text="overlay"/>
                 </Scene3D>
@@ -34,6 +35,9 @@ final class Scene3DXamlTest {
             assertEquals(30, Math.toDegrees(scene.orbit().yaw()), DEGREES_EPSILON);
             assertEquals(25, Math.toDegrees(scene.orbit().pitch()), DEGREES_EPSILON);
             assertEquals(8, scene.orbit().distance(), 0);
+            assertEquals(128, scene.camera().far(), 0);
+            assertEquals(60, scene.maxZoomDistance(), 0);
+            assertTrue(scene.highlightObjects());
             assertEquals(RenderToTexture.UpdateMode.EVERY_FRAME, scene.updateMode());
             assertEquals(2, scene.resolutionScale(), 0);
             assertEquals("overlay", assertInstanceOf(Label.class, scene.content()).text());

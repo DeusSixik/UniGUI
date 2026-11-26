@@ -193,6 +193,13 @@ final class DisplayTypes {
                 .property("distance", Converters.FLOAT,
                         (scene, value) -> scene.orbit().setDistance(value), scene -> scene.orbit().distance(),
                         Meta.category("Camera").defaultValue("5").description("Distance to the origin in scene units."))
+                .property("farClip", Converters.FLOAT,
+                        (scene, value) -> scene.camera().setClipPlanes(scene.camera().near(), value),
+                        scene -> scene.camera().far(), Meta.category("Camera").defaultValue("1000")
+                                .description("Far clipping plane in scene units from the camera."))
+                .property("maxZoomDistance", Converters.FLOAT, Scene3D::maxZoomDistance, Scene3D::maxZoomDistance,
+                        Meta.category("Camera").defaultValue("0")
+                                .description("Maximum perspective orbit radius for wheel zoom. Zero uses the far plane."))
                 .property("updateMode", Converters.enumOf(RenderToTexture.UpdateMode.class), Scene3D::updateMode,
                         Scene3D::updateMode, Meta.category("Rendering").defaultValue("ON_CHANGE"))
                 .property("resolutionScale", Converters.FLOAT, Scene3D::resolutionScale,
@@ -202,6 +209,9 @@ final class DisplayTypes {
                 .property("highlightBlocks", Converters.BOOLEAN, Scene3D::highlightBlocks, Scene3D::highlightBlocks,
                         Meta.category("Appearance").defaultValue("false")
                                 .description("Highlights the block beneath the mouse pointer."))
+                .property("highlightObjects", Converters.BOOLEAN, Scene3D::highlightObjects, Scene3D::highlightObjects,
+                        Meta.category("Appearance").defaultValue("false")
+                                .description("Draws a frame around objects such as items and mobs beneath the mouse pointer."))
                 .content((scene, child) -> {
                     if (child instanceof Scene3D.NodeContent node) scene.addNodeContent(node);
                     else overlay.add(scene, child);

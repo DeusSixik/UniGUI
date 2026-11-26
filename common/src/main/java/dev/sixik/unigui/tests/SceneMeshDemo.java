@@ -54,10 +54,11 @@ public final class SceneMeshDemo {
      */
     private static Scene3D createBlocks() {
         Scene3D widget = new Scene3D();
-        widget.highlightBlocks(true);
+        widget.highlightBlocks(true).highlightObjects(true);
         widget.updateMode(RenderToTexture.UpdateMode.EVERY_FRAME);
         widget.clearColor().set(0.046f, 0.071f, 0.11f, 1);
-        widget.camera().setPerspective((float) Math.toRadians(45), 0.2f, 48);
+        widget.camera().setPerspective((float) Math.toRadians(45), 0.2f, 128);
+        widget.maxZoomDistance(60);
         widget.orbit().setOrbit(new MutableVec3(2.5f, 1.8f, 2.5f), 12.5f, 0.46, 0.43);
         StructureNode structure = new StructureNode();
         for (int z = 0; z < 5; z++) {
@@ -99,7 +100,8 @@ public final class SceneMeshDemo {
         Scene3D widget = new Scene3D();
         widget.updateMode(RenderToTexture.UpdateMode.EVERY_FRAME);
         widget.clearColor().set(0.046f, 0.071f, 0.11f, 1);
-        widget.camera().setPerspective((float) Math.toRadians(45), 0.2f, 32);
+        widget.camera().setPerspective((float) Math.toRadians(45), 0.2f, 64);
+        widget.maxZoomDistance(32);
         widget.orbit().setOrbit(new MutableVec3(0.2f, 0.05f, 0), 6.2f, 0.12, 0.22);
 
         SceneNode cube = new SceneNode().setMesh(cube()).setPosition(-1.08f, -0.03f, 0.64f).setScale(1.48f, 1.48f, 1.48f)

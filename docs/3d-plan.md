@@ -122,12 +122,51 @@
 
 ```xml
 <Scene3D width="320" height="200" camera="orbit" yaw="30" pitch="25" distance="8"
-         highlightBlocks="true" resolutionScale="2">
+         farClip="128" maxZoomDistance="60" highlightBlocks="true" highlightObjects="true" resolutionScale="2">
     <Block state="minecraft:furnace[facing=north]" pos="0,0,0"/>
     <Structure src="minecraft:igloo/top" pos="-3,0,-6" topVisibleY="3" assemblySeconds="2"/>
     <Entity type="minecraft:zombie" pos="2,0,0"/>
 </Scene3D>
 ```
+
+`farClip` задаёт дальнюю плоскость отсечения в единицах сцены от камеры, по умолчанию 1000.
+`maxZoomDistance` ограничивает радиус орбиты при прокрутке в перспективном режиме. Значение `0` использует
+дальнюю плоскость как лимит. Чтобы структура целиком оставалась видимой при отдалении, оставьте между лимитом
+зума и дальней плоскостью запас на глубину структуры. Из Java используйте `scene.camera().setClipPlanes(near, far)`
+и `scene.maxZoomDistance(distance)`.
+
+`highlightObjects="true"` показывает голубую 3D-рамку вокруг выбранного предмета, сущности или другого объекта с
+границами. `highlightBlocks="true"` подсвечивает отдельную ячейку блока. В Java этим настройкам соответствуют
+`scene.highlightObjects(true)` и `scene.highlightBlocks(true)`.
+
+`ItemNode` берёт локальный AABB из модели предмета в контексте `FIXED`. Эти границы используются для
+наведения, рамки и отсечения. Для модели без доступной геометрии используется запасной куб.
+Явный `item.setBounds(...)` имеет приоритет.
+
+Кастомный `SceneNode` может переопределить `hoverHighlight(Vec3View cellOrigin)` и вернуть свою геометрию
+с материалом для подсветки:
+
+```java
+class CustomNode extends SceneNode {
+    private final HoverHighlight highlight;
+
+    CustomNode(Mesh3D mesh, Mesh3D highlightMesh, Material highlightMaterial) {
+        setMesh(mesh);
+        highlight = new HoverHighlight(highlightMesh, highlightMaterial);
+    }
+
+    @Override
+    public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+        return highlight;
+    }
+}
+```
+
+При попадании в объект `cellOrigin` равен `null`, и меш подсветки размещается в локальных координатах узла.
+При попадании в ячейку, найденную через `intersectPickBounds`, меш размещается относительно её нижнего угла.
+В обоих случаях применяются трансформации узла и его родителей и используется общая глубина сцены.
+Возврат `null` включает стандартную подсветку. Если результат метода меняется под неподвижным курсором,
+вызовите `invalidateContent()` у узла.
 
 `src` ищется как `structure/<путь>.nbt` или `structures/<путь>.nbt` в клиентских ресурсах и доступных пакетах данных.
 `topVisibleY` задаёт последний видимый слой в координатах структуры. По умолчанию показаны все слои.

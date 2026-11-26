@@ -2930,6 +2930,7 @@ Scene3D category=Display children=true
   @columnGap:NUMBER default=0 category=Layout
   @distance:NUMBER default=5 category=Camera
   @enabled:BOOLEAN default=true category=Behavior
+  @farClip:NUMBER default=1000 category=Camera
   @flexBasis:SIZE_VALUE default=auto category=Layout
   @flexDirection:ENUM default=column category=Layout
   @flexGrow:NUMBER default=0 category=Layout
@@ -2946,6 +2947,7 @@ Scene3D category=Display children=true
   @gridTemplateRows:STRING default= category=Layout
   @height:SIZE_VALUE default=auto category=Layout
   @highlightBlocks:BOOLEAN default=false category=Appearance
+  @highlightObjects:BOOLEAN default=false category=Appearance
   @horizontalAlignment:ENUM default=stretch category=Layout
   @id:STRING default= category=Common
   @justifyContent:ENUM default=start category=Layout
@@ -2955,6 +2957,7 @@ Scene3D category=Display children=true
   @marginAuto:STRING default=none category=Layout
   @maxHeight:SIZE_VALUE default=auto category=Layout
   @maxWidth:SIZE_VALUE default=auto category=Layout
+  @maxZoomDistance:NUMBER default=0 category=Camera
   @minHeight:SIZE_VALUE default=0 category=Layout
   @minWidth:SIZE_VALUE default=0 category=Layout
   @opacity:NUMBER default=1 category=Appearance

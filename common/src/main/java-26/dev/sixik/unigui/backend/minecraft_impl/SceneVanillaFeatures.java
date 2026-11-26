@@ -18,7 +18,6 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -145,9 +144,7 @@ final class SceneVanillaFeatures implements AutoCloseable {
      */
     void submit(ItemNode node, MutableMat4 world) {
         if (node.renderStack().isEmpty()) return;
-        var minecraft = Minecraft.getInstance();
-        minecraft.getItemModelResolver().updateForTopItem(item, node.renderStack(), ItemDisplayContext.FIXED,
-                minecraft.level, null, 0);
+        SceneItemModel.resolve(Minecraft.getInstance(), node.renderStack(), item);
         if (item.isEmpty()) return;
         setPose(world);
         submitted = true;

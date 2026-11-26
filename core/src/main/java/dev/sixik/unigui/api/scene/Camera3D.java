@@ -248,6 +248,23 @@ public final class Camera3D {
     }
 
     /**
+     * Задаёт плоскости отсечения для текущего режима проекции.
+     *
+     * @param near положительное расстояние до ближней плоскости в единицах сцены.
+     * @param far конечное расстояние до дальней плоскости в единицах сцены, больше near.
+     * @return эта камера.
+     * @throws IllegalArgumentException если нарушено условие {@code 0 < near < far} или расстояние не конечно.
+     */
+    public Camera3D setClipPlanes(float near, float far) {
+        checkClipPlanes(near, far);
+        if (this.near == near && this.far == far) return this;
+        this.near = near;
+        this.far = far;
+        changed();
+        return this;
+    }
+
+    /**
      * Копирует матрицу вида.
      *
      * @param out переиспользуемая матрица результата.

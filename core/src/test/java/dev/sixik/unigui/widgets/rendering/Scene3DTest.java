@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.Ray;
+import dev.sixik.unigui.api.math.Vec3View;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.DrawCommandType;
 import dev.sixik.unigui.api.render.DrawList;
@@ -23,6 +24,8 @@ import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.Scene3DRenderer;
 import dev.sixik.unigui.api.render.TextureFilter;
 import dev.sixik.unigui.api.scene.Camera3D;
+import dev.sixik.unigui.api.scene.Material;
+import dev.sixik.unigui.api.scene.Mesh3D;
 import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.api.scene.SceneNode;
 import dev.sixik.unigui.api.widget.Visibility;
@@ -43,6 +46,12 @@ class Scene3DTest {
     private static final float EPS = 1e-4f;
     private static final FrameContext FRAME = new FrameContext(1, 0.016f, 0.375f, FramePhase.ANIMATION);
     private static final Aabb UNIT_BOX = new Aabb(-1, -1, -1, 1, 1, 1);
+    /** Треугольник подсветки с вершинами в локальных единицах сцены. */
+    private static final Mesh3D HOVER_TRIANGLE = new Mesh3D(
+            new float[]{0, 0, 0, 1, 0, 0, 0, 1, 0}, null, null, null, new int[]{0, 1, 2});
+    /** Полупрозрачный зелёный материал подсветки с ARGB-цветом. */
+    private static final Material HOVER_MATERIAL = new Material(0x8044FF88, null, Material.Shading.UNLIT,
+            Material.AlphaMode.TRANSLUCENT, 0, Material.Culling.NONE);
 
     @Test
     void render_sceneAndPainter_shareOneDepthTargetWithNoSecondClear() {
@@ -220,6 +229,164 @@ class Scene3DTest {
         assertNull(h.backend.highlight);
     }
 
+    /** Проверяет отдельное включение подсветки ячеек и рамки с трансформацией объекта. */
+    @Test
+    void highlightObjects_whenHoverMovesBetweenObjectAndBlock_usesTheEnabledHighlight() {
+        Harness h = new Harness();
+        h.scene.camera().setOrthographic(6, 0.1f, 20);
+        h.node.setBounds(new Aabb(-0.25f, -0.5f, -0.125f, 0.25f, 0.5f, 0.125f))
+                .setPosition(1.5f, 0, 0).setScale(2, 1, 1.5f);
+        var block = new SceneNode() {
+            /** {@inheritDoc} */
+            @Override
+            protected double intersectPickBounds(Ray ray, double entry, double limit, MutableVec3 cellOrigin) {
+                cellOrigin.set(0, 0, 0);
+                return entry;
+            }
+        }.setBounds(UNIT_BOX).setPosition(-1.5f, 0, 0);
+        h.scene.scene().addRoot(block);
+        long revision = h.scene.scene().revision();
+
+        h.input.pointerMoved(160, 80, 0);
+        h.render();
+        assertSame(h.node, h.scene.hoveredNode());
+        assertNull(h.backend.highlight);
+
+        h.scene.highlightObjects(true);
+        h.render();
+        var frame = h.backend.highlight;
+        assertNotNull(frame);
+        assertEquals(0.92, frame.world().get(0, 3), EPS);
+        assertEquals(-0.54, frame.world().get(1, 3), EPS);
+        assertEquals(1.16, frame.world().get(0, 0), EPS);
+        assertEquals(1.08, frame.world().get(1, 1), EPS);
+        assertEquals(0.495, frame.world().get(2, 2), EPS);
+
+        h.input.pointerMoved(100, 80, 0);
+        h.render();
+        assertSame(block, h.scene.hoveredNode());
+        assertNull(h.backend.highlight);
+
+        h.scene.highlightBlocks(true);
+        h.render();
+        assertNotNull(h.backend.highlight);
+        assertNotSame(frame.mesh(), h.backend.highlight.mesh());
+        h.scene.highlightObjects(false);
+        h.render();
+        assertNotNull(h.backend.highlight);
+
+        h.scene.highlightObjects(true);
+        h.input.pointerMoved(160, 80, 0);
+        h.render();
+        assertSame(frame, h.backend.highlight);
+        h.scene.highlightBlocks(false);
+        h.render();
+        assertSame(frame, h.backend.highlight);
+        assertEquals(revision, h.scene.scene().revision());
+
+        h.input.pointerMoved(29, 80, 0);
+        h.render();
+        assertNull(h.backend.highlight);
+    }
+
+    /** Проверяет пользовательскую геометрию, иерархию и возврат к рамке без движения указателя. */
+    @Test
+    void hoverHighlight_customObject_usesNodeTransformAndRefreshesWhenInvalidated() {
+        Harness h = new Harness();
+        h.scene.updateMode(RenderToTexture.UpdateMode.ON_CHANGE);
+        h.scene.highlightObjects(true);
+        var node = new SceneNode() {
+            /** Текущая подсветка узла или null для стандартной рамки. */
+            HoverHighlight style = new HoverHighlight(HOVER_TRIANGLE, HOVER_MATERIAL);
+
+            /** {@inheritDoc} */
+            @Override
+            public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+                assertNull(cellOrigin);
+                return style;
+            }
+        };
+        node.setBounds(UNIT_BOX).setPosition(-0.125f, 0, 0.5f).setScale(0.5f, 2, 1);
+        SceneNode parent = new SceneNode().setPosition(0.25f, 0, 1.5f).setScale(2, 1.5f, 1);
+        parent.addChild(node);
+        h.scene.scene().addRoot(parent);
+
+        h.input.pointerMoved(130, 80, 0);
+        h.render();
+        assertSame(node, h.scene.hoveredNode());
+        var custom = h.backend.highlight;
+        assertNotNull(custom);
+        assertSame(HOVER_TRIANGLE, custom.mesh());
+        assertSame(HOVER_MATERIAL, custom.material());
+        assertEquals(0, custom.world().get(0, 3), EPS);
+        assertEquals(2, custom.world().get(2, 3), EPS);
+        assertEquals(1, custom.world().get(0, 0), EPS);
+        assertEquals(3, custom.world().get(1, 1), EPS);
+
+        node.style = new SceneNode.HoverHighlight(HOVER_TRIANGLE, Material.DEFAULT);
+        node.invalidateContent();
+        h.render();
+        assertSame(HOVER_TRIANGLE, h.backend.highlight.mesh());
+        assertSame(Material.DEFAULT, h.backend.highlight.material());
+
+        node.style = null;
+        node.invalidateContent();
+        h.render();
+        assertNotNull(h.backend.highlight);
+        assertNotSame(HOVER_TRIANGLE, h.backend.highlight.mesh());
+
+        h.scene.highlightObjects(false);
+        h.render();
+        assertSame(node, h.scene.hoveredNode());
+        assertNull(h.backend.highlight);
+    }
+
+    /** Проверяет материальный вариант для выбранной ячейки и перенос меша к её началу. */
+    @Test
+    void hoverHighlight_customCell_usesCellOriginAndBlockToggle() {
+        Harness h = new Harness();
+        h.scene.highlightObjects(true);
+        var left = new SceneNode.HoverHighlight(HOVER_TRIANGLE, HOVER_MATERIAL);
+        var right = new SceneNode.HoverHighlight(HOVER_TRIANGLE, Material.DEFAULT);
+        var node = new SceneNode() {
+            /** {@inheritDoc} */
+            @Override
+            protected double intersectPickBounds(Ray ray, double entry, double limit, MutableVec3 cellOrigin) {
+                ray.pointAt(entry, cellOrigin);
+                cellOrigin.set(cellOrigin.x() < 0 ? -1 : 0, 0, 0);
+                return entry;
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+                return cellOrigin.x() < 0 ? left : right;
+            }
+        }.setBounds(UNIT_BOX).setPosition(0, 0, 2);
+        h.scene.scene().addRoot(node);
+
+        h.input.pointerMoved(124, 80, 0);
+        h.render();
+        assertSame(node, h.scene.hoveredNode());
+        assertNull(h.backend.highlight);
+
+        h.scene.highlightBlocks(true);
+        h.render();
+        assertSame(HOVER_TRIANGLE, h.backend.highlight.mesh());
+        assertSame(HOVER_MATERIAL, h.backend.highlight.material());
+        assertEquals(-1, h.backend.highlight.world().get(0, 3), EPS);
+        assertEquals(2, h.backend.highlight.world().get(2, 3), EPS);
+
+        h.input.pointerMoved(136, 80, 0);
+        h.render();
+        assertSame(Material.DEFAULT, h.backend.highlight.material());
+        assertEquals(0, h.backend.highlight.world().get(0, 3), EPS);
+
+        h.input.pointerMoved(29, 80, 0);
+        h.render();
+        assertNull(h.backend.highlight);
+    }
+
     @Test
     void drag_capturesPointerOutsideViewportWithoutClick_andSupportsPanAndZoom() {
         Harness h = new Harness();
@@ -244,6 +411,27 @@ class Scene3DTest {
         assertTrue(Math.abs(target.x()) + Math.abs(target.y()) + Math.abs(target.z()) > 0.01f);
         assertTrue(h.input.pointerScrolled(125, 75, 0, 1, 0, 0));
         assertEquals(4.25f, h.scene.orbit().distance(), EPS);
+    }
+
+    /** Проверяет лимит зума и запас глубины для геометрии за центром орбиты. */
+    @Test
+    void wheelZoom_withMaximumOrbitRadius_leavesRoomBeforeFarPlane() {
+        Harness h = new Harness();
+        h.scene.camera().setClipPlanes(0.1f, 48);
+        h.scene.maxZoomDistance(20);
+        h.scene.orbit().setDistance(10);
+
+        assertTrue(h.input.pointerScrolled(125, 75, 0, -10, 0, 0));
+        assertEquals(20, h.scene.orbit().distance(), EPS);
+        assertEquals(48, h.scene.camera().far(), EPS);
+        MutableVec3 screen = new MutableVec3();
+        assertTrue(h.scene.camera().project(new MutableVec3(0, 0, -1), screen));
+        assertTrue(screen.z() < 1);
+
+        h.scene.maxZoomDistance(0);
+        assertTrue(h.input.pointerScrolled(125, 75, 0, -10, 0, 0));
+        assertEquals(48, h.scene.orbit().distance(), EPS);
+        assertThrows(IllegalArgumentException.class, () -> h.scene.maxZoomDistance(-1));
     }
 
     @Test

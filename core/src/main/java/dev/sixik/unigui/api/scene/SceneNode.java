@@ -7,6 +7,7 @@ import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.Ray;
 import dev.sixik.unigui.api.math.QuatView;
+import dev.sixik.unigui.api.math.Vec3View;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -371,6 +372,41 @@ public class SceneNode {
      */
     protected double intersectPickBounds(Ray ray, double entry, double limit, MutableVec3 cellOrigin) {
         return mesh == null ? entry : Double.POSITIVE_INFINITY;
+    }
+
+    /**
+     * Возвращает собственную подсветку при попадании указателя в этот узел. Виджет вызывает метод
+     * в UI-потоке при обновлении результата наведения, если подсветка для типа попадания включена.
+     * Готовый результат можно переиспользовать. После изменения внешних данных подсветки вызовите
+     * {@link #invalidateContent()}, чтобы обновить её под неподвижным указателем.
+     *
+     * @param cellOrigin нижний угол выбранной ячейки в координатах узла или null при попадании в объект.
+     *                   Представление действительно в пределах вызова.
+     * @return меш с материалом для подсветки или null для стандартной рамки AABB либо подсветки ячейки.
+     */
+    public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
+        return null;
+    }
+
+    /**
+     * Геометрия и материал подсветки, которую виджет рисует с общей глубиной сцены.
+     *
+     * @param mesh     геометрия в локальных осях узла. Начало координат совпадает с началом выбранной
+     *                 ячейки при попадании в неё и с началом узла при попадании в объект.
+     * @param material материал подсветки.
+     */
+    public record HoverHighlight(Mesh3D mesh, Material material) {
+        /**
+         * Проверяет и сохраняет геометрию и материал.
+         *
+         * @param mesh     геометрия в локальных единицах сцены.
+         * @param material материал подсветки.
+         * @throws NullPointerException если меш или материал равен null.
+         */
+        public HoverHighlight {
+            Objects.requireNonNull(mesh, "mesh");
+            Objects.requireNonNull(material, "material");
+        }
     }
 
     /**

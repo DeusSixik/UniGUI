@@ -32,6 +32,30 @@ class Camera3DTest {
         assertVector(screen, 0, 0, -11);
     }
 
+    /** Проверяет обновление глубины с сохранением текущего режима и масштаба проекции. */
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void setClipPlanes_withExistingProjection_updatesDepthWithoutChangingMagnification(boolean orthographic) {
+        Camera3D camera = camera(orthographic);
+        MutableVec3 screen = new MutableVec3();
+        MutableVec3 point = new MutableVec3(0.5f, 0, -48);
+        assertTrue(camera.project(point, screen));
+        assertTrue(screen.z() > 1);
+        float originalX = screen.x();
+        long revision = camera.revision();
+
+        camera.setClipPlanes(2, 128).setClipPlanes(2, 128);
+
+        assertEquals(revision + 1, camera.revision());
+        assertEquals(orthographic, camera.orthographic());
+        assertTrue(camera.project(point, screen));
+        assertEquals(originalX, screen.x(), EPS);
+        assertTrue(screen.z() > 0 && screen.z() < 1);
+        assertTrue(camera.unproject(100, 50, 1, screen));
+        assertVector(screen, 0, 0, -128);
+        assertThrows(IllegalArgumentException.class, () -> camera.setClipPlanes(2, 2));
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     void unproject_projectedPointWithMovedCamera_recoversWorldPoint(boolean orthographic) {

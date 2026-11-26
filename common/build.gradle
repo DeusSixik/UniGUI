@@ -23,6 +23,7 @@ sourceSets {
 def sceneTest = sourceSets.create("sceneTest") {
     java.setSrcDirs(["src/test/java-scene"])
     if (unobfuscated) java.srcDir "src/test/java-scene-26"
+    else java.srcDir "src/test/java-scene-legacy"
     compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
     runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
 }
