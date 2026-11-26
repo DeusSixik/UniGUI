@@ -17,6 +17,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      github-release-created: ${{ steps.github-release.outcome == 'success' }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,6 +104,18 @@ jobs:
           java-version: 25
 
 
+      - name: Build Minecraft 26.x
+        shell: bash
+        run: |
+          tasks=()
+          for minecraft in 26.1.2 26.2 26.3; do
+            for loader in fabric forge neoforge; do
+              tasks+=(":$minecraft:$loader:build")
+            done
+          done
+          ./gradlew "${tasks[@]}" --no-daemon
+
+
       - name: Build Cleanroom 1.12.2
         shell: bash
         run: |
@@ -116,67 +132,46 @@ jobs:
           ./gradlew build --no-daemon
 
 
+      - name: Collect release jars
+        shell: bash
+        env:
+          MOD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          copy_modern_jar() {
+            local minecraft=$1 loader=$2
+            local destination="release-files/$loader-$minecraft"
+            mkdir -p "$destination"
+            cp "build/stonecutter/$minecraft/$loader/libs/unigui-$loader-$minecraft-$MOD_VERSION.jar" "$destination/"
+          }
+
+          copy_modern_jar 1.20.1 forge
+          copy_modern_jar 1.20.1 fabric
+          copy_modern_jar 1.21.1 forge
+          copy_modern_jar 1.21.1 fabric
+          copy_modern_jar 1.21.1 neoforge
+          for minecraft in 26.1.2 26.2 26.3; do
+            for loader in fabric forge neoforge; do
+              copy_modern_jar "$minecraft" "$loader"
+            done
+          done
+
+          mkdir -p release-files/cleanroom release-files/gtnh
+          cp "1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-$MOD_VERSION.jar" release-files/cleanroom/
+          cp "1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-$MOD_VERSION.jar" release-files/gtnh/
+
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: unigui-${{ github.sha }}
           if-no-files-found: error
-          path: |
-            build/stonecutter/*/fabric/libs/*.jar
-            build/stonecutter/*/forge/libs/*.jar
-            build/stonecutter/*/neoforge/libs/*.jar
-            1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar
-            1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-${{ steps.version.outputs.version }}.jar
+          path: release-files/
+          overwrite: true
           retention-days: 14
 
 
-      - name: Collect release jars
-        if: steps.version.outputs.release == 'true'
-        shell: bash
-        run: |
-          mkdir -p release-files
-          shopt -s nullglob
-          mkdir -p \
-            release-files/forge-1.20.1 \
-            release-files/fabric-1.20.1 \
-            release-files/forge-1.21.1 \
-            release-files/fabric-1.21.1 \
-            release-files/neoforge-1.21.1 \
-            release-files/cleanroom \
-            release-files/gtnh
-
-          copy_modern_jar() {
-            local source=$1 destination=$2
-            local jars=()
-            for f in "$source"/*.jar; do
-              case "$f" in
-                *-sources.jar|*-dev.jar|*-dev-shadow.jar|*-all.jar) continue ;;
-              esac
-              jars+=("$f")
-            done
-            if [ "${#jars[@]}" -ne 1 ]; then
-              echo "Expected exactly one release jar in $source, found ${#jars[@]}" >&2
-              exit 1
-            fi
-            cp "${jars[0]}" "$destination/"
-          }
-
-          copy_modern_jar build/stonecutter/1.20.1/forge/libs release-files/forge-1.20.1
-          copy_modern_jar build/stonecutter/1.20.1/fabric/libs release-files/fabric-1.20.1
-          copy_modern_jar build/stonecutter/1.21.1/forge/libs release-files/forge-1.21.1
-          copy_modern_jar build/stonecutter/1.21.1/fabric/libs release-files/fabric-1.21.1
-          copy_modern_jar build/stonecutter/1.21.1/neoforge/libs release-files/neoforge-1.21.1
-          cp "1.12.2-cleanroom/build/libs/unigui-cleanroom-1.12.2-${{ steps.version.outputs.version }}.jar" release-files/cleanroom/
-          cp "1.7.10-gtnh/build/libs/unigui-gtnh-1.7.10-${{ steps.version.outputs.version }}.jar" release-files/gtnh/
-          count=$(find release-files -name '*.jar' | wc -l)
-          if [ "$count" -eq 0 ]; then
-            echo "No release jars collected" >&2
-            exit 1
-          fi
-          ls -l release-files
-
-
       - name: Create tag and GitHub release
+        id: github-release
         if: steps.version.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
@@ -387,3 +382,42 @@ jobs:
           modrinth-game-versions: 1.7.10
           modrinth-dependencies: |
             eC4lt4Oy(required)
+
+
+  publish-minecraft-26:
+    needs: build
+    if: ${{ !cancelled() && needs.build.outputs.github-release-created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft: ['26.1.2', '26.2', '26.3']
+        loader:
+          - id: fabric
+            name: Fabric
+          - id: forge
+            name: Forge
+          - id: neoforge
+            name: NeoForge
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: unigui-${{ github.sha }}
+          path: release-files
+
+      - name: Publish ${{ matrix.loader.name }} ${{ matrix.minecraft }} to CurseForge and Modrinth
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: release-files/${{ matrix.loader.id }}-${{ matrix.minecraft }}/unigui-${{ matrix.loader.id }}-${{ matrix.minecraft }}-${{ needs.build.outputs.version }}.jar
+          name: UniGUI ${{ needs.build.outputs.version }} for Minecraft ${{ matrix.minecraft }} (${{ matrix.loader.name }})
+          version: ${{ needs.build.outputs.version }}-${{ matrix.loader.id }}-${{ matrix.minecraft }}
+          version-type: ${{ needs.build.outputs.prerelease == 'true' && 'beta' || 'release' }}
+          loaders: ${{ matrix.loader.id }}
+          game-versions: ${{ matrix.minecraft }}

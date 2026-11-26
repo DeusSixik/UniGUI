@@ -138,6 +138,8 @@ profile-2916-2916___dev.architectury.transformer.Tran.jfr
 .profileconfig.json
 /net
 gradle.properties
+!/versions/*/gradle.properties
+!/1.12.2-cleanroom/gradle.properties
 /ISF/logs
 
 # MkDocs
