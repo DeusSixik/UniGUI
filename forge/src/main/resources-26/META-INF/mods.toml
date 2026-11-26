@@ -1,0 +1,26 @@
+modLoader = "javafml"
+loaderVersion = "${forge_loader_version_range}"
+license = "GNU LGPL 3.0"
+
+[[mods]]
+modId = "unigui"
+version = "${version}"
+displayName = "UniGUI"
+authors = "Sixik"
+description = '''
+
+'''
+
+[[dependencies.unigui]]
+modId = "forge"
+mandatory = true
+versionRange = "${forge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.unigui]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"

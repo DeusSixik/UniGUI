@@ -5,6 +5,10 @@ license = "GNU LGPL 3.0"
 [[mixins]]
 config = "unigui.mixins.json"
 
+# Ввод screen-overlay слоёв; в Forge его передают события ScreenEvent.
+[[mixins]]
+config = "unigui.input.mixins.json"
+
 [[mods]]
 modId = "unigui"
 version = "${version}"

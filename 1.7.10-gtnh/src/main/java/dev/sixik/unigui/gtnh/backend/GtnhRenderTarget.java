@@ -129,6 +129,15 @@ public final class GtnhRenderTarget implements ManagedRenderTarget {
         }
     }
 
+    /**
+     * @return the framebuffer name for the 3D pass.
+     * @throws IllegalStateException if the target has been disposed.
+     */
+    int framebufferId() {
+        ensureAlive();
+        return framebuffer.framebufferObject;
+    }
+
     private void ensureAlive() {
         if (disposed) throw new IllegalStateException("RenderTarget is already disposed");
     }

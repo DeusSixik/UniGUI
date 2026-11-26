@@ -1,8 +1,10 @@
 plugins {
-    id 'dev.architectury.loom' version '1.10-SNAPSHOT' apply false
-    id 'architectury-plugin' version '3.4-SNAPSHOT'
-    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
-    id 'me.champeau.jmh' version '0.7.2' apply false
+    id 'dev.architectury.loom' version '1.17-SNAPSHOT' apply false
+    id 'dev.architectury.loom-no-remap' version '1.17-SNAPSHOT' apply false
+    id 'architectury-plugin' version '3.5-SNAPSHOT'
+    id 'com.gradleup.shadow' version '9.6.1' apply false
+    id 'me.champeau.jmh' version '0.7.3' apply false
+    id 'net.minecraftforge.gradle' version '7.0.40' apply false
 }
 
 def versionProject = project
@@ -18,6 +20,54 @@ def versionProperty = { String key ->
 }
 
 
+/**
+ * Папка общих исходников линейки версий (например {@code java-26}) для этой версии Minecraft.
+ *
+ * <p>Если у версии есть {@code versions/<mc>/package-remap.properties} (полное старое имя класса = новое), исходники
+ * компилируются из копии, где эти имена заменены. Так одна папка линейки переживает переезд классов в другой пакет
+ * (в 26.3 GPU API ушёл из {@code com.mojang.blaze3d} в {@code com.mojang.renderpearl}). Без файла возвращается сама папка.</p>
+ */
+def lineSourceDir = { Project target, File dir ->
+    def remapFile = versionProject.file('package-remap.properties')
+    if (!remapFile.isFile() || !dir.isDirectory()) return dir
+    def loaded = new Properties()
+    remapFile.withInputStream { loaded.load(it) }
+    // И точечные имена (импорты), и внутренние со слэшами (дескрипторы в аннотациях миксинов).
+    def remap = new Properties()
+    loaded.each { from, to ->
+        remap.setProperty(from as String, to as String)
+        remap.setProperty((from as String).replace('.', '/'), (to as String).replace('.', '/'))
+    }
+    // Длинные имена первыми, чтобы VertexFormatElement не заменился как VertexFormat + "Element".
+    def names = remap.keySet().collect { it as String }.sort { -it.length() }
+    def pattern = java.util.regex.Pattern.compile(
+            // Перед именем не может стоять часть другого имени; 'L' допустима — так начинается дескриптор типа.
+            '(?<![A-KM-Za-z0-9_./])(' + names.collect { java.util.regex.Pattern.quote(it) }.join('|') + ')(?![A-Za-z0-9_])')
+    def module = dir.parentFile.parentFile.parentFile.name
+    def task = target.tasks.register("remap${module.capitalize()}${dir.name.replaceAll('[^A-Za-z0-9]', '')}Sources", Sync) {
+        description = "Copies ${dir} with classes renamed by ${remapFile.name}."
+        from dir
+        into target.layout.buildDirectory.dir("generated/remapped-sources/${module}/${dir.name}")
+        inputs.file remapFile
+        filteringCharset = 'UTF-8'
+        filter { String line ->
+            def matcher = pattern.matcher(line)
+            if (!matcher.find()) return line
+            matcher.reset()
+            def out = new StringBuilder()
+            while (matcher.find()) {
+                matcher.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(remap.getProperty(matcher.group(1))))
+            }
+            matcher.appendTail(out)
+            return out.toString()
+        }
+    }
+    return target.files(task.map { it.destinationDir }).builtBy(task)
+}
+
+// Начиная с 26.1 Minecraft поставляется без обфускации: маппинги и remapJar не нужны,
+// а Architectury Loom подключается как `loom-no-remap`.
+def unobfuscated = (versionProperty('minecraft_version').tokenize('.')[0] as int) >= 26
 
 architectury {
     minecraft = versionProperty('minecraft_version')
@@ -41,26 +91,47 @@ allprojects {
 // Architectury Loom copies one transformer agent to the root .gradle directory during IDE sync.
 // Stonecutter's versioned projects share that destination, so serialize only their sync tasks.
 gradle.projectsEvaluated {
-    def ideaSyncTasks = allprojects.collectMany { candidate ->
-        candidate.tasks.matching { task -> task.name == 'ideaSyncTask' }.toList()
-    }
+    // Только ленивые ссылки: реализация всех задач (toList) заставляет Loom резолвить конфигурации
+    // вне эксклюзивной блокировки, что Gradle 9 запрещает.
+    def ideaSyncTasks = allprojects.findAll { candidate -> candidate.tasks.names.contains('ideaSyncTask') }
+            .collect { candidate -> candidate.tasks.named('ideaSyncTask') }
     ideaSyncTasks.eachWithIndex { task, index ->
-        if (index > 0) task.mustRunAfter(ideaSyncTasks[index - 1])
+        if (index > 0) {
+            def previous = ideaSyncTasks[index - 1]
+            task.configure { it.mustRunAfter(previous) }
+        }
     }
 }
 
 subprojects {
     def minecraftIndependent = project.name in ['core', 'demo']
+    // Forge 26.1+ собирает ForgeGradle 7 (forge/build-fg7.gradle): Loom и общие для Loom настройки к нему не применяются.
+    def forgeGradle = unobfuscated && project.name == 'forge'
+    ext.versionProject = versionProject
+    ext.versionProperty = versionProperty
+    ext.unobfuscated = unobfuscated
+    ext.lineSourceDir = { File dir -> lineSourceDir(project, dir) }
+    if (forgeGradle) return
     if (minecraftIndependent) {
         apply plugin: 'java-library'
     } else {
-        apply plugin: 'dev.architectury.loom'
+        apply plugin: unobfuscated ? 'dev.architectury.loom-no-remap' : 'dev.architectury.loom'
         apply plugin: 'architectury-plugin'
     }
     apply plugin: 'maven-publish'
 
     ext.versionProject = versionProject
     ext.versionProperty = versionProperty
+    ext.unobfuscated = unobfuscated
+    // Конфигурации зависимостей-модов: без обфускации Loom их не ремапит, поэтому это обычные implementation/compileOnly.
+    ext.modImplementationConfig = unobfuscated ? 'implementation' : 'modImplementation'
+    ext.modCompileOnlyConfig = unobfuscated ? 'compileOnly' : 'modCompileOnly'
+    // Common-модуль для платформ: в обфусцированных версиях нужен вариант с named-маппингами.
+    ext.commonNamed = { String path ->
+        unobfuscated
+                ? project.dependencies.project(path: path)
+                : project.dependencies.project(path: path, configuration: 'namedElements')
+    }
 
     base {
         // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
@@ -78,7 +149,9 @@ subprojects {
     dependencies {
         if (!minecraftIndependent) {
             minecraft "net.minecraft:minecraft:${versionProperty('minecraft_version')}"
-            mappings loom.officialMojangMappings()
+            if (!unobfuscated) {
+                mappings loom.officialMojangMappings()
+            }
         }
     }
 
@@ -106,8 +179,10 @@ subprojects {
     }
 
     if (!minecraftIndependent) {
-        tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
-            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+        if (!unobfuscated) {
+            tasks.withType(net.fabricmc.loom.task.launch.GenerateRemapClasspathTask).configureEach {
+                remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+            }
         }
 
         tasks.withType(net.fabricmc.loom.task.launch.GenerateLog4jConfigTask).configureEach {
@@ -115,11 +190,17 @@ subprojects {
         }
 
         tasks.withType(net.fabricmc.loom.task.launch.GenerateDLIConfigTask).configureEach {
-            dependsOn tasks.named('generateRemapClasspath')
-            remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+            if (!unobfuscated) {
+                dependsOn tasks.named('generateRemapClasspath')
+                remapClasspathFile.set(layout.buildDirectory.file('loom-cache/remapClasspath.txt'))
+            }
             if (hasProperty('devLauncherConfig')) {
                 devLauncherConfig.set(layout.buildDirectory.file('loom-cache/launch.cfg'))
             }
+            // generateLog4jConfig пишет в build/.../loom-cache/log4j.xml (см. выше); без этого launch.cfg ссылается
+            // на несуществующий файл по умолчанию, и в dev-запуске логируются только ERROR.
+            // Геттер protected: hasProperty его не видит, но Groovy может его вызвать.
+            getLog4jConfigPaths().set(layout.buildDirectory.file('loom-cache/log4j.xml').get().asFile.absolutePath)
         }
     }
 

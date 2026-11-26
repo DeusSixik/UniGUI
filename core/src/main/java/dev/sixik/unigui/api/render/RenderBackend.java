@@ -27,6 +27,16 @@ public interface RenderBackend {
     }
 
     /**
+     * Returns the 3D scene renderer for offscreen viewports.
+     *
+     * @return backend-specific renderer for a target with depth.
+     * @throws UnsupportedOperationException if the backend does not support 3D scenes.
+     */
+    default Scene3DRenderer scene3D() {
+        throw new UnsupportedOperationException("3D scenes are not supported by this backend");
+    }
+
+    /**
      * Измеряет ширину plain text.
      *
      * @param text текст
@@ -69,6 +79,28 @@ public interface RenderBackend {
      * @param target цель рендера или {@code null}, если backend должен рисовать в экран
      */
     void render(DrawList drawList, RenderTarget target);
+
+    /**
+     * Рендерит draw list в target с явным масштабом координат: одна единица UI занимает
+     * {@code coordinateScale} пикселей цели. Нужен для чёткого offscreen-рендера (например,
+     * {@code RenderToTexture} на экране с GUI scale 3).
+     *
+     * <p>По умолчанию поддерживается только масштаб {@code 1}; backend, который умеет больше,
+     * переопределяет метод.</p>
+     *
+     * @param drawList        список команд
+     * @param target          цель рендера или {@code null} для экрана
+     * @param coordinateScale пикселей цели на единицу UI
+     * @throws UnsupportedOperationException если backend не умеет масштаб, отличный от {@code 1}
+     */
+    default void render(DrawList drawList, RenderTarget target, float coordinateScale) {
+        if (Math.abs(coordinateScale - 1.0f) <= 1.0e-4f) {
+            render(drawList, target);
+            return;
+        }
+        throw new UnsupportedOperationException(getClass().getSimpleName()
+                + " does not support scaled offscreen rendering (coordinateScale=" + coordinateScale + ")");
+    }
 
     /** Завершает render frame и сбрасывает временное состояние backend'а. */
     void endFrame();

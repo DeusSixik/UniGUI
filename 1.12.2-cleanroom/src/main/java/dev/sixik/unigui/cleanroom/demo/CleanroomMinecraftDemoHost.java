@@ -1,5 +1,12 @@
 package dev.sixik.unigui.cleanroom.demo;
 
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.backend.shared.LegacyFurnaceDemo;
+import net.minecraft.block.BlockFurnace;
+import net.minecraft.block.BlockStoneBrick;
+import net.minecraft.util.EnumFacing;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -28,6 +35,23 @@ public final class CleanroomMinecraftDemoHost implements DemoMinecraftHost {
     @Override
     public String platform() {
         return "Minecraft 1.12.2";
+    }
+
+    @Override
+    public SceneShowcase.Blocks sceneBlocks() {
+        return SceneShowcase.Blocks.MODERN;
+    }
+
+    @Override
+    public SceneTutorialPlayer.Sequence furnaceTutorial() {
+        var cold = Blocks.FURNACE.getDefaultState().withProperty(BlockFurnace.FACING, EnumFacing.SOUTH);
+        var lit = Blocks.LIT_FURNACE.getDefaultState().withProperty(BlockFurnace.FACING, EnumFacing.SOUTH);
+        var bricks = Blocks.STONEBRICK.getDefaultState();
+        var centerTile = bricks.withProperty(BlockStoneBrick.VARIANT, BlockStoneBrick.EnumType.CHISELED);
+        var furnace = BlockNode.of(cold);
+        return LegacyFurnaceDemo.create(center -> BlockNode.of(center ? centerTile : bricks),
+                furnace, burning -> furnace.setState(burning ? lit : cold),
+                new ItemStack(Blocks.STONEBRICK), new ItemStack(Blocks.FURNACE), new ItemStack(Items.COAL));
     }
 
     @Override

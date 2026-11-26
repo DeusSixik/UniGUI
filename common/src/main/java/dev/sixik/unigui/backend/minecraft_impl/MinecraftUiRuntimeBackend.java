@@ -3,6 +3,7 @@ package dev.sixik.unigui.backend.minecraft_impl;
 import dev.sixik.unigui.api.backend.UniGuiBackend;
 import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.core.UIContext;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.screen.UniRenderLayer;
 import dev.sixik.unigui.api.screen.UniRenderTarget;
@@ -20,6 +21,13 @@ import java.util.function.Predicate;
  */
 public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
     private final Map<UniScreen, MinecraftWidgetScreen> openScreens = new IdentityHashMap<>();
+
+    /**
+     * Creates the runtime bridge and installs the 3D scene platform for unified block, item and entity nodes.
+     */
+    public MinecraftUiRuntimeBackend() {
+        ScenePlatform.install(MinecraftScene.PLATFORM);
+    }
 
     @Override
     public UniGuiLogger logger(String name) {
@@ -124,7 +132,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         Minecraft minecraft = Minecraft.getInstance();
         synchronized (openScreens) {
             MinecraftWidgetScreen existing = openScreens.get(screen);
-            if (existing != null && existing == minecraft.screen) return;
+            if (existing != null && existing == MinecraftClientCompat.screen()) return;
         }
         UIContext context = screen.context() == null
                 ? new DefaultUIContext(new MinecraftClipboardService())
@@ -151,7 +159,7 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
         synchronized (openScreens) {
             openScreens.put(screen, nativeScreen);
         }
-        minecraft.setScreen(nativeScreen);
+        MinecraftClientCompat.setScreen(nativeScreen);
     }
 
     @Override
@@ -161,8 +169,8 @@ public final class MinecraftUiRuntimeBackend implements UniGuiBackend {
             nativeScreen = openScreens.remove(screen);
         }
         Minecraft minecraft = Minecraft.getInstance();
-        if (nativeScreen != null && minecraft.screen == nativeScreen) {
-            minecraft.setScreen(null);
+        if (nativeScreen != null && MinecraftClientCompat.screen() == nativeScreen) {
+            MinecraftClientCompat.setScreen(null);
         }
     }
 }

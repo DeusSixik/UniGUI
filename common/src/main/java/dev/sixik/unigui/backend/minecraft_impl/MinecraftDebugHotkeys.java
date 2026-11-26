@@ -4,7 +4,8 @@ import dev.sixik.unigui.api.core.UIContext;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlaySettings;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
-import org.lwjgl.glfw.GLFW;
+import dev.sixik.unigui.api.input.KeyCodes;
+import dev.sixik.unigui.api.input.KeyModifiers;
 
 /**
  * Отладочные хоткеи для {@link MinecraftWidgetScreen} и {@link MinecraftWidgetRenderLayer}.
@@ -20,7 +21,8 @@ import org.lwjgl.glfw.GLFW;
  * {@code EQUAL} ({@code Shift+=} даёт '+') и {@code MINUS}. Поэтому обе клавиши
  * принимаются в обоих вариантах плюс keypad-эквиваленты.</p>
  *
- * <p>Helper намеренно не зависит от Minecraft-классов, кроме GLFW key codes:
+ * <p>Коды клавиш и модификаторы — коды GLFW из ядра ({@link KeyCodes}, {@link KeyModifiers}); бэкенд
+ * переводит в них события своей версии. Helper не зависит от Minecraft и GLFW:
  * логика матчинга покрыта {@code DebugHotkeysSelfTest} без запуска игры.</p>
  */
 public final class MinecraftDebugHotkeys {
@@ -46,12 +48,12 @@ public final class MinecraftDebugHotkeys {
         if (!(context instanceof DefaultUIContext target)) return false;
         if (!matches(keyCode, modifiers)) return false;
 
-        if (keyCode == GLFW.GLFW_KEY_P) {
+        if (keyCode == KeyCodes.P) {
             toggleProfiler(target);
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_EQUAL
-                || keyCode == GLFW.GLFW_KEY_KP_ADD) {
+        if (keyCode == KeyCodes.EQUAL
+                || keyCode == KeyCodes.KEYPAD_ADD) {
             bumpScale(target, SCALE_STEP);
             return true;
         }
@@ -70,11 +72,11 @@ public final class MinecraftDebugHotkeys {
      */
     public static boolean matches(int keyCode, int modifiers) {
         if (!hasControl(modifiers) || !hasShift(modifiers)) return false;
-        return keyCode == GLFW.GLFW_KEY_P
-                || keyCode == GLFW.GLFW_KEY_EQUAL
-                || keyCode == GLFW.GLFW_KEY_KP_ADD
-                || keyCode == GLFW.GLFW_KEY_MINUS
-                || keyCode == GLFW.GLFW_KEY_KP_SUBTRACT;
+        return keyCode == KeyCodes.P
+                || keyCode == KeyCodes.EQUAL
+                || keyCode == KeyCodes.KEYPAD_ADD
+                || keyCode == KeyCodes.MINUS
+                || keyCode == KeyCodes.KEYPAD_SUBTRACT;
     }
 
     private static void toggleProfiler(DefaultUIContext context) {
@@ -93,10 +95,10 @@ public final class MinecraftDebugHotkeys {
     }
 
     private static boolean hasControl(int glfwModifiers) {
-        return (glfwModifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        return (glfwModifiers & KeyModifiers.CONTROL) != 0;
     }
 
     private static boolean hasShift(int glfwModifiers) {
-        return (glfwModifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+        return (glfwModifiers & KeyModifiers.SHIFT) != 0;
     }
 }

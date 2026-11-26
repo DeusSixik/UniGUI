@@ -1,6 +1,9 @@
 package dev.sixik.unigui.demo.ui.minecraft;
 
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+
 import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 
 import java.util.function.Consumer;
@@ -25,47 +28,81 @@ public interface DemoMinecraftHost {
      * its picture can change between frames.
      */
     enum SampleItem {
-        /** Plain single item. */
+        /**
+         * Plain single item.
+         */
         DIAMOND,
-        /** Stackable material, shown with a count. */
+        /**
+         * Stackable material, shown with a count.
+         */
         IRON_INGOT,
-        /** Damaged tool, shown with a durability bar. */
+        /**
+         * Damaged tool, shown with a durability bar.
+         */
         WORN_PICKAXE,
-        /** Potion with a tinted second layer. */
+        /**
+         * Potion with a tinted second layer.
+         */
         HEALING_POTION,
-        /** Item with a multi-state (pulling) model. */
+        /**
+         * Item with a multi-state (pulling) model.
+         */
         BOW,
-        /** Plain single item, used to demonstrate opacity. */
+        /**
+         * Plain single item, used to demonstrate opacity.
+         */
         EMERALD,
-        /** Enchanted tool: the glint is animated, so it is never cached. */
+        /**
+         * Enchanted tool: the glint is animated, so it is never cached.
+         */
         ENCHANTED_SWORD,
-        /** Animated icon, never cached. */
+        /**
+         * Animated icon, never cached.
+         */
         CLOCK,
-        /** Animated icon, never cached. */
+        /**
+         * Animated icon, never cached.
+         */
         COMPASS,
-        /** Block item drawn by a dedicated renderer. */
+        /**
+         * Block item drawn by a dedicated renderer.
+         */
         CHEST
     }
 
-    /** Block samples, drawn through the item pipeline. */
+    /**
+     * Block samples, drawn through the item pipeline.
+     */
     enum SampleBlock {
-        /** Block with a different top and side texture. */
+        /**
+         * Block with a different top and side texture.
+         */
         GRASS,
-        /** Colored block (wool metadata 14 on legacy versions). */
+        /**
+         * Colored block (wool metadata 14 on legacy versions).
+         */
         RED_WOOL,
-        /** Translucent block. */
+        /**
+         * Translucent block.
+         */
         GLASS,
-        /** Block with distinct end and bark textures. */
+        /**
+         * Block with distinct end and bark textures.
+         */
         LOG
     }
 
-    /** Living entity samples. */
+    /**
+     * Living entity samples.
+     */
     enum SampleEntity {
         ZOMBIE,
         PIG,
         CREEPER,
         CHICKEN,
-        /** The local player; unavailable before a world is loaded. */
+        /**
+         * The local player; unavailable before a world is loaded.
+         */
         PLAYER
     }
 
@@ -134,6 +171,25 @@ public interface DemoMinecraftHost {
      * @return the widget, or {@code null} if the platform has none
      */
     default Widget texturePicker(OverlayLayer overlay) {
+        return null;
+    }
+
+    /**
+     * Block, item and entity IDs for the shared 3D scene. The scene itself is version-neutral: it is built from
+     * {@link dev.sixik.unigui.api.scene.StructureNode} and other core nodes resolved by the installed scene platform.
+     *
+     * @return IDs for this version, or {@code null} if 3D scenes are not available
+     */
+    default SceneShowcase.Blocks sceneBlocks() {
+        return null;
+    }
+
+    /**
+     * Builds the animated furnace tutorial with this version's blocks and item icons.
+     *
+     * @return a new sequence with its own scene, or {@code null} if 3D scenes are not available
+     */
+    default Sequence furnaceTutorial() {
         return null;
     }
 }

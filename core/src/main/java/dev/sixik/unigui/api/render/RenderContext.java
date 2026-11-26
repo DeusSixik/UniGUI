@@ -45,6 +45,19 @@ public interface RenderContext {
         return null;
     }
 
+    /**
+     * Сколько физических пикселей цели приходится на одну логическую единицу UI.
+     *
+     * <p>Экран Minecraft с GUI scale 3 и UI scale 1 даёт {@code 3}. Внутри offscreen-рендера значение равно
+     * масштабу координат этой цели. По нему виджеты вроде {@code RenderToTexture} выбирают размер текстуры,
+     * чтобы она не была размытой.</p>
+     *
+     * @return плотность пикселей, {@code 1} если неизвестна
+     */
+    default float pixelScale() {
+        return 1.0f;
+    }
+
     default void pushOpacity(float opacity) {
     }
 
@@ -394,6 +407,36 @@ public interface RenderContext {
         DrawCommand command = drawList().obtain(DrawCommandType.LINE)
                 .bounds(x1, y1, x2 - x1, y2 - y1);
         paintStrokeOwned(command, color, thickness);
+        if (transform != null) command.transform(transform);
+        submitOwned(command);
+    }
+
+    /**
+     * Линия с градиентом: цвет плавно переходит от {@code startColor} в точке {@code (x1, y1)} к
+     * {@code endColor} в точке {@code (x2, y2)}. Рисуется SDF-шейдером со сглаженными краями, как обычная линия.
+     *
+     * @param startColor цвет в начале линии
+     * @param endColor   цвет в конце линии; {@code null} даёт обычную линию цвета {@code startColor}
+     * @param thickness  толщина в UI-пикселях
+     */
+    default void addLine(float x1, float y1, float x2, float y2, ColorView startColor, ColorView endColor,
+                         float thickness) {
+        addLine(x1, y1, x2, y2, startColor, endColor, thickness, null);
+    }
+
+    /**
+     * Линия с градиентом и трансформацией; см. {@link #addLine(float, float, float, float, ColorView, ColorView, float)}.
+     */
+    default void addLine(float x1, float y1, float x2, float y2, ColorView startColor, ColorView endColor,
+                         float thickness, Transform transform) {
+        DrawCommand command = drawList().obtain(DrawCommandType.LINE)
+                .bounds(x1, y1, x2 - x1, y2 - y1);
+        paintStrokeOwned(command, startColor, thickness);
+        if (endColor != null) {
+            float opacity = clamp01(opacityMultiplier());
+            command.paint().gradientTo(endColor);
+            command.paint().endColor().set(endColor.r(), endColor.g(), endColor.b(), endColor.a() * opacity);
+        }
         if (transform != null) command.transform(transform);
         submitOwned(command);
     }
@@ -1254,6 +1297,10 @@ public interface RenderContext {
         if (opacity < 0.999f) {
             Paint copy = paint.copy();
             copy.color().set(copy.color().r(), copy.color().g(), copy.color().b(), copy.color().a() * opacity);
+            if (copy.hasGradient()) {
+                MutableColor end = copy.endColor();
+                end.set(end.r(), end.g(), end.b(), end.a() * opacity);
+            }
             return copy;
         }
         return paint;
@@ -1286,10 +1333,18 @@ public interface RenderContext {
         float invLength = 1.0f / length;
         float cursor = -positiveModulo(paint.dashOffset(), pattern);
         Paint solid = paint.copy().clearDash();
+        // У градиентной линии каждый штрих получает свой участок градиента всей линии.
+        boolean gradient = paint.hasGradient();
+        ColorView from = paint.color();
+        ColorView to = paint.endColor();
         while (cursor < length) {
             float start = Math.max(0.0f, cursor);
             float end = Math.min(length, cursor + dash);
             if (end > start) {
+                if (gradient) {
+                    lerpColor(solid.color(), from, to, start * invLength);
+                    lerpColor(solid.endColor(), from, to, end * invLength);
+                }
                 float sx = x1 + dx * start * invLength;
                 float sy = y1 + dy * start * invLength;
                 float ex = x1 + dx * end * invLength;
@@ -1302,6 +1357,13 @@ public interface RenderContext {
             }
             cursor += pattern;
         }
+    }
+
+    private static void lerpColor(MutableColor target, ColorView from, ColorView to, float t) {
+        target.set(from.r() + (to.r() - from.r()) * t,
+                from.g() + (to.g() - from.g()) * t,
+                from.b() + (to.b() - from.b()) * t,
+                from.a() + (to.a() - from.a()) * t);
     }
 
     private static float positiveModulo(float value, float modulo) {

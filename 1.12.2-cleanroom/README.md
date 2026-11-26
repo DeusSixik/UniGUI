@@ -23,12 +23,26 @@ Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this dir
 ./gradlew.bat runClient
 ```
 
+To open a 3D demo immediately when the development client starts, use one of these commands:
+
+```powershell
+./gradlew.bat runClient "-PuniguiAutoOpen=scene"
+./gradlew.bat runClient "-PuniguiAutoOpen=furnace"
+```
+
+From a world, enter `/unigui demo scene` for the basic 3D demo or `/unigui demo furnace` for the animated tutorial.
+
+If `runClient` fails with `Unexpected lock protocol` in `PersistentDaemonRegistry`, close builds using the
+Cleanroom wrapper's Gradle version. In your Gradle user home (`%USERPROFILE%\.gradle` by default on Windows),
+rename `daemon\9.8.1\registry.bin.lock` to `registry.bin.lock.corrupt`, then rerun `runClient`. Gradle creates
+a fresh lock when it starts.
+
 The produced mod jar includes the UniGUI core classes. Fastutil is supplied by Minecraft 1.12.2 and is not bundled into the mod.
 
 The produced mod jar also embeds the portable `demo` library. After joining a world, use
 `/unigui demo <name>` to activate an example. Available names are `widgets`, `docking`, `dominion`,
 `retro`, `ribbon`, `tutorial`, `unity`, `overlay`, `plug`, `wrench`, `wire`, `sync`, `spanner`, `fork`,
-`postprocess`, `culling`, and `scaling`. The Cleanroom host supplies the texture provider;
+`postprocess`, `culling`, `scaling`, `scene`, and `furnace`. The Cleanroom host supplies the texture provider;
 the demo classes themselves remain Minecraft-independent and can be reused by another host.
 
 ## 1.12.2 backend status

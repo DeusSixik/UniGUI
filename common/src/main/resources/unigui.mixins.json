@@ -11,7 +11,10 @@
     "MixinLoadingOverlay",
     "MixinGuiGraphicsTooltipOrder",
     "MixinScreenOverlay",
-    "MixinScreenOverlayHover"
+    "MixinScreenOverlayHover",
+    "MixinGuiRendererEntityPool",
+    "MixinGuiItemAlpha",
+    "MixinGuiItemAlphaCapture"
   ],
   "injectors": {
     "defaultRequire": 1

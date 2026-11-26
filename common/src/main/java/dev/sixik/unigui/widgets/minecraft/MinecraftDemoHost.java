@@ -1,8 +1,13 @@
 package dev.sixik.unigui.widgets.minecraft;
 
+import dev.sixik.unigui.demo.ui.DemoAssets;
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
+import dev.sixik.unigui.tests.SceneFurnaceTutorial;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
@@ -22,15 +27,27 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     }
 
     /**
-     * Makes the demo gallery show the Minecraft category. Safe to call more than once.
+     * Makes the demo gallery show the Minecraft category and load its images. Safe to call more than once.
      */
     public static void install() {
         if (!(DemoMinecraft.host() instanceof MinecraftDemoHost)) DemoMinecraft.host(new MinecraftDemoHost());
+        // Картинки галереи (раздел Textures и др.) из ресурсов demo; иначе остаются заглушки.
+        DemoAssets.provider(MinecraftDemoAssets::load);
     }
 
     @Override
     public String platform() {
         return "Minecraft 1.20+";
+    }
+
+    @Override
+    public Sequence furnaceTutorial() {
+        return SceneFurnaceTutorial.create();
+    }
+
+    @Override
+    public SceneShowcase.Blocks sceneBlocks() {
+        return SceneShowcase.Blocks.MODERN;
     }
 
     @Override
@@ -56,7 +73,7 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     public Widget block(String label, SampleBlock block, float size) {
         Block mapped = switch (block) {
             case GRASS -> Blocks.GRASS_BLOCK;
-            case RED_WOOL -> Blocks.RED_WOOL;
+            case RED_WOOL -> MinecraftClientCompat.redWool();
             case GLASS -> Blocks.GLASS;
             case LOG -> Blocks.OAK_LOG;
         };
@@ -69,10 +86,10 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     public Widget entity(String label, SampleEntity entity, float size) {
         // The player cannot be created from its EntityType, so the preview would only show a head placeholder.
         EntityType<? extends net.minecraft.world.entity.LivingEntity> type = switch (entity) {
-            case ZOMBIE -> EntityType.ZOMBIE;
-            case PIG -> EntityType.PIG;
-            case CREEPER -> EntityType.CREEPER;
-            case CHICKEN -> EntityType.CHICKEN;
+            case ZOMBIE -> MinecraftClientCompat.ZOMBIE;
+            case PIG -> MinecraftClientCompat.PIG;
+            case CREEPER -> MinecraftClientCompat.CREEPER;
+            case CHICKEN -> MinecraftClientCompat.CHICKEN;
             case PLAYER -> null;
         };
         if (type == null) return null;
@@ -92,6 +109,8 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     }
 
     private static ItemStack stack(SampleItem item) {
+        // В 26.x до загрузки мира компоненты предметов не привязаны и ItemStack создать нельзя.
+        if (!MinecraftClientCompat.itemsReady()) return ItemStack.EMPTY;
         return switch (item) {
             case DIAMOND -> new ItemStack(Items.DIAMOND);
             case IRON_INGOT -> new ItemStack(Items.IRON_INGOT);

@@ -1,14 +1,15 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.math.Transform;
 import dev.sixik.unigui.api.render.DrawCommand;
 import dev.sixik.unigui.api.render.TransformLayer;
 import org.joml.Matrix4f;
 
-/** Applies inherited widget transforms in root-to-leaf order. */
+/**
+ * Applies inherited widget transforms in root-to-leaf order.
+ */
 final class MinecraftTransform {
     private MinecraftTransform() {
     }
@@ -21,7 +22,8 @@ final class MinecraftTransform {
             if (layer != null) {
                 apply(layer.bounds(), layer.transform(), pose);
             }
-        }        apply(command.bounds(), command.transform(), pose);
+        }
+        apply(command.bounds(), command.transform(), pose);
     }
 
     static void apply(RectView bounds, Transform transform, PoseStack pose) {
@@ -33,10 +35,25 @@ final class MinecraftTransform {
         pose.translate(transform.position().x(), transform.position().y(), 0.0f);
         pose.translate(pivotX, pivotY, 0.0f);
         if (transform.rotationDegrees() != 0.0f) {
-            pose.mulPose(Axis.ZP.rotationDegrees(transform.rotationDegrees()));
+            rotateZ(pose, transform.rotationDegrees());
         }
         pose.scale(transform.scale().x(), transform.scale().y(), 1.0f);
         pose.translate(-pivotX, -pivotY, 0.0f);
+    }
+
+    /**
+     * Поворачивает позу вокруг оси Z (поворот в плоскости экрана).
+     *
+     * <p>Матрицы поворачиваются напрямую: {@code PoseStack.mulPose(Quaternionf)} в 26.3 убрали, а так код один
+     * для всех версий.</p>
+     *
+     * @param degrees угол в градусах (положительный — по часовой стрелке на экране, как {@code Axis.ZP})
+     */
+    static void rotateZ(PoseStack pose, float degrees) {
+        float radians = (float) Math.toRadians(degrees);
+        PoseStack.Pose last = pose.last();
+        last.pose().rotateZ(radians);
+        last.normal().rotateZ(radians);
     }
 
     static Matrix4f commandMatrix(Matrix4f basePose, DrawCommand command) {
@@ -48,7 +65,8 @@ final class MinecraftTransform {
             if (layer != null) {
                 apply(matrix, layer.bounds(), layer.transform());
             }
-        }        apply(matrix, command.bounds(), command.transform());
+        }
+        apply(matrix, command.bounds(), command.transform());
         return matrix;
     }
 

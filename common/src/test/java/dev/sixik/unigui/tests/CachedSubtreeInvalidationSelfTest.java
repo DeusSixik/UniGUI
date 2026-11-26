@@ -51,14 +51,14 @@ public final class CachedSubtreeInvalidationSelfTest {
         uiContext.debugCounters().beginFrame(1L);
         drawList.clear();
         cached.render(renderContext);
-        assertStats("first render", cached.cacheStats(), 1L, 0L, 1L, 1L, CachedSubtreeMissReason.BACKEND_CHANGED);
-        assertDebugCounters("first render", uiContext.debugCounters().snapshot(), 0L, 1L, 1L, CachedSubtreeMissReason.BACKEND_CHANGED.name());
+        assertStats("first render", cached.cacheStats(), 1L, 0L, 1L, 1L, CachedSubtreeMissReason.NO_TEXTURE);
+        assertDebugCounters("first render", uiContext.debugCounters().snapshot(), 0L, 1L, 1L, CachedSubtreeMissReason.NO_TEXTURE.name());
         expect(backend.targetRenderCalls == 1, "first render should render one offscreen target");
 
         uiContext.debugCounters().beginFrame(2L);
         drawList.clear();
         cached.render(renderContext);
-        assertStats("stable render", cached.cacheStats(), 2L, 1L, 1L, 1L, CachedSubtreeMissReason.BACKEND_CHANGED);
+        assertStats("stable render", cached.cacheStats(), 2L, 1L, 1L, 1L, CachedSubtreeMissReason.NO_TEXTURE);
         assertDebugCounters("stable render", uiContext.debugCounters().snapshot(), 1L, 0L, 0L, "NONE");
         expect(backend.targetRenderCalls == 1, "stable render should reuse the cached texture");
 

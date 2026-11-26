@@ -1,0 +1,1461 @@
+package dev.sixik.unigui.backend.minecraft_impl;
+
+import dev.sixik.unigui.api.core.*;
+import dev.sixik.unigui.api.debug.DebugFlags;
+import dev.sixik.unigui.api.debug.ProfileScope;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.*;
+import dev.sixik.unigui.api.layout.LayoutContext;
+import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.MutableRect;
+import dev.sixik.unigui.api.math.Transform;
+import dev.sixik.unigui.api.posteffect.UiLayerBounds;
+import dev.sixik.unigui.api.posteffect.UiPostEffectChain;
+import dev.sixik.unigui.api.posteffect.UiPostEffectRenderer;
+import dev.sixik.unigui.api.posteffect.UiPostEffects;
+import dev.sixik.unigui.api.render.*;
+import dev.sixik.unigui.api.text.FontFace;
+import dev.sixik.unigui.api.text.Fonts;
+import dev.sixik.unigui.api.text.RichText;
+import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.api.widget.Widget;
+import dev.sixik.unigui.xaml.load.LoadedScreen;
+import dev.sixik.unigui.impl.core.DefaultUIContext;
+import dev.sixik.unigui.impl.input.CursorResolver;
+import dev.sixik.unigui.impl.debug.DebugOverlayRenderer;
+import dev.sixik.unigui.impl.render.DefaultRenderContext;
+import dev.sixik.unigui.impl.render.DrawBatch;
+import dev.sixik.unigui.impl.render.SimpleDrawBatcher;
+import dev.sixik.unigui.impl.render.WidgetTextureRenderer;
+import dev.sixik.unigui.impl.widget.WidgetBase;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.minecraft.MinecraftScaledCustomDraw;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.*;
+
+public class MinecraftWidgetScreen extends Screen {
+    private static final MutableColor CACHE_TINT = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
+    private final Widget root;
+    private final UIContext uiContext;
+    /** XML-экран, владеющий binding-подписками, которые нужно закрыть при удалении Minecraft screen. */
+    private LoadedScreen<? extends Widget> xmlScreenOwner;
+    private final DrawList drawList = new DrawList();
+    private final DrawList scaledDrawList = new DrawList();
+    private final DrawList debugOverlayDrawList = new DrawList();
+    private final DrawList scaledDebugOverlayDrawList = new DrawList();
+    private final DrawList cacheDrawList = new DrawList();
+    private final DrawList scaledCacheDrawList = new DrawList();
+    private final DefaultRenderContext renderContext = new DefaultRenderContext(drawList);
+    private final DefaultRenderContext debugOverlayRenderContext = new DefaultRenderContext(debugOverlayDrawList);
+    private final DefaultRenderContext cacheRenderContext = new DefaultRenderContext(cacheDrawList);
+    private MinecraftGuiRenderBackend backend;
+    private UiPostEffectChain postEffect = UiPostEffectChain.none();
+    private FontFace defaultFont = MinecraftFonts.defaultFace();
+    private Float screenScale;
+    private boolean scaleWithMinecraftGui = true;
+    private boolean debugHotkeysEnabled = true;
+    private long frameIndex;
+    private float lastFrameCpuMillis;
+    private float lastFrameTotalMillis;
+    private long lastFrameStartNanos;
+    private UiRenderPolicy renderPolicy = UiRenderPolicy.continuous();
+    private WidgetTextureRenderer cachedRenderer;
+    private TextureHandle cachedTexture;
+    private int cachedWidth;
+    private int cachedHeight;
+    private long lastCachedRenderNanos;
+    private MouseCursor activeMouseCursor = MouseCursor.DEFAULT;
+    /** Включён ли сейчас ввод текста окна для этого экрана (нужно в 26.3, см. {@link #updateTextInput()}). */
+    private boolean textInputActive;
+    private boolean layoutInitialized;
+    private Runnable closeCallback;
+    private KeyboardInputHandler keyboardInputHandler;
+    private boolean pauseGame = true;
+    private boolean layoutChangedThisFrame;
+    private float lastLayoutWidth = -1.0f;
+    private float lastLayoutHeight = -1.0f;
+    private float lastLayoutScale = -1.0f;
+
+    public MinecraftWidgetScreen(Widget root) {
+        this(Component.empty(), root, new DefaultUIContext(new MinecraftClipboardService()));
+    }
+
+    public MinecraftWidgetScreen(Component title, Widget root) {
+        this(title, root, new DefaultUIContext(new MinecraftClipboardService()));
+    }
+
+    public MinecraftWidgetScreen(LoadedScreen<? extends Widget> xmlScreen) {
+        this(Component.empty(), xmlScreen);
+    }
+
+    public MinecraftWidgetScreen(Component title, LoadedScreen<? extends Widget> xmlScreen) {
+        this(title, xmlScreenRoot(xmlScreen), xmlScreenContext(xmlScreen));
+        applyXmlScreenConfig(xmlScreen);
+        this.xmlScreenOwner = xmlScreen;
+    }
+
+    public MinecraftWidgetScreen(Component title, Widget root, UIContext uiContext) {
+        super(title == null ? Component.empty() : title);
+        this.root = Objects.requireNonNull(root, "root");
+        this.uiContext = uiContext == null ? new DefaultUIContext() : uiContext;
+        attachContext(root);
+    }
+
+    MinecraftWidgetScreen onRemoved(Runnable callback) {
+        closeCallback = callback;
+        return this;
+    }
+
+    private static Widget xmlScreenRoot(LoadedScreen<? extends Widget> xmlScreen) {
+        return Objects.requireNonNull(xmlScreen, "xmlScreen").root();
+    }
+
+    private static UIContext xmlScreenContext(LoadedScreen<? extends Widget> xmlScreen) {
+        return new DefaultUIContext(new MinecraftClipboardService())
+                .scaleProvider(Objects.requireNonNull(xmlScreen, "xmlScreen").scaleProvider());
+    }
+
+    public Widget root() {
+        return root;
+    }
+
+    public UIContext uiContext() {
+        return uiContext;
+    }
+
+    public float uiScale() {
+        return configuredUiScale();
+    }
+
+
+    /**
+     * Задаёт screen-level PostEffect по зарегистрированному id.
+     *
+     * <p>Effect применяется ко всему финальному UI-слою после сборки draw list. Если backend не умеет
+     * PostEffect или id не зарегистрирован, экран отрисуется обычным способом.</p>
+     */
+    public MinecraftWidgetScreen postEffect(String effectId) {
+        return postEffect(UiPostEffects.chain(effectId));
+    }
+
+    /** Задаёт screen-level PostEffect chain. */
+    public MinecraftWidgetScreen postEffect(UiPostEffectChain chain) {
+        this.postEffect = chain == null ? UiPostEffectChain.none() : chain.copy();
+        return this;
+    }
+
+    /** Отключает screen-level PostEffect. */
+    public MinecraftWidgetScreen clearPostEffect() {
+        this.postEffect = UiPostEffectChain.none();
+        return this;
+    }
+
+    /** @return текущий screen-level PostEffect chain */
+    public UiPostEffectChain postEffect() {
+        return postEffect.copy();
+    }
+    public float effectiveMinecraftUiScale() {
+        return effectiveUiScale();
+    }
+
+    public MinecraftWidgetScreen uiScale(float scale) {
+        float normalized = UIScaleProvider.sanitize(scale);
+        if (screenScale != null && screenScale == normalized) return this;
+        screenScale = normalized;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public MinecraftWidgetScreen independentUiScale(float scale) {
+        uiScale(scale);
+        return scaleWithMinecraftGui(false);
+    }
+
+    public MinecraftWidgetScreen useContextScale() {
+        if (screenScale == null) return this;
+        screenScale = null;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    public boolean scaleWithMinecraftGui() {
+        return scaleWithMinecraftGui;
+    }
+
+    public MinecraftWidgetScreen scaleWithMinecraftGui(boolean scaleWithMinecraftGui) {
+        if (this.scaleWithMinecraftGui == scaleWithMinecraftGui) return this;
+        this.scaleWithMinecraftGui = scaleWithMinecraftGui;
+        layoutInitialized = false;
+        invalidateRenderCache();
+        root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        return this;
+    }
+
+    /**
+     * Проверяет, перехватывает ли экран отладочные хоткеи.
+     *
+     * @return {@code true}, если {@code Ctrl+Shift+P/Plus/Minus} обрабатываются экраном
+     * @see MinecraftDebugHotkeys
+     */
+    public boolean debugHotkeysEnabled() {
+        return debugHotkeysEnabled;
+    }
+
+    /**
+     * Включает или выключает отладочные хоткеи экрана.
+     *
+     * <p>Выключено по умолчанию: комбинация {@code Ctrl+Shift+P} (тоггл профайлера)
+     * и {@code Ctrl+Shift+Plus/Minus} (scale дебаг-оверлея) могут конфликтовать
+     * с вводом в текстовых полях модов.</p>
+     *
+     * @param debugHotkeysEnabled {@code true}, чтобы перехватывать отладочные хоткеи
+     * @return этот экран для fluent-настройки
+     * @see MinecraftDebugHotkeys
+     */
+    public MinecraftWidgetScreen debugHotkeysEnabled(boolean debugHotkeysEnabled) {
+        this.debugHotkeysEnabled = debugHotkeysEnabled;
+        return this;
+    }
+
+    public MinecraftWidgetScreen applyXmlScreenConfig(LoadedScreen<?> xmlScreen) {
+        if (xmlScreen == null) return this;
+        if (uiContext instanceof DefaultUIContext context) {
+            context.scaleProvider(xmlScreen.scaleProvider());
+        }
+        useContextScale();
+        scaleWithMinecraftGui(xmlScreen.scaleWithMinecraftGui());
+        return this;
+    }
+
+    /** Был ли уже проход этого экрана как внешнего render-layer (HUD, overlay). */
+    private boolean renderLayerAttached;
+    /** Модификаторы последнего события мыши: нужны для ванильных обработчиков. */
+    private int lastMouseModifiers;
+
+    public DrawList drawList() {
+        return drawList;
+    }
+
+    /**
+     * Выполняет полный UI-проход этого экрана как внешний render-layer.
+     *
+     * <p>Метод нужен HUD и screen-overlay runtime: экран не становится текущим
+     * {@link Screen}, но сохраняет обычные tick, layout, render cache и PostEffect.</p>
+     */
+    void renderLayer(GuiGraphicsExtractor graphics, int width, int height,
+                     int mouseX, int mouseY, float partialTick) {
+        int safeWidth = Math.max(1, width);
+        int safeHeight = Math.max(1, height);
+        // В 26.1 minecraft и font экрана задаются в конструкторе, поэтому первый проход слоя
+        // отмечается отдельным флагом.
+        if (!renderLayerAttached) {
+            renderLayerAttached = true;
+            this.width = safeWidth;
+            this.height = safeHeight;
+            layoutInitialized = false;
+        } else if (this.width != safeWidth || this.height != safeHeight) {
+            this.width = safeWidth;
+            this.height = safeHeight;
+            layoutInitialized = false;
+            invalidateRenderCache();
+            root.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
+        }
+        extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    public FontFace defaultFont() {
+        return defaultFont;
+    }
+
+    public MinecraftWidgetScreen defaultFont(FontFace defaultFont) {
+        this.defaultFont = defaultFont == null ? MinecraftFonts.defaultFace() : defaultFont;
+        if (backend != null) backend.defaultFont(this.defaultFont);
+        return this;
+    }
+
+    public MinecraftWidgetScreen useSdfDefaultFont() {
+        return defaultFont(Fonts.defaultFace());
+    }
+
+    public MinecraftWidgetScreen useVanillaDefaultFont() {
+        return defaultFont(MinecraftFonts.defaultFace());
+    }
+
+    public UiRenderPolicy renderPolicy() {
+        return renderPolicy;
+    }
+
+    public MinecraftWidgetScreen renderPolicy(UiRenderPolicy policy) {
+        this.renderPolicy = policy == null ? UiRenderPolicy.continuous() : policy;
+        if (this.renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+            releaseRenderCache();
+        }
+        invalidateRenderCache();
+        return this;
+    }
+
+    public MinecraftWidgetScreen keyboardInputHandler(KeyboardInputHandler handler) {
+        this.keyboardInputHandler = handler;
+        return this;
+    }
+
+    /** Sets whether the game pauses (single player) while this screen is open. */
+    public MinecraftWidgetScreen pauseGame(boolean value) {
+        this.pauseGame = value;
+        return this;
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return pauseGame;
+    }
+
+    /** Forces the cached UI to be rebuilt on the next Minecraft frame. */
+    public MinecraftWidgetScreen invalidateRenderCache() {
+        cachedTexture = null;
+        lastCachedRenderNanos = 0L;
+        return this;
+    }
+
+    /**
+     * Фон экрана UniGUI рисует сам (как в 1.20/1.21, где {@code render} не вызывал ванильный фон).
+     */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        long uiCpuStartNanos = System.nanoTime();
+        // В 26.3 курсор без запроса на кадр сбрасывается на стрелку.
+        MinecraftInputCompat.requestCursor(graphics, activeMouseCursor);
+        updateTextInput();
+        updateScaleProviderViewport();
+        float uiScale = effectiveUiScale();
+        float logicalWidth = toLogicalPixels(width, uiScale);
+        float logicalHeight = toLogicalPixels(height, uiScale);
+        // Физических пикселей окна на логическую единицу UI: по нему RenderToTexture выбирает размер текстуры.
+        float pixelScale = UIScaleProvider.sanitize(uiScale) * minecraftGuiScale();
+        renderContext.pixelScale(pixelScale);
+        cacheRenderContext.pixelScale(pixelScale);
+        float deltaSeconds = lastFrameStartNanos == 0L
+                ? 1.0f / 60.0f
+                : Math.max(0.0f, (uiCpuStartNanos - lastFrameStartNanos) / 1_000_000_000.0f);
+        lastFrameStartNanos = uiCpuStartNanos;
+        FrameContext animationFrame = new FrameContext(frameIndex, deltaSeconds, partialTick, FramePhase.ANIMATION);
+        FrameContext renderFrame = new FrameContext(frameIndex, 0.0f, partialTick, FramePhase.RENDER);
+
+        uiContext.profiler().beginFrame(frameIndex);
+        uiContext.debugCounters().beginFrame(frameIndex);
+        uiContext.debugCounters().recordFrameTotalMillis(lastFrameTotalMillis);
+        uiContext.debugCounters().recordFrameCpuMillis(lastFrameCpuMillis);
+
+        try (ProfileScope ignored = uiContext.profiler().scope("dispatcher")) {
+            uiContext.dispatcher().drain();
+        }
+        try (ProfileScope ignored = uiContext.profiler().scope("animation")) {
+            root.tick(animationFrame);
+        }
+        layoutChangedThisFrame = false;
+        try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
+            if (shouldRunLayout(logicalWidth, logicalHeight, uiScale)) {
+                try(ProfileScope _ignored = uiContext.profiler().scope("measureLayout")) {
+                    root.measure(new LayoutContext(logicalWidth, logicalHeight));
+                }
+                try(ProfileScope _ignored = uiContext.profiler().scope("arrangeLayout")) {
+                    root.arrange(new MutableRect(0.0f, 0.0f, logicalWidth, logicalHeight));
+                }
+                layoutInitialized = true;
+                layoutChangedThisFrame = true;
+                lastLayoutWidth = logicalWidth;
+                lastLayoutHeight = logicalHeight;
+                lastLayoutScale = uiScale;
+                try(ProfileScope _ignored = uiContext.profiler().scope("clearLayout")) {
+                    clearSubtreeInvalidation(root, InvalidationFlags.LAYOUT);
+                }
+            }
+        }
+
+        if (backend == null) {
+            backend = new MinecraftGuiRenderBackend(graphics);
+            backend.defaultFont(defaultFont);
+        } else {
+            backend.graphics(graphics);
+        }
+
+        boolean profileDetails = DebugFlags.has(uiContext.debugFlags(), DebugFlags.PROFILER_OVERLAY);
+        MinecraftSdfShapeRenderer.SdfRuntimeStats sdfStats = backend.consumeSdfRuntimeStats();
+        if (profileDetails) {
+            uiContext.debugCounters().recordSdfRuntime(
+                    sdfStats.passes(), sdfStats.commands(), sdfStats.drawCalls(),
+                    sdfStats.uniformUploads(), sdfStats.flushes(), sdfStats.nanos());
+        }
+        backend.sdfRuntimeStatsEnabled(profileDetails);
+        backend.beginFrame(renderFrame);
+        uiContext.debugCounters().recordFrameGpuMillis(backend.lastFrameGpuMillis());
+        renderContext.backend(backend);
+        debugOverlayRenderContext.backend(backend);
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("drawList.clear")) {
+                drawList.clear();
+            }
+        } else {
+            drawList.clear();
+        }
+
+        try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
+            if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+                if (profileDetails) {
+                    try (ProfileScope renderScope = uiContext.profiler().scope("buildDrawList.root.render")) {
+                        root.renderCached(renderContext);
+                    }
+                } else {
+                    root.renderCached(renderContext);
+                }
+            } else {
+                CacheRenderDecision decision;
+                if (profileDetails) {
+                    try (ProfileScope policyScope = uiContext.profiler().scope("buildDrawList.cache.policy")) {
+                        decision = cacheRenderDecision(uiCpuStartNanos, true);
+                    }
+                } else {
+                    decision = cacheRenderDecision(uiCpuStartNanos, false);
+                }
+
+                if (decision.action() == CacheRenderAction.REFRESH) {
+                    if (profileDetails) {
+                        try (ProfileScope refreshScope = uiContext.profiler().scope("buildDrawList.cache.refresh." + decision.reason())) {
+                            renderCachedUi(true);
+                        }
+                    } else {
+                        renderCachedUi(false);
+                    }
+                }
+
+                if (cachedTexture != null) {
+                    if (profileDetails) {
+                        try (ProfileScope textureScope = uiContext.profiler().scope("buildDrawList.cache.textureCommand")) {
+                            renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
+                                    Paint.fill(CACHE_TINT));
+                        }
+                    } else {
+                        renderContext.texture(cachedTexture, 0.0f, 0.0f, logicalWidth, logicalHeight,
+                                Paint.fill(CACHE_TINT));
+                    }
+                }
+            }
+        }
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("debugDrawStats")) {
+                recordDebugDrawStats();
+            }
+        } else {
+            recordDebugDrawStats();
+        }
+        debugOverlayDrawList.clear();
+        DebugOverlayRenderer.render(debugOverlayRenderContext, uiContext, logicalWidth, logicalHeight);
+        lastFrameCpuMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
+
+        try (ProfileScope ignored = uiContext.profiler().scope("renderBackend")) {
+            DrawList backendDrawList = scaledDrawList(drawList, uiScale, scaledDrawList);
+            UiPostEffectRenderer.render(backend, backendDrawList, screenPostEffectBounds(), postEffect);
+            DrawList backendDebugOverlay = scaledDrawList(
+                    debugOverlayDrawList, uiScale, scaledDebugOverlayDrawList);
+            backend.render(backendDebugOverlay, null);
+            backend.endFrame();
+        }
+        lastFrameTotalMillis = (System.nanoTime() - uiCpuStartNanos) / 1_000_000.0f;
+        uiContext.keyboard().endFrame();
+        frameIndex++;
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured != null) {
+            HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
+            updateMouseCursor(captured, local.localX(), local.localY(), logicalMouseX, logicalMouseY);
+            uiContext.routedEvents().dispatch(new PointerMovedEvent(
+                    captured,
+                    logicalMouseX,
+                    logicalMouseY,
+                    local.localX(),
+                    local.localY(),
+                    0));
+            return;
+        }
+
+        Optional<HitTestResult> hit = hit(logicalMouseX, logicalMouseY);
+        if (hit.isEmpty()) {
+            updateMouseCursor(MouseCursor.DEFAULT);
+            uiContext.hoverManager().clearHover();
+            return;
+        }
+
+        HitTestResult result = hit.get();
+        updateMouseCursor(result.widget(), result.localX(), result.localY(), logicalMouseX, logicalMouseY);
+        uiContext.hoverManager().updateHover(result.widget(),
+                logicalMouseX,
+                logicalMouseY,
+                result.localX(),
+                result.localY(),
+                0);
+        uiContext.routedEvents().dispatch(new PointerMovedEvent(
+                result.widget(),
+                logicalMouseX,
+                logicalMouseY,
+                result.localX(),
+                result.localY(),
+                0));
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        lastMouseModifiers = event.modifiers();
+        return mouseClicked(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()));
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        lastMouseModifiers = event.modifiers();
+        return mouseReleased(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()));
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        lastMouseModifiers = event.modifiers();
+        return mouseDragged(event.x(), event.y(), MinecraftInputCompat.mouseButton(event.button()), dragX, dragY);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        return keyPressed(MinecraftInputCompat.key(event), MinecraftInputCompat.scancode(event),
+                MinecraftInputCompat.modifiers(event.modifiers()));
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        return keyReleased(MinecraftInputCompat.key(event), MinecraftInputCompat.scancode(event),
+                MinecraftInputCompat.modifiers(event.modifiers()));
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        int codePoint = event.codepoint();
+        if (!Character.isBmpCodePoint(codePoint)) {
+            return super.charTyped(event);
+        }
+        return charTyped((char) codePoint, currentKeyModifiers());
+    }
+
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        return hit(logicalMouseX, logicalMouseY)
+                .map(hit -> {
+                    Widget focusTarget = nearestFocusable(hit.widget());
+                    if (focusTarget == null) {
+                        uiContext.focusManager().clearFocus();
+                    } else {
+                        uiContext.focusManager().requestFocus(focusTarget);
+                    }
+                    PointerPressedEvent event = new PointerPressedEvent(
+                            hit.widget(),
+                            logicalMouseX,
+                            logicalMouseY,
+                            hit.localX(),
+                            hit.localY(),
+                            0,
+                            pointerButton(button));
+                    return uiContext.routedEvents().dispatch(event);
+                })
+                .orElseGet(() -> {
+                    uiContext.focusManager().clearFocus();
+                    return false;
+                });
+    }
+
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured != null) {
+            HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
+            PointerReleasedEvent event = new PointerReleasedEvent(
+                    captured,
+                    logicalMouseX,
+                    logicalMouseY,
+                    local.localX(),
+                    local.localY(),
+                    0,
+                    pointerButton(button));
+            boolean consumed = uiContext.routedEvents().dispatch(event);
+            if (button == 0) {
+                uiContext.clearPointerCapture(0);
+            }
+            updateMouseCursorAt(logicalMouseX, logicalMouseY);
+            return consumed;
+        }
+
+        return hit(logicalMouseX, logicalMouseY)
+                .map(hit -> {
+                    PointerReleasedEvent event = new PointerReleasedEvent(
+                            hit.widget(),
+                            logicalMouseX,
+                            logicalMouseY,
+                            hit.localX(),
+                            hit.localY(),
+                            0,
+                            pointerButton(button));
+                    return uiContext.routedEvents().dispatch(event);
+                })
+                .orElse(false);
+    }
+
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        Widget captured = uiContext.capturedPointer(0);
+        if (captured == null) {
+            return super.mouseDragged(mouseEvent(mouseX, mouseY, button), dragX, dragY);
+        }
+
+        HitTestResult local = localPoint(captured, logicalMouseX, logicalMouseY);
+        updateMouseCursor(captured, local.localX(), local.localY(), logicalMouseX, logicalMouseY);
+        PointerMovedEvent event = new PointerMovedEvent(
+                captured,
+                logicalMouseX,
+                logicalMouseY,
+                local.localX(),
+                local.localY(),
+                0);
+        return uiContext.routedEvents().dispatch(event);
+    }
+
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        return handleMouseScrolled(mouseX, mouseY, delta);
+    }
+
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return handleMouseScrolled(mouseX, mouseY, verticalAmount);
+    }
+
+    private boolean handleMouseScrolled(double mouseX, double mouseY, double delta) {
+        float logicalMouseX = toLogicalPixels(mouseX);
+        float logicalMouseY = toLogicalPixels(mouseY);
+        boolean consumed = hit(logicalMouseX, logicalMouseY)
+                .map(hit -> {
+                    ScrollEvent event = new ScrollEvent(
+                            hit.widget(),
+                            logicalMouseX,
+                            logicalMouseY,
+                            hit.localX(),
+                            hit.localY(),
+                            0.0f,
+                            (float) delta,
+                            currentKeyModifiers());
+                    return uiContext.routedEvents().dispatch(event);
+                })
+                .orElse(false);
+        refreshHoverAfterScroll(logicalMouseX, logicalMouseY);
+        return consumed;
+    }
+
+    /**
+     * Пересчитывает hover под неподвижным курсором после скролла: контент сдвинулся,
+     * а {@code mouseMoved} не придёт, поэтому hover (и Tooltip) иначе остаётся на
+     * элементе, уехавшем из-под курсора.
+     */
+    private void refreshHoverAfterScroll(float logicalMouseX, float logicalMouseY) {
+        if (uiContext.capturedPointer(0) != null) return;
+        Optional<HitTestResult> hit = hit(logicalMouseX, logicalMouseY);
+        if (hit.isEmpty()) {
+            uiContext.hoverManager().clearHover();
+            return;
+        }
+        HitTestResult result = hit.get();
+        uiContext.hoverManager().updateHover(result.widget(),
+                logicalMouseX, logicalMouseY, result.localX(), result.localY(), 0);
+    }
+
+    private static int currentKeyModifiers() {
+        int modifiers = 0;
+        Minecraft client = Minecraft.getInstance();
+        if (client.hasShiftDown()) modifiers |= KeyModifiers.SHIFT;
+        if (client.hasControlDown()) modifiers |= KeyModifiers.CONTROL;
+        if (client.hasAltDown()) modifiers |= KeyModifiers.ALT;
+        return modifiers;
+    }
+
+    /**
+     * Событие мыши 26.x для вызова ванильных обработчиков из обработчиков со старой сигнатурой.
+     *
+     * @param button кнопка GLFW (в кодах UniGUI)
+     */
+    private MouseButtonEvent mouseEvent(double mouseX, double mouseY, int button) {
+        return new MouseButtonEvent(mouseX, mouseY,
+                new MouseButtonInfo(MinecraftInputCompat.nativeMouseButton(button), lastMouseModifiers));
+    }
+
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyPressed(keyCode, scanCode, modifiers)) {
+            uiContext.keyboard().press(keyCode);
+            return true;
+        }
+        if (debugHotkeysEnabled && handleDebugHotkey(keyCode, modifiers)) return true;
+        uiContext.keyboard().press(keyCode);
+        if (keyCode == KeyCodes.TAB) {
+            Widget focused = uiContext.focusManager().focusedWidget();
+            if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
+                return true;
+            }
+            return KeyModifiers.has(modifiers, KeyModifiers.SHIFT)
+                    ? uiContext.focusManager().focusPrevious(root)
+                    : uiContext.focusManager().focusNext(root);
+        }
+
+        FocusDirection focusDirection = focusDirection(keyCode);
+        if (focusDirection != null) {
+            Widget focused = uiContext.focusManager().focusedWidget();
+            if (focused != null && uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers))) {
+                return true;
+            }
+            return uiContext.focusManager().focusDirectional(root, focusDirection) || super.keyPressed(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
+        }
+
+        Widget focused = uiContext.focusManager().focusedWidget();
+        if (focused == null) {
+            return vanillaKeyPressed(keyCode, scanCode, modifiers);
+        }
+
+        return uiContext.routedEvents().dispatch(new KeyPressedEvent(focused, keyCode, scanCode, modifiers));
+    }
+
+    protected boolean vanillaKeyPressed(int keyCode, int scanCode, int modifiers) {
+        return super.keyPressed(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
+    }
+
+    /**
+     * Перехватывает отладочные хоткеи до фокуса, виджетов и ваниллы.
+     *
+     * <p>GLFW auto-repeat приходит сюда же: повторные нажатия удерживаемой
+     * клавиши поглощаются, но действие не повторяется.</p>
+     */
+    private boolean handleDebugHotkey(int keyCode, int modifiers) {
+        if (!MinecraftDebugHotkeys.matches(keyCode, modifiers)) return false;
+        boolean firstPress = !uiContext.keyboard().isDown(keyCode);
+        uiContext.keyboard().press(keyCode);
+        return MinecraftDebugHotkeys.handle(uiContext, keyCode, modifiers, firstPress);
+    }
+
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        uiContext.keyboard().release(keyCode);
+        if (keyboardInputHandler != null
+                && keyboardInputHandler.keyReleased(keyCode, scanCode, modifiers)) return true;
+        Widget focused = uiContext.focusManager().focusedWidget();
+        if (focused == null) {
+            return super.keyReleased(MinecraftInputCompat.keyEvent(keyCode, scanCode, modifiers));
+        }
+        return uiContext.routedEvents().dispatch(new KeyReleasedEvent(focused, keyCode, scanCode, modifiers));
+    }
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (keyboardInputHandler != null && keyboardInputHandler.textInput(codePoint, modifiers)) return true;
+        Widget focused = uiContext.focusManager().focusedWidget();
+        if (focused == null) {
+            return super.charTyped(new CharacterEvent(codePoint));
+        }
+
+        return uiContext.routedEvents().dispatch(new TextInputEvent(focused, codePoint, modifiers));
+    }
+
+    @Override
+    public void removed() {
+        releaseMouseCursors();
+        if (textInputActive) {
+            textInputActive = false;
+            MinecraftInputCompat.setTextInput(this, false);
+        }
+        uiContext.hoverManager().clearHover();
+        uiContext.focusManager().clearFocus();
+        uiContext.keyboard().clear();
+        uiContext.clearPointerCapture(0);
+        if (backend != null) {
+            backend.close();
+            backend = null;
+        }
+        releaseRenderCache();
+        root.dispose();
+        if (xmlScreenOwner != null) {
+            xmlScreenOwner.close();
+            xmlScreenOwner = null;
+        }
+        Runnable callback = closeCallback;
+        closeCallback = null;
+        if (callback != null) callback.run();
+    }
+
+    private CacheRenderDecision cacheRenderDecision(long nowNanos, boolean profileDetails) {
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.CONTINUOUS) {
+            return CacheRenderDecision.skip();
+        }
+        if (cachedTexture == null) {
+            return CacheRenderDecision.refresh("cold");
+        }
+        if (cachedWidth != cachedTargetWidth() || cachedHeight != cachedTargetHeight()) {
+            return CacheRenderDecision.refresh("resize");
+        }
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.ON_DIRTY) {
+            if (layoutChangedThisFrame) {
+                return CacheRenderDecision.refresh("layout");
+            }
+            if (root.subtreeInvalidationFlags() != dev.sixik.unigui.api.core.InvalidationFlags.NONE) {
+                return CacheRenderDecision.refresh("dirty");
+            }
+
+            boolean animationsRunning;
+            if (profileDetails) {
+                try (ProfileScope ignored = uiContext.profiler().scope("cache.policy.animations")) {
+                    animationsRunning = hasRunningAnimations(root);
+                }
+            } else {
+                animationsRunning = hasRunningAnimations(root);
+            }
+            if (animationsRunning) {
+                return CacheRenderDecision.refresh("animations");
+            }
+            return CacheRenderDecision.skip();
+        }
+        return lastCachedRenderNanos == 0L || nowNanos - lastCachedRenderNanos >= renderIntervalNanos()
+                ? CacheRenderDecision.refresh("interval")
+                : CacheRenderDecision.skip();
+    }
+    private long renderIntervalNanos() {
+        if (renderPolicy.mode() == UiRenderPolicy.Mode.VSYNC) {
+            int refreshRate = backend == null ? 60 : MinecraftInputCompat.refreshRate(backend.minecraft());
+            float safeRefreshRate = refreshRate > 0 ? refreshRate : 60.0f;
+            return Math.max(1L, Math.round(1_000_000_000.0 / safeRefreshRate));
+        }
+        return renderPolicy.intervalNanos();
+    }
+
+    private void renderCachedUi(boolean profileDetails) {
+        int targetWidth = cachedTargetWidth();
+        int targetHeight = cachedTargetHeight();
+        if (cachedRenderer == null || cachedWidth != targetWidth || cachedHeight != targetHeight) {
+            if (profileDetails) {
+                try (ProfileScope ignored = uiContext.profiler().scope("cache.renderer.reset")) {
+                    resetCachedRenderer(targetWidth, targetHeight);
+                }
+            } else {
+                resetCachedRenderer(targetWidth, targetHeight);
+            }
+        }
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.drawList.clear")) {
+                cacheDrawList.clear();
+            }
+        } else {
+            cacheDrawList.clear();
+        }
+
+        cacheRenderContext.backend(backend);
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.root.render")) {
+                root.renderCached(cacheRenderContext);
+            }
+        } else {
+            root.renderCached(cacheRenderContext);
+        }
+
+        DrawList textureDrawList;
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.scaleDrawList")) {
+                textureDrawList = scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList);
+            }
+        } else {
+            textureDrawList = scaledDrawList(cacheDrawList, effectiveUiScale(), scaledCacheDrawList);
+        }
+
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.renderToTexture")) {
+                cachedTexture = cachedRenderer.renderDrawListToTexture(
+                        textureDrawList,
+                        cachedWidth,
+                        cachedHeight,
+                        RenderTargetOptions.COLOR_DEPTH);
+            }
+        } else {
+            cachedTexture = cachedRenderer.renderDrawListToTexture(
+                    textureDrawList,
+                    cachedWidth,
+                    cachedHeight,
+                    RenderTargetOptions.COLOR_DEPTH);
+        }
+
+        lastCachedRenderNanos = System.nanoTime();
+        if (profileDetails) {
+            try (ProfileScope ignored = uiContext.profiler().scope("cache.clearInvalidation")) {
+                clearSubtreeInvalidation(root);
+            }
+        } else {
+            clearSubtreeInvalidation(root);
+        }
+    }
+
+    private void resetCachedRenderer(int targetWidth, int targetHeight) {
+        if (cachedRenderer != null) cachedRenderer.close();
+        cachedRenderer = new WidgetTextureRenderer(backend);
+        cachedWidth = targetWidth;
+        cachedHeight = targetHeight;
+        cachedTexture = null;
+    }
+    private int cachedTargetWidth() {
+        return backend != null && backend.minecraft().getWindow() != null
+                ? Math.max(1, backend.minecraft().getWindow().getWidth())
+                : Math.max(1, width);
+    }
+
+    private int cachedTargetHeight() {
+        return backend != null && backend.minecraft().getWindow() != null
+                ? Math.max(1, backend.minecraft().getWindow().getHeight())
+                : Math.max(1, height);
+    }
+
+    private enum CacheRenderAction {
+        SKIP,
+        REFRESH
+    }
+
+    private static final class CacheRenderDecision {
+        private static final CacheRenderDecision SKIP =
+                new CacheRenderDecision(CacheRenderAction.SKIP, "stable");
+
+        private final CacheRenderAction action;
+        private final String reason;
+
+        private CacheRenderDecision(CacheRenderAction action, String reason) {
+            this.action = action == null ? CacheRenderAction.SKIP : action;
+            this.reason = reason == null || reason.isBlank() ? "unknown" : reason;
+        }
+
+        private static CacheRenderDecision refresh(String reason) {
+            return new CacheRenderDecision(CacheRenderAction.REFRESH, reason);
+        }
+
+        private static CacheRenderDecision skip() {
+            return SKIP;
+        }
+
+        private CacheRenderAction action() {
+            return action;
+        }
+
+        private String reason() {
+            return reason;
+        }
+    }
+    private static boolean hasRunningAnimations(Widget widget) {
+        if (widget instanceof WidgetBase base && base.animationsRunning()) return true;
+        for (Widget child : widget.children()) {
+            if (hasRunningAnimations(child)) return true;
+        }
+        return false;
+    }
+
+    private boolean shouldRunLayout(float logicalWidth, float logicalHeight, float uiScale) {
+        return !layoutInitialized
+                || Float.compare(logicalWidth, lastLayoutWidth) != 0
+                || Float.compare(logicalHeight, lastLayoutHeight) != 0
+                || Float.compare(uiScale, lastLayoutScale) != 0
+                || InvalidationFlags.has(root.subtreeInvalidationFlags(), InvalidationFlags.LAYOUT);
+    }
+
+    private static void clearSubtreeInvalidation(Widget widget) {
+        clearSubtreeInvalidation(widget, InvalidationFlags.ALL);
+    }
+
+    private static void clearSubtreeInvalidation(Widget widget, int flags) {
+        if (widget instanceof WidgetBase base) {
+            // Прямой сброс без пузырькового recompute: после полного прохода
+            // всё поддерево актуально, это чистый O(N) вместо O(N²).
+            base.clearInvalidationDirect(flags);
+        } else if (widget != null) {
+            widget.clearInvalidation(flags);
+        }
+        if (widget == null) return;
+        for (Widget child : widget.children()) clearSubtreeInvalidation(child, flags);
+    }
+
+    private void releaseRenderCache() {
+        if (cachedRenderer != null) {
+            cachedRenderer.close();
+            cachedRenderer = null;
+        }
+        cachedTexture = null;
+        cachedWidth = 0;
+        cachedHeight = 0;
+        lastCachedRenderNanos = 0L;
+    }
+
+    private Optional<HitTestResult> hit(float mouseX, float mouseY) {
+        return uiContext.hitTester().hitTest(root, mouseX, mouseY);
+    }
+
+    private HitTestResult localPoint(Widget widget, float rootX, float rootY) {
+        float x = rootX;
+        float y = rootY;
+        return uiContext.hitTester().localPoint(root, widget, x, y)
+                .orElseGet(() -> new HitTestResult(widget, x, y,
+                        localX(widget, rootX), localY(widget, rootY)));
+    }
+
+    private static float localX(Widget widget, float rootX) {
+        return (float) rootX - widget.layoutBounds().x();
+    }
+
+    private static float localY(Widget widget, float rootY) {
+        return (float) rootY - widget.layoutBounds().y();
+    }
+
+    private void updateMouseCursor(Widget widget, float localX, float localY, float rootX, float rootY) {
+        updateMouseCursor(CursorResolver.resolve(widget, localX, localY, rootX, rootY));
+    }
+
+    private void updateMouseCursorAt(float rootX, float rootY) {
+        Optional<HitTestResult> hit = hit(rootX, rootY);
+        if (hit.isEmpty()) {
+            updateMouseCursor(MouseCursor.DEFAULT);
+            return;
+        }
+        HitTestResult result = hit.get();
+        updateMouseCursor(result.widget(), result.localX(), result.localY(), rootX, rootY);
+    }
+
+    private void updateMouseCursor(MouseCursor cursor) {
+        MouseCursor normalized = cursor == null ? MouseCursor.DEFAULT : cursor;
+        if (activeMouseCursor == normalized) return;
+
+        MinecraftInputCompat.setCursor(minecraft, normalized);
+        activeMouseCursor = normalized;
+    }
+
+    /**
+     * Держит ввод текста окна включённым, пока у экрана есть получатель символов: виджет в фокусе или свой
+     * обработчик клавиатуры. В 26.3 (SDL3) без этого {@code charTyped} не приходит и печатать нельзя.
+     */
+    private void updateTextInput() {
+        boolean wanted = keyboardInputHandler != null || uiContext.focusManager().focusedWidget() != null;
+        if (wanted == textInputActive) return;
+        textInputActive = wanted;
+        MinecraftInputCompat.setTextInput(this, wanted);
+    }
+
+    private void releaseMouseCursors() {
+        MinecraftInputCompat.releaseCursors(minecraft);
+        activeMouseCursor = MouseCursor.DEFAULT;
+    }
+
+    private void recordDebugDrawStats() {
+        int flags = uiContext.debugFlags();
+        if (!DebugFlags.has(flags, DebugFlags.PROFILER_OVERLAY)
+                && !DebugFlags.has(flags, DebugFlags.DRAW_COMMANDS)
+                && !DebugFlags.has(flags, DebugFlags.BATCHES)) {
+            return;
+        }
+
+        var counters = uiContext.debugCounters();
+        counters.recordDrawCommands(drawList.size());
+        Object[] rawCommands = drawList.commandElements();
+        int textGlyphs = 0;
+        int textCommands = 0;
+        int textureCommands = 0;
+        int textureSwitches = 0;
+        int shaderUniforms = 0;
+        int shaderTextures = 0;
+        int meshVertices = 0;
+        int pathElements = 0;
+        int transformCommands = 0;
+        int clipCommands = 0;
+        TextureHandle previousTexture = null;
+        boolean hasPreviousTexture = false;
+
+        for (int i = 0, size = drawList.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            if (command == null) continue;
+            counters.recordDrawCommand(command.type());
+            if (command.transform() != null && hasVisualTransform(command)) transformCommands++;
+            switch (command.type()) {
+                case TEXT -> {
+                    textCommands++;
+                    textGlyphs += textGlyphCount(command);
+                }
+                case TEXTURE, TEXTURED_QUAD -> {
+                    textureCommands++;
+                    TextureHandle texture = command.texture();
+                    if (hasPreviousTexture && !sameTexture(previousTexture, texture)) textureSwitches++;
+                    previousTexture = texture;
+                    hasPreviousTexture = true;
+                }
+                case MESH -> {
+                    if (command.mesh() != null) meshVertices += command.mesh().vertexCount();
+                }
+                case SHADER -> {
+                    if (command.shaderUniforms() != null) shaderUniforms += command.shaderUniforms().values().size();
+                    if (command.shaderTextures() != null) shaderTextures += command.shaderTextures().size();
+                }
+                case PATH -> {
+                    if (command.path() != null) pathElements += command.path().size();
+                }
+                case PUSH_CLIP, POP_CLIP -> clipCommands++;
+                default -> {
+                }
+            }
+        }
+
+        List<DrawBatch> batches = SimpleDrawBatcher.INSTANCE.batch(drawList);
+        if (batches instanceof ObjectArrayList<?> objectBatches) {
+            Object[] rawBatches = objectBatches.elements();
+            for (int i = 0, size = objectBatches.size(); i < size; i++) {
+                recordBatchStats(counters, (DrawBatch) rawBatches[i]);
+            }
+        } else {
+            for (DrawBatch batch : batches) recordBatchStats(counters, batch);
+        }
+        counters.recordRenderFeatures(textGlyphs, textCommands, textureCommands, textureSwitches,
+                meshVertices, pathElements, transformCommands, clipCommands);
+        counters.recordShaderFeatures(shaderUniforms, shaderTextures);
+    }
+
+    private static void recordBatchStats(dev.sixik.unigui.api.debug.UiDebugCounters counters, DrawBatch batch) {
+        if (batch == null) return;
+        int commandCount = batch.size();
+        int drawCalls = estimatedDrawCalls(batch);
+        int vertices = 0;
+        int indices = 0;
+        switch (batch.type()) {
+            case RECT, ROUNDED_RECT, LINE, CIRCLE -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case TEXTURE, TEXTURED_QUAD -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case TEXT -> {
+                Object[] commands = batch.commandElements();
+                for (int i = 0; i < commandCount; i++) {
+                    DrawCommand command = (DrawCommand) commands[i];
+                    if (command == null) continue;
+                    int glyphs = textGlyphCount(command);
+                    vertices += glyphs * 4;
+                    indices += glyphs * 6;
+                }
+            }
+            case SHADER -> {
+                vertices = commandCount * 4;
+                indices = commandCount * 6;
+            }
+            case MESH -> {
+                Object[] commands = batch.commandElements();
+                for (int i = 0; i < commandCount; i++) {
+                    DrawCommand command = (DrawCommand) commands[i];
+                    if (command != null && command.mesh() != null) {
+                        int meshVertices = command.mesh().vertexCount();
+                        vertices += meshVertices;
+                        indices += meshVertices;
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+        counters.recordBatch(batch.type(), commandCount, batch.isBarrier(), drawCalls, vertices, indices);
+    }
+
+    private static int estimatedDrawCalls(DrawBatch batch) {
+        if (batch == null || batch.size() == 0) return 0;
+        return switch (batch.type()) {
+            case PUSH_CLIP, POP_CLIP, DRAW_CMD -> 0;
+            // Instanced SDF shapes are submitted once per batch. The fallback
+            // renderer may issue more calls, but this counter describes the
+            // normal optimized path rather than the old legacy estimate.
+            case RECT, ROUNDED_RECT, LINE, CIRCLE -> 1;
+            case SHADER, CUSTOM -> batch.size();
+            default -> 1;
+        };
+    }
+
+    private static boolean sameTexture(TextureHandle left, TextureHandle right) {
+        if (left == right) return true;
+        if (left == null || right == null) return false;
+        return Objects.equals(left.id(), right.id()) && Objects.equals(left.options(), right.options());
+    }
+
+    private static int textGlyphCount(DrawCommand command) {
+        String text = command.richText() == null ? command.text() : command.richText().plainText();
+        return text == null ? 0 : text.codePointCount(0, text.length());
+    }
+
+    private static boolean hasVisualTransform(DrawCommand command) {
+        var transform = command.transform();
+        return transform.position().x() != 0.0f || transform.position().y() != 0.0f
+                || transform.rotationDegrees() != 0.0f
+                || transform.scale().x() != 1.0f || transform.scale().y() != 1.0f
+                || command.transformStackSize() > 0;
+    }
+    private void attachContext(Widget widget) {
+        if (widget instanceof WidgetBase base) {
+            base.setUiContextInternal(uiContext);
+        }
+    }
+
+    private void updateScaleProviderViewport() {
+        if (minecraft == null || minecraft.getWindow() == null) return;
+        UIScaleProvider provider = uiContext.scaleProvider();
+        if (provider == null) return;
+        provider.viewportSize(minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
+    }
+
+    private float effectiveUiScale() {
+        float configured = configuredUiScale();
+        return scaleWithMinecraftGui
+                ? configured
+                : configured / minecraftGuiScale();
+    }
+
+    private float configuredUiScale() {
+        if (screenScale != null) return UIScaleProvider.sanitize(screenScale);
+        UIScaleProvider provider = uiContext.scaleProvider();
+        return UIScaleProvider.sanitize(provider == null ? 1.0f : provider.scale());
+    }
+
+    private float minecraftGuiScale() {
+        if (minecraft == null || minecraft.getWindow() == null) return 1.0f;
+        int framebufferWidth = minecraft.getWindow().getWidth();
+        int guiWidth = minecraft.getWindow().getGuiScaledWidth();
+        if (framebufferWidth <= 0 || guiWidth <= 0) return 1.0f;
+        return UIScaleProvider.sanitize(framebufferWidth / (float) guiWidth);
+    }
+
+    private UiLayerBounds screenPostEffectBounds() {
+        return new UiLayerBounds(0.0f, 0.0f, width, height, minecraftGuiScale());
+    }
+
+    private float toLogicalPixels(double backendPixels) {
+        return toLogicalPixels(backendPixels, effectiveUiScale());
+    }
+
+    private static float toLogicalPixels(double backendPixels, float uiScale) {
+        return (float) (backendPixels / UIScaleProvider.sanitize(uiScale));
+    }
+
+    private DrawList scaledDrawList(DrawList source, float uiScale, DrawList target) {
+        float scale = UIScaleProvider.sanitize(uiScale);
+        if (scale == 1.0f) {
+            return source;
+        }
+
+        target.clear();
+        Object[] rawCommands = source.commandElements();
+        for (int i = 0, size = source.size(); i < size; i++) {
+            DrawCommand command = (DrawCommand) rawCommands[i];
+            target.add(scaledCommand(command, scale));
+        }
+        return target;
+    }
+
+    private DrawCommand scaledCommand(DrawCommand command, float scale) {
+        DrawCommand copy = command.copy();
+        copy.bounds().set(
+                command.bounds().x() * scale,
+                command.bounds().y() * scale,
+                command.bounds().width() * scale,
+                command.bounds().height() * scale);
+        if (command.hasBrushBounds()) {
+            copy.brushBounds(
+                    command.brushBounds().x() * scale,
+                    command.brushBounds().y() * scale,
+                    command.brushBounds().width() * scale,
+                    command.brushBounds().height() * scale);
+        }
+        copy.radius(command.radius() * scale);
+        copy.texturedQuad(
+                command.quadX1() * scale,
+                command.quadY1() * scale,
+                command.quadX2() * scale,
+                command.quadY2() * scale,
+                command.quadX3() * scale,
+                command.quadY3() * scale,
+                command.quadX4() * scale,
+                command.quadY4() * scale,
+                command.quadU1(),
+                command.quadV1(),
+                command.quadU2(),
+                command.quadV2(),
+                command.quadU3(),
+                command.quadV3(),
+                command.quadU4(),
+                command.quadV4());
+        copy.paint(copy.paint().strokeWidth(copy.paint().strokeWidth() * scale));
+        copy.transform().position().set(
+                command.transform().position().x() * scale,
+                command.transform().position().y() * scale);
+        copy.transform().pivot().set(
+                command.transform().pivot().x() * scale,
+                command.transform().pivot().y() * scale);
+        if (command.transformStackSize() > 0) {
+            List<TransformLayer> scaledStack = new ObjectArrayList<>(command.transformStackSize());
+            Object[] rawLayers = command.transformStackElements();
+            for (int i = 0, size = command.transformStackSize(); i < size; i++) {
+                TransformLayer layer = (TransformLayer) rawLayers[i];
+                Transform scaledTransform = layer.transform().copy();
+                scaledTransform.position().set(
+                        layer.transform().position().x() * scale,
+                        layer.transform().position().y() * scale);
+                scaledTransform.pivot().set(
+                        layer.transform().pivot().x() * scale,
+                        layer.transform().pivot().y() * scale);
+                scaledStack.add(new TransformLayer(
+                        new MutableRect(
+                                layer.bounds().x() * scale,
+                                layer.bounds().y() * scale,
+                                layer.bounds().width() * scale,
+                                layer.bounds().height() * scale),
+                        scaledTransform));
+            }
+            copy.transformStack(scaledStack);
+        }
+        if (command.path() != null) {
+            copy.path(scaledPath(command.path(), scale));
+        }
+        if (command.mesh() != null) {
+            copy.mesh(scaledMesh(command.mesh(), scale));
+        }
+        if (command.richText() != null) {
+            copy.richText(scaledRichText(command.richText(), scale));
+        }
+        if (command.customDraw() != null) {
+            if (command.customDraw() instanceof MinecraftScaledCustomDraw scaledCustomDraw) {
+                copy.customDraw(backend -> scaledCustomDraw.draw(backend, scale));
+            } else {
+                copy.customDraw(backend -> {
+                    if (!(backend instanceof MinecraftGuiRenderBackend minecraftBackend)) {
+                        command.customDraw().draw(backend);
+                        return;
+                    }
+                    var pose = minecraftBackend.graphics().pose();
+                    pose.pushPose();
+                    try {
+                        pose.scale(scale, scale, 1.0f);
+                        command.customDraw().draw(backend);
+                    } finally {
+                        pose.popPose();
+                    }
+                });
+            }
+        }
+        return copy;
+    }
+
+    private static RichText scaledRichText(RichText text, float scale) {
+        RichText.Builder builder = RichText.builder();
+        for (TextRun run : text.runs()) {
+            builder.font(run.font())
+                    .size(run.pixelSize() * scale)
+                    .color(run.color())
+                    .brush(run.brush())
+                    .tracking(run.tracking())
+                    .transform(run.transform())
+                    .append(run.text());
+        }
+        return builder.build();
+    }
+
+    private static VectorPath scaledPath(VectorPath path, float scale) {
+        VectorPath scaled = new VectorPath();
+        Object[] rawPathElements = path.elementElements();
+        for (int i = 0, size = path.size(); i < size; i++) {
+            VectorPath.Element element = (VectorPath.Element) rawPathElements[i];
+            switch (element.verb()) {
+                case MOVE_TO -> scaled.moveTo(element.x1() * scale, element.y1() * scale);
+                case LINE_TO -> scaled.lineTo(element.x1() * scale, element.y1() * scale);
+                case QUADRATIC_TO -> scaled.quadraticTo(
+                        element.x1() * scale,
+                        element.y1() * scale,
+                        element.x2() * scale,
+                        element.y2() * scale);
+                case CUBIC_TO -> scaled.cubicTo(
+                        element.x1() * scale,
+                        element.y1() * scale,
+                        element.x2() * scale,
+                        element.y2() * scale,
+                        element.x3() * scale,
+                        element.y3() * scale);
+                case CLOSE -> scaled.close();
+            }
+        }
+        return scaled;
+    }
+
+    private static DrawMesh scaledMesh(DrawMesh mesh, float scale) {
+        ObjectArrayList<DrawVertex> vertices = new ObjectArrayList<>(mesh.vertexCount());
+        Object[] rawVertices = mesh.vertexElements();
+        for (int i = 0, size = mesh.vertexCount(); i < size; i++) {
+            DrawVertex vertex = (DrawVertex) rawVertices[i];
+            vertices.add(new DrawVertex(vertex.x() * scale, vertex.y() * scale, vertex.u(), vertex.v(), vertex.color()));
+        }
+        return DrawMesh.owned(vertices);
+    }
+
+    private static PointerButton pointerButton(int button) {
+        return switch (button) {
+            case 0 -> PointerButton.PRIMARY;
+            case 1 -> PointerButton.SECONDARY;
+            case 2 -> PointerButton.MIDDLE;
+            case 3 -> PointerButton.BACK;
+            case 4 -> PointerButton.FORWARD;
+            default -> PointerButton.UNKNOWN;
+        };
+    }
+
+    private static Widget nearestFocusable(Widget widget) {
+        Widget current = widget;
+        while (current != null) {
+            if (current.enabled() && current.visible() && current.focusable()) {
+                return current;
+            }
+            current = current.parent();
+        }
+        return null;
+    }
+
+    private static FocusDirection focusDirection(int keyCode) {
+        return switch (keyCode) {
+            case KeyCodes.LEFT -> FocusDirection.LEFT;
+            case KeyCodes.RIGHT -> FocusDirection.RIGHT;
+            case KeyCodes.UP -> FocusDirection.UP;
+            case KeyCodes.DOWN -> FocusDirection.DOWN;
+            default -> null;
+        };
+    }
+}

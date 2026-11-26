@@ -1,6 +1,6 @@
 package dev.sixik.unigui.tests;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.animation.TransformOrigin;
@@ -55,7 +55,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -438,9 +437,9 @@ public final class UniGuiDemo {
     public static void openDemo() {
         // Без хоста категория Minecraft в галерее показывает только заглушку.
         dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost.install();
-//        RenderSystem.recordRenderCall(UniGuiDemo::openDemoClient);
+//        Minecraft.getInstance().execute(UniGuiDemo::openDemoClient);
         // Системный буфер обмена: без него демо использует MemoryClipboardService, и копирование не выходит за игру.
-        RenderSystem.recordRenderCall(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
+        Minecraft.getInstance().execute(() -> dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo.openGui(new MinecraftClipboardService()));
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -450,7 +449,7 @@ public final class UniGuiDemo {
                     return 0;
                 })
                 .then(Commands.literal("animations").executes(ctx -> {
-                    RenderSystem.recordRenderCall(AnimationsSampler::openDemoClient);
+                    Minecraft.getInstance().execute(AnimationsSampler::openDemoClient);
                     return 0;
                 }))
                 .then(Commands.literal("complex").executes(ctx -> {
@@ -464,7 +463,7 @@ public final class UniGuiDemo {
 
         dispatcher.register(Commands.literal("unigui_old")
                 .executes(ctx -> {
-                    RenderSystem.recordRenderCall(() -> UniGuiDemo.openDemoClient());
+                    Minecraft.getInstance().execute(() -> UniGuiDemo.openDemoClient());
                     return 0;
                 }));
     }
@@ -473,7 +472,7 @@ public final class UniGuiDemo {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.vsync());
         screen.scaleWithMinecraftGui(false);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         return screen;
     }
 
@@ -2057,9 +2056,9 @@ public final class UniGuiDemo {
         previews.addChild(blockPreview("Crafting", Blocks.CRAFTING_TABLE));
         previews.addChild(blockPreview("Furnace", Blocks.FURNACE));
         previews.addChild(blockPreview("Chest", Blocks.CHEST));
-        previews.addChild(entityPreview("Zombie", EntityType.ZOMBIE));
-        previews.addChild(entityPreview("Creeper", EntityType.CREEPER));
-        previews.addChild(entityPreview("Villager", EntityType.VILLAGER));
+        previews.addChild(entityPreview("Zombie", MinecraftClientCompat.ZOMBIE));
+        previews.addChild(entityPreview("Creeper", MinecraftClientCompat.CREEPER));
+        previews.addChild(entityPreview("Villager", MinecraftClientCompat.VILLAGER));
         page.addChild(section("Preview widgets", previews));
 
         VBox registryPickers = new VBox();
@@ -2074,7 +2073,7 @@ public final class UniGuiDemo {
 
         MinecraftTexturePickerWidget texturePicker = new MinecraftTexturePickerWidget();
         texturePicker.layout(style -> style.size(304.0f, 38.0f).flexGrow(0).flexShrink(0.0f));
-        texturePicker.selectId(ResourceLocation.tryBuild("minecraft", "textures/block/stone.png"));
+        texturePicker.selectId("minecraft:textures/block/stone.png");
 
         Runnable updatePickerStatus = () -> pickerStatus.text("Item: "
                 + (itemPicker.selectedId() == null ? "<none>" : itemPicker.selectedId())
@@ -2107,7 +2106,7 @@ public final class UniGuiDemo {
         WrapPanel entities = wrap();
         entities.spacing(1.0f);
         entities.lineSpacing(1.0f);
-        List<EntityType<? extends LivingEntity>> types = List.of(EntityType.ZOMBIE, EntityType.SKELETON, EntityType.CREEPER, EntityType.VILLAGER, EntityType.PIG, EntityType.COW, EntityType.SHEEP, EntityType.CHICKEN);
+        List<EntityType<? extends LivingEntity>> types = List.of(MinecraftClientCompat.ZOMBIE, MinecraftClientCompat.SKELETON, MinecraftClientCompat.CREEPER, MinecraftClientCompat.VILLAGER, MinecraftClientCompat.PIG, MinecraftClientCompat.COW, MinecraftClientCompat.SHEEP, MinecraftClientCompat.CHICKEN);
         for (int i = 0; i < 96; i++) {
             MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("", types.get(i % types.size()));
             entity.labelVisible(false);

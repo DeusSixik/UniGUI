@@ -180,6 +180,7 @@ public final class StyleIds {
         public static final String PROGRESS_BAR = "ProgressBar";
         public static final String RADIO_BUTTON = "RadioButton";
         public static final String RADIO_GROUP = "RadioGroup";
+        public static final String RENDER_TO_TEXTURE = "RenderToTexture";
         public static final String RICH_TEXT_VIEW = "RichTextView";
         public static final String SCROLL_BAR = "ScrollBar";
         public static final String SCROLL_VIEW = "ScrollView";

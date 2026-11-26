@@ -132,6 +132,8 @@ final class CleanroomWidgetScreen extends GuiScreen implements CleanroomRenderHo
         try (ProfileScope ignored = uiContext.profiler().scope("layout")) {
             layoutChanged = updateLayout(logicalWidth, logicalHeight, scale);
         }
+        // Offscreen widgets size their textures in physical pixels per UI unit.
+        renderContext.pixelScale(pixelsPerUnitX());
         drawList.clear();
         try (ProfileScope ignored = uiContext.profiler().scope("buildDrawList")) {
             UiRenderPolicy policy = source.renderPolicy();

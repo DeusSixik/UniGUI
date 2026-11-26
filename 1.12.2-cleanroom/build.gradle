@@ -85,6 +85,8 @@ cleanroom {
         client {
             configure {
                 username = 'Developer'
+                def demo = providers.gradleProperty('uniguiAutoOpen').orNull
+                if (demo) systemProperty 'unigui.autoOpen', demo
             }
         }
     }

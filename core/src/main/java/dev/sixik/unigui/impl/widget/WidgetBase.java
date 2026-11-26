@@ -353,6 +353,7 @@ public abstract class WidgetBase implements Widget {
      * Агрегированная версия theme и локальных style scope последней сборки.
      */
     private long renderCacheStyleVersion = Long.MIN_VALUE;
+    private float renderCachePixelScale = Float.NaN;
     /**
      * Счётчики используются тестами и профилированием конкретного виджета.
      */
@@ -2359,7 +2360,8 @@ public abstract class WidgetBase implements Widget {
         boolean rebuild = renderCacheDirty
                 || renderCache == null
                 || renderCacheBackend != backend
-                || renderCacheStyleVersion != styleVersion;
+                || renderCacheStyleVersion != styleVersion
+                || renderCachePixelScale != context.pixelScale();
         if (rebuild) {
             if (renderCache == null) {
                 renderCache = new DrawList();
@@ -2367,6 +2369,7 @@ public abstract class WidgetBase implements Widget {
             }
             renderCache.clear();
             renderCacheContext.backend(context.backend());
+            renderCacheContext.pixelScale(context.pixelScale());
             renderingCache = true;
             try {
                 render(renderCacheContext);
@@ -2376,6 +2379,7 @@ public abstract class WidgetBase implements Widget {
             renderCacheDirty = false;
             renderCacheBackend = backend;
             renderCacheStyleVersion = styleVersion;
+            renderCachePixelScale = context.pixelScale();
             renderCacheRebuilds++;
         } else {
             renderCacheHits++;
@@ -2461,6 +2465,7 @@ public abstract class WidgetBase implements Widget {
         renderCacheContext = null;
         renderCacheBackend = null;
         renderCacheStyleVersion = Long.MIN_VALUE;
+        renderCachePixelScale = Float.NaN;
         renderCacheDirty = true;
     }
 

@@ -92,6 +92,8 @@ public final class Paint {
     private float dashLength;
     private float dashGap;
     private float dashOffset;
+    private final MutableColor endColor = new MutableColor();
+    private boolean gradient;
 
     /**
      * Создаёт paint с параметрами по умолчанию: белый цвет заливки, без обводки, нормальный blend mode.
@@ -169,6 +171,78 @@ public final class Paint {
     @WikiReturn("<key:paint.method.color_set.return>")
     public Paint color(@WikiParameter(name = "color", description = "<key:paint.param.color>") ColorView color) {
         this.color.set(color);
+        return this;
+    }
+
+    /**
+     * @return {@code true}, если у линии задан конечный цвет (градиент вдоль линии)
+     */
+    @WikiMethod(
+            title = "<key:paint.method.has_gradient.title>",
+            summary = "<key:paint.method.has_gradient.summary>",
+            section = "<key:paint.api.section.color>",
+            sectionOrder = 20,
+            order = 30)
+    @WikiReturn("<key:paint.method.has_gradient.return>")
+    public boolean hasGradient() {
+        return gradient;
+    }
+
+    /**
+     * Конечный цвет градиента линии. Имеет смысл, только если {@link #hasGradient()} возвращает {@code true}.
+     *
+     * @return mutable конечный цвет
+     */
+    @WikiMethod(
+            title = "<key:paint.method.end_color_get.title>",
+            summary = "<key:paint.method.end_color_get.summary>",
+            section = "<key:paint.api.section.color>",
+            sectionOrder = 20,
+            order = 40)
+    @WikiReturn("<key:paint.method.end_color_get.return>")
+    public MutableColor endColor() {
+        return endColor;
+    }
+
+    /**
+     * Делает линию градиентной: цвет плавно переходит от {@link #color()} в начале линии к {@code endColor} в
+     * её конце. Учитывается только линиями ({@code line}, {@code addLine}); остальные фигуры рисуются цветом
+     * {@link #color()}.
+     *
+     * @param endColor цвет в конце линии; {@code null} убирает градиент
+     * @return этот paint для fluent-настройки
+     */
+    @WikiMethod(
+            title = "<key:paint.method.gradient_to.title>",
+            summary = "<key:paint.method.gradient_to.summary>",
+            section = "<key:paint.api.section.color>",
+            sectionOrder = 20,
+            order = 50)
+    @WikiReturn("<key:paint.method.gradient_to.return>")
+    public Paint gradientTo(@WikiParameter(name = "endColor", description = "<key:paint.param.endColor>") ColorView endColor) {
+        if (endColor == null) {
+            return clearGradient();
+        }
+        this.endColor.set(endColor);
+        gradient = true;
+        return this;
+    }
+
+    /**
+     * Убирает градиент линии: она снова рисуется одним цветом {@link #color()}.
+     *
+     * @return этот paint для fluent-настройки
+     */
+    @WikiMethod(
+            title = "<key:paint.method.clear_gradient.title>",
+            summary = "<key:paint.method.clear_gradient.summary>",
+            section = "<key:paint.api.section.color>",
+            sectionOrder = 20,
+            order = 60)
+    @WikiReturn("<key:paint.method.clear_gradient.return>")
+    public Paint clearGradient() {
+        gradient = false;
+        endColor.set(1.0f, 1.0f, 1.0f, 1.0f);
         return this;
     }
 
@@ -409,6 +483,8 @@ public final class Paint {
         dashLength = source.dashLength;
         dashGap = source.dashGap;
         dashOffset = source.dashOffset;
+        endColor.set(source.endColor);
+        gradient = source.gradient;
         return this;
     }
 
@@ -421,7 +497,7 @@ public final class Paint {
         dashLength = 0.0f;
         dashGap = 0.0f;
         dashOffset = 0.0f;
-        return this;
+        return clearGradient();
     }
 
     private static float sanitizeDash(float value) {

@@ -22,7 +22,8 @@
     ]
   },
   "mixins": [
-    "unigui.mixins.json"
+    "unigui.mixins.json",
+    "unigui.input.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader}",

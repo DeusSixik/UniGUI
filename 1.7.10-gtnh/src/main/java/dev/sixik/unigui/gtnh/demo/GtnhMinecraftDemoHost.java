@@ -1,5 +1,10 @@
 package dev.sixik.unigui.gtnh.demo;
 
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.backend.shared.LegacyFurnaceDemo;
+import net.minecraftforge.common.util.ForgeDirection;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -23,6 +28,20 @@ public final class GtnhMinecraftDemoHost implements DemoMinecraftHost {
     @Override
     public String platform() {
         return "Minecraft 1.7.10";
+    }
+
+    @Override
+    public SceneShowcase.Blocks sceneBlocks() {
+        return SceneShowcase.Blocks.MODERN;
+    }
+
+    @Override
+    public SceneTutorialPlayer.Sequence furnaceTutorial() {
+        int facing = ForgeDirection.SOUTH.ordinal();
+        var furnace = BlockNode.of(Blocks.furnace, facing);
+        return LegacyFurnaceDemo.create(center -> BlockNode.of(Blocks.stonebrick, center ? 3 : 0),
+            furnace, lit -> furnace.setState(lit ? Blocks.lit_furnace : Blocks.furnace, facing),
+            new ItemStack(Blocks.stonebrick), new ItemStack(Blocks.furnace), new ItemStack(Items.coal));
     }
 
     @Override

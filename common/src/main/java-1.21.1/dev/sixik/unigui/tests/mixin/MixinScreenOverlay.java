@@ -1,6 +1,7 @@
 package dev.sixik.unigui.tests.mixin;
 
 import dev.sixik.unigui.backend.minecraft_impl.DeferredMinecraftTooltips;
+import dev.sixik.unigui.backend.minecraft_impl.LegacySceneCapture;
 import dev.sixik.unigui.backend.minecraft_impl.ScreenOverlayRender;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -34,6 +35,7 @@ public abstract class MixinScreenOverlay {
         } finally {
             if (deferred != null) deferred.unigui$flushDeferredTooltips();
         }
+        LegacySceneCapture.afterScreenRender((Screen) (Object) this, graphics);
     }
 
     @Inject(method = "keyPressed(III)Z", at = @At("HEAD"), cancellable = true)

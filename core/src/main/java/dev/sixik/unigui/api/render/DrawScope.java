@@ -604,6 +604,16 @@ public final class DrawScope {
     }
 
     @WikiMethod(
+            title = "<key:draw.scope.method.add_line_gradient.title>",
+            summary = "<key:draw.scope.method.add_line_gradient.summary>",
+            section = "<key:draw.scope.api.section.direct>",
+            sectionOrder = 50,
+            order = 35)
+    public void addLine(@WikiParameter(name = "x1", description = "<key:draw.scope.param.x1>") float x1, @WikiParameter(name = "y1", description = "<key:draw.scope.param.y1>") float y1, @WikiParameter(name = "x2", description = "<key:draw.scope.param.x2>") float x2, @WikiParameter(name = "y2", description = "<key:draw.scope.param.y2>") float y2, @WikiParameter(name = "startColor", description = "<key:draw.scope.param.startColor>") ColorView startColor, @WikiParameter(name = "endColor", description = "<key:draw.scope.param.endColor>") ColorView endColor, @WikiParameter(name = "thickness", description = "<key:draw.scope.param.thickness>") float thickness) {
+        context.addLine(x1, y1, x2, y2, startColor, endColor, thickness, transformFor(x1, y1));
+    }
+
+    @WikiMethod(
             title = "<key:draw.scope.method.add_rect.title>",
             summary = "<key:draw.scope.method.add_rect.summary>",
             section = "<key:draw.scope.api.section.direct>",

@@ -44,8 +44,10 @@ render backend и ввод для Minecraft 1.7.10 (форк GTNH, запуск 
 # в 1.7.10-gtnh (JAVA_HOME = JDK 25)
 ./gradlew build
 ./gradlew test
-./gradlew runClient21
+./gradlew runClient
 ```
+
+`runClient` запускает клиент через `runClient21` с Java 21, lwjgl3ify и патчами GTNH.
 
 После любой правки `core` сначала `:core:jar` в корне, иначе модуль возьмёт старый jar.
 

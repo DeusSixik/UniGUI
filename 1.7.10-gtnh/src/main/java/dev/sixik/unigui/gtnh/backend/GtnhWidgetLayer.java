@@ -100,6 +100,8 @@ final class GtnhWidgetLayer implements GtnhLayerRegistry.LayerRenderer, GtnhRend
         lastFrameNanos = now;
         root.tick(new FrameContext(frameIndex, delta, partialTick, FramePhase.ANIMATION));
         boolean layoutChanged = updateLayout(logicalWidth, logicalHeight);
+        // Offscreen widgets size their textures in physical pixels per UI unit.
+        renderContext.pixelScale(pixelsPerUnitX());
         drawList.clear();
         UiRenderPolicy policy = source.renderPolicy();
         if (GtnhRenderPolicies.usesCache(policy.mode())) {

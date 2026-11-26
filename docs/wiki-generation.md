@@ -98,6 +98,10 @@ wiki/
         └── data/virtual-list-view.md
 ```
 
+The English **API / 3D Scene** reference starts at `en/api/3d-scene/scene-3d.md`
+inside this output. It links to camera controls, picking, anchors, Minecraft
+content, keyframe timelines and the renderer contract.
+
 To write
 directly into a site's content directory, set `wikiOutputDir`:
 
@@ -180,7 +184,9 @@ public VirtualListView grid(boolean enabled) { ... }
 ./gradlew :1.20.1:common:generateAiDocs
 ```
 
-The default output is `build/stonecutter/1.20.1/common/generated/ai-docs`. Override it with:
+The default output is `build/stonecutter/1.20.1/common/generated/ai-docs`. Look up
+`dev.sixik.unigui.widgets.rendering.Scene3D` in `index.md` to find the scene API
+and its usage examples. Override the output directory with:
 
 ```powershell
 ./gradlew :1.20.1:common:generateAiDocs -PaiDocsOutputDir=../ai-context/unigui

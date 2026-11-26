@@ -350,7 +350,7 @@ final class SchemaTest {
     @Test
     void everyBuiltInTypeBuildsAndCreatesAnInstance() {
         Schema schema = Schema.builtIns();
-        assertEquals(69, schema.types().size());
+        assertEquals(75, schema.types().size());
         for (TypeInfo<?> type : schema.types()) {
             Widget widget = type.create();
             assertNotNull(widget, type.name().local());

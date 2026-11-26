@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.render.UiRenderPolicy;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClipboardService;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
@@ -31,7 +32,7 @@ public final class AdminConsoleDemo {
                 context);
         screen.renderPolicy(UiRenderPolicy.vsync());
         screen.scaleWithMinecraftGui(true);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
     }
 
     public static AdminConsole createConsole() {
@@ -39,7 +40,7 @@ public final class AdminConsoleDemo {
                 .title("UniGUI Admin Console")
                 .prompt("/")
                 .maxOutputLines(300);
-        console.onCloseRequested(event -> Minecraft.getInstance().setScreen(null));
+        console.onCloseRequested(event -> MinecraftClientCompat.setScreen(null));
 
         console.registerCommand(AdminCommandRegistry.command("reload", "Reload selected subsystem")
                 .argument("target", "Subsystem name", RELOAD_TARGETS)

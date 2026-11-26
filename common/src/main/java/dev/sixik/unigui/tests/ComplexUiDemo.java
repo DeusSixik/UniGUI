@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.core.MutableUIScaleProvider;
@@ -28,7 +29,6 @@ import dev.sixik.unigui.widgets.display.Sparkline;
 import dev.sixik.unigui.widgets.feedback.ProgressBar;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.TextInput;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
@@ -62,7 +62,7 @@ public final class ComplexUiDemo {
 
     /** Ставит demo-экран в очередь рендера Minecraft. */
     public static void openDemo() {
-        RenderSystem.recordRenderCall(ComplexUiDemo::openDemoClient);
+        Minecraft.getInstance().execute(ComplexUiDemo::openDemoClient);
     }
 
     /** Открывает demo-экран; метод вызывается на render thread. */
@@ -73,7 +73,7 @@ public final class ComplexUiDemo {
                 Component.literal("UniGUI Complex Demo"), create(), context);
         screen.renderPolicy(UiRenderPolicy.continuous());
         screen.scaleWithMinecraftGui(false);
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
     }
 
     /**

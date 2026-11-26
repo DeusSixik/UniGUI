@@ -1,12 +1,22 @@
 package dev.sixik.unigui.demo.basic.main_demo;
 
+import dev.sixik.unigui.api.scene.BlockSpec;
+import dev.sixik.unigui.api.scene.SceneNode;
+import dev.sixik.unigui.api.scene.ScenePlatform;
+import dev.sixik.unigui.api.scene.StructureNode;
 import dev.sixik.unigui.api.screen.UniScreen;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
+import dev.sixik.unigui.demo.ui.scene.SceneFurnaceTutorial;
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
+import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.widgets.containers.PanelWidget;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.rendering.Scene3D;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +26,8 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MinecraftCategoryTest {
@@ -111,6 +123,65 @@ class MinecraftCategoryTest {
             root.applyQueuedMutations();
             assertFalse(root.children().isEmpty(), control.id());
         }
+    }
+
+    @Test
+    void sceneDemo_withPlatform_embedsTheSharedScene() {
+        ScenePlatform.install(new ScenePlatform() {
+            @Override
+            public Object resolveBlock(BlockSpec spec) {
+                return spec.text();
+            }
+
+            @Override
+            public Object nativeBlock(Object block, int meta) {
+                return block;
+            }
+        });
+        try {
+            DemoMinecraft.host(new DemoMinecraftHost() {
+                @Override
+                public String platform() {
+                    return "test";
+                }
+
+                @Override
+                public SceneShowcase.Blocks sceneBlocks() {
+                    return SceneShowcase.Blocks.MODERN;
+                }
+
+                @Override
+                public SceneTutorialPlayer.Sequence furnaceTutorial() {
+                    return SceneFurnaceTutorial.create(center -> new SceneNode(), new SceneNode(), lit -> {
+                    }, Box::new, Box::new, Box::new);
+                }
+            });
+            VBox root = new VBox();
+            new MinecraftCategory().addDemo("mc-scene", root);
+            root.applyQueuedMutations();
+
+            Scene3D scene = findScene(root);
+            assertNotNull(scene, "the page embeds the scene widget");
+            assertEquals(4, scene.scene().roots().size(), "structure, block, item and mob");
+            assertInstanceOf(StructureNode.class, scene.scene().roots().get(0));
+            assertEquals(3, root.children().size(), "structure, tutorial, then gizmo");
+            Scene3D gizmo = findScene(root.children().get(2));
+            assertNotNull(gizmo);
+            assertTrue(gizmo.focusable());
+            assertNotNull(gizmo.painter());
+        } finally {
+            ScenePlatform.install(null);
+        }
+    }
+
+    private static Scene3D findScene(Widget widget) {
+        if (widget instanceof Scene3D scene) return scene;
+        if (widget instanceof PanelWidget panel) panel.applyQueuedMutations();
+        for (Widget child : widget.children()) {
+            Scene3D scene = findScene(child);
+            if (scene != null) return scene;
+        }
+        return null;
     }
 
     @Test

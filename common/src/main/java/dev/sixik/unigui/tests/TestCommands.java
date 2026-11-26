@@ -1,6 +1,6 @@
 package dev.sixik.unigui.tests;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.sixik.unigui.api.debug.DebugFlags;
 import dev.sixik.unigui.api.debug.DebugOverlayAnchor;
@@ -70,31 +70,42 @@ public final class TestCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("unigui")
 //                .executes(ctx -> {
-//                    RenderSystem.recordRenderCall(TestCommands::openExamplesScreen);
+//                    Minecraft.getInstance().execute(TestCommands::openExamplesScreen);
 //                    return 0;
 //                })
                 .then(Commands.literal("docking").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openDockingEditorScreen);
+                    Minecraft.getInstance().execute(TestCommands::openDockingEditorScreen);
                     return 0;
                 }))
                 .then(Commands.literal("nodegraph").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openNodeGraphExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openNodeGraphExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("style").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openStyleApiExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openStyleApiExampleScreen);
                     return 0;
                 }))
                 .then(Commands.literal("xaml").executes(ctx -> {
-                    RenderSystem.recordRenderCall(TestCommands::openXamlBindingExampleScreen);
+                    Minecraft.getInstance().execute(TestCommands::openXamlBindingExampleScreen);
                     return 0;
                 }))
+                .then(Commands.literal("scene").executes(ctx -> {
+                    SceneMeshDemo.openBlocksDemo();
+                    return 0;
+                }))
+                .then(Commands.literal("tutorial").executes(ctx -> {
+                    SceneTutorialDemo.open();
+                    return 0;
+                }).then(Commands.literal("furnace").executes(ctx -> {
+                    SceneTutorialDemo.openFurnace();
+                    return 0;
+                })))
                 .then(Commands.literal("terminal").executes(ctx -> {
-                    RenderSystem.recordRenderCall(DosTerminalDemo::openDemoClient);
+                    Minecraft.getInstance().execute(DosTerminalDemo::openDemoClient);
                     return 0;
                 }))
                 .then(Commands.literal("adminconsole").executes(ctx -> {
-                    RenderSystem.recordRenderCall(AdminConsoleDemo::openDemoClient);
+                    Minecraft.getInstance().execute(AdminConsoleDemo::openDemoClient);
                     return 0;
                 })));
     }
@@ -163,14 +174,14 @@ public final class TestCommands {
 
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(Component.literal("UniGUI XAML Binding"), xmlScreen);
         screen.renderPolicy(UiRenderPolicy.onDirty());
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         installRenderModeToggle(screen);
     }
 
     private static MinecraftWidgetScreen openScreen(Component title, Widget root, DefaultUIContext context) {
         MinecraftWidgetScreen screen = new MinecraftWidgetScreen(title, root, context);
         screen.renderPolicy(UiRenderPolicy.onDirty());
-        Minecraft.getInstance().setScreen(screen);
+        MinecraftClientCompat.setScreen(screen);
         return screen;
     }
 
@@ -1746,8 +1757,8 @@ public final class TestCommands {
         previews.addChild(itemPreview("Pickaxe", Items.ENCHANTED_GOLDEN_APPLE));
         previews.addChild(blockPreview("Crafting", Blocks.CRAFTING_TABLE));
         previews.addChild(blockPreview("Furnace", Blocks.FURNACE));
-        previews.addChild(entityPreview("Player-ish", EntityType.ZOMBIE));
-        previews.addChild(entityPreview("Creeper", EntityType.CREEPER));
+        previews.addChild(entityPreview("Player-ish", MinecraftClientCompat.ZOMBIE));
+        previews.addChild(entityPreview("Creeper", MinecraftClientCompat.CREEPER));
         page.addChild(previews);
 
         WrapPanel actions = wrap();
@@ -1768,14 +1779,14 @@ public final class TestCommands {
         entities.spacing(1.0f);
         entities.lineSpacing(1.0f);
         List<EntityType<? extends LivingEntity>> types = List.of(
-                EntityType.ZOMBIE,
-                EntityType.SKELETON,
-                EntityType.CREEPER,
-                EntityType.VILLAGER,
-                EntityType.PIG,
-                EntityType.COW,
-                EntityType.SHEEP,
-                EntityType.CHICKEN
+                MinecraftClientCompat.ZOMBIE,
+                MinecraftClientCompat.SKELETON,
+                MinecraftClientCompat.CREEPER,
+                MinecraftClientCompat.VILLAGER,
+                MinecraftClientCompat.PIG,
+                MinecraftClientCompat.COW,
+                MinecraftClientCompat.SHEEP,
+                MinecraftClientCompat.CHICKEN
         );
         for (int i = 0; i < 160; i++) {
             MinecraftEntityPreviewWidget entity = new MinecraftEntityPreviewWidget("", types.get(i % types.size()));

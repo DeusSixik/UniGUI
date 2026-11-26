@@ -1,6 +1,8 @@
 package dev.sixik.unigui.tests.mixin;
 
 import dev.sixik.unigui.backend.minecraft_impl.HudRender;
+import dev.sixik.unigui.backend.minecraft_impl.LegacySceneCapture;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,5 +18,6 @@ public abstract class MixinHudRender {
     private void unigui$renderHud(GuiGraphics graphics, DeltaTracker deltaTracker,
                                   CallbackInfo callback) {
         HudRender.render(graphics, deltaTracker.getGameTimeDeltaPartialTick(false));
+        LegacySceneCapture.afterHudRender(Minecraft.getInstance());
     }
 }
