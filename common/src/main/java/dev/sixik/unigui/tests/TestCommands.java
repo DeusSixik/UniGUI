@@ -89,6 +89,10 @@ public final class TestCommands {
                     Minecraft.getInstance().execute(TestCommands::openXamlBindingExampleScreen);
                     return 0;
                 }))
+                .then(Commands.literal("scene").executes(ctx -> {
+                    SceneMeshDemo.openBlocksDemo();
+                    return 0;
+                }))
                 .then(Commands.literal("terminal").executes(ctx -> {
                     Minecraft.getInstance().execute(DosTerminalDemo::openDemoClient);
                     return 0;

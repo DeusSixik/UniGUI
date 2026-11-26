@@ -25,9 +25,13 @@ import java.util.Arrays;
  * <p>Класс переводит их в коды GLFW и обратно (для событий, которые UniGUI отдаёт ванильным обработчикам).</p>
  */
 public final class MinecraftInputCompat {
-    /** Скан-код SDL → код клавиши GLFW; -1 — у клавиши нет кода GLFW. */
+    /**
+     * Скан-код SDL → код клавиши GLFW; -1 — у клавиши нет кода GLFW.
+     */
     private static final int[] SDL_TO_GLFW = new int[512];
-    /** Код клавиши GLFW → скан-код SDL; 0 ({@code SDL_SCANCODE_UNKNOWN}) — нет соответствия. */
+    /**
+     * Код клавиши GLFW → скан-код SDL; 0 ({@code SDL_SCANCODE_UNKNOWN}) — нет соответствия.
+     */
     private static final int[] GLFW_TO_SDL = new int[512];
 
     // Маска SDL_Keymod.
@@ -45,9 +49,13 @@ public final class MinecraftInputCompat {
     private static final int GLFW_MOD_CAPS_LOCK = 0x0010;
     private static final int GLFW_MOD_NUM_LOCK = 0x0020;
 
-    /** Курсоры SDL по виду курсора UniGUI; создаются при первом запросе. */
+    /**
+     * Курсоры SDL по виду курсора UniGUI; создаются при первом запросе.
+     */
     private static final CursorType[] CURSORS = new CursorType[MouseCursor.values().length];
-    /** Курсор, который экран UniGUI держит сейчас (его нужно запрашивать каждый кадр). */
+    /**
+     * Курсор, который экран UniGUI держит сейчас (его нужно запрашивать каждый кадр).
+     */
     private static MouseCursor activeCursor = MouseCursor.DEFAULT;
 
     static {

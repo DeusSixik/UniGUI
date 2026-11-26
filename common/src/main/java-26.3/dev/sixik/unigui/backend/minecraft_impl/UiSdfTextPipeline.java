@@ -37,12 +37,16 @@ final class UiSdfTextPipeline {
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath("unigui", "sdf_text_instanced");
     private static final BindGroupLayout GLYPH_ATLAS = BindGroupLayout.builder().withUniform("GlyphAtlas", UniformType.COMBINED_IMAGE_SAMPLER).build();
 
-    /** Единичный квад из двух треугольников, тот же порядок, что у прямого GL-пути. */
+    /**
+     * Единичный квад из двух треугольников, тот же порядок, что у прямого GL-пути.
+     */
     private static final VertexFormat QUAD_FORMAT = VertexFormat.builder(0)
             .addAttribute("Position", GpuFormat.RG32_FLOAT)
             .build();
 
-    /** Данные глифа, шаг — экземпляр; порядок совпадает с {@link SdfTextShaderSources#INSTANCE_ATTRIBUTE_NAMES}. */
+    /**
+     * Данные глифа, шаг — экземпляр; порядок совпадает с {@link SdfTextShaderSources#INSTANCE_ATTRIBUTE_NAMES}.
+     */
     private static final VertexFormat INSTANCE_FORMAT = VertexFormat.builder(1)
             .addAttribute("InstancePosition0", GpuFormat.RGB32_FLOAT)
             .addAttribute("InstancePosition1", GpuFormat.RGB32_FLOAT)

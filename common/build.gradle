@@ -20,11 +20,25 @@ sourceSets {
     }
 }
 
+def sceneTest = sourceSets.create("sceneTest") {
+    java.setSrcDirs(["src/test/java-scene"])
+    if (unobfuscated) java.srcDir "src/test/java-scene-26"
+    compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+    runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+}
+tasks.register("sceneTest", Test) {
+    group = "verification"
+    description = "Runs JUnit tests for Minecraft scenes."
+    testClassesDirs = sceneTest.output.classesDirs
+    classpath = sceneTest.runtimeClasspath
+}
+
 dependencies {
     api project(':core')
     api project(':demo')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    if (unobfuscated) sceneTestImplementation 'org.mockito:mockito-core:5.24.0'
 
     // We depend on Fabric Loader here to use the Fabric @Environment annotations,
     // which get remapped to the correct annotations on each platform.

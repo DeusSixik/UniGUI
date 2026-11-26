@@ -1,6 +1,8 @@
 package dev.sixik.unigui.tests.mixin;
 
 import dev.sixik.unigui.backend.minecraft_impl.HudRender;
+import dev.sixik.unigui.backend.minecraft_impl.LegacySceneCapture;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,5 +22,6 @@ public abstract class MixinHudRender {
     @Inject(method = {"render", "m_280421_", "method_1753"}, at = @At("TAIL"), remap = false)
     private void unigui$renderHud(GuiGraphics graphics, float partialTick, CallbackInfo callback) {
         HudRender.render(graphics, partialTick);
+        LegacySceneCapture.afterHudRender(Minecraft.getInstance());
     }
 }

@@ -76,23 +76,26 @@ public final class MinecraftClientCompat {
     }
 
     /**
-     * @return можно ли создавать {@code ItemStack}: в 26.x компоненты предметов привязываются только после
-     * загрузки мира, а до этого {@code new ItemStack} падает с «Components not bound yet».
-     */
-    /**
      * Создаёт сущность для превью в GUI (в мир она не добавляется).
      *
      * <p>В 26.2 {@code EntityType.create} проверяет, может ли сущность появиться в мире, и на мирной сложности
      * возвращает {@code null} для монстров. Для превью эти проверки не нужны, поэтому они пропускаются.</p>
      *
-     * @return сущность или {@code null}, если тип отключён или фабрика её не создала
+     * @param type  тип сущности.
+     * @param level уровень для разрешения её данных.
+     * @param <T>   класс сущности.
+     * @return сущность с локальным ID или {@code null}, если тип отключён или фабрика её не создала.
      */
     public static <T extends net.minecraft.world.entity.Entity> @Nullable T previewEntity(EntityType<T> type,
-                                                                                         net.minecraft.world.level.Level level) {
+                                                                                          net.minecraft.world.level.Level level) {
         if (!type.isEnabled(level.enabledFeatures())) return null;
-        return type.create(level, new EntitySpawnRequest(EntitySpawnReason.LOAD, true));
+        return PreviewEntityIds.assign(type.create(level, new EntitySpawnRequest(EntitySpawnReason.LOAD, true)));
     }
 
+    /**
+     * @return можно ли создавать {@code ItemStack}: в 26.x компоненты предметов привязываются только после
+     * загрузки мира, а до этого {@code new ItemStack} падает с «Components not bound yet».
+     */
     public static boolean itemsReady() {
         return Items.STONE.builtInRegistryHolder().areComponentsBound();
     }

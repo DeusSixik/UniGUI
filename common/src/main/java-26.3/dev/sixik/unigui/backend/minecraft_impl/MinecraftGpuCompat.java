@@ -57,14 +57,22 @@ import java.util.function.Supplier;
  * работает только на OpenGL-бэкенде, который выбран по умолчанию.</p>
  */
 final class MinecraftGpuCompat {
-    /** Аддитивное смешивание: {@code rgb += src.rgb*a}, alpha насыщается. */
+    /**
+     * Аддитивное смешивание: {@code rgb += src.rgb*a}, alpha насыщается.
+     */
     static final BlendFunction ADDITIVE = new BlendFunction(BlendFactor.SRC_ALPHA, BlendFactor.ONE, BlendFactor.ONE, BlendFactor.ONE);
 
-    /** Прозрачный цвет очистки. */
+    /**
+     * Прозрачный цвет очистки.
+     */
     private static final Vector4f TRANSPARENT = new Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
-    /** Общий буфер сборки вершин (замена {@code Tesselator}, которого в 26.2 нет). */
+    /**
+     * Общий буфер сборки вершин (замена {@code Tesselator}, которого в 26.2 нет).
+     */
     private static final ByteBufferBuilder SHARED_BYTES = new ByteBufferBuilder(786432);
-    /** Пулы timestamp-запросов на два значения (начало и конец замера), готовые к повторному использованию. */
+    /**
+     * Пулы timestamp-запросов на два значения (начало и конец замера), готовые к повторному использованию.
+     */
     private static final ArrayDeque<GpuQueryPool> FREE_TIMER_POOLS = new ArrayDeque<>();
 
     private MinecraftGpuCompat() {
@@ -156,6 +164,35 @@ final class MinecraftGpuCompat {
     static RenderPass openPass(Supplier<String> label, GpuTextureView color, @Nullable GpuTextureView depth) {
         return RenderSystem.getDevice().createCommandEncoder()
                 .createRenderPass(label, color, Optional.empty(), depth, OptionalDouble.empty());
+    }
+
+    /**
+     * Открывает 3D-проход с очисткой до дальнего значения обратной глубины Minecraft.
+     *
+     * @param label  имя прохода для диагностики.
+     * @param target цвет и depth attachment сцены.
+     * @param clear  premultiplied цвет RGBA в диапазоне от 0 до 1.
+     * @return открытый проход.
+     */
+    static RenderPass openScenePass(Supplier<String> label, UiGpu.Target target, org.joml.Vector4fc clear) {
+        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(label, target.color(),
+                Optional.of(clear),
+                target.depth(), OptionalDouble.of(RenderSystem.DEFAULT_DEPTH_CLEAR_VALUE));
+    }
+
+    /**
+     * Рисует ранее загруженный индексированный 3D-меш.
+     *
+     * @param pass       открытый проход сцены.
+     * @param vertices   срез с вершинами.
+     * @param indices    буфер 32-битных индексов.
+     * @param indexCount число индексов.
+     * @param instances  число экземпляров с разными матрицами.
+     */
+    static void drawSceneMesh(RenderPass pass, GpuBufferSlice vertices, GpuBuffer indices, int indexCount, int instances) {
+        pass.setVertexBuffer(0, vertices);
+        pass.setIndexBuffer(indices, IndexType.INT);
+        pass.drawIndexed(indexCount, instances, 0, 0, 0);
     }
 
     /**
@@ -304,7 +341,9 @@ final class MinecraftGpuCompat {
 
     // --- Прямой OpenGL (UiGl) ------------------------------------------------------------------------------------
 
-    /** Кэш {@link #openGl()}: бэкенд выбирается при запуске и не меняется до перезапуска. */
+    /**
+     * Кэш {@link #openGl()}: бэкенд выбирается при запуске и не меняется до перезапуска.
+     */
     private static Boolean openGl;
 
     /**

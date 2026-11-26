@@ -62,18 +62,26 @@ import java.util.List;
 public class RenderToTexture extends WidgetBase {
     public static final String STYLE_TYPE = dev.sixik.unigui.api.style.StyleIds.Widget.RENDER_TO_TEXTURE;
 
-    /** Самая большая сторона текстуры, которую виджет создаст. */
+    /**
+     * Самая большая сторона текстуры, которую виджет создаст.
+     */
     public static final int MAX_TEXTURE_SIZE = 8192;
 
     /**
      * Когда перерисовывать текстуру.
      */
     public enum UpdateMode {
-        /** Каждый кадр. */
+        /**
+         * Каждый кадр.
+         */
         EVERY_FRAME,
-        /** При изменении размера, параметров или поддерева содержимого и после {@link #requestRender()}. */
+        /**
+         * При изменении размера, параметров или поддерева содержимого и после {@link #requestRender()}.
+         */
         ON_CHANGE,
-        /** Только после {@link #requestRender()} (и при первом показе). */
+        /**
+         * Только после {@link #requestRender()} (и при первом показе).
+         */
         MANUAL
     }
 
@@ -109,6 +117,10 @@ public class RenderToTexture extends WidgetBase {
     private final MutableColor tint = new MutableColor(1.0f, 1.0f, 1.0f, 1.0f);
     private final MutableColor clearColor = new MutableColor(0.0f, 0.0f, 0.0f, 0.0f);
     private final Transform contentShift = new Transform();
+    /**
+     * Переиспользуемый результат расчёта размеров и масштаба цели.
+     */
+    private final TargetSize measuredTarget = new TargetSize();
     private Widget content;
     private List<Widget> childrenView = Collections.emptyList();
     private Painter painter;
@@ -130,6 +142,10 @@ public class RenderToTexture extends WidgetBase {
     private int textureHeight;
     private float renderedCanvasWidth;
     private float renderedCanvasHeight;
+    /**
+     * Масштаб 2D-прохода в последней успешно отрисованной текстуре.
+     */
+    private float renderedCoordinateScale;
     private boolean renderRequested = true;
     private boolean targetOptionsChanged;
     private boolean backendChanged;
@@ -366,22 +382,30 @@ public class RenderToTexture extends WidgetBase {
         return texture;
     }
 
-    /** @return ширина текстуры в пикселях ({@code 0} до первой отрисовки) */
+    /**
+     * @return ширина текстуры в пикселях ({@code 0} до первой отрисовки)
+     */
     public int textureWidth() {
         return textureWidth;
     }
 
-    /** @return высота текстуры в пикселях ({@code 0} до первой отрисовки) */
+    /**
+     * @return высота текстуры в пикселях ({@code 0} до первой отрисовки)
+     */
     public int textureHeight() {
         return textureHeight;
     }
 
-    /** @return сколько раз текстура перерисовывалась */
+    /**
+     * @return сколько раз текстура перерисовывалась
+     */
     public long renderCount() {
         return renderCount;
     }
 
-    /** @return причина последней перерисовки */
+    /**
+     * @return причина последней перерисовки
+     */
     public RenderReason lastRenderReason() {
         return lastRenderReason;
     }
@@ -438,7 +462,8 @@ public class RenderToTexture extends WidgetBase {
 
     @Override
     public void render(RenderContext context) {
-        if (content == null && painter == null) return;
+        boolean rawPass = hasRawPass();
+        if (content == null && painter == null && !rawPass) return;
         pushOpacity(context);
         try {
             RenderBackend backend = context.backend();
@@ -447,7 +472,7 @@ public class RenderToTexture extends WidgetBase {
                 renderDirect(context);
                 return;
             }
-            RenderReason reason = updateTexture(context, backend);
+            RenderReason reason = updateTexture(context, backend, rawPass);
             afterTextureUpdate(reason);
             DrawScope draw = new DrawScope(context, transform(), layoutBounds());
             if (!renderCustomVisual(draw)) {
@@ -486,10 +511,113 @@ public class RenderToTexture extends WidgetBase {
     protected void renderOverlay(DrawScope draw, RenderReason reason) {
     }
 
-    // ------------------------------------------------------------------ internals
+    /**
+     * Проверяет, нужен ли подклассу сырой проход, в том числе при пустом 2D-содержимом.
+     *
+     * @return true, если при обновлении текстуры нужно вызвать {@link #renderRawPass}.
+     */
+    protected boolean hasRawPass() {
+        return false;
+    }
 
-    private RenderReason updateTexture(RenderContext context, RenderBackend backend) {
-        WidgetTextureRenderer renderer = rendererFor(backend);
+    /**
+     * Рисует в цель перед 2D-командами. При включённом сыром проходе он также очищает цель
+     * цветом {@link #clearColor()}, а options должны отключать автоочистку перед 2D.
+     *
+     * @param backend         текущий бэкенд.
+     * @param target          уже выделенная offscreen-цель.
+     * @param logicalWidth    логическая ширина холста.
+     * @param logicalHeight   логическая высота холста.
+     * @param coordinateScale физических пикселей на единицу холста.
+     */
+    protected void renderRawPass(RenderBackend backend, RenderTarget target, float logicalWidth,
+                                 float logicalHeight, float coordinateScale) {
+    }
+
+    /**
+     * Переиспользуемый результат измерения логического холста и физической цели.
+     */
+    protected static final class TargetSize {
+        /**
+         * Ширина холста в единицах UI.
+         */
+        private float logicalWidth;
+        /**
+         * Высота холста в единицах UI.
+         */
+        private float logicalHeight;
+        /**
+         * Ширина цели в физических пикселях.
+         */
+        private int width;
+        /**
+         * Высота цели в физических пикселях.
+         */
+        private int height;
+        /**
+         * Число физических пикселей на единицу UI.
+         */
+        private float coordinateScale;
+
+        /**
+         * Создаёт буфер для расчётов {@link RenderToTexture#targetSize(float)}.
+         */
+        private TargetSize() {
+        }
+
+        /**
+         * Читает ширину холста.
+         *
+         * @return ширина в единицах UI.
+         */
+        public float logicalWidth() {
+            return logicalWidth;
+        }
+
+        /**
+         * Читает высоту холста.
+         *
+         * @return высота в единицах UI.
+         */
+        public float logicalHeight() {
+            return logicalHeight;
+        }
+
+        /**
+         * Читает ширину цели.
+         *
+         * @return ширина в физических пикселях.
+         */
+        public int width() {
+            return width;
+        }
+
+        /**
+         * Читает высоту цели.
+         *
+         * @return высота в физических пикселях.
+         */
+        public int height() {
+            return height;
+        }
+
+        /**
+         * Читает масштаб рендера в цель.
+         *
+         * @return число физических пикселей на единицу UI.
+         */
+        public float coordinateScale() {
+            return coordinateScale;
+        }
+    }
+
+    /**
+     * Считает размер цели теми же правилами, которыми пользуется offscreen-проход.
+     *
+     * @param pixelScale коэффициент плотности внешнего контекста.
+     * @return внутренний буфер. Значения действительны до следующего измерения.
+     */
+    protected final TargetSize targetSize(float pixelScale) {
         RectView bounds = layoutBounds();
         float logicalWidth = resolvedCanvasWidth(bounds);
         float logicalHeight = resolvedCanvasHeight(bounds);
@@ -502,7 +630,7 @@ public class RenderToTexture extends WidgetBase {
             height = fixedTextureHeight;
             coordinateScale = Math.min(width / logicalWidth, height / logicalHeight);
         } else {
-            coordinateScale = safeScale(context.pixelScale()) * resolutionScale;
+            coordinateScale = safeScale(pixelScale) * resolutionScale;
             width = textureSide(logicalWidth * coordinateScale);
             height = textureSide(logicalHeight * coordinateScale);
             // Не больше MAX_TEXTURE_SIZE: масштаб уменьшается вместе с размером.
@@ -510,17 +638,39 @@ public class RenderToTexture extends WidgetBase {
             if (limit < 1.0f) coordinateScale *= limit;
         }
 
-        RenderReason reason = renderReason(width, height, logicalWidth, logicalHeight);
+        measuredTarget.width = width;
+        measuredTarget.height = height;
+        measuredTarget.logicalWidth = logicalWidth;
+        measuredTarget.logicalHeight = logicalHeight;
+        measuredTarget.coordinateScale = coordinateScale;
+        return measuredTarget;
+    }
+
+    // ------------------------------------------------------------------ internals
+
+    private RenderReason updateTexture(RenderContext context, RenderBackend backend, boolean rawPass) {
+        WidgetTextureRenderer renderer = rendererFor(backend);
+        RectView bounds = layoutBounds();
+        TargetSize size = targetSize(context.pixelScale());
+        float logicalWidth = size.logicalWidth;
+        float logicalHeight = size.logicalHeight;
+        float coordinateScale = size.coordinateScale;
+        int width = size.width;
+        int height = size.height;
+        RenderReason reason = renderReason(width, height, logicalWidth, logicalHeight, coordinateScale);
         if (reason == RenderReason.NONE) return reason;
 
         RenderTarget target = renderer.renderToTarget(width, height, targetOptions, coordinateScale,
-                offscreen -> paintContent(offscreen, bounds, logicalWidth, logicalHeight));
+                offscreen -> paintContent(offscreen, bounds, logicalWidth, logicalHeight, !rawPass),
+                rawPass ? destination -> renderRawPass(backend, destination, logicalWidth, logicalHeight,
+                        coordinateScale) : null);
         TextureHandle source = target.colorTexture();
         if (texture == null || texture.source() != source) texture = new SampledTexture(source, filter);
         textureWidth = width;
         textureHeight = height;
         renderedCanvasWidth = logicalWidth;
         renderedCanvasHeight = logicalHeight;
+        renderedCoordinateScale = coordinateScale;
         renderRequested = false;
         targetOptionsChanged = false;
         backendChanged = false;
@@ -531,8 +681,8 @@ public class RenderToTexture extends WidgetBase {
         return reason;
     }
 
-    private void paintContent(RenderContext offscreen, RectView bounds, float width, float height) {
-        if (clearColor.a() > 0.0f) {
+    private void paintContent(RenderContext offscreen, RectView bounds, float width, float height, boolean clear) {
+        if (clear && clearColor.a() > 0.0f) {
             offscreen.rect(0.0f, 0.0f, width, height, Paint.fill(clearColor));
         }
         if (painter != null) {
@@ -551,19 +701,22 @@ public class RenderToTexture extends WidgetBase {
         }
     }
 
-    private RenderReason renderReason(int width, int height, float logicalWidth, float logicalHeight) {
+    private RenderReason renderReason(int width, int height, float logicalWidth, float logicalHeight,
+                                      float coordinateScale) {
         if (backendChanged) return RenderReason.BACKEND_CHANGED;
         if (targetOptionsChanged) return RenderReason.TARGET_OPTIONS_CHANGED;
         if (texture == null) return RenderReason.NO_TEXTURE;
         if (renderRequested) return RenderReason.REQUESTED;
         if (textureWidth != width || textureHeight != height
-                || renderedCanvasWidth != logicalWidth || renderedCanvasHeight != logicalHeight) {
+                || renderedCanvasWidth != logicalWidth || renderedCanvasHeight != logicalHeight
+                || renderedCoordinateScale != coordinateScale) {
             return RenderReason.RESIZED;
         }
         if (updateMode == UpdateMode.EVERY_FRAME) return RenderReason.EVERY_FRAME;
         if (updateMode == UpdateMode.MANUAL) return RenderReason.NONE;
         if (InvalidationFlags.has(invalidationFlags(), InvalidationFlags.LAYOUT)) return RenderReason.OWN_LAYOUT_DIRTY;
-        if (InvalidationFlags.has(invalidationFlags(), InvalidationFlags.TEXTURE)) return RenderReason.OWN_TEXTURE_DIRTY;
+        if (InvalidationFlags.has(invalidationFlags(), InvalidationFlags.TEXTURE))
+            return RenderReason.OWN_TEXTURE_DIRTY;
         if (content != null && content.subtreeInvalidationFlags() != InvalidationFlags.NONE) {
             return RenderReason.CHILD_SUBTREE_DIRTY;
         }

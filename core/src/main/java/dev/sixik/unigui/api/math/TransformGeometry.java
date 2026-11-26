@@ -1,6 +1,8 @@
 package dev.sixik.unigui.api.math;
 
-/** Geometry helpers for applying UniGUI render transforms outside the backend. */
+/**
+ * Geometry helpers for applying UniGUI render transforms outside the backend.
+ */
 public final class TransformGeometry {
     private TransformGeometry() {
     }

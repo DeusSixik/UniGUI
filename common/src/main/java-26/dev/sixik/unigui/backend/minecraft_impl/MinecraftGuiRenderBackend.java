@@ -29,6 +29,7 @@ import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.api.render.Scene3DRenderer;
 import dev.sixik.unigui.api.render.VectorPath;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.render.shaders.ShaderUniforms;
@@ -108,6 +109,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final UiTextureBinding.Cache textureBindings = new UiTextureBinding.Cache(TEXTURE_BINDING_CACHE_SIZE);
+    /**
+     * Рендерер сцены создаётся при первом 3D-проходе и владеет статическими GPU-буферами.
+     */
+    private MinecraftScene3DRenderer sceneRenderer;
     private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
     private final UniGuiGraphics graphics;
@@ -139,6 +144,15 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     public MinecraftGuiRenderBackend graphics(GuiGraphicsExtractor graphics) {
         this.graphics.extractor(Objects.requireNonNull(graphics, "graphics"));
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Scene3DRenderer scene3D() {
+        if (sceneRenderer == null) sceneRenderer = new MinecraftScene3DRenderer(textureBindings);
+        return sceneRenderer;
     }
 
     @Override
@@ -360,24 +374,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         }
     }
 
-    /** Следующий ID сущности превью: отрицательный, уникальный в пределах запуска (при переполнении начинается заново). */
-    private static int previewEntityId;
-
-    private static int nextPreviewEntityId() {
-        previewEntityId = previewEntityId <= Integer.MIN_VALUE + 1 ? -1 : previewEntityId - 1;
-        return previewEntityId;
-    }
-
     public boolean renderEntityPreview(EntityType<? extends LivingEntity> entityType, float x, float y, float size,
                                        float mouseX, float mouseY, float opacity) {
         if (entityType == null || minecraft.level == null || size <= 0.0f) return false;
         if (!canSubmitVanilla()) return false;
         LivingEntity entity = MinecraftClientCompat.previewEntity(entityType, minecraft.level);
         if (entity == null) return false;
-        // Сущность превью не добавляется в мир, и ID ей никто не выдаёт. В 26.2 ID 0 значит «не назначен», и
-        // getId() (его вызывает, например, ItemModelResolver при сборке состояния) бросает исключение. Отрицательные
-        // ID не пересекаются с настоящими сущностями (те получают положительные).
-        entity.setId(nextPreviewEntityId());
 
         // Picture-in-picture не учитывает позу extractor'а: прямоугольник, масштаб и курсор переводятся
         // в единицы GUI здесь.
@@ -904,6 +906,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     @Override
     public void close() {
         clearScissorStack();
+        if (sceneRenderer != null) {
+            sceneRenderer.close();
+            sceneRenderer = null;
+        }
         textureBindings.clear();
         fastItemRenderer.close();
         shapeBatchRenderer.close();

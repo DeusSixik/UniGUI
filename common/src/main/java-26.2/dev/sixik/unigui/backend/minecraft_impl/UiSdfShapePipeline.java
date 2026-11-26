@@ -30,12 +30,16 @@ final class UiSdfShapePipeline {
     private static final boolean ENABLED = UiCustomPipeline.enabled("unigui.sdf.pipeline");
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath("unigui", "sdf_shape_instanced");
 
-    /** Единичный квад: {@code Position} в {@code [0, 1]^2}, шаг — вершина. */
+    /**
+     * Единичный квад: {@code Position} в {@code [0, 1]^2}, шаг — вершина.
+     */
     private static final VertexFormat QUAD_FORMAT = VertexFormat.builder(0)
             .addAttribute("Position", GpuFormat.RG32_FLOAT)
             .build();
 
-    /** Данные фигуры, шаг — экземпляр; порядок и размеры совпадают с упаковкой {@code MinecraftSdfShapeRenderer}. */
+    /**
+     * Данные фигуры, шаг — экземпляр; порядок и размеры совпадают с упаковкой {@code MinecraftSdfShapeRenderer}.
+     */
     private static final VertexFormat INSTANCE_FORMAT = VertexFormat.builder(1)
             .addAttribute("InstancePosition0", GpuFormat.RGB32_FLOAT)
             .addAttribute("InstancePosition1", GpuFormat.RGB32_FLOAT)

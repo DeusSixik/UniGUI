@@ -135,7 +135,8 @@ final class UiUserShaderPipeline {
         }
         if (!shader.samplers().isEmpty()) {
             BindGroupLayout.Builder samplers = BindGroupLayout.builder();
-            for (String name : shader.samplers()) samplers.withUniform(name, com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER);
+            for (String name : shader.samplers())
+                samplers.withUniform(name, com.mojang.renderpearl.api.pipeline.UniformType.COMBINED_IMAGE_SAMPLER);
             builder.withBindGroupLayout(samplers.build());
         }
         return builder.build();

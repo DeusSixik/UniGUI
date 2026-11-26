@@ -96,8 +96,25 @@ public final class WidgetTextureRenderer implements AutoCloseable {
      */
     public RenderTarget renderToTarget(int width, int height, RenderTargetOptions options, float coordinateScale,
                                        Consumer<RenderContext> painter) {
+        return renderToTarget(width, height, options, coordinateScale, painter, null);
+    }
+
+    /**
+     * Исполняет сырой проход, затем записывает и рисует 2D-команды в ту же цель.
+     *
+     * @param width           физическая ширина цели.
+     * @param height          физическая высота цели.
+     * @param options         параметры цели. Сырой проход требует выключенной автоочистки перед 2D.
+     * @param coordinateScale число физических пикселей на единицу UI.
+     * @param painter         записывает 2D-команды в контекст.
+     * @param rawPass         рисует напрямую в цель перед исполнением 2D либо равен null.
+     * @return цель, которой владеет этот рендерер.
+     */
+    public RenderTarget renderToTarget(int width, int height, RenderTargetOptions options, float coordinateScale,
+                                       Consumer<RenderContext> painter, Consumer<RenderTarget> rawPass) {
         Objects.requireNonNull(painter, "painter");
         RenderTarget target = targetCache.acquire(width, height, options);
+        if (rawPass != null) rawPass.accept(target);
         drawList.clear();
         renderContext.pixelScale(coordinateScale);
         try {

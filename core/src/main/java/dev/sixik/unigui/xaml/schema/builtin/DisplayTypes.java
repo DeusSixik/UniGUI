@@ -18,10 +18,13 @@ import dev.sixik.unigui.widgets.display.TextBlock;
 import dev.sixik.unigui.widgets.display.TextWidget;
 import dev.sixik.unigui.widgets.display.TextureWidget;
 import dev.sixik.unigui.widgets.rendering.RenderToTexture;
+import dev.sixik.unigui.widgets.rendering.Scene3D;
 import dev.sixik.unigui.xaml.schema.ChildSink;
 import dev.sixik.unigui.xaml.schema.Converters;
 import dev.sixik.unigui.xaml.schema.Meta;
 import dev.sixik.unigui.xaml.schema.Schema;
+import dev.sixik.unigui.xaml.schema.SlotInfo;
+import dev.sixik.unigui.xaml.schema.TypeInfo;
 import dev.sixik.unigui.xaml.schema.ValueKind;
 
 import java.util.Locale;
@@ -56,6 +59,7 @@ final class DisplayTypes {
         schema.define("Path", DisplayTypes::path);
         schema.define("CachedSubtreeWidget", DisplayTypes::cachedSubtree);
         schema.define("RenderToTexture", DisplayTypes::renderToTexture);
+        schema.define("Scene3D", DisplayTypes::scene3D);
         schema.define("Shape", () -> type("Shape", Shape.class, Shape::new).build());
         schema.define("Sparkline", () -> type("Sparkline", Sparkline.class, Sparkline::new).build());
         schema.define("Chart", () -> type("Chart", Chart.class, Chart::new).build());
@@ -159,6 +163,60 @@ final class DisplayTypes {
                         .reads("clearColor", RenderToTexture::clearColor)
                         .exportsChildren(widget -> Types.optional(widget.content())),
                 content, "Single widget rendered into the texture.").build();
+    }
+
+    /**
+     * Описывает камеру, отрисовку и содержимое трёхмерной сцены.
+     * @return схема Scene3D для загрузчика и редактора.
+     */
+    private static TypeInfo<Scene3D> scene3D() {
+        ChildSink<Scene3D> overlay = (scene, child) -> {
+            if (scene.content() != null) {
+                throw new IllegalArgumentException("Scene3D can contain only one UI overlay.");
+            }
+            scene.content(child);
+        };
+        return type("Scene3D", Scene3D.class, Scene3D::new)
+                .describe("3D Scene", "Display", "Renders a 3D scene with an interactive camera and an optional UI overlay.")
+                .property("camera", Converters.enumOf(SceneCamera.class),
+                        (scene, mode) -> scene.cameraControls(mode == SceneCamera.ORBIT),
+                        scene -> scene.cameraControls() ? SceneCamera.ORBIT : SceneCamera.FIXED,
+                        Meta.category("Camera").defaultValue("ORBIT").description("Orbit camera or fixed view."))
+                .property("yaw", Converters.FLOAT,
+                        (scene, degrees) -> scene.orbit().setAngles(Math.toRadians(degrees), scene.orbit().pitch()),
+                        scene -> (float) Math.toDegrees(scene.orbit().yaw()),
+                        Meta.category("Camera").defaultValue("0").description("Camera yaw in degrees."))
+                .property("pitch", Converters.FLOAT,
+                        (scene, degrees) -> scene.orbit().setAngles(scene.orbit().yaw(), Math.toRadians(degrees)),
+                        scene -> (float) Math.toDegrees(scene.orbit().pitch()),
+                        Meta.category("Camera").defaultValue("0").description("Camera elevation in degrees."))
+                .property("distance", Converters.FLOAT,
+                        (scene, value) -> scene.orbit().setDistance(value), scene -> scene.orbit().distance(),
+                        Meta.category("Camera").defaultValue("5").description("Distance to the origin in scene units."))
+                .property("updateMode", Converters.enumOf(RenderToTexture.UpdateMode.class), Scene3D::updateMode,
+                        Scene3D::updateMode, Meta.category("Rendering").defaultValue("ON_CHANGE"))
+                .property("resolutionScale", Converters.FLOAT, Scene3D::resolutionScale,
+                        Scene3D::resolutionScale, Meta.category("Rendering").defaultValue("1"))
+                .property("clearColor", Converters.COLOR, (scene, color) -> scene.clearColor().set(color),
+                        Scene3D::clearColor, Meta.category("Rendering").defaultValue("#00000000"))
+                .property("highlightBlocks", Converters.BOOLEAN, Scene3D::highlightBlocks, Scene3D::highlightBlocks,
+                        Meta.category("Appearance").defaultValue("false")
+                                .description("Highlights the block beneath the mouse pointer."))
+                .content((scene, child) -> {
+                    if (child instanceof Scene3D.NodeContent node) scene.addNodeContent(node);
+                    else overlay.add(scene, child);
+                })
+                .slot(SlotInfo.single("Content", overlay, "One UI widget drawn over the scene."))
+                .exportsChildren(Scene3D::xamlChildren)
+                .build();
+    }
+
+    /** Доступные в разметке режимы управления камерой. */
+    private enum SceneCamera {
+        /** Камера реагирует на орбитальный ввод. */
+        ORBIT,
+        /** Камера остаётся на настроенной позиции. */
+        FIXED
     }
 
     private static int[] sizePair(String value, String property) {

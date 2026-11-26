@@ -18,10 +18,10 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * Отладочный захват кадра UniGUI для Minecraft 26.1 (только для разработки).
+ * Отладочный захват кадра UniGUI для Minecraft 26.x (только для разработки).
  *
  * <p>Включается системным свойством {@code -Dunigui.debug.capture=<demo>}, где {@code <demo>} —
- * {@code demo} (главное демо) или {@code complex}. Без свойства класс ничего не делает.</p>
+ * {@code demo}, {@code complex}, {@code scene} или {@code scene_blocks}. Без свойства класс ничего не делает.</p>
  *
  * <p>Сценарий: на титульном экране открывается демо; через {@link #SETTLE_FRAMES} кадров в
  * {@code <gameDir>/unigui-capture} сохраняются все страницы слоя UniGUI, переносимые на экран в этом кадре
@@ -32,20 +32,34 @@ import java.io.IOException;
 public final class UiDebugCapture {
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(UiDebugCapture.class);
     private static final String MODE = System.getProperty("unigui.debug.capture", "");
-    /** Включён ли захват. */
+    /**
+     * Включён ли захват.
+     */
     static final boolean ENABLED = !MODE.isEmpty();
     private static final int TITLE_FRAMES = 40;
-    /** Перезагрузка ресурсов короткая: экран загрузки снимается раньше, пока она идёт. */
+    /**
+     * Перезагрузка ресурсов короткая: экран загрузки снимается раньше, пока она идёт.
+     */
     private static final int SETTLE_FRAMES = "loading".equals(MODE) ? 6 : 60;
-    /** Кадр, на котором выполняется клик из {@code unigui.debug.click}. */
+    /**
+     * Кадр, на котором выполняется клик из {@code unigui.debug.click}.
+     */
     private static final int CLICK_FRAME = 20;
-    /** Необязательный клик {@code "x,y"} в единицах GUI, например чтобы открыть всплывающее окно. */
+    /**
+     * Необязательный клик {@code "x,y"} в единицах GUI, например чтобы открыть всплывающее окно.
+     */
     private static final String CLICK = System.getProperty("unigui.debug.click", "");
-    /** Необязательное нажатие клавиши (GLFW-код) на том же кадре, что и клик. */
+    /**
+     * Необязательное нажатие клавиши (GLFW-код) на том же кадре, что и клик.
+     */
     private static final int KEY = Integer.getInteger("unigui.debug.key", -1);
-    /** Необязательная прокрутка {@code "x,y,delta"} (единицы GUI, delta в щелчках колеса; минус — вниз) на кадре клика. */
+    /**
+     * Необязательная прокрутка {@code "x,y,delta"} (единицы GUI, delta в щелчках колеса; минус — вниз) на кадре клика.
+     */
     private static final String SCROLL = System.getProperty("unigui.debug.scroll", "");
-    /** Сколько кадров замерять время extract экрана перед захватом (0 — без замера). */
+    /**
+     * Сколько кадров замерять время extract экрана перед захватом (0 — без замера).
+     */
     private static final int BENCH_FRAMES = Integer.getInteger("unigui.debug.bench", 0);
     private static long[] benchSamples;
     private static int benchCount;
@@ -96,6 +110,10 @@ public final class UiDebugCapture {
                     LOGGER.info("UniGUI capture: {}", dev.sixik.unigui.tests.LayerTestCommands.enable("hud"));
                 } else if ("loading".equals(MODE)) {
                     LOGGER.info("UniGUI capture: {}", dev.sixik.unigui.tests.LayerTestCommands.enable("loading"));
+                } else if ("scene".equals(MODE)) {
+                    dev.sixik.unigui.tests.SceneMeshDemo.openDemo();
+                } else if ("scene_blocks".equals(MODE)) {
+                    dev.sixik.unigui.tests.SceneMeshDemo.openBlocksDemo();
                 } else if ("complex".equals(MODE)) {
                     dev.sixik.unigui.tests.ComplexUiDemo.openDemo();
                 } else {
@@ -169,6 +187,21 @@ public final class UiDebugCapture {
         String name = "layer_" + (layerIndex++);
         LOGGER.info("UniGUI capture: {} <- {}", name, note);
         dump(texture, name, false);
+    }
+
+    /**
+     * Записывает статистику буферов в кадре 3D-захвата.
+     *
+     * @param meshes  число отправленных на GPU мешей.
+     * @param draws   число вызовов GPU после инстансирования.
+     * @param uploads число загрузок с момента создания рендерера.
+     * @param cached  число пар GPU-буферов в кэше.
+     */
+    static void onSceneRendered(int meshes, int draws, long uploads, int cached) {
+        if (capturing() && ("scene".equals(MODE) || "scene_blocks".equals(MODE))) {
+            LOGGER.info("UniGUI scene capture: {} meshes in {} draws, {} mesh uploads, {} cached meshes",
+                    meshes, draws, uploads, cached);
+        }
     }
 
     /**
@@ -253,7 +286,12 @@ public final class UiDebugCapture {
             LOGGER.warn("UniGUI capture: {} has no texture", name);
             return;
         }
-        File directory = new File(Minecraft.getInstance().gameDirectory, "unigui-capture");
+        String directoryName = switch (MODE) {
+            case "scene" -> "unigui-capture/scene";
+            case "scene_blocks" -> "unigui-capture/scene_blocks";
+            default -> "unigui-capture";
+        };
+        File directory = new File(Minecraft.getInstance().gameDirectory, directoryName);
         directory.mkdirs();
         int width = texture.getWidth(0);
         int height = texture.getHeight(0);

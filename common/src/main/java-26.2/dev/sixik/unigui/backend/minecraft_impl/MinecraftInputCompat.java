@@ -17,12 +17,18 @@ import java.util.Map;
  * реализация переводит коды SDL в GLFW.</p>
  */
 public final class MinecraftInputCompat {
-    /** Значение {@code GLFW_RESIZE_NWSE_CURSOR} из GLFW 3.4. */
+    /**
+     * Значение {@code GLFW_RESIZE_NWSE_CURSOR} из GLFW 3.4.
+     */
     private static final int GLFW_RESIZE_NWSE_CURSOR = 0x00036007;
-    /** Значение {@code GLFW_RESIZE_NESW_CURSOR} из GLFW 3.4. */
+    /**
+     * Значение {@code GLFW_RESIZE_NESW_CURSOR} из GLFW 3.4.
+     */
     private static final int GLFW_RESIZE_NESW_CURSOR = 0x00036008;
 
-    /** Созданные нативные курсоры GLFW; освобождаются в {@link #releaseCursors}. */
+    /**
+     * Созданные нативные курсоры GLFW; освобождаются в {@link #releaseCursors}.
+     */
     private static final Map<MouseCursor, Long> NATIVE_CURSORS = new EnumMap<>(MouseCursor.class);
 
     private MinecraftInputCompat() {

@@ -176,6 +176,10 @@ RenderToTexture.styleClass
 RenderToTexture.targetOptions
 RenderToTexture.textureSize
 RenderToTexture.updateMode
+Scene3D.align
+Scene3D.class
+Scene3D.overflow
+Scene3D.styleClass
 ScrollView.align
 ScrollView.class
 ScrollView.overflow

@@ -28,6 +28,7 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.render.Scene3DRenderer;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.render.VectorPath;
@@ -113,6 +114,12 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final TextureBindingCache textureBindings = new TextureBindingCache(TEXTURE_BINDING_CACHE_SIZE);
+    /**
+     * Рендерер сцены, владеющий программами и индексированными буферами OpenGL.
+     */
+    private final LegacyScene3DRenderer sceneRenderer = new LegacyScene3DRenderer(textureBindings::resolve, () -> {
+        if (this.graphics != null) this.graphics.flush();
+    });
     private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;
@@ -463,6 +470,14 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     @Override
     public RenderTarget createRenderTarget(int width, int height, RenderTargetOptions options) {
         return new MinecraftRenderTarget(width, height, options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Scene3DRenderer scene3D() {
+        return sceneRenderer;
     }
 
     @Override
@@ -1120,6 +1135,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     public void close() {
         clearScissorStack();
         textureBindings.clear();
+        sceneRenderer.close();
         fastItemRenderer.close();
         shapeBatchRenderer.close();
         shaderQuadRenderer.close();
@@ -1940,8 +1956,8 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
         return inverse2 * inverse * x0 + 3.0f * inverse2 * t * x1 + 3.0f * inverse * t2 * x2 + t2 * t * x3;
     }
 
-    private record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY,
-                                  boolean premultipliedAlpha, TextureOptions options) {
+    record TextureBinding(Integer textureId, ResourceLocation location, boolean flipY,
+                          boolean premultipliedAlpha, TextureOptions options) {
         private static TextureBinding resolve(TextureHandle texture) {
             if (texture == null) return null;
             TextureOptions options = texture.options() == null ? TextureOptions.defaults() : texture.options();
@@ -1993,7 +2009,7 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
             return location.equals(ResourceLocation.tryParse(texture.id()));
         }
 
-        private void bind() {
+        void bind() {
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             if (textureId != null) {
                 RenderSystem.bindTexture(textureId);

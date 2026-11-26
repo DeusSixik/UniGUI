@@ -31,6 +31,7 @@ import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import java.nio.FloatBuffer;
 import java.util.IdentityHashMap;
 import java.util.Map;
+
 final class MinecraftShaderQuadRenderer implements AutoCloseable {
     private static final UniGuiLogger LOGGER = UniGuiRuntime.logger(MinecraftShaderQuadRenderer.class);
     private static final int TEXTURE_BINDING_CACHE_SIZE = 500;
@@ -38,15 +39,15 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
     @Language("GLSL")
     private static final String DEFAULT_VERTEX_SOURCE = """
             #version 150
-
+            
             in vec3 Position;
-
+            
             out vec2 screenPos;
             out vec2 guiPos;
             out vec2 uv;
-
+            
             uniform vec2 ScreenSize;
-
+            
             void main() {
                 gl_Position = vec4(Position.xy, 0.0, 1.0);
                 uv = Position.xy;
@@ -154,6 +155,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         RenderSystem.activeTexture(activeTexture);
         uploadInt(program, uniformName, Math.max(0, unit));
     }
+
     private int program(Minecraft minecraft, ShaderHandle shader) {
         ShaderSource source = ShaderProviders.resolveOrNull(shader, shaderProvider);
         if (source == null || source.fragmentSource().isBlank()) {
@@ -270,7 +272,16 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         if (location >= 0) GL20.glUniformMatrix4fv(location, false, values);
     }
 
-    private int linkProgram(String id, String vertexSource, String fragmentSource) {
+    /**
+     * Линкует GLSL-программу с последовательными индексами атрибутов.
+     *
+     * @param id             имя программы для журнала.
+     * @param vertexSource   исходник вершинной стадии.
+     * @param fragmentSource исходник фрагментной стадии.
+     * @param attributes     имена атрибутов с индекса ноль.
+     * @return идентификатор программы или ноль при ошибке.
+     */
+    static int linkProgram(String id, String vertexSource, String fragmentSource, String... attributes) {
         int vertex = compileShader(id, GL20.GL_VERTEX_SHADER, vertexSource);
         int fragment = compileShader(id, GL20.GL_FRAGMENT_SHADER, fragmentSource);
         if (vertex == 0 || fragment == 0) {
@@ -282,7 +293,8 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         int program = GL20.glCreateProgram();
         GL20.glAttachShader(program, vertex);
         GL20.glAttachShader(program, fragment);
-        GL20.glBindAttribLocation(program, 0, "Position");
+        if (attributes.length == 0) GL20.glBindAttribLocation(program, 0, "Position");
+        for (int i = 0; i < attributes.length; i++) GL20.glBindAttribLocation(program, i, attributes[i]);
         GL20.glLinkProgram(program);
         GL20.glDeleteShader(vertex);
         GL20.glDeleteShader(fragment);
@@ -295,7 +307,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         return program;
     }
 
-    private int compileShader(String id, int type, String source) {
+    private static int compileShader(String id, int type, String source) {
         int shader = GL20.glCreateShader(type);
         GL20.glShaderSource(shader, source);
         GL20.glCompileShader(shader);
@@ -474,18 +486,18 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
         }
     }
 
-    private record RenderState(int program,
-                               int activeTexture,
-                               int texture,
-                               boolean blend,
-                               int blendSourceRgb,
-                               int blendDestinationRgb,
-                               int blendSourceAlpha,
-                               int blendDestinationAlpha,
-                               boolean depthTest,
-                               boolean depthMask,
-                               boolean cull) {
-        private static RenderState capture() {
+    record RenderState(int program,
+                       int activeTexture,
+                       int texture,
+                       boolean blend,
+                       int blendSourceRgb,
+                       int blendDestinationRgb,
+                       int blendSourceAlpha,
+                       int blendDestinationAlpha,
+                       boolean depthTest,
+                       boolean depthMask,
+                       boolean cull) {
+        static RenderState capture() {
             int activeTexture = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             int texture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -504,7 +516,7 @@ final class MinecraftShaderQuadRenderer implements AutoCloseable {
                     GL11.glIsEnabled(GL11.GL_CULL_FACE));
         }
 
-        private void restore() {
+        void restore() {
             GL20.glUseProgram(program);
             RenderSystem.activeTexture(GL13.GL_TEXTURE0);
             RenderSystem.bindTexture(texture);

@@ -43,7 +43,9 @@ final class UiCustomPipeline {
     private final ShaderSource source;
     private final Function<MinecraftUiBlend, RenderPipeline> factory;
     private final Map<MinecraftUiBlend, RenderPipeline> pipelines = new EnumMap<>(MinecraftUiBlend.class);
-    /** Скомпилированные пайплайны всех экземпляров по исходному пайплайну (только поток рендера). */
+    /**
+     * Скомпилированные пайплайны всех экземпляров по исходному пайплайну (только поток рендера).
+     */
     private static final Map<RenderPipeline, CompiledRenderPipeline> COMPILED = new IdentityHashMap<>();
     private boolean failed;
     private boolean announced;

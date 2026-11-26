@@ -1,3 +1,19 @@
 // Runs after the GTNH convention has configured the project: pin the version to the parent project version
 // instead of the (monorepo wide) git tag derived one.
 version = ext.uniguiVersion
+
+// The RFG runClient task defaults to Java 8. Delegate to GTNH's Java 21 client so the
+// launcher, Forge patches and LWJGL 3 dependencies all come from the same run configuration.
+def legacyClient = tasks.named('runClient').get()
+def modernClient = tasks.named('runClient21')
+modernClient.configure {
+    username.set(legacyClient.username)
+    userUUID.set(legacyClient.userUUID)
+    cmdlineArgs.set(legacyClient.cmdlineArgs)
+    cmdlineJvmArgs.set(legacyClient.cmdlineJvmArgs)
+    debugOptions.enabled.set(legacyClient.debugOptions.enabled)
+}
+legacyClient.description = 'Runs the modded client on Java 21 using lwjgl3ify.'
+legacyClient.setDependsOn([modernClient])
+legacyClient.setClasspath(files())
+legacyClient.enabled = false

@@ -43,7 +43,9 @@ import java.util.function.Supplier;
  * <p>Остальной рендер линейки 26.x (src/main/java-26) общий и обращается к этим API только через этот класс.</p>
  */
 final class MinecraftGpuCompat {
-    /** Аддитивное смешивание: {@code rgb += src.rgb*a}, alpha насыщается. */
+    /**
+     * Аддитивное смешивание: {@code rgb += src.rgb*a}, alpha насыщается.
+     */
     static final BlendFunction ADDITIVE = new BlendFunction(SourceFactor.SRC_ALPHA, DestFactor.ONE, SourceFactor.ONE, DestFactor.ONE);
 
     private MinecraftGpuCompat() {
@@ -131,6 +133,35 @@ final class MinecraftGpuCompat {
     static RenderPass openPass(Supplier<String> label, GpuTextureView color, @Nullable GpuTextureView depth) {
         return RenderSystem.getDevice().createCommandEncoder()
                 .createRenderPass(label, color, OptionalInt.empty(), depth, OptionalDouble.empty());
+    }
+
+    /**
+     * Открывает 3D-проход с собственной очисткой. Проекция сцены использует прямую глубину.
+     *
+     * @param label  имя прохода для диагностики.
+     * @param target цвет и depth attachment сцены.
+     * @param clear  premultiplied цвет RGBA в диапазоне от 0 до 1.
+     * @return открытый проход.
+     */
+    static RenderPass openScenePass(Supplier<String> label, UiGpu.Target target, org.joml.Vector4fc clear) {
+        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(label, target.color(),
+                OptionalInt.of(net.minecraft.util.ARGB.colorFromFloat(clear.w(), clear.x(), clear.y(), clear.z())),
+                target.depth(), OptionalDouble.of(1.0));
+    }
+
+    /**
+     * Рисует ранее загруженный индексированный 3D-меш.
+     *
+     * @param pass       открытый проход сцены.
+     * @param vertices   срез с вершинами.
+     * @param indices    буфер 32-битных индексов.
+     * @param indexCount число индексов.
+     * @param instances  число экземпляров с разными матрицами.
+     */
+    static void drawSceneMesh(RenderPass pass, GpuBufferSlice vertices, GpuBuffer indices, int indexCount, int instances) {
+        pass.setVertexBuffer(0, vertices.buffer());
+        pass.setIndexBuffer(indices, VertexFormat.IndexType.INT);
+        pass.drawIndexed(0, 0, indexCount, instances);
     }
 
     /**

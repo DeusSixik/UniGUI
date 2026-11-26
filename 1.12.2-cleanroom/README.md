@@ -23,6 +23,11 @@ Then switch the Gradle JVM to JDK 25 and run this module's wrapper from this dir
 ./gradlew.bat runClient
 ```
 
+If `runClient` fails with `Unexpected lock protocol` in `PersistentDaemonRegistry`, close builds using the
+Cleanroom wrapper's Gradle version. In your Gradle user home (`%USERPROFILE%\.gradle` by default on Windows),
+rename `daemon\9.8.1\registry.bin.lock` to `registry.bin.lock.corrupt`, then rerun `runClient`. Gradle creates
+a fresh lock when it starts.
+
 The produced mod jar includes the UniGUI core classes. Fastutil is supplied by Minecraft 1.12.2 and is not bundled into the mod.
 
 The produced mod jar also embeds the portable `demo` library. After joining a world, use
