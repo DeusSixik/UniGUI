@@ -93,6 +93,13 @@ public final class TestCommands {
                     SceneMeshDemo.openBlocksDemo();
                     return 0;
                 }))
+                .then(Commands.literal("tutorial").executes(ctx -> {
+                    SceneTutorialDemo.open();
+                    return 0;
+                }).then(Commands.literal("furnace").executes(ctx -> {
+                    SceneTutorialDemo.openFurnace();
+                    return 0;
+                })))
                 .then(Commands.literal("terminal").executes(ctx -> {
                     Minecraft.getInstance().execute(DosTerminalDemo::openDemoClient);
                     return 0;

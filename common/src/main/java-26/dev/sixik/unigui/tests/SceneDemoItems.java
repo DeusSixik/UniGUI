@@ -5,6 +5,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -21,8 +22,28 @@ final class SceneDemoItems {
      * @return стек с моделью алмазного меча.
      */
     static ItemStack sword() {
-        if (MinecraftClientCompat.itemsReady()) return new ItemStack(Items.DIAMOND_SWORD);
-        return new ItemStack(Holder.direct(Items.DIAMOND_SWORD, DataComponentMap.builder()
-                .set(DataComponents.ITEM_MODEL, Identifier.withDefaultNamespace("diamond_sword")).build()));
+        return stack(Items.DIAMOND_SWORD, "diamond_sword");
+    }
+
+    /**
+     * Создаёт предмет для туториала о воронке.
+     *
+     * @return стек с моделью железного слитка.
+     */
+    static ItemStack ironIngot() {
+        return stack(Items.IRON_INGOT, "iron_ingot");
+    }
+
+    /**
+     * Создаёт стек, добавляя компонент модели вручную до привязки реестров клиентского мира.
+     *
+     * @param item ванильный предмет.
+     * @param model путь ванильной модели предмета.
+     * @return стек для отрисовки в сцене.
+     */
+    static ItemStack stack(Item item, String model) {
+        if (MinecraftClientCompat.itemsReady()) return new ItemStack(item);
+        return new ItemStack(Holder.direct(item, DataComponentMap.builder()
+                .set(DataComponents.ITEM_MODEL, Identifier.withDefaultNamespace(model)).build()));
     }
 }

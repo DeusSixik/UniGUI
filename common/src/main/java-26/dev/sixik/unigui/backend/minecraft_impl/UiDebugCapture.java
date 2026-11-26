@@ -114,6 +114,10 @@ public final class UiDebugCapture {
                     dev.sixik.unigui.tests.SceneMeshDemo.openDemo();
                 } else if ("scene_blocks".equals(MODE)) {
                     dev.sixik.unigui.tests.SceneMeshDemo.openBlocksDemo();
+                } else if ("scene_tutorial".equals(MODE)) {
+                    dev.sixik.unigui.tests.SceneTutorialDemo.open();
+                } else if ("scene_furnace".equals(MODE)) {
+                    dev.sixik.unigui.tests.SceneTutorialDemo.openFurnace();
                 } else if ("complex".equals(MODE)) {
                     dev.sixik.unigui.tests.ComplexUiDemo.openDemo();
                 } else {
@@ -289,6 +293,8 @@ public final class UiDebugCapture {
         String directoryName = switch (MODE) {
             case "scene" -> "unigui-capture/scene";
             case "scene_blocks" -> "unigui-capture/scene_blocks";
+            case "scene_tutorial" -> "unigui-capture/scene_tutorial";
+            case "scene_furnace" -> "unigui-capture/scene_furnace";
             default -> "unigui-capture";
         };
         File directory = new File(Minecraft.getInstance().gameDirectory, directoryName);
