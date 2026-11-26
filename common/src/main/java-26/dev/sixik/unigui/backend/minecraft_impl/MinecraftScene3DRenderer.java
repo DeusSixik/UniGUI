@@ -1,5 +1,11 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.StructureNode;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -259,9 +265,13 @@ final class MinecraftScene3DRenderer implements Scene3DRenderer, AutoCloseable {
         Mesh3D mesh = node.mesh();
         if (mesh != null) collectMesh(mesh, node.material(), node.worldMatrix(nodeWorld));
         if (node instanceof BlockNode block) {
-            collectSurfaces(blockMeshes.single(block.state()), block.worldMatrix(nodeWorld));
-            if (block.blockEntity() != null) vanilla().submit(block.blockEntity(), BlockPos.ZERO, nodeWorld);
-        } else if (node instanceof StructureNode structure) {
+            BlockState state = MinecraftScene.state(block);
+            if (state == null) return;
+            block.worldMatrix(nodeWorld);
+            collectSurfaces(blockMeshes.single(state), nodeWorld);
+            BlockEntity blockEntity = MinecraftScene.blockEntity(block);
+            if (blockEntity != null) vanilla().submit(blockEntity, BlockPos.ZERO, nodeWorld);
+        } else if (node instanceof StructureNode structure && structure.platform() == MinecraftScene.PLATFORM) {
             structure.worldMatrix(nodeWorld);
             StructureNode.DistantMesh distant = structure.distantMesh(activeCamera.orthographic() ? null : eye, nodeWorld);
             if (distant != null) {
@@ -270,10 +280,15 @@ final class MinecraftScene3DRenderer implements Scene3DRenderer, AutoCloseable {
             }
             int topY = structure.topVisibleY();
             for (StructureNode.Section section : structure.sections()) {
-                if (section.pos.minBlockY() > topY) continue;
+                int bottom = section.minBlockY();
+                if (bottom > topY) continue;
                 collectSurfaces(blockMeshes.section(structure, section), nodeWorld);
-                for (var entry : section.blockEntities.entrySet()) {
-                    if (entry.getKey().getY() <= topY) vanilla().submit(entry.getValue(), entry.getKey(), nodeWorld);
+                if (section.blockEntityCount() == 0) continue;
+                for (int index = 0; index < StructureNode.Section.VOLUME; index++) {
+                    if (section.blockEntity(index) instanceof BlockEntity blockEntity
+                            && bottom + StructureNode.Section.localY(index) <= topY) {
+                        vanilla().submit(blockEntity, blockEntity.getBlockPos(), nodeWorld);
+                    }
                 }
             }
         } else if (node instanceof EntityNode entity) {

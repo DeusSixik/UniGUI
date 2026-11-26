@@ -1,9 +1,13 @@
 package dev.sixik.unigui.widgets.minecraft;
 
+import dev.sixik.unigui.demo.ui.DemoAssets;
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
+import dev.sixik.unigui.tests.SceneFurnaceTutorial;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
@@ -28,12 +32,22 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     public static void install() {
         if (!(DemoMinecraft.host() instanceof MinecraftDemoHost)) DemoMinecraft.host(new MinecraftDemoHost());
         // Картинки галереи (раздел Textures и др.) из ресурсов demo; иначе остаются заглушки.
-        dev.sixik.unigui.demo.ui.DemoAssets.provider(MinecraftDemoAssets::load);
+        DemoAssets.provider(MinecraftDemoAssets::load);
     }
 
     @Override
     public String platform() {
         return "Minecraft 1.20+";
+    }
+
+    @Override
+    public Sequence furnaceTutorial() {
+        return SceneFurnaceTutorial.create();
+    }
+
+    @Override
+    public SceneShowcase.Blocks sceneBlocks() {
+        return SceneShowcase.Blocks.MODERN;
     }
 
     @Override

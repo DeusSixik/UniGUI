@@ -1,12 +1,16 @@
 package dev.sixik.unigui.demo.basic.main_demo;
 
 import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleBlock;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleEntity;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SampleItem;
+import dev.sixik.unigui.demo.ui.scene.SceneShowcase;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
+import dev.sixik.unigui.widgets.rendering.Scene3D;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
@@ -15,7 +19,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Minecraft-backed widgets: item, block and entity previews, vanilla tooltips and the registry pickers.
+ * Minecraft-backed widgets: item, block and entity previews, vanilla tooltips, the registry pickers and a 3D scene.
  *
  * <p>The widgets exist in three flavours (1.7.10, 1.12.2, 1.20+) with different Minecraft types, so this category
  * never names them. It asks the installed {@link DemoMinecraftHost} for version-neutral samples; the platform
@@ -32,7 +36,8 @@ final class MinecraftCategory extends DemoCategory {
             new Control("mc-items", "Item previews", "Draw item stacks through the vanilla renderer: cached icons, live icons and vanilla tooltips."),
             new Control("mc-blocks", "Block previews", "Show blocks through their inventory model."),
             new Control("mc-entities", "Entity previews", "Show living entities standing with their head turned toward a point."),
-            new Control("mc-pickers", "Pickers", "Search the item registry and the available textures in a popup grid."));
+            new Control("mc-pickers", "Pickers", "Search the item registry and the available textures in a popup grid."),
+            new Control("mc-scene", "3D scene", "Build a scene from blocks, structures, items and mobs with an interactive camera and UI on top."));
 
     @Override
     String title() {
@@ -63,6 +68,7 @@ final class MinecraftCategory extends DemoCategory {
             case "mc-blocks" -> addBlocks(root, host);
             case "mc-entities" -> addEntities(root, host);
             case "mc-pickers" -> addPickers(root, host);
+            case "mc-scene" -> addScene(root, host);
             default ->
                     root.addChild(samplePanel("Preview", "Interactive sample", label(controlId, UniGuiDemo.GalleryTemplate.TEXT_DARK), ""));
         }
@@ -142,6 +148,58 @@ final class MinecraftCategory extends DemoCategory {
                 "Open a picker, type to search and choose an entry. The item picker lists the item registry; the texture picker scans the loaded resources.",
                 pickers,
                 "OverlayLayer overlay = new OverlayLayer(content);\nMinecraftWidgets.itemPicker().overlayLayer(overlay);\nMinecraftWidgets.texturePicker().overlayLayer(overlay);"));
+    }
+
+    private void addScene(VBox root, DemoMinecraftHost host) {
+        SceneShowcase.Blocks blocks = host.sceneBlocks();
+        if (blocks == null || ScenePlatform.current() == null) {
+            root.addChild(samplePanel("3D scene", "3D scenes are not available on " + host.platform() + ".",
+                    label("No scene support.", UniGuiDemo.GalleryTemplate.TEXT_DARK), ""));
+            return;
+        }
+        Scene3D scene = SceneShowcase.create(blocks);
+        scene.layout(style -> style.widthPercent(100.0f).height(380.0f).flexGrow(0.0f).flexShrink(0.0f));
+        root.addChild(samplePanel("Structure, blocks, items and mobs",
+                "A house assembles layer by layer from a StructureNode. Drag to orbit, scroll to zoom, use the panel to"
+                        + " replay the assembly or cut the layers. The same code runs on " + host.platform() + ".",
+                scene,
+                "Scene3D viewport = new Scene3D().highlightBlocks(true);\n"
+                        + "StructureNode house = new StructureNode();\n"
+                        + "house.setBlock(0, 0, 0, \"minecraft:stone_bricks\");\n"
+                        + "house.setBlock(0, 1, 0, \"minecraft:oak_log\");\n"
+                        + "BlockNode furnace = new BlockNode(\"minecraft:furnace[facing=south]\");\n"
+                        + "furnace.setPosition(3, 0, 0);\n"
+                        + "viewport.scene().addRoot(house).addRoot(furnace)\n"
+                        + "        .addRoot(new ItemNode(\"minecraft:diamond_sword\"))\n"
+                        + "        .addRoot(new EntityNode(\"minecraft:zombie\"));\n"
+                        + "viewport.content(controlPanel); // UI drawn over the scene\n"
+                        + "house.playAssembly(viewport, 4.0f, Integer.MAX_VALUE);"));
+        addFurnaceTutorial(root, host);
+    }
+
+    /**
+     * Adds the step-by-step furnace animation with its timeline under the structure scene.
+     */
+    private void addFurnaceTutorial(VBox root, DemoMinecraftHost host) {
+        SceneTutorialPlayer.Sequence sequence = host.furnaceTutorial();
+        if (sequence == null) return;
+        SceneTutorialPlayer player = new SceneTutorialPlayer(sequence);
+        player.layout(style -> style.widthPercent(100.0f).height(400.0f).flexGrow(0.0f).flexShrink(0.0f));
+        root.addChild(samplePanel("Animated tutorial",
+                "Every frame is computed from the timeline: the floor rises, the furnace drops and bounces, then it"
+                        + " lights up. Drag the timeline or click a step to scrub, the scene follows both ways.",
+                player,
+                "Scene3D viewport = new Scene3D();\n"
+                        + "BlockNode furnace = new BlockNode(\"minecraft:furnace[facing=south]\");\n"
+                        + "viewport.scene().addRoot(furnace);\n"
+                        + "// Called for any time, also when scrubbing backwards:\n"
+                        + "FrameSampler frame = seconds -> {\n"
+                        + "    furnace.setPosition(0, dropHeight(seconds), 0);\n"
+                        + "    furnace.setState(seconds >= 4 ? \"minecraft:furnace[facing=south,lit=true]\"\n"
+                        + "            : \"minecraft:furnace[facing=south]\");\n"
+                        + "};\n"
+                        + "new SceneTutorialPlayer(new Sequence(\"Placing a furnace\", viewport, 6,\n"
+                        + "        checkpoints, frame));"));
     }
 
     /**

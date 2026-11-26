@@ -1,5 +1,10 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.StructureNode;
+import net.minecraft.world.level.block.state.BlockState;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import dev.sixik.unigui.api.math.Aabb;
@@ -311,9 +316,11 @@ final class LegacyScene3DRenderer implements Scene3DRenderer, AutoCloseable {
     private void collect(SceneNode node) {
         if (node.mesh() != null) addDraw(node, node.mesh(), node.material());
         if (node instanceof BlockNode block) {
-            addSurfaces(block, blocks.single(block.state()));
-            if (block.blockEntity() == null) return;
-        } else if (node instanceof StructureNode structure) {
+            BlockState state = MinecraftScene.state(block);
+            if (state == null) return;
+            addSurfaces(block, blocks.single(state));
+            if (MinecraftScene.blockEntity(block) == null) return;
+        } else if (node instanceof StructureNode structure && structure.platform() == MinecraftScene.PLATFORM) {
             StructureNode.DistantMesh distant = structure.distantMesh(orthographic ? null : eye, structure.worldMatrix(world));
             if (distant != null) {
                 addDraw(node, distant.mesh(), distant.material());
@@ -322,9 +329,9 @@ final class LegacyScene3DRenderer implements Scene3DRenderer, AutoCloseable {
             int top = structure.topVisibleY();
             boolean hasBlockEntities = false;
             for (StructureNode.Section section : structure.sections()) {
-                if (section.pos.minBlockY() > top) continue;
+                if (section.minBlockY() > top) continue;
                 addSurfaces(node, blocks.section(structure, section));
-                hasBlockEntities |= !section.blockEntities.isEmpty();
+                hasBlockEntities |= section.blockEntityCount() != 0;
             }
             if (!hasBlockEntities) return;
         } else if (!(node instanceof ItemNode) && !(node instanceof EntityNode)) {

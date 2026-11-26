@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.StructureNode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -121,16 +122,22 @@ final class LegacySceneBlockMeshes {
         var client = Minecraft.getInstance();
         refresh(client);
         BakedSection cached = sections.get(section);
-        if (cached != null && cached.revision == section.revision) return cached.surfaces;
+        if (cached != null && cached.revision == section.revision()) return cached.surfaces;
         view.structure = structure;
         try {
             Bake bake = new Bake(client.getBlockRenderer());
             int top = structure.topVisibleY();
-            for (var entry : section.blocks.entrySet()) {
-                if (entry.getKey().getY() <= top) bake.add(entry.getKey(), entry.getValue());
+            int west = section.minBlockX(), bottom = section.minBlockY(), north = section.minBlockZ();
+            for (int index = 0; index < StructureNode.Section.VOLUME; index++) {
+                Object state = section.state(index);
+                if (state == null) continue;
+                int y = bottom + StructureNode.Section.localY(index);
+                if (y > top) continue;
+                bake.add(new BlockPos(west + StructureNode.Section.localX(index), y,
+                        north + StructureNode.Section.localZ(index)), (BlockState) state);
             }
             var surfaces = bake.finish();
-            sections.put(section, new BakedSection(section.revision, surfaces));
+            sections.put(section, new BakedSection(section.revision(), surfaces));
             return surfaces;
         } finally {
             view.structure = null;
@@ -291,7 +298,7 @@ final class LegacySceneBlockMeshes {
          */
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            if (structure != null) return structure.visibleBlock(pos);
+            if (structure != null) return MinecraftScene.visibleBlock(structure, pos);
             return single != null && pos.equals(BlockPos.ZERO) ? single : Blocks.AIR.defaultBlockState();
         }
 
@@ -308,7 +315,8 @@ final class LegacySceneBlockMeshes {
          */
         @Override
         public BlockEntity getBlockEntity(BlockPos pos) {
-            return structure != null && pos.getY() <= structure.topVisibleY() ? structure.blockEntity(pos) : null;
+            return structure != null && pos.getY() <= structure.topVisibleY()
+                    ? MinecraftScene.blockEntity(structure, pos) : null;
         }
 
         /**

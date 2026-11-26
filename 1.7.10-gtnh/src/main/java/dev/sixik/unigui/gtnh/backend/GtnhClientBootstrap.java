@@ -6,6 +6,7 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.demo.ui.DemoAssets;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
 import dev.sixik.unigui.gtnh.commands.CommandUniGUI;
@@ -44,6 +45,7 @@ public final class GtnhClientBootstrap {
         DemoAssets.provider(GtnhDemoAssets::load);
         DemoMinecraft.host(new GtnhMinecraftDemoHost());
         UniGuiRuntime.install(current);
+        ScenePlatform.install(GtnhScene.PLATFORM);
         MinecraftForge.EVENT_BUS.register(new GtnhClientEvents());
         ClientCommandHandler.instance.registerCommand(new CommandUniGUI());
         FMLCommonHandler.instance().bus().register(new GtnhClientTasks.Pump());

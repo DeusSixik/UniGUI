@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Адаптирует имена ресурсов и поиск состояний блоков для XAML.
  */
-final class SceneXmlCompat {
+public final class SceneXmlCompat {
     private SceneXmlCompat() {
     }
 
@@ -19,7 +19,7 @@ final class SceneXmlCompat {
      * @param value идентификатор с пространством имён или без него.
      * @return проверенный идентификатор.
      */
-    static Identifier id(String value) {
+    public static Identifier id(String value) {
         var id = Identifier.tryParse(value);
         if (id == null) throw new IllegalArgumentException("Invalid resource id: " + value);
         return id;
@@ -32,7 +32,7 @@ final class SceneXmlCompat {
      * @param path   путь файла внутри пространства имён.
      * @return идентификатор файла.
      */
-    static Identifier file(Identifier source, String path) {
+    public static Identifier file(Identifier source, String path) {
         return source.withPath(path);
     }
 
@@ -43,7 +43,7 @@ final class SceneXmlCompat {
      * @return состояние из реестра.
      * @throws CommandSyntaxException при некорректном состоянии.
      */
-    static BlockState state(String value) throws CommandSyntaxException {
+    public static BlockState state(String value) throws CommandSyntaxException {
         return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, value, false).blockState();
     }
 }

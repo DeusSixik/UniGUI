@@ -35,6 +35,11 @@ public class SceneNode {
      */
     private final MutableVec3 scale = new MutableVec3(1, 1, 1);
     /**
+     * Точка в локальных координатах, вокруг которой узел поворачивается и масштабируется и которая ставится в
+     * {@link #position}.
+     */
+    private final MutableVec3 origin = new MutableVec3();
+    /**
      * Кэш локальной матрицы T * R * S.
      */
     private final MutableMat4 local = new MutableMat4();
@@ -188,7 +193,7 @@ public class SceneNode {
      * @return этот узел.
      * @throws IllegalArgumentException если координата не конечна.
      */
-    public final SceneNode setPosition(float x, float y, float z) {
+    public SceneNode setPosition(float x, float y, float z) {
         requireFinite(x, y, z);
         if (position.x() != x || position.y() != y || position.z() != z) {
             position.set(x, y, z);
@@ -213,7 +218,7 @@ public class SceneNode {
      * @param value единичный кватернион активного вращения.
      * @return этот узел.
      */
-    public final SceneNode setRotation(QuatView value) {
+    public SceneNode setRotation(QuatView value) {
         if (rotation.x() != value.x() || rotation.y() != value.y()
                 || rotation.z() != value.z() || rotation.w() != value.w()) {
             rotation.set(value);
@@ -241,7 +246,7 @@ public class SceneNode {
      * @return этот узел.
      * @throws IllegalArgumentException если коэффициент не конечен.
      */
-    public final SceneNode setScale(float x, float y, float z) {
+    public SceneNode setScale(float x, float y, float z) {
         requireFinite(x, y, z);
         if (scale.x() != x || scale.y() != y || scale.z() != z) {
             scale.set(x, y, z);
@@ -251,7 +256,46 @@ public class SceneNode {
     }
 
     /**
-     * Копирует локальную матрицу {@code T * R * S}. S масштабирует, R вращает, T переносит.
+     * Копирует точку опоры.
+     *
+     * @param out приёмник.
+     * @return out.
+     */
+    public final MutableVec3 origin(MutableVec3 out) {
+        return out.set(origin);
+    }
+
+    /**
+     * Задаёт точку опоры в локальных координатах: узел поворачивается и масштабируется вокруг неё, а
+     * {@link #setPosition} ставит в позицию именно её. Например, блок с началом в углу вращается вокруг центра
+     * основания при {@code setOrigin(0.5f, 0, 0.5f)}.
+     *
+     * @param x локальная координата X.
+     * @param y локальная координата Y.
+     * @param z локальная координата Z.
+     * @return этот узел.
+     * @throws IllegalArgumentException если координата не конечна.
+     */
+    public SceneNode setOrigin(float x, float y, float z) {
+        requireFinite(x, y, z);
+        if (origin.x() != x || origin.y() != y || origin.z() != z) {
+            origin.set(x, y, z);
+            transformChanged();
+        }
+        return this;
+    }
+
+    /**
+     * Ставит точку опоры в центр основания блока, {@code (0.5, 0, 0.5)}.
+     *
+     * @return этот узел.
+     */
+    public SceneNode centerOrigin() {
+        return setOrigin(0.5f, 0, 0.5f);
+    }
+
+    /**
+     * Копирует локальную матрицу {@code T(position) * R * S * T(-origin)}. S масштабирует, R вращает, T переносит.
      *
      * @param out переиспользуемая матрица.
      * @return out с преобразованием в координаты родителя.
@@ -286,7 +330,7 @@ public class SceneNode {
      * @param visible true разрешает показ, false скрывает поддерево.
      * @return этот узел.
      */
-    public final SceneNode setVisible(boolean visible) {
+    public SceneNode setVisible(boolean visible) {
         if (this.visible != visible) {
             this.visible = visible;
             invalidateContent();
@@ -525,6 +569,14 @@ public class SceneNode {
     private MutableMat4 resolvedLocal() {
         if (localDirty) {
             local.setTransform(position, rotation, scale);
+            if (origin.x() != 0 || origin.y() != 0 || origin.z() != 0) {
+                // T(p) * R * S * T(-o): перенос равен p - (R * S) * o.
+                for (int row = 0; row < 3; row++) {
+                    double shifted = local.get(row, 3) - local.get(row, 0) * origin.x()
+                            - local.get(row, 1) * origin.y() - local.get(row, 2) * origin.z();
+                    local.setTranslationComponent(row, shifted);
+                }
+            }
             localDirty = false;
         }
         return local;

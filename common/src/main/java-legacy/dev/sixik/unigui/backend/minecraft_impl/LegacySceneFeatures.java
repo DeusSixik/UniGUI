@@ -1,6 +1,9 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
-import com.mojang.blaze3d.platform.Lighting;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.StructureNode;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -19,10 +22,10 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 
@@ -56,6 +59,10 @@ final class LegacySceneFeatures implements MultiBufferSource {
      * Матрица вида сцены.
      */
     private final Matrix4f view = new Matrix4f();
+    /**
+     * Направления ванильного света в координатах камеры.
+     */
+    private final Vector3f light0 = new Vector3f(), light1 = new Vector3f();
     /**
      * Проекция камеры в видимый прямоугольник RTT.
      */
@@ -122,7 +129,9 @@ final class LegacySceneFeatures implements MultiBufferSource {
             RenderSystem.setProjectionMatrix(projection, sorting);
             RenderSystem.setShaderColor(1, 1, 1, 1);
             FogRenderer.setupNoFog();
-            Lighting.setupFor3DItems();
+            // Ванильный свет мира, закреплённый в сцене, как у блоков с запечённым затенением граней.
+            MinecraftScene.lightsInView(view, light0, light1);
+            RenderSystem.setShaderLights(light0, light1);
             dispatcher.overrideCameraOrientation(billboard);
             for (int i = 0; i < modelCount; i++) {
                 submit(client, models[i], partialTick);
@@ -164,29 +173,52 @@ final class LegacySceneFeatures implements MultiBufferSource {
         node.worldMatrix(world).copyColumnMajor(entries, 0);
         transform.set(entries).mulLocal(view);
         if (node instanceof BlockNode block) {
-            submitBlockEntity(client, block.blockEntity(), BlockPos.ZERO, partialTick);
+            submitBlockEntity(client, MinecraftScene.blockEntity(block), BlockPos.ZERO, partialTick);
         } else if (node instanceof StructureNode structure) {
             int top = structure.topVisibleY();
             for (StructureNode.Section section : structure.sections()) {
-                if (section.pos.minBlockY() > top) continue;
-                for (var entry : section.blockEntities.entrySet()) {
-                    if (entry.getKey().getY() <= top)
-                        submitBlockEntity(client, entry.getValue(), entry.getKey(), partialTick);
+                int bottom = section.minBlockY();
+                if (bottom > top || section.blockEntityCount() == 0) continue;
+                for (int index = 0; index < StructureNode.Section.VOLUME; index++) {
+                    if (section.blockEntity(index) instanceof BlockEntity blockEntity
+                            && bottom + StructureNode.Section.localY(index) <= top) {
+                        submitBlockEntity(client, blockEntity, blockEntity.getBlockPos(), partialTick);
+                    }
                 }
             }
-        } else if (node instanceof ItemNode item && !item.renderStack().isEmpty()) {
+        } else if (node instanceof ItemNode item && !MinecraftScene.renderStack(item).isEmpty()) {
             resetPose();
-            client.getItemRenderer().renderStatic(item.renderStack(), ItemDisplayContext.FIXED, LightTexture.FULL_BRIGHT,
+            client.getItemRenderer().renderStatic(MinecraftScene.renderStack(item), MinecraftScene.context(item.display()), LightTexture.FULL_BRIGHT,
                     OverlayTexture.NO_OVERLAY, pose, this, client.level, 0);
         } else if (node instanceof EntityNode entity) {
-            Entity model = entity.entity();
+            Entity model = MinecraftScene.entity(entity);
             if (model == null) return;
+            if (entity.hasHead()) applyHead(model, entity);
             resetPose();
             var renderer = client.getEntityRenderDispatcher().getRenderer(model);
             var offset = renderer.getRenderOffset(model, partialTick);
             pose.translate(offset.x, offset.y, offset.z);
             renderer.render(model, Mth.rotLerp(partialTick, model.yRotO, model.getYRot()),
                     partialTick, pose, this, LightTexture.FULL_BRIGHT);
+        }
+    }
+
+    /**
+     * Поворачивает голову относительно тела. Minecraft хранит абсолютное рыскание головы в градусах; значения
+     * прошлого тика тоже меняются, чтобы интерполяция не раскачивала голову.
+     *
+     * @param model сущность.
+     * @param node  узел с углами в радианах.
+     */
+    private static void applyHead(Entity model, EntityNode node) {
+        float pitch = (float) Math.toDegrees(node.headPitch());
+        model.setXRot(pitch);
+        model.xRotO = pitch;
+        if (model instanceof net.minecraft.world.entity.LivingEntity living) {
+            float yaw = living.yBodyRot + (float) Math.toDegrees(node.headYaw());
+            living.yHeadRot = yaw;
+            living.yHeadRotO = yaw;
+            living.yBodyRotO = living.yBodyRot;
         }
     }
 

@@ -1,9 +1,12 @@
 package dev.sixik.unigui.cleanroom.backend;
 
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
+import dev.sixik.unigui.api.scene.ScenePlatform;
+import dev.sixik.unigui.cleanroom.commands.CommandUniGUI;
 import dev.sixik.unigui.cleanroom.demo.CleanroomMinecraftDemoHost;
 import dev.sixik.unigui.demo.ui.DemoAssets;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraft;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -29,7 +32,9 @@ public final class CleanroomClientBootstrap {
         DemoAssets.provider(CleanroomDemoAssets::load);
         DemoMinecraft.host(new CleanroomMinecraftDemoHost());
         UniGuiRuntime.install(current);
+        ScenePlatform.install(CleanroomScene.PLATFORM);
         MinecraftForge.EVENT_BUS.register(new CleanroomClientEvents());
+        ClientCommandHandler.instance.registerCommand(new CommandUniGUI());
     }
 
     public static CleanroomUiRuntimeBackend backend() {

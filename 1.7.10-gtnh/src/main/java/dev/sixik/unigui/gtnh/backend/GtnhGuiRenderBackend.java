@@ -17,11 +17,13 @@ import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.RenderBackend;
 import dev.sixik.unigui.api.render.RenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
+import dev.sixik.unigui.api.render.Scene3DRenderer;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.shaders.ShaderDrawOptions;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.backend.shared.LegacyGlSceneRenderer;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
 import dev.sixik.unigui.impl.render.RenderTargetCache;
@@ -73,6 +75,12 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
     private final GtnhTextRenderer textRenderer;
     private final GtnhShapeRenderer shapeRenderer;
     private final GtnhShaderQuadRenderer shaderRenderer = new GtnhShaderQuadRenderer();
+    /**
+     * Offscreen mesh rendering for Scene3D widgets.
+     */
+    private final LegacyGlSceneRenderer sceneRenderer =
+        new LegacyGlSceneRenderer(GtnhGuiRenderBackend::sceneFramebuffer, GtnhTextures::sceneTexture,
+            GtnhScene.PLATFORM);
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectPassList = new DrawList();
@@ -149,20 +157,35 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
     }
 
     /**
-     * Offscreen-рендер с масштабом координат (нужен {@code RenderToTexture} и UI-поверхностям в мире).
+     * {@inheritDoc}
+     */
+    @Override
+    public Scene3DRenderer scene3D() {
+        return sceneRenderer;
+    }
+
+    /**
+     * Verifies the target can preserve the 3D color buffer across the 2D pass.
      *
-     * <p>TODO 1.7.10 (GTNH): поддержать масштаб — ortho на {@code target / coordinateScale} при рендере в target.
-     * Пока без масштаба вызов просто делегирует в {@link #render(DrawList, RenderTarget)}, а с масштабом
-     * бросает исключение, чтобы недоделку не пропустить.</p>
+     * @param target offscreen destination.
+     * @return live GL framebuffer name.
+     * @throws IllegalArgumentException if the target is incompatible with the scene pass.
+     */
+    private static int sceneFramebuffer(RenderTarget target) {
+        if (!(target instanceof GtnhRenderTarget own) || !own.options().useDepth()
+            || own.options().clearBeforeRender()) {
+            throw new IllegalArgumentException("Scene3D requires a Gtnh render target with depth and no automatic clear");
+        }
+        return own.framebufferId();
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public void render(DrawList drawList, RenderTarget target, float coordinateScale) {
-        if (Math.abs(coordinateScale - 1.0f) <= 1.0e-4f) {
-            render(drawList, target);
-            return;
-        }
-        throw new UnsupportedOperationException("RenderToTexture with coordinateScale=" + coordinateScale
-                + " is not implemented on 1.7.10 (GTNH) yet");
+        if (target instanceof GtnhRenderTarget own) renderToTarget(drawList, own, coordinateScale, coordinateScale);
+        else render(drawList, target);
     }
 
     @Override
@@ -477,6 +500,7 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
         postEffectLayerTargets.close();
         postEffectPingTargets.close();
         shaderRenderer.close();
+        sceneRenderer.close();
     }
 
     // ---- drawing ------------------------------------------------------------------------------------------------

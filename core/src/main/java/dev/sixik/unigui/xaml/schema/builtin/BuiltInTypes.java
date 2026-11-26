@@ -20,6 +20,7 @@ public final class BuiltInTypes {
     public static void register(Schema schema) {
         ContainerTypes.register(schema);
         DisplayTypes.register(schema);
+        SceneContentTypes.register(schema);
         ControlTypes.register(schema);
         DataTypes.register(schema);
         NavigationTypes.register(schema);

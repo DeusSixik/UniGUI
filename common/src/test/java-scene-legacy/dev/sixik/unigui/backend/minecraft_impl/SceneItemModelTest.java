@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.block.model.ItemTransform;
 import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.resources.model.SimpleBakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +36,7 @@ final class SceneItemModelTest {
                 new Vector3f(1, 2, 0.5f));
         var model = model(fixed, List.of(face(0.53125f)), List.of(face(0.46875f)));
 
-        Aabb bounds = SceneItemModel.bounds(model);
+        Aabb bounds = SceneItemModel.bounds(model, ItemDisplayContext.FIXED);
 
         assertNotNull(bounds);
         assertEquals(0.234375f, bounds.minX(), EPS);
@@ -51,7 +52,7 @@ final class SceneItemModelTest {
      */
     @Test
     void bounds_noQuads_returnsNull() {
-        assertNull(SceneItemModel.bounds(model(ItemTransform.NO_TRANSFORM, List.of(), List.of())));
+        assertNull(SceneItemModel.bounds(model(ItemTransform.NO_TRANSFORM, List.of(), List.of()), ItemDisplayContext.FIXED));
     }
 
     /**

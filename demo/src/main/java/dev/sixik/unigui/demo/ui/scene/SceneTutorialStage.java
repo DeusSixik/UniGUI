@@ -1,49 +1,75 @@
-package dev.sixik.unigui.tests;
+package dev.sixik.unigui.demo.ui.scene;
 
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.impl.widget.WidgetBase;
 import dev.sixik.unigui.widgets.containers.StackPanel;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
 import dev.sixik.unigui.widgets.rendering.SceneAnchor3D;
 
-/** Оформление 3D-области с подложкой и указателем на объект текущего этапа. */
-final class SceneTutorialStage {
-    /** Цвет верхних углов подложки во вьюпорте. */
+/**
+ * Оформление 3D-области с подложкой и указателем на объект текущего этапа.
+ */
+public final class SceneTutorialStage {
+    /**
+     * Цвет верхних углов подложки во вьюпорте.
+     */
     private static final MutableColor BACKDROP_TOP = MutableColor.fromArgb(0xFF1B2A39);
-    /** Цвет света над центром сцены. */
+    /**
+     * Цвет света над центром сцены.
+     */
     private static final MutableColor BACKDROP_LIGHT = MutableColor.fromArgb(0xFF314960);
-    /** Нижний цвет подложки во вьюпорте. */
+    /**
+     * Нижний цвет подложки во вьюпорте.
+     */
     private static final MutableColor BACKDROP_BOTTOM = MutableColor.fromArgb(0xFF101920);
-    /** Цвет линий сетки у нижнего края вьюпорта. */
+    /**
+     * Цвет линий сетки у нижнего края вьюпорта.
+     */
     private static final MutableColor GRID = MutableColor.fromArgb(0x228DA9BF);
-    /** Цвет сетки у горизонта с нулевой альфой. */
+    /**
+     * Цвет сетки у горизонта с нулевой альфой.
+     */
     private static final MutableColor HORIZON = MutableColor.fromArgb(0x008DA9BF);
-    /** Цвет тонкой рамки по границе вьюпорта. */
+    /**
+     * Цвет тонкой рамки по границе вьюпорта.
+     */
     private static final MutableColor FRAME = MutableColor.fromArgb(0xFF405367);
-    /** Тёмная подложка указателя для читаемости на моделях. */
+    /**
+     * Тёмная подложка указателя для читаемости на моделях.
+     */
     private static final MutableColor PIN_BACKGROUND = MutableColor.fromArgb(0xED111922);
-    /** Акцентный цвет указателя на объект. */
+    /**
+     * Акцентный цвет указателя на объект.
+     */
     private static final MutableColor PIN = MutableColor.fromArgb(0xFFFFC879);
 
-    /** Создание экземпляров не требуется. */
+    /**
+     * Создание экземпляров не требуется.
+     */
     private SceneTutorialStage() {
     }
 
     /**
      * Собирает подложку и интерактивную сцену в одной области.
      *
-     * @param viewport сцена с прозрачным цветом очистки и работающим управлением камерой.
+     * @param viewport       сцена с прозрачным цветом очистки и работающим управлением камерой.
+     * @param customBackdrop подложка сценария или null для градиента с сеткой.
      * @return область, размеры которой задаёт раскладка родителя.
      */
-    static StackPanel wrap(Scene3D viewport) {
+    static StackPanel wrap(Scene3D viewport, WidgetBase customBackdrop) {
         StackPanel stage = new StackPanel();
-        CanvasWidget backdrop = new CanvasWidget();
+        WidgetBase backdrop = customBackdrop;
+        if (backdrop == null) {
+            CanvasWidget grid = new CanvasWidget();
+            grid.onDraw(context -> drawBackdrop(context, grid.layoutBounds()));
+            backdrop = grid;
+        }
         backdrop.layout(style -> style.sizePercent(100, 100));
         viewport.layout(style -> style.sizePercent(100, 100));
-        backdrop.onDraw(context -> drawBackdrop(context, backdrop.layoutBounds()));
         stage.addChild(backdrop);
         stage.addChild(viewport);
         return stage;
@@ -55,7 +81,7 @@ final class SceneTutorialStage {
      * @param viewport сцена для привязки.
      * @return якорь, позицию которого меняет сценарий.
      */
-    static SceneAnchor3D focus(Scene3D viewport) {
+    public static SceneAnchor3D focus(Scene3D viewport) {
         CanvasWidget pin = new CanvasWidget();
         pin.layout(style -> style.size(14, 14));
         pin.onDraw(context -> {
@@ -76,7 +102,7 @@ final class SceneTutorialStage {
      * сетки, а progress равномерно меняется от нуля до единицы по номеру линии.
      *
      * @param context контекст рисования.
-     * @param b прямоугольник фона в единицах UI.
+     * @param b       прямоугольник фона в единицах UI.
      */
     private static void drawBackdrop(RenderContext context, RectView b) {
         float x = b.x(), y = b.y(), w = b.width(), h = b.height();
@@ -96,9 +122,20 @@ final class SceneTutorialStage {
             float lineY = horizon + (floor - horizon) * progress * progress;
             context.addLine(x + 1, lineY, b.right() - 1, lineY, GRID, 0.65f);
         }
-        context.addLine(x, y, b.right(), y, FRAME, 1);
-        context.addLine(x, b.bottom(), b.right(), b.bottom(), FRAME, 1);
-        context.addLine(x, y, x, b.bottom(), FRAME, 1);
-        context.addLine(b.right(), y, b.right(), b.bottom(), FRAME, 1);
+        drawFrame(context, b);
+    }
+
+    /**
+     * Рисует рамку по границе подложки.
+     *
+     * @param context контекст рисования.
+     * @param bounds  прямоугольник подложки в единицах UI.
+     */
+    static void drawFrame(RenderContext context, RectView bounds) {
+        float x = bounds.x(), y = bounds.y(), right = bounds.right(), bottom = bounds.bottom();
+        context.addLine(x, y, right, y, FRAME, 1);
+        context.addLine(x, bottom, right, bottom, FRAME, 1);
+        context.addLine(x, y, x, bottom, FRAME, 1);
+        context.addLine(right, y, right, bottom, FRAME, 1);
     }
 }

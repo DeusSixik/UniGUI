@@ -34,7 +34,6 @@ final class BuiltInMinecraftXml {
         schema.define(XamlNamespaces.MINECRAFT, "EntityPreview", () -> entityPreview());
         schema.define(XamlNamespaces.MINECRAFT, "ItemPicker", () -> itemPicker());
         schema.define(XamlNamespaces.MINECRAFT, "TexturePicker", () -> texturePicker());
-        MinecraftSceneXml.register(schema);
     }
 
     private static UiName name(String local) {

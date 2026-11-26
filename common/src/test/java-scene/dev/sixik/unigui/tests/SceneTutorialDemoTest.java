@@ -1,5 +1,6 @@
 package dev.sixik.unigui.tests;
 
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftScene;
 import dev.sixik.unigui.api.animation.NamedWidgetRegistry;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
@@ -10,8 +11,9 @@ import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.widget.Widget;
-import dev.sixik.unigui.backend.minecraft_impl.BlockNode;
-import dev.sixik.unigui.backend.minecraft_impl.ItemNode;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
@@ -22,6 +24,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FurnaceBlock;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,6 +44,7 @@ final class SceneTutorialDemoTest {
     static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        ScenePlatform.install(MinecraftScene.PLATFORM);
     }
 
     /** Проверяет одинаковый промежуточный кадр при прямой и обратной перемотке. */
@@ -49,34 +53,34 @@ final class SceneTutorialDemoTest {
         Harness h = new Harness();
         assertFalse(h.hopper.visible());
         assertFalse(h.item.visible());
-        assertEquals("Поставьте сундук", h.caption.text());
+        assertEquals("Place a chest", h.caption.text());
 
         h.slider.value(2.125f);
         assertTrue(h.hopper.visible());
         assertEquals(2.13125f, h.hopper.position(new MutableVec3()).y(), EPS);
         assertFalse(h.item.visible());
-        assertEquals("Направьте воронку", h.caption.text());
+        assertEquals("Aim the hopper", h.caption.text());
 
         h.slider.value(5.375f);
         assertTrue(h.item.visible());
         assertEquals(2, h.hopper.position(new MutableVec3()).y(), EPS);
         assertEquals(3.5125f, h.item.position(new MutableVec3()).y(), EPS);
-        assertEquals("Загрузите воронку", h.caption.text());
+        assertEquals("Load the hopper", h.caption.text());
 
         h.slider.value(6.25f);
         assertTrue(h.hopper.visible());
         assertFalse(h.item.visible());
-        assertEquals("Слиток в сундуке", h.caption.text());
+        assertEquals("The ingot is in the chest", h.caption.text());
 
         h.slider.value(5.375f);
         assertTrue(h.item.visible());
         assertEquals(3.5125f, h.item.position(new MutableVec3()).y(), EPS);
-        assertEquals("Загрузите воронку", h.caption.text());
+        assertEquals("Load the hopper", h.caption.text());
 
         h.slider.value(0);
         assertFalse(h.hopper.visible());
         assertFalse(h.item.visible());
-        assertEquals("Поставьте сундук", h.caption.text());
+        assertEquals("Place a chest", h.caption.text());
     }
 
     /** Проверяет реальный ввод в ползунок и кнопки повтора и паузы. */
@@ -90,7 +94,7 @@ final class SceneTutorialDemoTest {
         assertTrue(bounds.width() > 0);
         float y = bounds.y() + bounds.height() / 2;
         h.input.pointerPressed(bounds.x() + bounds.width() * (0.25f / 9), y, 0, PointerButton.PRIMARY);
-        assertEquals("Играть", h.play.text());
+        assertEquals("Play", h.play.text());
         h.input.pointerMoved(bounds.x() + bounds.width() * (5f / 9), y, 0);
         h.input.pointerReleased(bounds.x() + bounds.width() * (5f / 9), y, 0, PointerButton.PRIMARY);
         h.tick();
@@ -100,7 +104,7 @@ final class SceneTutorialDemoTest {
         h.click(h.replay);
         assertEquals(0, h.slider.value(), EPS);
         assertFalse(h.hopper.visible());
-        assertEquals("Пауза", h.play.text());
+        assertEquals("Pause", h.play.text());
         h.tick();
         assertEquals(0.25f, h.slider.value(), EPS);
 
@@ -118,12 +122,12 @@ final class SceneTutorialDemoTest {
         Harness h = new Harness();
         for (int i = 0; i < 37; i++) h.tick();
         assertEquals(9, h.slider.value(), EPS);
-        assertEquals("Слиток в сундуке", h.caption.text());
-        assertEquals("Играть", h.play.text());
+        assertEquals("The ingot is in the chest", h.caption.text());
+        assertEquals("Play", h.play.text());
 
         h.click(h.play);
         assertEquals(0, h.slider.value(), EPS);
-        assertEquals("Пауза", h.play.text());
+        assertEquals("Pause", h.play.text());
         assertFalse(h.hopper.visible());
     }
 
@@ -131,19 +135,21 @@ final class SceneTutorialDemoTest {
     @Test
     void furnace_seekAndReplay_restorePositionsRotationAndFire() {
         var sequence = SceneFurnaceTutorial.create();
-        var demo = new SceneTutorialDemo(sequence);
+        var demo = new SceneTutorialPlayer(sequence);
         DefaultUIContext ui = new DefaultUIContext();
         demo.setUiContextInternal(ui);
         demo.measure(new LayoutContext(480, 270));
         demo.arrange(new MutableRect(0, 0, 480, 270));
-        assertTrue(sequence.viewport().children().stream().noneMatch(SceneAnchor3D.class::isInstance));
+        assertEquals(1, sequence.viewport().children().stream().filter(SceneAnchor3D.class::isInstance).count());
         var widgets = NamedWidgetRegistry.from(demo);
         var slider = (Slider) widgets.require("tutorial-time");
         var nodes = sequence.viewport().scene().roots();
         var firstTile = nodes.get(0);
         var lastTile = nodes.get(8);
-        var pivot = nodes.stream().filter(node -> !node.children().isEmpty()).findFirst().orElseThrow();
-        var furnace = (BlockNode) pivot.children().get(0);
+        var furnace = nodes.stream().filter(BlockNode.class::isInstance).map(BlockNode.class::cast)
+                .filter(node -> MinecraftScene.state(node).getBlock() instanceof FurnaceBlock).findFirst().orElseThrow();
+        // The furnace turns around its own bottom center, so its position is the pivot.
+        var pivot = furnace;
         var sparks = nodes.stream().filter(node -> node.mesh() != null).toList();
         var position = new MutableVec3();
         var rotation = new MutableQuat();
@@ -168,7 +174,7 @@ final class SceneTutorialDemoTest {
         assertEquals(3.19f, pivot.position(position).y(), EPS);
         slider.value(impact.seconds());
         assertEquals(1, pivot.position(position).y(), EPS);
-        assertFalse(furnace.state().getValue(FurnaceBlock.LIT));
+        assertFalse(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
 
         slider.value(impact.seconds() + 0.25f);
         assertEquals(1.28f, pivot.position(position).y(), EPS);
@@ -176,16 +182,16 @@ final class SceneTutorialDemoTest {
         slider.value(3.5f);
         assertEquals(1, pivot.position(position).y(), EPS);
         assertEquals(0, pivot.rotation(rotation).y(), EPS);
-        assertFalse(furnace.state().getValue(FurnaceBlock.LIT));
+        assertFalse(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
 
         slider.value(ignition.seconds() + 0.26f);
-        assertTrue(furnace.state().getValue(FurnaceBlock.LIT));
+        assertTrue(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
         assertEquals(4, sparks.stream().filter(node -> node.visible()).count());
         slider.value(5.25f);
-        assertTrue(furnace.state().getValue(FurnaceBlock.LIT));
+        assertTrue(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
         assertTrue(sparks.stream().noneMatch(node -> node.visible()));
         slider.value(impact.seconds() + 0.25f);
-        assertFalse(furnace.state().getValue(FurnaceBlock.LIT));
+        assertFalse(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
         assertEquals(1.28f, pivot.position(position).y(), EPS);
         assertTrue(sparks.stream().noneMatch(node -> node.visible()));
 
@@ -209,29 +215,29 @@ final class SceneTutorialDemoTest {
         Harness h = new Harness();
         h.click(h.checkpoints[2]);
         assertEquals(3.75f, h.slider.value(), EPS);
-        assertEquals("Играть", h.play.text());
-        assertEquals("ЭТАП 3 / 4", h.step.text());
+        assertEquals("Play", h.play.text());
+        assertEquals("STEP 3 / 4", h.step.text());
         assertTrue(h.item.visible());
-        assertTrue(h.details.text().contains("Воронка подберёт его"));
+        assertTrue(h.details.text().contains("The hopper picks it up"));
         h.tick();
         assertEquals(3.75f, h.slider.value(), EPS);
 
         h.click(h.checkpoints[1]);
         assertEquals(1.5f, h.slider.value(), EPS);
-        assertEquals("ЭТАП 2 / 4", h.step.text());
-        assertTrue(h.details.text().contains("носик должен смотреть вниз"));
+        assertEquals("STEP 2 / 4", h.step.text());
+        assertTrue(h.details.text().contains("spout must point down"));
         assertTrue(h.hopper.visible());
         assertFalse(h.item.visible());
 
         h.click(h.checkpoints[3]);
         assertEquals(6.25f, h.slider.value(), EPS);
-        assertEquals("ЭТАП 4 / 4", h.step.text());
-        assertTrue(h.details.text().contains("редстоуна"));
+        assertEquals("STEP 4 / 4", h.step.text());
+        assertTrue(h.details.text().contains("redstone signal"));
         assertFalse(h.item.visible());
 
         h.click(h.checkpoints[0]);
         assertEquals(0, h.slider.value(), EPS);
-        assertEquals("ЭТАП 1 / 4", h.step.text());
+        assertEquals("STEP 1 / 4", h.step.text());
         assertFalse(h.hopper.visible());
     }
 
@@ -254,13 +260,13 @@ final class SceneTutorialDemoTest {
             assertTrue(bounds.bottom() <= slider.y());
             previousRight = bounds.right();
         }
-        assertEquals(width == 320 ? "2" : "Воронка", h.checkpoints[1].text());
+        assertEquals(width == 320 ? "2" : "Hopper", h.checkpoints[1].text());
     }
 
     /** Создаёт виджет с настоящей раскладкой и маршрутизацией событий. */
     private static final class Harness {
         /** Корневой виджет проверяемого туториала. */
-        private final SceneTutorialDemo demo = new SceneTutorialDemo();
+        private final SceneTutorialPlayer demo = new SceneTutorialPlayer(SceneTutorialDemo.hopperSequence());
         /** Обработчик ввода для корневого дерева. */
         private final InputHandle input;
         /** Ползунок, значение которого измеряется в секундах. */
@@ -312,7 +318,7 @@ final class SceneTutorialDemoTest {
             }
             var nodes = ((Scene3D) widgets.require("tutorial-scene")).scene().roots();
             hopper = nodes.stream().filter(BlockNode.class::isInstance).map(BlockNode.class::cast)
-                    .filter(node -> node.state().is(Blocks.HOPPER)).findFirst().orElseThrow();
+                    .filter(node -> MinecraftScene.state(node).is(Blocks.HOPPER)).findFirst().orElseThrow();
             item = nodes.stream().filter(ItemNode.class::isInstance).map(ItemNode.class::cast).findFirst().orElseThrow();
         }
 

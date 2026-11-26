@@ -35,7 +35,8 @@ final class SchemaEquivalenceTest {
             "VirtualListView.items", "VirtualListView..ItemTemplate");
 
     /** Типы, добавленные после прежнего реестра: в нём их нет, сверять не с чем. */
-    private static final Set<String> NEW_TYPES = Set.of("RenderToTexture", "Scene3D");
+    private static final Set<String> NEW_TYPES = Set.of("RenderToTexture", "Scene3D", "Block", "Item", "Entity",
+            "Structure");
 
     private static final Map<String, Type> LEGACY = parse(Golden.read("registry-schema.txt"));
     private static final Map<String, Type> CURRENT = parse(SchemaDump.dump(Schema.builtIns()));

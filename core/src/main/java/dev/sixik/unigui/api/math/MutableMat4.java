@@ -359,4 +359,18 @@ public final class MutableMat4 implements Mat4View {
         elements[15] = m33;
         return this;
     }
+
+    /**
+     * Заменяет одну компоненту столбца переноса.
+     *
+     * @param row   строка 0, 1 или 2 (X, Y, Z).
+     * @param value новое значение.
+     * @return эта матрица.
+     * @throws IndexOutOfBoundsException если строка вне 0..2.
+     */
+    public MutableMat4 setTranslationComponent(int row, double value) {
+        if (row < 0 || row > 2) throw new IndexOutOfBoundsException("Translation row must be 0..2: " + row);
+        elements[12 + row] = value;
+        return this;
+    }
 }

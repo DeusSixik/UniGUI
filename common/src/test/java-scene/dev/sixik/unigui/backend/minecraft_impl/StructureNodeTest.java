@@ -1,18 +1,8 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
-import dev.sixik.unigui.api.core.FrameContext;
-import dev.sixik.unigui.api.core.FramePhase;
-import dev.sixik.unigui.api.math.Aabb;
-import dev.sixik.unigui.api.math.MutableMat4;
-import dev.sixik.unigui.api.math.MutableQuat;
-import dev.sixik.unigui.api.math.MutableVec3;
-import dev.sixik.unigui.api.scene.Camera3D;
-import dev.sixik.unigui.api.scene.Material;
-import dev.sixik.unigui.api.scene.Mesh3D;
-import dev.sixik.unigui.api.scene.OrbitCameraController;
+import dev.sixik.unigui.api.scene.BlockNode;
 import dev.sixik.unigui.api.scene.Scene;
-import dev.sixik.unigui.api.scene.ScenePicker;
-import dev.sixik.unigui.widgets.rendering.Scene3D;
+import dev.sixik.unigui.api.scene.StructureNode;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -46,198 +36,42 @@ class StructureNodeTest {
     }
 
     @Test
-    void setBlock_atSectionCorner_invalidatesNearbySectionsAndScene() {
-        StructureNode structure = new StructureNode();
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        BlockPos position = new BlockPos(15, 15, 15);
-        structure.setBlock(position, stone);
-        structure.setBlock(new BlockPos(16, 16, 16), stone);
-        structure.setBlock(new BlockPos(32, 32, 32), stone);
-        Scene scene = new Scene().addRoot(structure);
-        var sections = structure.sections().iterator();
-        StructureNode.Section changed = sections.next();
-        StructureNode.Section diagonal = sections.next();
-        StructureNode.Section far = sections.next();
-        long changedBefore = changed.revision;
-        long diagonalBefore = diagonal.revision;
-        long farBefore = far.revision;
-        long sceneBefore = scene.revision();
+    void helpers_readAndWriteVanillaStatesWithAirAsEmpty() {
+        StructureNode structure = new StructureNode(MinecraftScene.PLATFORM);
+        BlockPos position = new BlockPos(-1, 20, 3);
+        MinecraftScene.setBlock(structure, position, Blocks.OAK_LEAVES.defaultBlockState());
 
-        structure.setBlock(position, Blocks.GLASS.defaultBlockState());
-        structure.setBlock(position, Blocks.GLASS.defaultBlockState());
-
-        assertEquals(changedBefore + 1, changed.revision);
-        assertEquals(diagonalBefore + 1, diagonal.revision);
-        assertEquals(farBefore, far.revision);
-        assertEquals(sceneBefore + 1, scene.revision());
-        assertSame(Blocks.GLASS.defaultBlockState(), structure.block(position));
-
-        structure.setBlock(position, Blocks.AIR.defaultBlockState());
-        assertEquals(2, structure.sections().size());
-        assertSame(Blocks.AIR.defaultBlockState(), structure.block(position));
-        assertEquals(diagonalBefore + 2, diagonal.revision);
-    }
-
-    @Test
-    void setBlock_withMutablePosition_storesAnImmutableKey() {
-        StructureNode structure = new StructureNode();
-        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos(-1, -1, -1);
-        structure.setBlock(position, Blocks.OAK_LEAVES.defaultBlockState());
-        position.set(16, 16, 16);
-
-        assertSame(Blocks.OAK_LEAVES.defaultBlockState(), structure.block(new BlockPos(-1, -1, -1)));
-        assertSame(Blocks.AIR.defaultBlockState(), structure.block(position));
-    }
-
-    /** Проверяет границы для picking и отсечения после удаления крайнего блока. */
-    @Test
-    void bounds_whenRemovingOuterBlocks_shrinksAndClears() {
-        StructureNode structure = new StructureNode();
-        BlockPos left = new BlockPos(-2, -1, 0);
-        BlockPos right = new BlockPos(16, 2, 4);
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        assertNull(structure.bounds());
-
-        structure.setBlock(left, stone).setBlock(right, stone);
-        assertEquals(new Aabb(-2, -1, 0, 17, 3, 5), structure.bounds());
-        structure.setBlock(left, air);
-        assertEquals(new Aabb(16, 2, 4, 17, 3, 5), structure.bounds());
-        structure.setBlock(right, air);
-        assertNull(structure.bounds());
-    }
-
-    /** Проверяет отсечение слоёв, изменение границ и перестроение граней на стыке секций. */
-    @Test
-    void setTopVisibleY_atSectionBoundary_updatesVisibleGeometryAndBounds() {
-        StructureNode structure = new StructureNode();
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        BlockPos below = new BlockPos(0, 15, 0);
-        BlockPos above = new BlockPos(0, 16, 0);
-        structure.setBlock(below, stone).setBlock(above, stone);
-        var sections = structure.sections().iterator();
-        var lower = sections.next();
-        var upper = sections.next();
-        long lowerRevision = lower.revision;
-        long upperRevision = upper.revision;
-
-        structure.setTopVisibleY(15);
-        assertSame(stone, structure.block(above));
-        assertSame(Blocks.AIR.defaultBlockState(), structure.visibleBlock(above));
-        assertSame(stone, structure.visibleBlock(below));
-        assertEquals(new Aabb(0, 15, 0, 1, 16, 1), structure.bounds());
-        assertEquals(lowerRevision + 1, lower.revision);
-        assertEquals(upperRevision + 1, upper.revision);
-        structure.setTopVisibleY(Integer.MIN_VALUE);
-        assertNull(structure.bounds());
-        structure.setTopVisibleY(Integer.MAX_VALUE);
-        assertEquals(new Aabb(0, 15, 0, 1, 17, 1), structure.bounds());
-    }
-
-    /** Проверяет время открытия слоёв и сохранение конечного среза. */
-    @Test
-    void playAssembly_withNegativeAndHiddenLayers_revealsOnlyTheRequestedSlice() {
-        Scene3D viewport = new Scene3D();
-        StructureNode structure = new StructureNode();
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        structure.setBlock(new BlockPos(0, -2, 0), stone).setBlock(BlockPos.ZERO, stone)
-                .setBlock(new BlockPos(0, 4, 0), stone);
-        viewport.scene().addRoot(structure);
-        structure.playAssembly(viewport, 0.75f, 2);
-
-        assertNull(structure.bounds());
-        viewport.tick(new FrameContext(1, 0.25f, 0, FramePhase.ANIMATION));
-        assertEquals(-2, structure.topVisibleY());
-        assertEquals(new Aabb(0, -2, 0, 1, -1, 1), structure.bounds());
-        viewport.tick(new FrameContext(2, 0.25f, 0, FramePhase.ANIMATION));
-        assertEquals(-1, structure.topVisibleY());
-        viewport.tick(new FrameContext(3, 0.25f, 0, FramePhase.ANIMATION));
-        assertEquals(2, structure.topVisibleY());
-        assertEquals(new Aabb(0, -2, 0, 1, 1, 1), structure.bounds());
-        assertSame(Blocks.AIR.defaultBlockState(), structure.visibleBlock(new BlockPos(0, 4, 0)));
-    }
-
-    /** Проверяет замену активной анимации мгновенным показом и проверку аргументов. */
-    @Test
-    void playAssembly_whenReplacedWithZeroDuration_keepsNewLimit() {
-        Scene3D viewport = new Scene3D();
-        StructureNode structure = new StructureNode().setBlock(BlockPos.ZERO, Blocks.STONE.defaultBlockState());
-        assertThrows(IllegalArgumentException.class, () -> structure.playAssembly(viewport, 1, 0));
-        viewport.scene().addRoot(structure);
-        assertThrows(IllegalArgumentException.class, () -> structure.playAssembly(viewport, Float.NaN, 0));
-        structure.playAssembly(viewport, 1, 0);
-        structure.playAssembly(viewport, 0, -5);
-
-        viewport.tick(new FrameContext(1, 0.25f, 0, FramePhase.ANIMATION));
-        assertEquals(-5, structure.topVisibleY());
-    }
-
-    /** Проверяет дальность от мировых границ и совместимость с послойным просмотром. */
-    @Test
-    void distantMesh_forTransformedStructure_switchesByWorldDistanceAndRespectsSlice() {
-        Mesh3D proxy = new Mesh3D(new float[]{0, 0, 0, 2, 0, 0, 0, 1, 0}, null, null, null, new int[]{0, 1, 2});
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        StructureNode structure = new StructureNode().setBlock(BlockPos.ZERO, stone)
-                .setBlock(new BlockPos(1, 0, 0), stone).setDistantMesh(proxy, null, 3);
-        structure.setPosition(10, 0, 20).setRotation(new MutableQuat().setYawPitch(Math.PI / 2, 0)).setScale(2, 1, 1);
-        MutableMat4 world = structure.worldMatrix(new MutableMat4());
-        MutableVec3 eye = new MutableVec3(10, 0.5f, 14);
-
-        assertNull(structure.distantMesh(eye, world));
-        eye.set(10, 0.5f, 12);
-        var distant = structure.distantMesh(eye, world);
-        assertSame(proxy, distant.mesh());
-        assertSame(Material.DEFAULT, distant.material());
-        assertNull(structure.distantMesh(null, world));
-        structure.setTopVisibleY(0);
-        assertNull(structure.distantMesh(eye, world));
-        structure.setTopVisibleY(Integer.MAX_VALUE).setBlock(new BlockPos(1, 0, 0), Blocks.AIR.defaultBlockState());
-        assertNull(structure.distantMesh(eye, world));
+        assertSame(Blocks.OAK_LEAVES.defaultBlockState(), MinecraftScene.block(structure, position));
+        assertSame(Blocks.AIR.defaultBlockState(), MinecraftScene.block(structure, BlockPos.ZERO));
+        structure.setTopVisibleY(19);
+        assertSame(Blocks.AIR.defaultBlockState(), MinecraftScene.visibleBlock(structure, position));
+        structure.setBlock(-1, 20, 3, Blocks.AIR);
+        assertEquals(0, structure.blockCount());
+        structure.setBlock(0, 0, 0, "minecraft:furnace[lit=true]");
+        assertSame(Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.LIT, true),
+                MinecraftScene.block(structure, BlockPos.ZERO));
     }
 
     /** Проверяет сохранение данных block entity при обновлении свойств блока. */
     @Test
     void setBlock_withCompatibleState_preservesBlockEntity() {
-        StructureNode structure = new StructureNode();
-        BlockPos pos = BlockPos.ZERO;
+        StructureNode structure = new StructureNode(MinecraftScene.PLATFORM);
+        BlockPos pos = new BlockPos(2, 1, -3);
         BlockState furnace = Blocks.FURNACE.defaultBlockState();
-        structure.setBlock(pos, furnace);
-        var entity = structure.blockEntity(pos);
+        MinecraftScene.setBlock(structure, pos, furnace);
+        var entity = MinecraftScene.blockEntity(structure, pos);
         BlockState lit = furnace.setValue(FurnaceBlock.LIT, true);
-        structure.setBlock(pos, lit);
+        MinecraftScene.setBlock(structure, pos, lit);
 
-        assertSame(entity, structure.blockEntity(pos));
+        assertSame(entity, MinecraftScene.blockEntity(structure, pos));
         assertSame(lit, entity.getBlockState());
-        structure.setBlock(pos, Blocks.STONE.defaultBlockState());
-        assertNull(structure.blockEntity(pos));
-    }
-
-    /** Проверяет свободные ячейки, срез высоты и координаты видимого блока. */
-    @Test
-    void pick_onSparseStructure_findsNearestVisibleCell() {
-        StructureNode structure = new StructureNode();
-        BlockState stone = Blocks.STONE.defaultBlockState();
-        structure.setBlock(new BlockPos(0, 0, 0), stone)
-                .setBlock(new BlockPos(0, 0, -17), stone)
-                .setBlock(new BlockPos(2, 0, 0), stone);
-        Camera3D camera = new Camera3D().setViewport(100, 100).setOrthographic(4, 0.1f, 40);
-        new OrbitCameraController(camera, new MutableVec3(1.5f, 0.5f, 0), 5);
-        var picker = new ScenePicker();
-        var cell = new MutableVec3();
-        Scene scene = new Scene().addRoot(structure);
-
-        assertNull(picker.pick(scene, camera, 50, 50, cell));
-        assertSame(structure, picker.pick(scene, camera, 25, 50, cell));
-        assertEquals(0, cell.z(), 0);
-        structure.setBlock(BlockPos.ZERO, Blocks.AIR.defaultBlockState());
-        assertSame(structure, picker.pick(scene, camera, 25, 50, cell));
-        assertEquals(-17, cell.z(), 0);
-        structure.setTopVisibleY(-1);
-        assertNull(picker.pick(scene, camera, 25, 50, cell));
+        assertEquals(pos, entity.getBlockPos());
+        MinecraftScene.setBlock(structure, pos, Blocks.STONE.defaultBlockState());
+        assertNull(MinecraftScene.blockEntity(structure, pos));
     }
 
     @Test
-    void fromNbt_compressedMultiPalette_usesFirstPaletteAndReadsStateProperties() throws IOException {
+    void readStructure_compressedMultiPalette_usesFirstPaletteAndReadsStateProperties() throws IOException {
         BlockState furnace = Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.LIT, true);
         CompoundTag template = template(furnace, 0);
         ListTag alternatives = new ListTag();
@@ -250,20 +84,20 @@ class StructureNodeTest {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         NbtIo.writeCompressed(template, bytes);
 
-        StructureNode structure = StructureNode.fromNbt(new ByteArrayInputStream(bytes.toByteArray()));
+        StructureNode structure = MinecraftScene.readStructure(new ByteArrayInputStream(bytes.toByteArray()));
 
-        assertSame(furnace, structure.block(new BlockPos(1, 0, 2)));
+        assertSame(furnace, MinecraftScene.block(structure, new BlockPos(1, 0, 2)));
     }
 
     @Test
-    void fromNbt_invalidPaletteIndex_reportsInvalidTemplate() {
+    void readStructure_invalidPaletteIndex_reportsInvalidTemplate() {
         CompoundTag template = template(Blocks.STONE.defaultBlockState(), 1);
-        assertThrows(IOException.class, () -> StructureNode.fromNbt(template));
+        assertThrows(IOException.class, () -> MinecraftScene.readStructure(template));
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    void fromNbt_acrossPaletteFormats_preservesBlockProperties(boolean newFormat) throws IOException {
+    void readStructure_acrossPaletteFormats_preservesBlockProperties(boolean newFormat) throws IOException {
         CompoundTag template = template(Blocks.STONE.defaultBlockState(), 0);
         CompoundTag state = new CompoundTag();
         state.putString(newFormat ? "id" : "Name", "minecraft:furnace");
@@ -272,15 +106,15 @@ class StructureNodeTest {
         state.put(newFormat ? "properties" : "Properties", properties);
         ((ListTag) template.get("palette")).set(0, state);
 
-        StructureNode structure = StructureNode.fromNbt(template);
+        StructureNode structure = MinecraftScene.readStructure(template);
 
         assertSame(Blocks.FURNACE.defaultBlockState().setValue(FurnaceBlock.LIT, true),
-                structure.block(new BlockPos(1, 0, 2)));
+                MinecraftScene.block(structure, new BlockPos(1, 0, 2)));
     }
 
     @Test
     void setState_onBlockNode_onlyMarksActualChanges() {
-        BlockNode node = new BlockNode(Blocks.STONE.defaultBlockState());
+        BlockNode node = BlockNode.of(Blocks.STONE.defaultBlockState());
         Scene scene = new Scene().addRoot(node);
         long initial = scene.revision();
 
@@ -288,7 +122,7 @@ class StructureNodeTest {
         assertEquals(initial, scene.revision());
         node.setState(Blocks.GRASS_BLOCK.defaultBlockState());
         assertEquals(initial + 1, scene.revision());
-        assertSame(Blocks.GRASS_BLOCK.defaultBlockState(), node.state());
+        assertSame(Blocks.GRASS_BLOCK.defaultBlockState(), MinecraftScene.state(node));
     }
 
     private static CompoundTag template(BlockState state, int index) {

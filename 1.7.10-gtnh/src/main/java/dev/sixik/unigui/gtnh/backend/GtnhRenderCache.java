@@ -45,7 +45,6 @@ final class GtnhRenderCache implements AutoCloseable {
      *
      * @param policy        render policy, not {@code CONTINUOUS}
      * @param root          widget tree
-     * @param frame         draw list of the frame; receives one texture command
      * @param frameContext  render context writing into {@code frame}
      * @param layoutChanged {@code true} if layout ran this frame
      * @param logicalWidth  width of the UI in layout units
@@ -66,7 +65,7 @@ final class GtnhRenderCache implements AutoCloseable {
             nowNanos, lastRenderNanos, frameNanos);
         if (decision.action() == GtnhRenderPolicies.Action.REFRESH) {
             if (counters != null) counters.recordTextureCacheMiss(decision.reason());
-            refresh(root, targetWidth, targetHeight);
+            refresh(root, targetWidth, targetHeight, frameContext.pixelScale());
             if (counters != null) counters.recordTextureRender();
         } else if (counters != null) {
             counters.recordTextureCacheHit();
@@ -95,7 +94,7 @@ final class GtnhRenderCache implements AutoCloseable {
         lastRenderNanos = 0L;
     }
 
-    private void refresh(Widget root, int targetWidth, int targetHeight) {
+    private void refresh(Widget root, int targetWidth, int targetHeight, float pixelScale) {
         if (renderer == null || width != targetWidth || height != targetHeight) {
             if (renderer != null) renderer.close();
             renderer = new WidgetTextureRenderer(backend);
@@ -103,7 +102,7 @@ final class GtnhRenderCache implements AutoCloseable {
             height = targetHeight;
             texture = null;
         }
-        context.backend(backend);
+        context.pixelScale(pixelScale);
         drawList.clear();
         root.renderCached(context);
         // A window-sized target keeps the screen's pixels-per-unit, so the list is drawn in layout units.

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.EntityNode;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
@@ -49,13 +50,13 @@ final class EntityNodeTest {
     void constructor_forExternalEntity_assignsOnlyMissingId() {
         var entity = MinecraftClientCompat.previewEntity(MinecraftClientCompat.ZOMBIE, previewLevel());
         entity.setId(0);
-        assertSame(entity, new EntityNode(entity).entity());
+        assertSame(entity, MinecraftScene.entity(EntityNode.of(entity)));
         int previewId = entity.getId();
         assertTrue(previewId < 0);
-        assertEquals(previewId, new EntityNode(entity).entity().getId());
+        assertEquals(previewId, MinecraftScene.entity(EntityNode.of(entity)).getId());
 
         entity.setId(42);
-        assertEquals(42, new EntityNode(entity).entity().getId());
+        assertEquals(42, MinecraftScene.entity(EntityNode.of(entity)).getId());
     }
 
     /**

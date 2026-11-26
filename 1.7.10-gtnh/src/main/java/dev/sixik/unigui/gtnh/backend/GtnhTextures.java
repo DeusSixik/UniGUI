@@ -1,10 +1,12 @@
 package dev.sixik.unigui.gtnh.backend;
 
 import dev.sixik.unigui.api.render.TextureHandle;
+import dev.sixik.unigui.backend.shared.LegacyGlSceneRenderer.TextureBinding;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +45,28 @@ final class GtnhTextures {
     static ResourceLocation location(String id) {
         if (id == null || id.trim().isEmpty()) return MISSING;
         return PARSED.computeIfAbsent(id, ResourceLocation::new);
+    }
+
+    /**
+     * Resolves a scene texture and restores the binding if the resource had to be loaded.
+     * @param handle scene material texture.
+     * @return GL name and whether the source is vertically inverted, or null for a disposed target.
+     */
+    static TextureBinding sceneTexture(TextureHandle handle) {
+        if (handle.nativeHandle() instanceof GtnhRenderTarget.ColorTextureHandle target) {
+            return target.isDisposed() ? null : new TextureBinding(target.textureId(), target.flipY());
+        }
+        var manager = Minecraft.getMinecraft().getTextureManager();
+        ResourceLocation location = location(handle);
+        var texture = manager.getTexture(location);
+        if (texture != null) return new TextureBinding(texture.getGlTextureId(), false);
+        int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        try {
+            manager.bindTexture(location);
+            return new TextureBinding(GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D), false);
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
+        }
     }
 
     /**

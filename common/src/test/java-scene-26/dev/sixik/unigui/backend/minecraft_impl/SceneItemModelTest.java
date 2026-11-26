@@ -1,5 +1,7 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.scene.Scene;
 import net.minecraft.SharedConstants;
@@ -29,12 +31,13 @@ final class SceneItemModelTest {
     void bounds_withoutClient_fallsBackUntilStackBecomesEmpty() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
-        ItemNode node = new ItemNode(new ItemStack(Holder.direct(Items.DIAMOND_SWORD, DataComponentMap.EMPTY)));
+        ScenePlatform.install(MinecraftScene.PLATFORM);
+        ItemNode node = ItemNode.of(new ItemStack(Holder.direct(Items.DIAMOND_SWORD, DataComponentMap.EMPTY)));
         Scene scene = new Scene().addRoot(node);
         long revision = scene.revision();
 
         assertEquals(new Aabb(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f), node.bounds());
-        node.setStack(ItemStack.EMPTY);
+        node.setItem(ItemStack.EMPTY);
 
         assertEquals(revision + 1, scene.revision());
         assertNull(node.bounds());

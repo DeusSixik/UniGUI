@@ -10,17 +10,17 @@ import dev.sixik.unigui.api.scene.DirectionalLight;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
 import dev.sixik.unigui.api.scene.SceneNode;
-import dev.sixik.unigui.backend.minecraft_impl.BlockNode;
-import dev.sixik.unigui.backend.minecraft_impl.EntityNode;
-import dev.sixik.unigui.backend.minecraft_impl.ItemNode;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.ItemNode;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftScene;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftTextureHandle;
 import dev.sixik.unigui.backend.minecraft_impl.MinecraftWidgetScreen;
-import dev.sixik.unigui.backend.minecraft_impl.StructureNode;
+import dev.sixik.unigui.api.scene.StructureNode;
 import dev.sixik.unigui.widgets.rendering.RenderToTexture;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 
@@ -64,27 +64,27 @@ public final class SceneMeshDemo {
         for (int z = 0; z < 5; z++) {
             for (int x = 0; x < 5; x++) {
                 boolean water = x > 0 && x < 4 && z > 0 && z < 4;
-                structure.setBlock(new BlockPos(x, 0, z),
+                structure.setBlock(x, 0, z,
                         (water ? Blocks.STONE_BRICKS : Blocks.GRASS_BLOCK).defaultBlockState());
-                if (water) structure.setBlock(new BlockPos(x, 1, z), Blocks.WATER.defaultBlockState());
+                if (water) structure.setBlock(x, 1, z, Blocks.WATER.defaultBlockState());
             }
         }
         for (int y = 1; y < 5; y++) {
-            structure.setBlock(new BlockPos(0, y, 0),
+            structure.setBlock(0, y, 0,
                     (y < 3 ? Blocks.OAK_LOG : Blocks.OAK_LEAVES).defaultBlockState());
-            structure.setBlock(new BlockPos(1, y, 0), Blocks.OAK_LEAVES.defaultBlockState());
+            structure.setBlock(1, y, 0, Blocks.OAK_LEAVES.defaultBlockState());
         }
-        for (int z = 1; z < 4; z++) structure.setBlock(new BlockPos(4, 1, z), Blocks.GLASS.defaultBlockState());
-        structure.setBlock(new BlockPos(0, 1, 2), Blocks.FURNACE.defaultBlockState());
-        structure.setBlock(new BlockPos(4, 1, 4), Blocks.CHEST.defaultBlockState());
-        BlockNode furnace = new BlockNode(Blocks.FURNACE.defaultBlockState());
+        for (int z = 1; z < 4; z++) structure.setBlock(4, 1, z, Blocks.GLASS.defaultBlockState());
+        structure.setBlock(0, 1, 2, Blocks.FURNACE.defaultBlockState());
+        structure.setBlock(4, 1, 4, Blocks.CHEST.defaultBlockState());
+        BlockNode furnace = BlockNode.of(Blocks.FURNACE.defaultBlockState());
         furnace.setPosition(3.6f, 0, 5.4f).setRotation(new MutableQuat().setYawPitch(Math.PI, 0));
-        BlockNode secondFurnace = new BlockNode(furnace.state());
+        BlockNode secondFurnace = BlockNode.of(MinecraftScene.state(furnace));
         secondFurnace.setPosition(4.8f, 0, 5.4f).setRotation(new MutableQuat().setYawPitch(Math.PI * 0.75, 0));
-        EntityNode zombie = EntityNode.preview(MinecraftClientCompat.ZOMBIE);
+        EntityNode zombie = EntityNode.of(MinecraftClientCompat.ZOMBIE);
         zombie.setPosition(1.1f, 0, 5.9f).setRotation(new MutableQuat().setYawPitch(0.38, 0));
         widget.scene().addRoot(structure).addRoot(furnace).addRoot(secondFurnace).addRoot(zombie);
-        ItemNode item = new ItemNode(SceneDemoItems.sword());
+        ItemNode item = ItemNode.of(SceneDemoItems.sword());
         item.setPosition(4.72f, 2.8f, 4.55f).setScale(1.6f, 1.6f, 1.6f)
                 .setRotation(new MutableQuat().setYawPitch(0.32, 0));
         widget.scene().addRoot(item);

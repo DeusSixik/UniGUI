@@ -16,6 +16,7 @@ import dev.sixik.unigui.api.render.*;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
+import dev.sixik.unigui.backend.shared.LegacyGlSceneRenderer;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
 import dev.sixik.unigui.impl.render.ScissorStack;
@@ -65,6 +66,12 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
     private final CleanroomTextRenderer textRenderer;
     private final CleanroomShapeRenderer shapeRenderer;
     private final CleanroomShaderQuadRenderer shaderRenderer = new CleanroomShaderQuadRenderer();
+    /**
+     * Offscreen mesh rendering for Scene3D widgets.
+     */
+    private final LegacyGlSceneRenderer sceneRenderer =
+            new LegacyGlSceneRenderer(CleanroomGuiRenderBackend::sceneFramebuffer, CleanroomTextures::sceneTexture,
+                    CleanroomScene.PLATFORM);
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectPassList = new DrawList();
@@ -140,20 +147,36 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
     }
 
     /**
-     * Offscreen-рендер с масштабом координат (нужен {@code RenderToTexture} и UI-поверхностям в мире).
+     * {@inheritDoc}
+     */
+    @Override
+    public Scene3DRenderer scene3D() {
+        return sceneRenderer;
+    }
+
+    /**
+     * Verifies the target can preserve the 3D color buffer across the 2D pass.
      *
-     * <p>TODO 1.12.2 (Cleanroom): поддержать масштаб — ortho на {@code target / coordinateScale} при рендере в target.
-     * Пока без масштаба вызов просто делегирует в {@link #render(DrawList, RenderTarget)}, а с масштабом
-     * бросает исключение, чтобы недоделку не пропустить.</p>
+     * @param target offscreen destination.
+     * @return live GL framebuffer name.
+     * @throws IllegalArgumentException if the target is incompatible with the scene pass.
+     */
+    private static int sceneFramebuffer(RenderTarget target) {
+        if (!(target instanceof CleanroomRenderTarget own) || !own.options().useDepth()
+                || own.options().clearBeforeRender()) {
+            throw new IllegalArgumentException("Scene3D requires a Cleanroom render target with depth and no automatic clear");
+        }
+        return own.framebufferId();
+    }
+
+    /**
+     * {@inheritDoc}
      */
     @Override
     public void render(DrawList drawList, RenderTarget target, float coordinateScale) {
-        if (Math.abs(coordinateScale - 1.0f) <= 1.0e-4f) {
-            render(drawList, target);
-            return;
-        }
-        throw new UnsupportedOperationException("RenderToTexture with coordinateScale=" + coordinateScale
-                + " is not implemented on 1.12.2 (Cleanroom) yet");
+        if (target instanceof CleanroomRenderTarget own)
+            renderToTarget(drawList, own, coordinateScale, coordinateScale);
+        else render(drawList, target);
     }
 
     @Override
@@ -470,6 +493,7 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
         postEffectLayerTargets.close();
         postEffectPingTargets.close();
         shaderRenderer.close();
+        sceneRenderer.close();
     }
 
     private void renderBatches(DrawList drawList) {

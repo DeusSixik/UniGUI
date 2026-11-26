@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.StructureNode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -49,7 +50,7 @@ final class SceneStructureNbt {
             }
             palette[i] = readState(state, i);
         }
-        StructureNode structure = new StructureNode();
+        StructureNode structure = new StructureNode(MinecraftScene.PLATFORM);
         if (!(template.get("blocks") instanceof ListTag blocks)) throw new IOException("Missing structure block list");
         for (int i = 0; i < blocks.size(); i++) {
             if (!(blocks.get(i) instanceof CompoundTag entry)) throw new IOException("Invalid structure block");
@@ -58,18 +59,16 @@ final class SceneStructureNbt {
             if (index < 0 || index >= palette.length || !(entry.get("pos") instanceof ListTag pos) || pos.size() != 3) {
                 throw new IOException("Invalid structure block entry " + i);
             }
-            BlockPos blockPos = new BlockPos(
-                    coordinate(pos, 0),
-                    coordinate(pos, 1),
-                    coordinate(pos, 2));
-            if (!BlockPos.of(blockPos.asLong()).equals(blockPos)) {
-                throw new IOException("Structure coordinates exceed Minecraft block range");
+            int x = coordinate(pos, 0), y = coordinate(pos, 1), z = coordinate(pos, 2);
+            try {
+                structure.setBlock(x, y, z, palette[index]);
+            } catch (IllegalArgumentException outside) {
+                throw new IOException("Structure coordinates exceed Minecraft block range", outside);
             }
-            structure.setBlock(blockPos, palette[index]);
 
-            if (entry.get("nbt") instanceof CompoundTag data && structure.blockEntity(blockPos) != null) {
-                BlockEntity loaded = SceneNbtCompat.blockEntity(blockPos, palette[index], data);
-                if (loaded != null) structure.replaceBlockEntity(blockPos, loaded);
+            if (entry.get("nbt") instanceof CompoundTag data && structure.blockEntity(x, y, z) != null) {
+                BlockEntity loaded = SceneNbtCompat.blockEntity(new BlockPos(x, y, z), palette[index], data);
+                if (loaded != null) structure.setBlockEntity(x, y, z, loaded);
             }
         }
         return structure;

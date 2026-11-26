@@ -1,5 +1,7 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.math.Aabb;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
@@ -17,12 +19,13 @@ final class ItemNodeTest {
     static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        ScenePlatform.install(MinecraftScene.PLATFORM);
     }
 
     /** Проверяет приоритет пользовательского AABB и возврат к отсутствию границ после сброса. */
     @Test
     void bounds_explicitOverride_staysUntilCleared() {
-        ItemNode node = new ItemNode(ItemStack.EMPTY);
+        ItemNode node = ItemNode.of(ItemStack.EMPTY);
         Aabb custom = new Aabb(0, 0, 0, 2, 1, 1);
 
         assertNull(node.bounds());

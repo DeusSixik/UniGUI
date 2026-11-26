@@ -34,8 +34,8 @@ final class SceneItemModel {
      * @param stack  стек, источник компонентов модели.
      * @param out    состояние для отрисовки или чтения границ.
      */
-    static void resolve(Minecraft client, ItemStack stack, ItemStackRenderState out) {
-        client.getItemModelResolver().updateForTopItem(out, stack, ItemDisplayContext.FIXED, client.level, null, 0);
+    static void resolve(Minecraft client, ItemStack stack, ItemDisplayContext context, ItemStackRenderState out) {
+        client.getItemModelResolver().updateForTopItem(out, stack, context, client.level, null, 0);
     }
 
     /**
@@ -45,9 +45,9 @@ final class SceneItemModel {
      * @param stack  стек, источник компонентов модели.
      * @return локальный AABB или null, если модель не предоставляет границы.
      */
-    static Aabb bounds(Minecraft client, ItemStack stack) {
+    static Aabb bounds(Minecraft client, ItemStack stack, ItemDisplayContext context) {
         ItemStackRenderState model = new ItemStackRenderState();
-        resolve(client, stack, model);
+        resolve(client, stack, context, model);
         return bounds(model);
     }
 

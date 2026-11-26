@@ -248,6 +248,12 @@ abstract class DemoCategory {
                     draw.line(cx, y + height - 4.5f, x + 3.5f, y + height - 1.0f, stroke);
                     draw.line(cx, y + height - 4.5f, x + width - 3.5f, y + height - 1.0f, stroke);
                 }
+                case "mc-scene" -> {
+                    draw.line(x + 1.5f, cy, cx, y + 1.5f, stroke);
+                    draw.line(cx, y + 1.5f, x + width - 1.5f, cy, stroke);
+                    draw.rect(x + 3.0f, cy, width - 6.0f, y + height - 1.5f - cy, stroke);
+                    draw.rectFilled(cx - 1.5f, y + height - 5.5f, 3.0f, 4.0f, fill);
+                }
                 case "mc-pickers" -> {
                     draw.rect(x + 1.0f, y + 2.0f, width - 2.0f, height - 4.0f, stroke);
                     draw.rectFilled(x + 4.0f, y + 5.0f, 3.0f, 3.0f, fill);

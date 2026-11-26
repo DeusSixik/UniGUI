@@ -1,19 +1,23 @@
 package dev.sixik.unigui.cleanroom.commands;
 
+import dev.sixik.unigui.cleanroom.backend.CleanroomClientEvents;
 import dev.sixik.unigui.cleanroom.demo.IntegrationLab;
 import dev.sixik.unigui.cleanroom.demo.MinecraftLab;
 import dev.sixik.unigui.cleanroom.demo.PostEffectLab;
 import dev.sixik.unigui.cleanroom.demo.TextLab;
 import dev.sixik.unigui.cleanroom.demo.TextureLab;
 import dev.sixik.unigui.demo.basic.main_demo.UniGuiDemo;
-import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandBase;
-import net.minecraft.command.CommandException;
-import net.minecraft.command.ICommand;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.BlockPos;
 
-public class CommandUniGUI extends CommandBase implements ICommand {
+import java.util.List;
+
+/**
+ * Client command for opening UniGUI demos from chat.
+ */
+public class CommandUniGUI extends CommandBase {
 
     @Override
     public String getName() {
@@ -36,7 +40,17 @@ public class CommandUniGUI extends CommandBase implements ICommand {
     }
 
     @Override
-    public void execute(MinecraftServer minecraftServer, ICommandSender iCommandSender, String[] strings) throws CommandException {
+    public void execute(MinecraftServer minecraftServer, ICommandSender iCommandSender, String[] strings) {
+        CleanroomClientEvents.runAfterChat(() -> openClient(iCommandSender, strings));
+    }
+
+    /**
+     * Handles the command after chat has closed, so a screen opened here remains visible.
+     *
+     * @param iCommandSender client command sender for status messages.
+     * @param strings        command arguments after {@code /unigui}.
+     */
+    private static void openClient(ICommandSender iCommandSender, String[] strings) {
         if (strings.length > 0 && "textures".equalsIgnoreCase(strings[0])) {
             TextureLab.open();
             return;
@@ -67,6 +81,20 @@ public class CommandUniGUI extends CommandBase implements ICommand {
             return;
         }
 
-        Minecraft.getMinecraft().addScheduledTask(() -> UniGuiDemo.openGui());
+        UniGuiDemo.openGui();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos) {
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(args, "demo", "textures", "text", "minecraft", "posteffect", "lab");
+        }
+        if (args.length == 2 && "demo".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, CleanroomDemoLauncher.names());
+        }
+        return List.of();
     }
 }

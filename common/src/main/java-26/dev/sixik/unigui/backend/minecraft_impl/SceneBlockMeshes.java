@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.StructureNode;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.client.Minecraft;
@@ -129,19 +130,25 @@ final class SceneBlockMeshes {
     List<Surface> section(StructureNode structure, StructureNode.Section section) {
         refreshModels();
         BakedSection cached = sections.get(section);
-        if (cached != null && cached.revision == section.revision) return cached.surfaces;
-        Bake bake = new Bake(section.pos.minBlockX(), section.pos.minBlockY(), section.pos.minBlockZ());
+        if (cached != null && cached.revision == section.revision()) return cached.surfaces;
+        int west = section.minBlockX(), bottom = section.minBlockY(), north = section.minBlockZ();
+        Bake bake = new Bake(west, bottom, north);
         view.structure = structure;
         try {
             int topY = structure.topVisibleY();
-            section.blocks.forEach((position, state) -> {
-                if (position.getY() <= topY) bake.addBlock(position, state);
-            });
+            for (int index = 0; index < StructureNode.Section.VOLUME; index++) {
+                Object state = section.state(index);
+                if (state == null) continue;
+                int y = bottom + StructureNode.Section.localY(index);
+                if (y > topY) continue;
+                bake.addBlock(new BlockPos(west + StructureNode.Section.localX(index), y,
+                        north + StructureNode.Section.localZ(index)), (BlockState) state);
+            }
         } finally {
             view.structure = null;
         }
         List<Surface> surfaces = bake.finish();
-        sections.put(section, new BakedSection(section.revision, surfaces));
+        sections.put(section, new BakedSection(section.revision(), surfaces));
         return surfaces;
     }
 
@@ -345,7 +352,7 @@ final class SceneBlockMeshes {
          */
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            if (structure != null) return structure.visibleBlock(pos);
+            if (structure != null) return MinecraftScene.visibleBlock(structure, pos);
             return single != null && pos.equals(BlockPos.ZERO) ? single : Blocks.AIR.defaultBlockState();
         }
 
@@ -362,7 +369,8 @@ final class SceneBlockMeshes {
          */
         @Override
         public BlockEntity getBlockEntity(BlockPos pos) {
-            return structure != null && pos.getY() <= structure.topVisibleY() ? structure.blockEntity(pos) : null;
+            return structure != null && pos.getY() <= structure.topVisibleY()
+                    ? MinecraftScene.blockEntity(structure, pos) : null;
         }
 
         /**

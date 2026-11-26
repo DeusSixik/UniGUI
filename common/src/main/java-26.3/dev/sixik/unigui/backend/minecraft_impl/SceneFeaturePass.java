@@ -1,6 +1,5 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
-import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeStorage;
@@ -32,13 +31,6 @@ final class SceneFeaturePass implements AutoCloseable {
      */
     SubmitNodeStorage storage() {
         return storage;
-    }
-
-    /**
-     * Привязывает ванильный свет для моделей, показанных внутри UI.
-     */
-    static void setupLighting() {
-        Minecraft.getInstance().gameRenderer.lighting().setupFor(Lighting.Entry.ENTITY_IN_UI);
     }
 
     /**

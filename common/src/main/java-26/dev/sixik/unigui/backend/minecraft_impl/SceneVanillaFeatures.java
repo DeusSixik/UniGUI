@@ -1,6 +1,12 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.ItemNode;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import com.mojang.blaze3d.ProjectionType;
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.sixik.unigui.api.math.MutableMat4;
@@ -21,6 +27,10 @@ import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Передаёт ванильным моделям мировые матрицы узлов и использует ту же глубину, что и меши.
@@ -58,6 +68,14 @@ final class SceneVanillaFeatures implements AutoCloseable {
      * Перевод из мировых координат в координаты камеры для сортировки ванильных команд.
      */
     private final Matrix4f view = new Matrix4f();
+    /**
+     * Направления ванильного света в координатах камеры.
+     */
+    private final Vector3f light0 = new Vector3f(), light1 = new Vector3f();
+    /**
+     * Блок света в layout std140: два vec3, каждый выровнен до 16 байт.
+     */
+    private final ByteBuffer lightBytes = ByteBuffer.allocateDirect(Lighting.UBO_SIZE).order(ByteOrder.nativeOrder());
     /**
      * Проекция в часть общей цели, с направлением глубины текущей версии.
      */
@@ -120,16 +138,27 @@ final class SceneVanillaFeatures implements AutoCloseable {
      * @param world мировое преобразование узла.
      */
     void submit(EntityNode node, MutableMat4 world) {
+        SceneEntity handle = MinecraftScene.handle(node);
+        if (handle == null) return;
         var dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
-        EntityRenderState state = node.fixedState();
-        if (state == null) {
-            state = dispatcher.extractEntity(node.entity(), partialTick);
+        Entity model = handle.entity();
+        EntityRenderState state;
+        if (model == null) {
+            state = handle.fixedState();
+            if (state == null) return;
+        } else {
+            state = dispatcher.extractEntity(model, partialTick);
             state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
             state.outlineColor = EntityRenderState.NO_OUTLINE;
             state.shadowPieces.clear();
             state.nameTag = null;
             state.scoreText = null;
             state.leashStates = null;
+        }
+        if (node.hasHead() && state instanceof LivingEntityRenderState living) {
+            // Состояние хранит поворот головы относительно тела в градусах.
+            living.yRot = (float) Math.toDegrees(node.headYaw());
+            living.xRot = (float) Math.toDegrees(node.headPitch());
         }
         setPose(world);
         submitted = true;
@@ -143,8 +172,9 @@ final class SceneVanillaFeatures implements AutoCloseable {
      * @param world мировое преобразование предмета.
      */
     void submit(ItemNode node, MutableMat4 world) {
-        if (node.renderStack().isEmpty()) return;
-        SceneItemModel.resolve(Minecraft.getInstance(), node.renderStack(), item);
+        ItemStack stack = MinecraftScene.renderStack(node);
+        if (stack.isEmpty()) return;
+        SceneItemModel.resolve(Minecraft.getInstance(), stack, MinecraftScene.context(node.display()), item);
         if (item.isEmpty()) return;
         setPose(world);
         submitted = true;
@@ -208,7 +238,7 @@ final class SceneVanillaFeatures implements AutoCloseable {
             RenderSystem.setProjectionMatrix(projectionBuffer.getBuffer(projection),
                     orthographic ? ProjectionType.ORTHOGRAPHIC : ProjectionType.PERSPECTIVE);
             RenderSystem.setShaderFog(fog.getBuffer(FogRenderer.FogMode.NONE));
-            SceneFeaturePass.setupLighting();
+            RenderSystem.setShaderLights(lights());
             int width = Math.clamp((int) Math.ceil(viewportWidth), 1, target.width());
             int height = Math.clamp((int) Math.ceil(viewportHeight), 1, target.height());
             pass.render(target, width, height);
@@ -218,6 +248,20 @@ final class SceneVanillaFeatures implements AutoCloseable {
             RenderSystem.setShaderLights(previousLights);
             RenderSystem.setProjectionMatrix(previousProjection, previousType);
         }
+    }
+
+    /**
+     * Загружает ванильный свет мира, закреплённый в сцене, как у блоков с запечённым затенением граней.
+     *
+     * @return срез uniform-буфера в формате {@link Lighting}.
+     */
+    private com.mojang.blaze3d.buffers.GpuBufferSlice lights() {
+        MinecraftScene.lightsInView(view, light0, light1);
+        lightBytes.clear();
+        light0.get(0, lightBytes);
+        light1.get(16, lightBytes);
+        lightBytes.limit(Lighting.UBO_SIZE);
+        return UiGpu.uploadUniform(lightBytes);
     }
 
     /**

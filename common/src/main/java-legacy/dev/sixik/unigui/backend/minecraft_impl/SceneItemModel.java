@@ -58,13 +58,13 @@ final class SceneItemModel {
      * @param stack  стек, источник свойств модели.
      * @return локальный AABB или null для моделей без доступной запечённой геометрии.
      */
-    static Aabb bounds(Minecraft client, ItemStack stack) {
+    static Aabb bounds(Minecraft client, ItemStack stack, ItemDisplayContext context) {
         BakedModel model;
         if (stack.is(Items.TRIDENT)) model = client.getModelManager().getModel(TRIDENT_MODEL);
         else if (stack.is(Items.SPYGLASS)) model = client.getModelManager().getModel(SPYGLASS_MODEL);
         else model = client.getItemRenderer().getModel(stack, client.level, null, 0);
         if (MinecraftRendererPlatformHook.hasCustomItemRendererImpl(stack)) return null;
-        return bounds(model);
+        return bounds(model, context);
     }
 
     /**
@@ -75,10 +75,10 @@ final class SceneItemModel {
      * @param model модель с четырьмя вершинами на квад, в координатах запекания Minecraft.
      * @return локальный AABB или null, если у модели нет запечённых вершин.
      */
-    static Aabb bounds(BakedModel model) {
+    static Aabb bounds(BakedModel model, ItemDisplayContext context) {
         if (model == null || model.isCustomRenderer()) return null;
         PoseStack pose = new PoseStack();
-        model.getTransforms().getTransform(ItemDisplayContext.FIXED).apply(false, pose);
+        model.getTransforms().getTransform(context).apply(false, pose);
         pose.translate(-0.5f, -0.5f, -0.5f);
         var transform = pose.last().pose();
         RandomSource random = RandomSource.create(QUAD_SEED);

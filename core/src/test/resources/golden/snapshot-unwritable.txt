@@ -2,6 +2,10 @@ Accordion.align
 Accordion.class
 Accordion.overflow
 Accordion.styleClass
+Block.align
+Block.class
+Block.overflow
+Block.styleClass
 Box.align
 Box.class
 Box.overflow
@@ -71,6 +75,10 @@ DropDownBox.align
 DropDownBox.class
 DropDownBox.overflow
 DropDownBox.styleClass
+Entity.align
+Entity.class
+Entity.overflow
+Entity.styleClass
 ExpandablePanel.align
 ExpandablePanel.class
 ExpandablePanel.overflow
@@ -97,6 +105,10 @@ ImageView.align
 ImageView.class
 ImageView.overflow
 ImageView.styleClass
+Item.align
+Item.class
+Item.overflow
+Item.styleClass
 Label.align
 Label.class
 Label.overflow
@@ -221,6 +233,10 @@ StackPanel.align
 StackPanel.class
 StackPanel.overflow
 StackPanel.styleClass
+Structure.align
+Structure.class
+Structure.overflow
+Structure.styleClass
 TabControl.align
 TabControl.class
 TabControl.overflow
