@@ -1,6 +1,7 @@
 package dev.sixik.unigui.testmod.mixin;
 
 import dev.sixik.unigui.testmod.client.TestModClient;
+import dev.sixik.unigui.testmod.client.ui.TestUI;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -75,7 +76,7 @@ public abstract class TitleScreenMixin extends Screen {
         addRenderableWidget(Button.builder(Component.literal("Signal Binding"), button -> TestModClient.openBindingDemo())
                 .bounds(width - 364, 8, 116, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.literal("Inventory Demo"), button -> TestModClient.openInventoryDemo())
+        addRenderableWidget(Button.builder(Component.literal("Test Screen"), button -> TestUI.open())
                 .bounds(width - 364, 32, 116, 20)
                 .build());
     }

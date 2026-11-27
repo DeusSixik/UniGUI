@@ -1,28 +1,13 @@
 package dev.sixik.unigui.testmod.client;
 
-import dev.sixik.unigui.demo.ui.DominionScreen;
+import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.api.text.*;
+import dev.sixik.unigui.demo.ui.*;
 import dev.sixik.unigui.demo.ui.interactive.space_ship_minigame.SolarNavigationScreen;
-import dev.sixik.unigui.demo.ui.BindingDemoScreen;
-import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
-import dev.sixik.unigui.demo.ui.MarkerCullingDemoScreen;
-import dev.sixik.unigui.demo.ui.MarkerScalingDemoScreen;
-import dev.sixik.unigui.demo.ui.ForkInSocketMinigameScreen;
-import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
-import dev.sixik.unigui.testmod.client.ui.LoadingScreenDemo;
-import dev.sixik.unigui.testmod.client.ui.InventoryDemoScreen;
-import dev.sixik.unigui.demo.ui.OverlayRenderDemo;
-import dev.sixik.unigui.demo.ui.PlugSocketMinigameScreen;
-import dev.sixik.unigui.demo.ui.PostProcessingLayerTestScreen;
-import dev.sixik.unigui.demo.ui.RetroTerminalScreen;
-import dev.sixik.unigui.demo.ui.RibbonRoadsDemoScreen;
-import dev.sixik.unigui.demo.ui.SpannerRhythmMinigameScreen;
-import dev.sixik.unigui.demo.ui.SyncBatteryMinigameScreen;
-import dev.sixik.unigui.demo.ui.TutorialScreen;
 import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
-import dev.sixik.unigui.demo.ui.WrenchNutMinigameScreen;
-import dev.sixik.unigui.demo.ui.WireConnectionMinigameScreen;
 import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
-import dev.sixik.unigui.demo.ui.DemoAssets;
+import dev.sixik.unigui.testmod.client.ui.InventoryDemoScreen;
+import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
 import net.fabricmc.api.ClientModInitializer;
 
 /**
@@ -32,8 +17,33 @@ public final class TestModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         DemoAssets.provider(MinecraftDemoAssets::load);
+
+/*        TextureHandle icon = new MinecraftTextureHandle(
+                ResourceLocation.tryBuild("minecraft", "textures/gui_background.png"), 64, 64);
+        InlineContentRenderer iconRenderer = InlineContentRenderer.texture(icon);
+        InlineMarkers.register("key", (argument, size) ->
+                InlineContentSpan.sized("key:" + argument, size, iconRenderer)
+                        .withAlignment(InlineContentAlignment.BASELINE)
+                        .withMargins(1, 1));*/
 //        LoadingScreenDemo.register();
 //        OverlayRenderDemo.register();
+
+        InlineMarkers.register("key", new InlineMarkerHandler() {
+            private InlineContentRenderer renderer;
+
+            @Override
+            public InlineContentSpan create(String argument, InlineSize size) {
+                if (renderer == null) {
+                    renderer = InlineContentRenderer.texture(DemoAssets.texture(
+                            "unigui_testmod:keys/gui_background",
+                            "assets/testmod/textures/gui_background.png",
+                            TextureOptions.defaults()));
+                }
+                return InlineContentSpan.sized("key:" + argument, size, renderer)
+                        .withAlignment(InlineContentAlignment.BASELINE)
+                        .withMargins(1, 1);
+            }
+        });
     }
 
     /**

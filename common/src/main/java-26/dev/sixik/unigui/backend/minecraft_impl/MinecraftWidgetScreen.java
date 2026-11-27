@@ -1379,7 +1379,7 @@ public class MinecraftWidgetScreen extends Screen {
 
     private static RichText scaledRichText(RichText text, float scale) {
         RichText.Builder builder = RichText.builder();
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             builder.font(run.font())
                     .size(run.pixelSize() * scale)
                     .color(run.color())

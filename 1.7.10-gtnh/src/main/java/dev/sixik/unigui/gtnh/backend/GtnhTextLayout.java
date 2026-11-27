@@ -116,7 +116,7 @@ final class GtnhTextLayout {
         float lineSnapY = 0.0f;
 
         // Indexed loops: an iterator over the run list would allocate on every text command of every frame.
-        List<TextRun> runs = text.runs();
+        List<TextRun> runs = text.textRuns();
         for (int runIndex = 0, runCount = runs.size(); runIndex < runCount; runIndex++) {
             TextRun run = runs.get(runIndex);
             FontFace face = run.font() == null ? defaultFace : run.font();
@@ -238,7 +238,7 @@ final class GtnhTextLayout {
         lineCount = 0;
         float ascent = 0.0f;
         float height = 0.0f;
-        List<TextRun> runs = text.runs();
+        List<TextRun> runs = text.textRuns();
         for (int runIndex = 0, runCount = runs.size(); runIndex < runCount; runIndex++) {
             TextRun run = runs.get(runIndex);
             FontFace face = run.font() == null ? defaultFace : run.font();

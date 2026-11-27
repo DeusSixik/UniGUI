@@ -56,8 +56,8 @@ public final class RenderPolishSelfTest {
                 .build();
 
         assertTrue("CAMP".equals(text.plainText()), "uppercase transform should affect plain text");
-        assertClose(0.18f, text.runs().get(0).tracking(), "run tracking");
-        assertTrue(text.runs().get(0).transform() == TextTransform.UPPERCASE, "run transform");
+        assertClose(0.18f, text.textRuns().get(0).tracking(), "run tracking");
+        assertTrue(text.textRuns().get(0).transform() == TextTransform.UPPERCASE, "run transform");
     }
 
     private void dashedLineExpandsToSolidSegments() {

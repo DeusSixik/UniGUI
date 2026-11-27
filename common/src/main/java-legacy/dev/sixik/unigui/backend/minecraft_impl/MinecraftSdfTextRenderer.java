@@ -257,7 +257,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
     private boolean canRender(DrawCommand command) {
         if (command == null || command.text() == null || command.text().isEmpty()) return true;
         RichText text = richText(command);
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             if (!(resolvedFace(run) instanceof SdfGlyphProvider)) return false;
         }
         return true;
@@ -349,7 +349,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         float lineSnapOffsetY = 0.0f;
         boolean lineSnapInitialized = false;
 
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             FontFace face = resolvedFace(run);
             SdfGlyphProvider provider = (SdfGlyphProvider) face;
             FontAtlas atlas = atlases.computeIfAbsent(face, ignored -> new FontAtlas(provider));
@@ -410,7 +410,7 @@ public final class MinecraftSdfTextRenderer implements AutoCloseable {
         List<LineInfo> lines = new ObjectArrayList<>();
         float ascent = 0.0f;
         float height = 0.0f;
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             FontMetrics metrics = resolvedFace(run).metrics(run.pixelSize());
             ascent = Math.max(ascent, metrics.ascent());
             height = Math.max(height, metrics.lineHeight());

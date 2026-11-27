@@ -164,7 +164,20 @@ public class TextWidget extends WidgetBase {
             title = "<key:text.widget.method.font.title>",
             summary = "<key:text.widget.method.font.summary>")
     public TextWidget font(FontFace font, float pixelSize) {
-        return richText(RichText.of(text, font, pixelSize));
+        // Шрифт применяется к уже разобранному тексту: inline-маркеры, цвета и brush'и сохраняются,
+        // а em-иконки пересчитываются под новый размер.
+        return restyle(effectiveRichText().withFont(font).withTextStyle(pixelSize, null, null));
+    }
+
+    /**
+     * Заменяет rich text его же стилизованной копией, сохраняя исходную строку {@link #text()}
+     * (с маркерами), а не plain fallback.
+     */
+    private TextWidget restyle(RichText styled) {
+        String source = text;
+        richText(styled);
+        this.text = source;
+        return this;
     }
 
     /**
@@ -177,7 +190,7 @@ public class TextWidget extends WidgetBase {
             title = "<key:text.widget.method.text_brush.title>",
             summary = "<key:text.widget.method.text_brush.summary>")
     public TextWidget textBrush(TextBrush brush) {
-        return richText(effectiveRichText().withBrush(brush));
+        return restyle(effectiveRichText().withBrush(brush));
     }
 
     /**
@@ -919,17 +932,16 @@ public class TextWidget extends WidgetBase {
 
         RichText head = source.slice(0, keep);
         TextRun style = null;
-        for (TextRun run : head.runs()) style = run;
+        for (TextRun run : head.textRuns()) style = run;
         if (style == null) {
-            for (TextRun run : source.runs()) {
+            for (TextRun run : source.textRuns()) {
                 style = run;
                 break;
             }
         }
-        if (style == null) return RichText.plain(head.plainText() + "...");
-        TextRun dots = new TextRun("...", style.font(), style.pixelSize(), style.color(), style.brush(),
-                style.tracking(), style.transform());
-        return head.append(new RichText(List.of(dots)));
+        // Текст из одних inline-span'ов: иконки сохраняются, точки рисуются стилем по умолчанию.
+        if (style == null) return head.append(RichText.plain("..."));
+        return head.append(RichText.ofSpans(List.of(style.withText("..."))));
     }
 
     /** Наибольшее число символов префикса (с необязательным суффиксом), чья ширина не больше {@code limit}. */

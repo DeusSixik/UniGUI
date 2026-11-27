@@ -78,7 +78,7 @@ public final class InventoryDemoScreen {
 
     private static TextureHandle demoTexture(String name) {
         return DemoAssets.texture("unigui_testmod:inventory/" + name,
-                "assets/testmod/textures/" + name + ".png", TextureOptions.defaults());
+                "assets/minecraft/textures/" + name + ".png", TextureOptions.defaults());
     }
 
     private static InventoryItemWidget item(String id, int count) {

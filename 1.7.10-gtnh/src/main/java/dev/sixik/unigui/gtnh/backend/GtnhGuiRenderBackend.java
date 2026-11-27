@@ -116,17 +116,10 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
      * drawn: the codes take no space.
      */
     private RichText withDefaultFont(RichText text) {
-        RichText.Builder builder = RichText.builder();
-        for (TextRun run : text.runs()) {
-            builder.font(run.font() == null ? defaultFont : run.font())
-                .size(run.pixelSize())
-                .color(run.color())
-                .brush(run.brush())
-                .tracking(run.tracking())
-                .transform(run.transform())
-                .append(GtnhLegacyFormatting.strip(run.text()));
-        }
-        return builder.build();
+        // mapTextRuns сохраняет inline-span'ы: пересборка через runs() теряла ширину иконок.
+        return text.mapTextRuns(run -> run
+                .withFont(run.font() == null ? defaultFont : run.font())
+                .withText(GtnhLegacyFormatting.strip(run.text())));
     }
 
     @Override

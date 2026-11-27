@@ -15,7 +15,5 @@ public final class TestMod implements ModInitializer {
     @Override
     public void onInitialize() {
         // Пока без общей инициализации: мод нужен как sandbox для ручного UI-тестирования.
-
-
     }
 }

@@ -72,7 +72,7 @@ final class MinecraftMixedTextRenderer {
         for (int i = 0; i < commandCount; i++) {
             DrawCommand command = (DrawCommand) rawCommands[i];
             if (!hasText(command)) continue;
-            for (TextRun run : richText(command).runs()) {
+            for (TextRun run : richText(command).textRuns()) {
                 FontFace face = resolvedFace(run);
                 if (face instanceof MinecraftFontFace) {
                     foundMinecraft = true;
@@ -95,7 +95,7 @@ final class MinecraftMixedTextRenderer {
         int lineIndex = 0;
         float baseline = lineTop + lines.get(0).ascent;
 
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             FontFace face = resolvedFace(run);
             FontMetrics metrics = face.metrics(run.pixelSize());
             StringBuilder segment = new StringBuilder();
@@ -170,7 +170,7 @@ final class MinecraftMixedTextRenderer {
             Object[] rawPendingSdf = pendingSdf.elements();
             for (int i = 0, size = pendingSdf.size(); i < size; i++) {
                 DrawCommand command = (DrawCommand) rawPendingSdf[i];
-                TextRun run = command.richText().runs().get(0);
+                TextRun run = command.richText().textRuns().get(0);
                 drawVanilla(graphics, command, run.text(), fallback, run.pixelSize(), run.tracking(), run.color(),
                         run.brush(), command.brushBounds(), command.bounds().x(), command.bounds().y(), guiScale,
                         renderingToPremultipliedTarget);
@@ -251,7 +251,7 @@ final class MinecraftMixedTextRenderer {
         List<LineInfo> lines = new ObjectArrayList<>();
         float ascent = 0.0f;
         float height = 0.0f;
-        for (TextRun run : text.runs()) {
+        for (TextRun run : text.textRuns()) {
             FontMetrics metrics = resolvedFace(run).metrics(run.pixelSize());
             ascent = Math.max(ascent, metrics.ascent());
             height = Math.max(height, metrics.lineHeight());

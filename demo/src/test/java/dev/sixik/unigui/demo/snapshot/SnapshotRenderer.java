@@ -334,7 +334,7 @@ public final class SnapshotRenderer implements RenderBackend {
             drawRun(command, command.text(), baseFont, TextRun.DEFAULT_PIXEL_SIZE, command.paint().color(), x, y);
             return;
         }
-        for (TextRun run : rich.runs()) {
+        for (TextRun run : rich.textRuns()) {
             Font font = run.font() instanceof AwtFontFace awt ? awt.source() : baseFont;
             ColorView color = run.color() != null ? run.color() : command.paint().color();
             x += drawRun(command, run.text(), font, run.pixelSize(), color, x, y);

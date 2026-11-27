@@ -537,7 +537,7 @@ public final class BasicControlsSelfTest {
                 .build();
         expect(inline.hasInlineContent()
                         && inline.spans().size() == 3
-                        && inline.runs().size() == 2
+                        && inline.textRuns().size() == 2
                         && inline.plainText().equals("A" + InlineContentSpan.DEFAULT_FALLBACK_TEXT + "B")
                         && near(TextEngine.measureLineWidth(inline), 20.0f),
                 "RichText should preserve inline spans with fallback text and measured width");
@@ -546,7 +546,7 @@ public final class BasicControlsSelfTest {
         expect(styledInline.hasInlineContent()
                         && styledInline.spans().size() == inline.spans().size()
                         && styledInline.spans().get(1) == inline.spans().get(1)
-                        && styledInline.runs().stream().allMatch(run -> near(run.pixelSize(), 6.0f)
+                        && styledInline.textRuns().stream().allMatch(run -> near(run.pixelSize(), 6.0f)
                                 && near(run.tracking(), 0.5f)
                                 && run.transform() == TextTransform.UPPERCASE
                                 && run.text().equals(run.text().toUpperCase(java.util.Locale.ROOT))),
@@ -649,25 +649,25 @@ public final class BasicControlsSelfTest {
         FontFace narrow = new FixedFontFace("narrow", 2.0f, 10.0f);
         FontFace wide = new FixedFontFace("wide", 5.0f, 16.0f);
         MutableColor mutableRunColor = new MutableColor(0.2f, 0.4f, 0.6f, 0.8f);
-        RichText text = new RichText(java.util.List.of(
+        RichText text = RichText.ofSpans(java.util.List.of(
                 new TextRun("ab", narrow, 10.0f, mutableRunColor),
                 new TextRun("C", wide, 16.0f)));
 
         mutableRunColor.set(1.0f, 1.0f, 1.0f, 1.0f);
-        ColorView snapshot = text.runs().get(0).color();
+        ColorView snapshot = text.textRuns().get(0).color();
         expect(near(snapshot.r(), 0.2f) && near(snapshot.a(), 0.8f),
                 "TextRun should snapshot mutable run colors");
         expect(near(TextEngine.measureLineWidth(text), 9.0f),
                 "RichText width should combine advances from different font faces");
         expect(near(TextEngine.measureTextHeight(text), 16.0f),
                 "RichText height should use the tallest run on the line");
-        expect(text.equals(new RichText(text.runs())),
+        expect(text.equals(RichText.ofSpans(text.textRuns())),
                 "RichText should have value equality for stable widget updates");
         RichText built = RichText.builder()
                 .font(narrow).size(10.0f).append("ab")
                 .font(wide).size(16.0f).append("C")
                 .build();
-        expect(built.equals(new RichText(java.util.List.of(
+        expect(built.equals(RichText.ofSpans(java.util.List.of(
                         new TextRun("ab", narrow, 10.0f),
                         new TextRun("C", wide, 16.0f)))),
                 "RichText builder should switch fonts without manual run positioning");
@@ -697,7 +697,7 @@ public final class BasicControlsSelfTest {
                 .font(narrow).size(10.0f).append("SDF ")
                 .font(vanilla).size(9.0f).append("Vanilla")
                 .build();
-        expect(mixed.runs().get(1).font() == vanilla,
+        expect(mixed.textRuns().get(1).font() == vanilla,
                 "RichText should preserve Minecraft and SDF faces in one value");
 
         TextBlock block = new TextBlock();
@@ -2230,14 +2230,14 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.TEXT_TRACKING, 0.5f)
                 .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
         RichText renderedStyledButton = styledButton.renderedRichText();
-        expect(renderedStyledButton.runs().size() == 1
-                        && renderedStyledButton.runs().get(0).text().equals("OK")
-                        && near(renderedStyledButton.runs().get(0).pixelSize(), 6.0f)
-                        && near(renderedStyledButton.runs().get(0).tracking(), 0.5f),
+        expect(renderedStyledButton.textRuns().size() == 1
+                        && renderedStyledButton.textRuns().get(0).text().equals("OK")
+                        && near(renderedStyledButton.textRuns().get(0).pixelSize(), 6.0f)
+                        && near(renderedStyledButton.textRuns().get(0).tracking(), 0.5f),
                 "Button should apply typed text style values to its rendered rich text");
         RichText fittedStyledButton = styledButton.fittedRichText(8.0f, 3.0f, 0.5f);
         expect(fittedStyledButton == styledButton.fittedRichText(8.0f, 3.0f, 0.5f)
-                        && fittedStyledButton.runs().get(0).pixelSize() < 6.0f,
+                        && fittedStyledButton.textRuns().get(0).pixelSize() < 6.0f,
                 "Button should cache its width-fitted rich text until inputs change");
 
         Checkbox styledCheckbox = new Checkbox("ready");
@@ -2252,8 +2252,8 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
         RichText checkboxText = styledCheckbox.renderedRichText();
         expect(checkboxText.plainText().equals("READY")
-                        && near(checkboxText.runs().get(0).pixelSize(), 6.0f)
-                        && near(checkboxText.runs().get(0).tracking(), 0.5f),
+                        && near(checkboxText.textRuns().get(0).pixelSize(), 6.0f)
+                        && near(checkboxText.textRuns().get(0).tracking(), 0.5f),
                 "Checkbox should apply typed text style values to its label");
         styledCheckbox.boxSize(10.0f).checkSize(5.0f).checkAnimation(0.0f).silentChecked(true);
         styledCheckbox.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 16.0f));
@@ -6664,8 +6664,8 @@ public final class BasicControlsSelfTest {
                 .put(StyleKeys.TEXT_TRACKING, 0.5f)
                 .put(StyleKeys.TEXT_TRANSFORM, TextTransform.UPPERCASE));
         expect(styledSwitch.renderedRichText().plainText().equals("READY")
-                        && near(styledSwitch.renderedRichText().runs().get(0).pixelSize(), 6.0f)
-                        && near(styledSwitch.renderedRichText().runs().get(0).tracking(), 0.5f),
+                        && near(styledSwitch.renderedRichText().textRuns().get(0).pixelSize(), 6.0f)
+                        && near(styledSwitch.renderedRichText().textRuns().get(0).tracking(), 0.5f),
                 "ToggleSwitch should apply typed text style values to its label");
         styledSwitch.arrange(new MutableRect(0.0f, 0.0f, 80.0f, 16.0f));
         DrawList styledSwitchOff = new DrawList();

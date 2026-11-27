@@ -294,9 +294,9 @@ public class Button extends SurfaceWidget<Button> {
         fittedTextMinimumSize = minimum;
         fittedTextSizeStep = step;
         fittedRichText = source;
-        if (source.runs().isEmpty()) return fittedRichText;
+        if (source.textRuns().isEmpty()) return fittedRichText;
 
-        float size = source.runs().get(0).pixelSize();
+        float size = source.textRuns().get(0).pixelSize();
         float minimumSize = Math.min(minimum, size);
         while (size > minimumSize && TextEngine.measureLineWidth(fittedRichText) > width) {
             size = Math.max(minimumSize, size - step);

@@ -76,4 +76,28 @@ public record InlineContentContext(
     public ColorView color() {
         return paint == null ? null : paint.color();
     }
+
+    /**
+     * Paint текста как есть: контент окрашивается цветом текста.
+     *
+     * @return paint текста (никогда не {@code null})
+     */
+    public Paint tintPaint() {
+        return paint == null ? new Paint() : paint;
+    }
+
+    /**
+     * Paint без окраски: белый цвет с прозрачностью текста.
+     *
+     * <p>Подходит для цветных иконок: исходные цвета texture сохраняются, а fade/opacity текста
+     * продолжают влиять на контент.</p>
+     *
+     * @return новый paint
+     */
+    public Paint untintedPaint() {
+        Paint result = paint == null ? new Paint() : paint.copy();
+        float alpha = paint == null ? 1.0f : paint.color().a();
+        result.color().set(1.0f, 1.0f, 1.0f, alpha);
+        return result.clearGradient();
+    }
 }

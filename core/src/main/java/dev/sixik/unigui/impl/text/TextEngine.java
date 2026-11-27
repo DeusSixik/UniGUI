@@ -26,6 +26,7 @@ import dev.sixik.unigui.api.text.TextBrush;
 import dev.sixik.unigui.api.text.TextRun;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 
 /**
@@ -173,7 +174,14 @@ public final class TextEngine {
         return measureLineWidth(text, null);
     }
 
-    private static float measureLineWidth(RichText text, FontFace defaultFace) {
+    /**
+     * Измеряет ширину самой длинной строки с учётом inline-span'ов и их отступов.
+     *
+     * @param text        rich text или {@code null}
+     * @param defaultFace шрифт для run'ов без явного font face или {@code null} для fallback-метрик
+     * @return ширина в UI-пикселях
+     */
+    public static float measureLineWidth(RichText text, FontFace defaultFace) {
         if (text == null || text.isEmpty()) return 0.0f;
         float maximum = 0.0f;
         float current = 0.0f;
@@ -196,7 +204,7 @@ public final class TextEngine {
                 }
             } else if (span instanceof InlineContentSpan inline) {
                 if (glyphsInLine > 0) current += 0.0f;
-                current += inline.width();
+                current += inline.advance();
                 glyphsInLine++;
             }
         }
@@ -384,7 +392,7 @@ public final class TextEngine {
             float width,
             @WikiParameter(name = "height", description = "<key:text.engine.method.draw_str.height>")
             float height,
-                            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_str.paint>")
+            @WikiParameter(name = "paint", description = "<key:text.engine.method.draw_str.paint>")
             Paint paint,
             @WikiParameter(name = "transform", description = "<key:text.engine.method.draw_str.transform>")
             Transform transform,
@@ -523,7 +531,7 @@ public final class TextEngine {
                 && width > 0.0f
                 && measureLineWidth(text, defaultFace) > width;
         float trailingX = pinTrailing
-                ? x + Math.max(0.0f, width - trailing.inline().width())
+                ? x + Math.max(0.0f, width - trailing.inline().advance())
                 : 0.0f;
         float textClipWidth = pinTrailing
                 ? Math.max(0.0f, trailingX - x - trailing.gapWidth())
@@ -538,6 +546,9 @@ public final class TextEngine {
             textClipPushed = true;
         }
 
+        // Baseline для InlineContentAlignment.BASELINE: берётся у ближайшего предыдущего текстового run'а,
+        // а до первого run'а — у первого run'а текста.
+        float baselineOffset = firstRunBaseline(spans, lineHeight, defaultFace, textVisualOffset);
         try {
             for (int spanIndex = 0; spanIndex < spans.size(); spanIndex++) {
                 RichTextSpan span = spans.get(spanIndex);
@@ -556,20 +567,21 @@ public final class TextEngine {
                     float runOffset = Float.isFinite(textVisualOffset)
                             ? Math.max(0.0f, textVisualOffset)
                             : centeredRunOffset(run, lineHeight, defaultFace);
+                    baselineOffset = runOffset + runAscent(run, defaultFace);
                     TextRunDrawResult result = drawTextRun(draw, run, cursorX,
                             cursorY + runOffset,
                             lineHeight, paint, defaultFace, x);
                     cursorX = result.cursorX();
                     cursorY = result.cursorY() - runOffset;
                 } else if (span instanceof InlineContentSpan inline) {
-                    float inlineY = inlineY(cursorY, lineHeight, inline);
+                    float inlineY = inlineY(cursorY, lineHeight, inline, baselineOffset);
                     InlineContentContext context = new InlineContentContext(
                             inline,
-                            new MutableRect(cursorX, inlineY, inline.width(), inline.height()),
+                            new MutableRect(cursorX + inline.marginLeft(), inlineY, inline.width(), inline.height()),
                             lineHeight,
                             paint == null ? new Paint() : paint.copy());
                     inline.renderer().render(draw, context);
-                    cursorX += inline.width();
+                    cursorX += inline.advance();
                 }
             }
         } finally {
@@ -578,7 +590,9 @@ public final class TextEngine {
         }
     }
 
-    /** Находит завершающий inline-span и пробел перед ним, который служит отступом. */
+    /**
+     * Находит завершающий inline-span и пробел перед ним, который служит отступом.
+     */
     private static TrailingInline trailingInline(List<RichTextSpan> spans, FontFace defaultFace) {
         if (spans == null || spans.isEmpty()) return null;
         int inlineIndex = spans.size() - 1;
@@ -626,7 +640,7 @@ public final class TextEngine {
             @WikiParameter(name = "text", description = "<key:text.engine.method.uses_positional_brush.text>")
             RichText text) {
         if (text == null) return false;
-        List<TextRun> runs = text.runs();
+        List<TextRun> runs = text.textRuns();
         for (int i = 0, size = runs.size(); i < size; i++) {
             TextBrush brush = runs.get(i).brush();
             if (brush != null && !(brush instanceof SolidTextBrush)) return true;
@@ -646,7 +660,9 @@ public final class TextEngine {
         return true;
     }
 
-    /** Вариант {@link #pushBrushScope(RenderContext, RichText, float, float)} с уже известным extent'ом. */
+    /**
+     * Вариант {@link #pushBrushScope(RenderContext, RichText, float, float)} с уже известным extent'ом.
+     */
     private static boolean pushBrushScope(RenderContext context, RichText text,
                                           float x, float y, float width, float height) {
         if (context == null || !usesPositionalBrush(text) || context.textBrushBounds() != null) return false;
@@ -704,21 +720,52 @@ public final class TextEngine {
         if (start >= end) return x;
         String chunk = run.text().substring(start, end);
         TextRun chunkRun = new TextRun(chunk, run.font(), run.pixelSize(), run.color(), run.brush(), run.tracking(), run.transform());
-        RichText chunkText = new RichText(List.of(chunkRun));
+        RichText chunkText = RichText.ofSpans(List.of(chunkRun));
         float chunkWidth = measureRunWidth(chunkRun, defaultFace);
         // Текстовые chunks всё ещё рисуются штатным backend renderer'ом, чтобы сохранить font/tint поведение.
         draw.text(chunkText, x, y, chunkWidth, lineHeight, paint);
         return x + chunkWidth;
     }
 
-    private static float inlineY(float lineY, float lineHeight, InlineContentSpan inline) {
+    private static float inlineY(float lineY, float lineHeight, InlineContentSpan inline, float baselineOffset) {
         float remaining = Math.max(0.0f, lineHeight - inline.height());
         InlineContentAlignment alignment = inline.alignment();
         return switch (alignment) {
             case TEXT_TOP -> lineY;
             case TEXT_BOTTOM -> lineY + remaining;
             case CENTER -> lineY + remaining * 0.5f;
+            case BASELINE -> Float.isNaN(baselineOffset)
+                    ? lineY + remaining * 0.5f
+                    : lineY + Math.max(0.0f, baselineOffset - inline.height());
         };
+    }
+
+    /**
+     * Смещение baseline первого текстового run'а от верха строки или {@code NaN}, если run'ов нет.
+     */
+    private static float firstRunBaseline(List<RichTextSpan> spans, float lineHeight,
+                                          FontFace defaultFace, float textVisualOffset) {
+        for (int i = 0, size = spans.size(); i < size; i++) {
+            if (spans.get(i) instanceof TextRun run && !run.isEmpty()) {
+                float runOffset = Float.isFinite(textVisualOffset)
+                        ? Math.max(0.0f, textVisualOffset)
+                        : centeredRunOffset(run, lineHeight, defaultFace);
+                return runOffset + runAscent(run, defaultFace);
+            }
+        }
+        return Float.NaN;
+    }
+
+    /**
+     * Ascent run'а: расстояние от верха его line box до baseline.
+     */
+    private static float runAscent(TextRun run, FontFace defaultFace) {
+        FontFace face = run.font() == null ? defaultFace : run.font();
+        if (face != null) {
+            float ascent = face.metrics(run.pixelSize()).ascent();
+            if (ascent > 0.0f) return ascent;
+        }
+        return fallbackLineHeight(run.pixelSize()) * 0.8f;
     }
 
     private static void appendParagraphLines(List<RichText> lines, RichText text) {
@@ -920,7 +967,7 @@ public final class TextEngine {
             if (span instanceof InlineContentSpan inline) {
                 if (charIndex != spanStart) return 0.0f;
                 lineGlyphCount++;
-                return inline.width();
+                return inline.advance();
             }
             if (!(span instanceof TextRun run)) return 0.0f;
             float width = lineGlyphCount > 0 ? trackingAdvance(run) : 0.0f;

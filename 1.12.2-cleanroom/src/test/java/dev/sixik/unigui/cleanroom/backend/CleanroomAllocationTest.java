@@ -104,7 +104,7 @@ class CleanroomAllocationTest {
         FontFace face = new SdfFace();
         // A tracked run is drawn one glyph at a time; the face is not an atlas face here, so the glyphs go to the
         // vanilla sink like they do for the vanilla font.
-        RichText text = new RichText(java.util.List.of(new TextRun("Hello, wor\u043c\u0438\u0440", face, 12.0f, null, 0.5f)));
+        RichText text = RichText.ofSpans(java.util.List.of(new TextRun("Hello, wor\u043c\u0438\u0440", face, 12.0f, null, 0.5f)));
         DrawCommand command = DrawCommand.text("x", new MutableRect(0, 0, 200, 20), Paint.fill(WHITE));
         float[] identity = {1, 0, 0, 1, 0, 0};
         int[] drawn = new int[1];

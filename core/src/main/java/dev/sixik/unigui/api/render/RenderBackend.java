@@ -47,13 +47,19 @@ public interface RenderBackend {
     }
 
     /**
-     * Измеряет ширину rich text по plain fallback.
+     * Измеряет ширину rich text.
+     *
+     * <p>Plain-текст измеряется по plain fallback; текст с inline-span'ами — через
+     * {@link TextEngine#measureLineWidth(RichText, FontFace)}, чтобы ширина иконок не терялась.
+     * Переопределения обязаны сохранять inline-span'ы (используйте {@link RichText#mapTextRuns}).</p>
      *
      * @param text rich text для отрисовки
      * @return ширина в логических UI-пикселях
      */
     default float measureTextWidth(RichText text) {
-        return text == null ? 0.0f : measureTextWidth(text.plainText());
+        if (text == null) return 0.0f;
+        if (text.hasInlineContent()) return TextEngine.measureLineWidth(text, defaultTextFace());
+        return measureTextWidth(text.plainText());
     }
 
     /**

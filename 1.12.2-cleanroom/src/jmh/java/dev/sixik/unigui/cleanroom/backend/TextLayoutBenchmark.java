@@ -118,7 +118,7 @@ public class TextLayoutBenchmark {
         face = mode.equals("sdf") ? sdfFace : plainFace;
         text = switch (mode) {
             case "vanillaCodes" -> RichText.of("\u00a7cThe quick \u00a7lbrown\u00a7r fox jumps over 13 lazy dogs", face, 9.0f);
-            case "vanillaTracking" -> new RichText(java.util.List.of(new TextRun(LINE, face, 9.0f, null, 0.5f)));
+            case "vanillaTracking" -> RichText.ofSpans(java.util.List.of(new TextRun(LINE, face, 9.0f, null, 0.5f)));
             default -> RichText.of(LINE, face, 9.0f);
         };
     }

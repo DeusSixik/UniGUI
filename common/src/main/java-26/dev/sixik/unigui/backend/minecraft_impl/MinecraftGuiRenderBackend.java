@@ -1473,17 +1473,10 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     }
 
     private RichText resolveDefaultFont(RichText text) {
-        RichText.Builder builder = RichText.builder();
-        for (TextRun run : text.runs()) {
-            builder.font(run.font() == null ? defaultFont() : run.font())
-                    .size(run.pixelSize())
-                    .color(run.color())
-                    .brush(run.brush())
-                    .tracking(run.tracking())
-                    .transform(run.transform())
-                    .append(run.text());
-        }
-        return builder.build();
+        // mapTextRuns сохраняет inline-span'ы: пересборка через runs() теряла ширину иконок.
+        return text.mapTextRuns(run -> run
+                .withFont(run.font() == null ? defaultFont() : run.font())
+                .withText(run.text()));
     }
 
     private void drawLine(float x1, float y1, float x2, float y2, Paint paint) {

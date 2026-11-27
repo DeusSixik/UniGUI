@@ -8,12 +8,14 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.math.ColorView;
-import dev.sixik.unigui.api.render.Paint;
 import dev.sixik.unigui.api.render.TextureHandle;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 /**
  * Неизменяемый rich-text, собранный из текстовых run'ов и опционального inline-контента.
@@ -56,9 +58,12 @@ import java.util.List;
         criticalRules = {
                 "RichText is strictly immutable. Methods like withBrush, withTextStyle, append, and slice return new instances.",
                 "Inline content spans participate in line wrapping and alignment but do not receive direct UI input events.",
-                "Plain string operations can use RichText.plain(String) or RichText.resolve(String) for automatic icon marker resolution."
+                "Plain string operations can use RichText.plain(String) or RichText.resolve(String) for automatic icon marker resolution.",
+                "String markers like {key:jump} resolve everywhere once their type is registered in InlineMarkers; widgets' text(String) uses RichText.resolve.",
+                "Use textRuns() only to read styles; rebuild text with mapTextRuns() or withFont() so inline spans are kept (runs() is deprecated).",
+                "Empty results are the shared RichText.EMPTY instance; plain(\"\") does not allocate."
         },
-        related = {"TextRun", "RichTextSpan", "InlineContentSpan", "FontFace", "TextBrush", "TextEngine"},
+        related = {"TextRun", "RichTextSpan", "InlineContentSpan", "InlineMarkers", "FontFace", "TextBrush", "TextEngine"},
         examples = {
                 @AiDoc.Example(
                         title = "Building Rich Text with Text and Inline Icons",
@@ -66,9 +71,8 @@ import java.util.List;
                         code = """
                                 RichText text = RichText.builder()
                                         .append("Status: ")
-                                        .icon("icon:ok", checkTexture, 12.0f)
-                                        .color(ColorView.rgb(80, 220, 100))
-                                        .append(" All systems online")
+                                        .icon("icon:ok", checkTexture)          // 1em, follows the text size
+                                        .append(" All systems online", s -> s.color(MutableColor.rgba255(80, 220, 100, 255)))
                                         .build();
                                 """),
                 @AiDoc.Example(
@@ -77,12 +81,25 @@ import java.util.List;
                         code = """
                                 RichText gradientTitle = RichText.gradient(
                                         "UniGUI Engine",
-                                        Fonts.TITLE,
+                                        Fonts.defaultFace(),
                                         18.0f,
-                                        ColorView.rgb(255, 100, 100),
-                                        ColorView.rgb(100, 150, 255),
+                                        MutableColor.rgba255(255, 100, 100, 255),
+                                        MutableColor.rgba255(100, 150, 255, 255),
                                         45.0f
                                 );
+                                """),
+                @AiDoc.Example(
+                        title = "Global String Markers",
+                        order = 30,
+                        code = """
+                                InlineMarkers.register("key", (argument, size) -> {
+                                    TextureHandle icon = KeyIcons.forBinding(argument);
+                                    return icon == null ? null
+                                            : InlineContentSpan.sized("key:" + argument, size, InlineContentRenderer.texture(icon))
+                                                    .withAlignment(InlineContentAlignment.BASELINE)
+                                                    .withMargins(1, 1);
+                                });
+                                new Label("Hold {key:key.attack} to pan the map.");
                                 """)
         })
 @WikiPage(
@@ -104,6 +121,10 @@ import java.util.List;
         markdown = "<key:rich.text.section.inline.body>",
         order = 30)
 @WikiSection(
+        title = "<key:rich.text.section.markers.title>",
+        markdown = "<key:rich.text.section.markers.body>",
+        order = 35)
+@WikiSection(
         title = "<key:rich.text.section.brushes.title>",
         markdown = "<key:rich.text.section.brushes.body>",
         order = 40)
@@ -123,7 +144,17 @@ import java.util.List;
         title = "<key:rich.text.example.gradient.title>",
         code = "<key:rich.text.example.gradient.code>",
         order = 20)
+@WikiExample(
+        title = "<key:rich.text.example.scoped.title>",
+        code = "<key:rich.text.example.scoped.code>",
+        order = 30)
 public final class RichText {
+    /**
+     * Пустой rich-text. {@link #plain(String)} с пустой строкой и любые фабрики, после нормализации которых
+     * не осталось span'ов, возвращают этот экземпляр, поэтому {@code RichText.plain("")} ничего не аллоцирует.
+     */
+    public static final RichText EMPTY = new RichText(Normalized.of(null));
+
     private final List<RichTextSpan> spans;
     private final List<TextRun> runs;
     private final String plainText;
@@ -133,32 +164,53 @@ public final class RichText {
      * Создаёт rich-text из старого списка текстовых run'ов.
      *
      * @param runs текстовые run'ы; {@code null} и пустые run'ы игнорируются
+     * @deprecated используйте {@link #ofSpans(List)} (принимает и {@code List<TextRun>}) или {@link #builder()}
      */
+    @Deprecated
     public RichText(List<TextRun> runs) {
-        this(asSpans(runs), true);
+        this(Normalized.of(runs));
     }
 
-    private RichText(List<? extends RichTextSpan> spans, boolean ignored) {
-        ObjectArrayList<RichTextSpan> normalizedSpans = new ObjectArrayList<>();
-        ObjectArrayList<TextRun> normalizedRuns = new ObjectArrayList<>();
-        StringBuilder text = new StringBuilder();
-        boolean inline = false;
-        if (spans != null) {
-            for (RichTextSpan span : spans) {
-                if (span == null || span.isEmpty()) continue;
-                normalizedSpans.add(span);
-                text.append(span.fallbackText());
-                if (span instanceof TextRun run) {
-                    normalizedRuns.add(run);
-                } else {
-                    inline = true;
+    private RichText(Normalized normalized) {
+        this.spans = normalized.spans();
+        this.runs = normalized.runs();
+        this.plainText = normalized.plainText();
+        this.hasInlineContent = normalized.hasInlineContent();
+    }
+
+    /**
+     * Единая точка создания: нормализует span'ы и возвращает {@link #EMPTY}, если ничего не осталось.
+     */
+    private static RichText create(List<? extends RichTextSpan> spans) {
+        Normalized normalized = Normalized.of(spans);
+        return normalized.spans().isEmpty() ? EMPTY : new RichText(normalized);
+    }
+
+    /**
+     * Результат нормализации списка span'ов: без {@code null} и пустых span'ов.
+     */
+    private record Normalized(List<RichTextSpan> spans, List<TextRun> runs, String plainText,
+                              boolean hasInlineContent) {
+        static Normalized of(List<? extends RichTextSpan> source) {
+            ObjectArrayList<RichTextSpan> spans = new ObjectArrayList<>();
+            ObjectArrayList<TextRun> runs = new ObjectArrayList<>();
+            StringBuilder text = new StringBuilder();
+            boolean inline = false;
+            if (source != null) {
+                for (RichTextSpan span : source) {
+                    if (span == null || span.isEmpty()) continue;
+                    spans.add(span);
+                    text.append(span.fallbackText());
+                    if (span instanceof TextRun run) {
+                        runs.add(run);
+                    } else {
+                        inline = true;
+                    }
                 }
             }
+            return new Normalized(Collections.unmodifiableList(spans), Collections.unmodifiableList(runs),
+                    text.toString(), inline);
         }
-        this.spans = Collections.unmodifiableList(normalizedSpans);
-        this.runs = Collections.unmodifiableList(normalizedRuns);
-        this.plainText = text.toString();
-        this.hasInlineContent = inline;
     }
 
     /**
@@ -175,7 +227,7 @@ public final class RichText {
     public static RichText plain(
             @WikiParameter(name = "text", description = "<key:rich.text.method.plain.text>")
             String text) {
-        return new RichText(List.of(new TextRun(text, null, TextRun.DEFAULT_PIXEL_SIZE)));
+        return create(List.of(new TextRun(text, null, TextRun.DEFAULT_PIXEL_SIZE)));
     }
 
     /**
@@ -202,8 +254,8 @@ public final class RichText {
     /**
      * Создаёт rich-text из одного текстового run'а с заданным шрифтом и размером.
      *
-     * @param text исходный текст
-     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @param text      исходный текст
+     * @param font      font face или {@code null}, чтобы backend выбрал default
      * @param pixelSize размер текста в UI-пикселях
      * @return rich-text из одного {@link TextRun}
      */
@@ -219,16 +271,16 @@ public final class RichText {
             FontFace font,
             @WikiParameter(name = "pixelSize", description = "<key:rich.text.method.of_font.pixel_size>")
             float pixelSize) {
-        return new RichText(List.of(new TextRun(text, font, pixelSize)));
+        return create(List.of(new TextRun(text, font, pixelSize)));
     }
 
     /**
      * Создаёт rich-text из одного текстового run'а с цветом.
      *
-     * @param text исходный текст
-     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @param text      исходный текст
+     * @param font      font face или {@code null}, чтобы backend выбрал default
      * @param pixelSize размер текста в UI-пикселях
-     * @param color цвет run'а или {@code null}, чтобы renderer использовал paint виджета
+     * @param color     цвет run'а или {@code null}, чтобы renderer использовал paint виджета
      * @return rich-text из одного {@link TextRun}
      */
     @WikiMethod(
@@ -245,16 +297,16 @@ public final class RichText {
             float pixelSize,
             @WikiParameter(name = "color", description = "<key:rich.text.method.of_color.color>")
             ColorView color) {
-        return new RichText(List.of(new TextRun(text, font, pixelSize, color)));
+        return create(List.of(new TextRun(text, font, pixelSize, color)));
     }
 
     /**
      * Создаёт rich-text из одного текстового run'а с brush-заливкой.
      *
-     * @param text исходный текст
-     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @param text      исходный текст
+     * @param font      font face или {@code null}, чтобы backend выбрал default
      * @param pixelSize размер текста в UI-пикселях
-     * @param brush brush-заливка текста или {@code null} для обычного цвета
+     * @param brush     brush-заливка текста или {@code null} для обычного цвета
      * @return rich-text из одного {@link TextRun}
      */
     @WikiMethod(
@@ -271,17 +323,17 @@ public final class RichText {
             float pixelSize,
             @WikiParameter(name = "brush", description = "<key:rich.text.method.brushed.brush>")
             TextBrush brush) {
-        return new RichText(List.of(new TextRun(text, font, pixelSize, null, brush)));
+        return create(List.of(new TextRun(text, font, pixelSize, null, brush)));
     }
 
     /**
      * Создаёт rich-text из одного run'а с линейным градиентом.
      *
-     * @param text исходный текст
-     * @param font font face или {@code null}, чтобы backend выбрал default
-     * @param pixelSize размер текста в UI-пикселях
-     * @param startColor цвет начала градиента
-     * @param endColor цвет конца градиента
+     * @param text         исходный текст
+     * @param font         font face или {@code null}, чтобы backend выбрал default
+     * @param pixelSize    размер текста в UI-пикселях
+     * @param startColor   цвет начала градиента
+     * @param endColor     цвет конца градиента
      * @param angleDegrees угол направления в градусах
      * @return rich-text с {@link LinearGradientTextBrush}
      */
@@ -320,7 +372,7 @@ public final class RichText {
     public static RichText ofSpans(
             @WikiParameter(name = "spans", description = "<key:rich.text.method.of_spans.spans>")
             List<? extends RichTextSpan> spans) {
-        return new RichText(spans, true);
+        return create(spans);
     }
 
     /**
@@ -339,7 +391,11 @@ public final class RichText {
      * Совместимая проекция только текстовых run'ов.
      *
      * @return immutable список {@link TextRun}; inline span'ы сюда не попадают
+     * @deprecated имя скрывает, что inline-span'ы теряются. Используйте {@link #textRuns()}, если нужны только
+     * run'ы, {@link #spans()} для полного потока или {@link #mapTextRuns(UnaryOperator)} для пересборки
+     * с сохранением inline-контента.
      */
+    @Deprecated
     @WikiMethod(
             title = "<key:rich.text.method.runs.title>",
             summary = "<key:rich.text.method.runs.summary>",
@@ -347,6 +403,71 @@ public final class RichText {
     @WikiReturn("<key:rich.text.method.runs.return>")
     public List<TextRun> runs() {
         return runs;
+    }
+
+    /**
+     * Только текстовые run'ы, без inline-span'ов.
+     *
+     * <p>Подходит для чтения стиля или для рендереров, которые получают заведомо plain-текст
+     * ({@link #hasInlineContent()} == {@code false}). Чтобы пересобрать текст, не теряя иконки,
+     * используйте {@link #mapTextRuns(UnaryOperator)}.</p>
+     *
+     * @return immutable список {@link TextRun}
+     */
+    @WikiMethod(
+            title = "<key:rich.text.method.text_runs.title>",
+            summary = "<key:rich.text.method.text_runs.summary>",
+            order = 95)
+    @WikiReturn("<key:rich.text.method.text_runs.return>")
+    public List<TextRun> textRuns() {
+        return runs;
+    }
+
+    /**
+     * Возвращает копию, где каждый текстовый run заменён результатом {@code mapper}; inline-span'ы
+     * сохраняются на своих местах.
+     *
+     * @param mapper преобразование run'а; {@code null}-результат удаляет run
+     * @return новый rich-text или этот объект, если ни один run не изменился
+     */
+    @WikiMethod(
+            title = "<key:rich.text.method.map_text_runs.title>",
+            summary = "<key:rich.text.method.map_text_runs.summary>",
+            order = 97)
+    @WikiReturn("<key:rich.text.method.map_text_runs.return>")
+    public RichText mapTextRuns(
+            @WikiParameter(name = "mapper", description = "<key:rich.text.method.map_text_runs.mapper>")
+            UnaryOperator<TextRun> mapper) {
+        if (mapper == null || runs.isEmpty()) return this;
+        ObjectArrayList<RichTextSpan> updated = new ObjectArrayList<>(spans.size());
+        boolean changed = false;
+        for (RichTextSpan span : spans) {
+            if (span instanceof TextRun run) {
+                TextRun mapped = mapper.apply(run);
+                changed |= mapped != run;
+                if (mapped != null) updated.add(mapped);
+            } else {
+                updated.add(span);
+            }
+        }
+        return changed ? create(updated) : this;
+    }
+
+    /**
+     * Возвращает копию, где все текстовые run'ы используют заданный шрифт; inline-span'ы сохраняются.
+     *
+     * @param font font face или {@code null}, чтобы backend выбрал default
+     * @return новый rich-text или этот объект, если шрифт уже такой
+     */
+    @WikiMethod(
+            title = "<key:rich.text.method.with_font.title>",
+            summary = "<key:rich.text.method.with_font.summary>",
+            order = 155)
+    @WikiReturn("<key:rich.text.method.with_font.return>")
+    public RichText withFont(
+            @WikiParameter(name = "font", description = "<key:rich.text.method.with_font.font>")
+            FontFace font) {
+        return mapTextRuns(run -> run.withFont(font));
     }
 
     /**
@@ -434,15 +555,16 @@ public final class RichText {
                 updated.add(span);
             }
         }
-        return new RichText(updated, true);
+        return create(updated);
     }
 
     /**
      * Возвращает копию текста с переопределёнными параметрами текстовых run'ов.
-     * Inline-содержимое сохраняется без изменений.
+     * Inline-span'ы с размером в em ({@link InlineContentSpan#scalesWithText()}) пересчитываются под новый
+     * {@code pixelSize}; остальное inline-содержимое сохраняется без изменений.
      *
      * @param pixelSize новый размер текста или {@code null}, чтобы сохранить размер run'а
-     * @param tracking новый tracking или {@code null}, чтобы сохранить tracking run'а
+     * @param tracking  новый tracking или {@code null}, чтобы сохранить tracking run'а
      * @param transform новое преобразование или {@code null}, чтобы сохранить transform run'а
      * @return обновлённый immutable rich-text или текущий объект, если переопределений нет
      */
@@ -470,11 +592,13 @@ public final class RichText {
                         run.brush(),
                         tracking == null ? run.tracking() : tracking,
                         transform == null ? run.transform() : transform));
+            } else if (pixelSize != null && span instanceof InlineContentSpan inline) {
+                updated.add(inline.withTextSize(pixelSize));
             } else {
                 updated.add(span);
             }
         }
-        return new RichText(updated, true);
+        return create(updated);
     }
 
     /**
@@ -513,7 +637,7 @@ public final class RichText {
         List<RichTextSpan> combined = new ObjectArrayList<>(spans.size() + other.spans.size());
         combined.addAll(spans);
         combined.addAll(other.spans);
-        return new RichText(combined, true);
+        return create(combined);
     }
 
     /**
@@ -525,7 +649,7 @@ public final class RichText {
      * draw-команды.</p>
      *
      * @param startInclusive начало среза включительно
-     * @param endExclusive конец среза исключительно
+     * @param endExclusive   конец среза исключительно
      * @return новый rich-text с выбранным диапазоном
      */
     @WikiMethod(
@@ -545,25 +669,30 @@ public final class RichText {
 
         List<RichTextSpan> sliced = new ObjectArrayList<>();
         int spanStart = 0;
+        TextRun lastStyle = runs.isEmpty() ? null : runs.get(0);
         for (RichTextSpan span : spans) {
             String fallback = span.fallbackText();
             int spanEnd = spanStart + fallback.length();
             int overlapStart = Math.max(start, spanStart);
             int overlapEnd = Math.min(end, spanEnd);
+            if (span instanceof TextRun run) lastStyle = run;
             if (overlapStart < overlapEnd) {
                 if (span instanceof TextRun run) {
                     sliced.add(sliceRun(run, overlapStart - spanStart, overlapEnd - spanStart));
                 } else if (overlapStart == spanStart && overlapEnd == spanEnd) {
                     sliced.add(span);
                 } else {
+                    // Частично захваченный inline-span становится текстом в стиле соседнего run'а.
                     String fallbackSlice = fallback.substring(overlapStart - spanStart, overlapEnd - spanStart);
-                    sliced.add(new TextRun(fallbackSlice, null, TextRun.DEFAULT_PIXEL_SIZE));
+                    sliced.add(lastStyle == null
+                            ? new TextRun(fallbackSlice, null, TextRun.DEFAULT_PIXEL_SIZE)
+                            : lastStyle.withText(fallbackSlice));
                 }
             }
             spanStart = spanEnd;
             if (spanStart >= end) break;
         }
-        return new RichText(sliced, true);
+        return create(sliced);
     }
 
     @Override
@@ -596,22 +725,13 @@ public final class RichText {
                 run.transform());
     }
 
-    private static List<RichTextSpan> asSpans(List<TextRun> runs) {
-        ObjectArrayList<RichTextSpan> spans = new ObjectArrayList<>();
-        if (runs != null) {
-            for (TextRun run : runs) {
-                if (run != null) spans.add(run);
-            }
-        }
-        return spans;
-    }
-
     /**
      * Fluent builder для {@link RichText}.
      *
      * <p>Builder хранит текущие параметры text-run'а: font, size, color, brush, tracking и transform.
      * Они применяются к последующим {@link #append(String)}. Inline-span'ы добавляются как отдельные
-     * атомы и не наследуют эти параметры, кроме тех случаев, когда renderer сам использует paint.</p>
+     * атомы; от параметров builder'а они берут только размер, если заданы в em
+     * ({@link InlineContentSpan#scalesWithText()}).</p>
      */
     @AiDoc(
             summary = "Fluent builder for assembling multi-style RichText with text runs and inline content atoms.",
@@ -622,7 +742,10 @@ public final class RichText {
             },
             criticalRules = {
                     "Style attributes set on the builder apply only to subsequent append() calls; they do not retroactively alter previously added spans.",
-                    "Inline spans do not inherit text styling attributes except when the inline renderer explicitly utilizes the context color tint."
+                    "Use append(text, style) or styled(style, body) for a style that should apply to one fragment only; the previous style is restored afterwards.",
+                    "Consecutive append() calls with an identical style are merged into one TextRun.",
+                    "Inline spans take only the builder size, and only when they are em-sized (icon(id, texture) without a size, or markers without @size).",
+                    "appendResolved(String) expands {type:argument} markers using the builder style for the text parts."
             },
             related = {"RichText", "TextRun", "InlineContentSpan", "FontFace"}
     )
@@ -684,8 +807,8 @@ public final class RichText {
         /**
          * Задаёт линейный градиент для следующих текстовых run'ов.
          *
-         * @param startColor цвет начала градиента
-         * @param endColor цвет конца градиента
+         * @param startColor   цвет начала градиента
+         * @param endColor     цвет конца градиента
          * @param angleDegrees угол направления в градусах
          * @return этот builder
          */
@@ -741,7 +864,68 @@ public final class RichText {
          */
         public Builder append(String text) {
             TextRun run = new TextRun(text, font, pixelSize, color, brush, tracking, transform);
-            if (!run.isEmpty()) spans.add(run);
+            if (run.isEmpty()) return this;
+            // Подряд идущие append'ы с одинаковым стилем склеиваются в один run: меньше draw-команд и span'ов.
+            int last = spans.size() - 1;
+            if (last >= 0 && spans.get(last) instanceof TextRun previous && previous.hasSameStyle(run)) {
+                spans.set(last, previous.withText(previous.text() + run.text()));
+            } else {
+                spans.add(run);
+            }
+            return this;
+        }
+
+        /**
+         * Добавляет текст со стилем, действующим только для него.
+         *
+         * <pre>{@code
+         * RichText.builder()
+         *         .append("HP: ")
+         *         .append("20", s -> s.color(RED).size(12))
+         *         .append(" / 20")   // снова стиль builder'а
+         *         .build();
+         * }</pre>
+         *
+         * @param text  текст run'а
+         * @param style настройка стиля (font, size, color, brush, tracking, transform) поверх текущего
+         * @return этот builder
+         */
+        public Builder append(String text, Consumer<Builder> style) {
+            return styled(style, builder -> builder.append(text));
+        }
+
+        /**
+         * Выполняет {@code body} со стилем, изменённым {@code style}, и затем восстанавливает прежний стиль.
+         *
+         * <pre>{@code
+         * builder.styled(s -> s.color(GOLD), b -> b
+         *         .append("Reward: ")
+         *         .icon("coin", coinTexture)
+         *         .append(" 50"));
+         * }</pre>
+         *
+         * @param style настройка стиля поверх текущего; {@code null} — без изменений
+         * @param body  содержимое, добавляемое в этом стиле
+         * @return этот builder
+         */
+        public Builder styled(Consumer<Builder> style, Consumer<Builder> body) {
+            FontFace savedFont = font;
+            float savedSize = pixelSize;
+            ColorView savedColor = color;
+            TextBrush savedBrush = brush;
+            float savedTracking = tracking;
+            TextTransform savedTransform = transform;
+            try {
+                if (style != null) style.accept(this);
+                if (body != null) body.accept(this);
+            } finally {
+                font = savedFont;
+                pixelSize = savedSize;
+                color = savedColor;
+                brush = savedBrush;
+                tracking = savedTracking;
+                transform = savedTransform;
+            }
             return this;
         }
 
@@ -757,25 +941,63 @@ public final class RichText {
         }
 
         /**
+         * Добавляет строку, разбирая inline-маркеры ({@code {icon:...}}, {@code {key:...}} и другие типы из
+         * {@link InlineMarkers}) через {@link RichText#resolve(String)}.
+         *
+         * <p>Текстовые части получают текущие параметры builder'а, em-иконки — текущий размер.</p>
+         *
+         * @param text строка с маркерами
+         * @return этот builder
+         */
+        public Builder appendResolved(String text) {
+            for (RichTextSpan span : RichText.resolve(text).spans()) {
+                if (span instanceof TextRun run) {
+                    append(run.text());
+                } else if (span instanceof InlineContentSpan inline) {
+                    appendInline(inline);
+                }
+            }
+            return this;
+        }
+
+        /**
          * Добавляет готовый inline-span.
+         *
+         * <p>Span с размером в em пересчитывается под текущий размер builder'а.</p>
          *
          * @param span inline-span или {@code null}
          * @return этот builder
          */
         public Builder appendInline(InlineContentSpan span) {
-            if (span != null && !span.isEmpty()) spans.add(span);
+            if (span != null && !span.isEmpty()) spans.add(span.withTextSize(pixelSize));
             return this;
+        }
+
+        /**
+         * Добавляет готовый inline-span; синоним {@link #appendInline(InlineContentSpan)}.
+         *
+         * <pre>{@code
+         * builder.inline(InlineContentSpan.em("key:jump", 1.0f, 1.0f, 10.0f, InlineContentRenderer.texture(keyTexture))
+         *         .withAlignment(InlineContentAlignment.BASELINE)
+         *         .withMargins(1.0f, 1.0f));
+         * }</pre>
+         *
+         * @param span inline-span или {@code null}
+         * @return этот builder
+         */
+        public Builder inline(InlineContentSpan span) {
+            return appendInline(span);
         }
 
         /**
          * Добавляет кастомный inline-content renderer.
          *
-         * @param id стабильный id span'а для debug/diagnostics
+         * @param id           стабильный id span'а для debug/diagnostics
          * @param fallbackText plain fallback для search/copy/debug
-         * @param width ширина inline-контента в UI-пикселях
-         * @param height высота inline-контента в UI-пикселях
-         * @param alignment вертикальное выравнивание внутри строки
-         * @param renderer renderer, который получит финальные bounds после layout
+         * @param width        ширина inline-контента в UI-пикселях
+         * @param height       высота inline-контента в UI-пикселях
+         * @param alignment    вертикальное выравнивание внутри строки
+         * @param renderer     renderer, который получит финальные bounds после layout
          * @return этот builder
          */
         public Builder inline(String id, String fallbackText, float width, float height,
@@ -786,11 +1008,11 @@ public final class RichText {
         /**
          * Добавляет кастомный inline-content renderer с center alignment.
          *
-         * @param id стабильный id span'а
+         * @param id           стабильный id span'а
          * @param fallbackText plain fallback
-         * @param width ширина в UI-пикселях
-         * @param height высота в UI-пикселях
-         * @param renderer renderer inline-контента
+         * @param width        ширина в UI-пикселях
+         * @param height       высота в UI-пикселях
+         * @param renderer     renderer inline-контента
          * @return этот builder
          */
         public Builder inline(String id, String fallbackText, float width, float height,
@@ -801,9 +1023,9 @@ public final class RichText {
         /**
          * Добавляет кастомный inline-content renderer со стандартным object replacement fallback.
          *
-         * @param id стабильный id span'а
-         * @param width ширина в UI-пикселях
-         * @param height высота в UI-пикселях
+         * @param id       стабильный id span'а
+         * @param width    ширина в UI-пикселях
+         * @param height   высота в UI-пикселях
          * @param renderer renderer inline-контента
          * @return этот builder
          */
@@ -812,11 +1034,27 @@ public final class RichText {
         }
 
         /**
-         * Добавляет square texture icon.
+         * Добавляет квадратную texture-иконку размером с текст (1em).
          *
-         * @param id стабильный id span'а
+         * <p>Иконка берёт текущий размер builder'а и пересчитывается в
+         * {@link RichText#withTextStyle(Float, Float, TextTransform)}, то есть растёт вместе со шрифтом.
+         * Цвета texture сохраняются; для окраски цветом текста используйте
+         * {@link #icon(String, TextureHandle, float, float, boolean)} или {@link #inline(InlineContentSpan)}.</p>
+         *
+         * @param id      стабильный id содержимого
          * @param texture texture-handle для рендера
-         * @param size ширина и высота в UI-пикселях
+         * @return этот builder
+         */
+        public Builder icon(String id, TextureHandle texture) {
+            return appendInline(InlineContentSpan.em(id, 1.0f, 1.0f, pixelSize, InlineContentRenderer.texture(texture)));
+        }
+
+        /**
+         * Добавляет квадратную texture-иконку с абсолютным размером.
+         *
+         * @param id      стабильный id span'а
+         * @param texture texture-handle для рендера
+         * @param size    ширина и высота в UI-пикселях
          * @return этот builder
          */
         public Builder icon(String id, TextureHandle texture, float size) {
@@ -824,25 +1062,33 @@ public final class RichText {
         }
 
         /**
-         * Добавляет texture icon произвольного размера.
+         * Добавляет texture-иконку произвольного абсолютного размера без окраски цветом текста.
          *
-         * <p>Icon renderer использует цвет текущего paint'а как tint. Если texture отсутствует,
-         * span всё равно участвует в layout, но ничего не рисует.</p>
+         * <p>Если texture отсутствует, span всё равно участвует в layout, но ничего не рисует.</p>
          *
-         * @param id стабильный id span'а
+         * @param id      стабильный id span'а
          * @param texture texture-handle для рендера
-         * @param width ширина в UI-пикселях
-         * @param height высота в UI-пикселях
+         * @param width   ширина в UI-пикселях
+         * @param height  высота в UI-пикселях
          * @return этот builder
          */
         public Builder icon(String id, TextureHandle texture, float width, float height) {
-            return inline(id, InlineContentSpan.DEFAULT_FALLBACK_TEXT, width, height,
-                    (draw, context) -> {
-                        if (texture != null) {
-                            draw.texture(texture, context.x(), context.y(), context.width(), context.height(),
-                                    Paint.fill(context.color()));
-                        }
-                    });
+            return icon(id, texture, width, height, false);
+        }
+
+        /**
+         * Добавляет texture-иконку произвольного абсолютного размера.
+         *
+         * @param id      стабильный id span'а
+         * @param texture texture-handle для рендера
+         * @param width   ширина в UI-пикселях
+         * @param height  высота в UI-пикселях
+         * @param tint    {@code true} — умножать texture на цвет текста (одноцветные glyph-иконки),
+         *                {@code false} — сохранить цвета texture
+         * @return этот builder
+         */
+        public Builder icon(String id, TextureHandle texture, float width, float height, boolean tint) {
+            return appendInline(InlineContentSpan.of(id, width, height, InlineContentRenderer.texture(texture, tint)));
         }
 
         /**
@@ -851,7 +1097,7 @@ public final class RichText {
          * @return новый {@link RichText}
          */
         public RichText build() {
-            return new RichText(spans, true);
+            return create(spans);
         }
     }
 }

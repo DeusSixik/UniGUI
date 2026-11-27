@@ -19,12 +19,24 @@ import dev.sixik.unigui.api.docs.AiDoc;
         related = {"InlineContentSpan", "TextEngine"}
 )
 public enum InlineContentAlignment {
-    /** Центрирует inline-контент по высоте строки. */
+    /**
+     * Центрирует inline-контент по высоте строки.
+     */
     CENTER,
 
-    /** Прижимает inline-контент к верхней границе строки. */
+    /**
+     * Прижимает inline-контент к верхней границе строки.
+     */
     TEXT_TOP,
 
-    /** Прижимает inline-контент к нижней границе строки. */
-    TEXT_BOTTOM
+    /**
+     * Прижимает inline-контент к нижней границе строки.
+     */
+    TEXT_BOTTOM,
+
+    /**
+     * Ставит нижний край inline-контента на baseline соседнего текста, как у обычной буквы.
+     * Если в строке нет текстового run'а, ведёт себя как {@link #CENTER}.
+     */
+    BASELINE
 }
