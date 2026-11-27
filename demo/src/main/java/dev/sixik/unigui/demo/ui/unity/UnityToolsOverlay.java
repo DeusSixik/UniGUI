@@ -35,7 +35,9 @@ import java.util.function.Consumer;
  * остаётся там, где её оставили. Выйти за границы Scene панель не может.</p>
  */
 final class UnityToolsOverlay {
-    /** Зоны докинга панели внутри Scene View. */
+    /**
+     * Зоны докинга панели внутри Scene View.
+     */
     enum Zone {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, LEFT, RIGHT, TOP, BOTTOM
     }
@@ -54,6 +56,10 @@ final class UnityToolsOverlay {
     private final CanvasWidget zonesCanvas = new CanvasWidget();
     private final Button modeButton = new Button();
     private final List<Button> toolButtons = new ArrayList<>();
+    /**
+     * Receives tool changes from both pointer and keyboard input.
+     */
+    private final Consumer<Tool> onChanged;
 
     private Tool selected;
     private boolean dragging;
@@ -71,8 +77,9 @@ final class UnityToolsOverlay {
     UnityToolsOverlay(StackPanel host, Tool initial, Consumer<Tool> onChanged) {
         this.host = host;
         this.selected = initial;
+        this.onChanged = onChanged;
 
-        buildPanel(onChanged);
+        buildPanel();
         buildZonesCanvas();
         applyOrientation(Orientation.VERTICAL);
         applyZone(Zone.TOP_LEFT);
@@ -81,12 +88,30 @@ final class UnityToolsOverlay {
         host.addChild(panel);
     }
 
-    /** @return текущий выбранный инструмент */
+    /**
+     * @return текущий выбранный инструмент
+     */
     Tool selectedTool() {
         return selected;
     }
 
-    private void buildPanel(Consumer<Tool> onChanged) {
+    /**
+     * Activates a tool and updates its toolbar highlight.
+     *
+     * @param tool tool selected by a button or shortcut
+     */
+    void selectTool(Tool tool) {
+        if (selected == tool) return;
+        selected = tool;
+        for (Button button : toolButtons) button.invalidate(InvalidationFlags.VISUAL);
+        panel.invalidate(InvalidationFlags.VISUAL);
+        if (onChanged != null) onChanged.accept(tool);
+    }
+
+    /**
+     * Builds the draggable toolbar and attaches its tool buttons.
+     */
+    private void buildPanel() {
         panel.themeEnabled(false);
         panel.spacing(0.0f);
         panel.background(UnityStyles.BG_TOOLBAR);
@@ -130,7 +155,7 @@ final class UnityToolsOverlay {
         for (int i = 0; i < tools.length; i++) {
             Tool tool = tools[i];
             UiIcon icon = icons[i];
-            Button button = new Button();
+            Button button = new Button(tool.name());
             button.themeEnabled(false);
             button.boxVisualEnabled(false);
             button.focusRingVisible(false);
@@ -146,17 +171,7 @@ final class UnityToolsOverlay {
                 ColorView tint = on || btn.hovered() ? UnityStyles.TEXT_BOLD : UnityStyles.TEXT_LABEL;
                 icon.draw(draw, b.x() + (b.width() - 16.0f) * 0.5f, b.y() + (b.height() - 16.0f) * 0.5f, 16.0f, tint);
             }));
-            button.onClick(e -> {
-                if (selected == tool) return;
-                selected = tool;
-                // Каждая кнопка читает selected при отрисовке, поэтому перерисовать нужно все, а не только нажатую:
-                // иначе прежний инструмент остаётся подсвеченным, пока на него не наведут мышь.
-                for (Button other : toolButtons) {
-                    other.invalidate(InvalidationFlags.VISUAL);
-                }
-                panel.invalidate(InvalidationFlags.VISUAL);
-                if (onChanged != null) onChanged.accept(tool);
-            });
+            button.onClick(e -> selectTool(tool));
             toolButtons.add(button);
             panel.addChild(button);
         }
@@ -214,7 +229,9 @@ final class UnityToolsOverlay {
         });
     }
 
-    /** Панель следует за указателем внутри Scene, а зона под указателем подсвечивается. */
+    /**
+     * Панель следует за указателем внутри Scene, а зона под указателем подсвечивается.
+     */
     private void followPointer(float rootX, float rootY) {
         RectView h = host.layoutBounds();
         RectView p = panel.layoutBounds();
@@ -234,7 +251,9 @@ final class UnityToolsOverlay {
         return null;
     }
 
-    /** Прямоугольник зоны в координатах хоста: {@code {x, y, width, height}}. */
+    /**
+     * Прямоугольник зоны в координатах хоста: {@code {x, y, width, height}}.
+     */
     private static float[] zoneRect(Zone zone, float width, float height) {
         float corner = Math.min(CORNER_ZONE, Math.min(width, height) / 3.0f);
         float strip = Math.min(STRIP_ZONE, corner);
@@ -250,7 +269,9 @@ final class UnityToolsOverlay {
         };
     }
 
-    /** Ставит панель в зону: боковые края делают её вертикальной, верхний и нижний - горизонтальной. */
+    /**
+     * Ставит панель в зону: боковые края делают её вертикальной, верхний и нижний - горизонтальной.
+     */
     private void applyZone(Zone zone) {
         switch (zone) {
             case LEFT, RIGHT -> applyOrientation(Orientation.VERTICAL);
@@ -274,7 +295,9 @@ final class UnityToolsOverlay {
         panel.invalidate(InvalidationFlags.LAYOUT | InvalidationFlags.VISUAL);
     }
 
-    /** Размеры панели и её элементов под вертикальную или горизонтальную раскладку. */
+    /**
+     * Размеры панели и её элементов под вертикальную или горизонтальную раскладку.
+     */
     private void applyOrientation(Orientation orientation) {
         boolean vertical = orientation == Orientation.VERTICAL;
         panel.orientation(orientation);

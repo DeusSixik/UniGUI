@@ -34,7 +34,7 @@ import java.util.function.Consumer;
  * Секция компонента Unity Inspector с заголовком, стрелкой foldout,
  * чекбоксом активности, иконкой, кнопками контекстного меню и телом свойств.
  */
-public class UnityComponentSection extends LinearBox {
+public class    UnityComponentSection extends LinearBox {
     private final String title;
     private final Box headerSurface = new Box();
     private final HBox headerRow = new HBox();
@@ -69,6 +69,10 @@ public class UnityComponentSection extends LinearBox {
     private Runnable onFindReferencesClick;
     private Runnable onPropertiesClick;
     private Runnable onRemoveClick;
+    /** Whether the removal command is enabled in the component menu. */
+    private boolean removable = true;
+    /** Removal item created with the context menu. */
+    private Button removeMenuItem;
 
     public UnityComponentSection(String title, CanvasWidget icon, boolean hasEnableCheckbox) {
         this(title, icon, hasEnableCheckbox, null);
@@ -494,7 +498,7 @@ public class UnityComponentSection extends LinearBox {
         UnityStyles.addContextMenuItem(contextMenu, "Properties...", true, menuWidth, () -> {
             if (onPropertiesClick != null) onPropertiesClick.run();
         });
-        UnityStyles.addContextMenuItem(contextMenu, "Remove Component", true, menuWidth, () -> {
+        removeMenuItem = UnityStyles.addContextMenuItem(contextMenu, "Remove Component", removable, menuWidth, () -> {
             if (onRemoveClick != null) {
                 onRemoveClick.run();
             } else {
@@ -536,6 +540,13 @@ public class UnityComponentSection extends LinearBox {
         }
     }
 
+    /** Reattaches the help tooltip when the Inspector restores a removed component. */
+    void restoreHelpTooltip() {
+        if (helpTooltip != null && overlayLayer != null && helpTooltip.parent() != overlayLayer) {
+            overlayLayer.addOverlay(helpTooltip);
+        }
+    }
+
     public ContextMenu contextMenu() {
         return contextMenu;
     }
@@ -552,6 +563,15 @@ public class UnityComponentSection extends LinearBox {
     public UnityComponentSection onRemove(Runnable action) {
         this.onRemoveClick = action;
         return this;
+    }
+
+    /**
+     * Sets whether this section can be removed from its menu.
+     * @param removable true for optional components
+     */
+    void removable(boolean removable) {
+        this.removable = removable;
+        if (removeMenuItem != null) removeMenuItem.enabled(removable);
     }
 
     public UnityComponentSection onCopy(Runnable action) {

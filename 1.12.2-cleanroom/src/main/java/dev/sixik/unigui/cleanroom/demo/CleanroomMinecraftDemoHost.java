@@ -26,6 +26,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.common.registry.EntityEntry;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -40,6 +41,20 @@ public final class CleanroomMinecraftDemoHost implements DemoMinecraftHost {
     @Override
     public SceneShowcase.Blocks sceneBlocks() {
         return SceneShowcase.Blocks.MODERN;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> sceneElementIds(SceneElementKind kind) {
+        return switch (kind) {
+            case BLOCK -> ForgeRegistries.BLOCKS.getKeys().stream()
+                    .filter(id -> !"minecraft:air".equals(id.toString())).map(ResourceLocation::toString).toList();
+            case ITEM -> ForgeRegistries.ITEMS.getKeys().stream()
+                    .filter(id -> !"minecraft:air".equals(id.toString())).map(ResourceLocation::toString).toList();
+            case ENTITY -> ForgeRegistries.ENTITIES.getKeys().stream().map(ResourceLocation::toString).toList();
+        };
     }
 
     @Override
@@ -126,7 +141,8 @@ public final class CleanroomMinecraftDemoHost implements DemoMinecraftHost {
                 worn.setItemDamage(900);
                 yield worn;
             }
-            case HEALING_POTION -> PotionUtils.addPotionToItemStack(new ItemStack(Items.POTIONITEM), PotionTypes.HEALING);
+            case HEALING_POTION ->
+                    PotionUtils.addPotionToItemStack(new ItemStack(Items.POTIONITEM), PotionTypes.HEALING);
             case BOW -> new ItemStack(Items.BOW);
             case EMERALD -> new ItemStack(Items.EMERALD);
             case ENCHANTED_SWORD -> {

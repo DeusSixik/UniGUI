@@ -48,7 +48,7 @@ public final class SceneGizmoDemo extends Box {
     /**
      * Оси и кольца выбранного объекта.
      */
-    private final SceneTransformGizmo gizmo = new SceneTransformGizmo(viewport);
+    private final SceneTransformGizmo gizmo = new SceneTransformGizmo(viewport, true);
     /**
      * Контроллер свободного полёта, использующий ту же позу камеры.
      */
@@ -178,6 +178,8 @@ public final class SceneGizmoDemo extends Box {
             activeTool.silentChecked(false);
             activeTool = button;
             gizmo.mode(mode);
+            gizmo.space(mode == SceneTransformGizmo.Mode.SCALE
+                    ? SceneTransformGizmo.Space.LOCAL : SceneTransformGizmo.Space.GLOBAL);
             focusViewport();
         });
         return button;

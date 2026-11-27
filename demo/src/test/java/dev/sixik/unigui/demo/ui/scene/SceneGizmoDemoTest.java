@@ -108,6 +108,8 @@ class SceneGizmoDemoTest {
         fixture.pressScene(handle.b.x(), handle.b.y(), PointerButton.PRIMARY);
         fixture.moveScene(handle.b.x() + handle.dx(), handle.b.y() + handle.dy());
         assertVector(new MutableVec3(2, 1, 1), block.scale(new MutableVec3()));
+        fixture.moveScene(handle.b.x() + 8 * handle.dx(), handle.b.y() + 8 * handle.dy());
+        assertVector(new MutableVec3(6, 1, 1), block.scale(new MutableVec3()));
         fixture.moveScene(handle.b.x() - 3 * handle.dx(), handle.b.y() - 3 * handle.dy());
         assertVector(new MutableVec3(0.15f, 1, 1), block.scale(new MutableVec3()));
 

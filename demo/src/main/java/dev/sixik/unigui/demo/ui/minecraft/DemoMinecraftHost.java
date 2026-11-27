@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +24,25 @@ import java.util.function.Consumer;
  * @see DemoMinecraft
  */
 public interface DemoMinecraftHost {
+    /** Registry categories supported by the scene editor. */
+    enum SceneElementKind {
+        /** Block using its default state. */
+        BLOCK,
+        /** Single item using its default stack. */
+        ITEM,
+        /** Entity rendered as a scene preview. */
+        ENTITY
+    }
+
+    /**
+     * Lists sources for Minecraft scene nodes on the active platform.
+     * @param kind registry to browse
+     * @return IDs accepted by the corresponding Scene3D node, or an empty list when unavailable
+     */
+    default List<String> sceneElementIds(SceneElementKind kind) {
+        return List.of();
+    }
+
     /**
      * Item samples. The first group is drawn from the baked icon cache; the second group is never cached because
      * its picture can change between frames.

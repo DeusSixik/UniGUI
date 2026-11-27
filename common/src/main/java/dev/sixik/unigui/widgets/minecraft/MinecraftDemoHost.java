@@ -9,12 +9,14 @@ import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
 import dev.sixik.unigui.tests.SceneFurnaceTutorial;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -48,6 +50,19 @@ public final class MinecraftDemoHost implements DemoMinecraftHost {
     @Override
     public SceneShowcase.Blocks sceneBlocks() {
         return SceneShowcase.Blocks.MODERN;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public List<String> sceneElementIds(SceneElementKind kind) {
+        return switch (kind) {
+            case BLOCK -> BuiltInRegistries.BLOCK.stream().filter(block -> !block.defaultBlockState().isAir())
+                    .map(block -> BuiltInRegistries.BLOCK.getKey(block).toString()).toList();
+            case ITEM -> BuiltInRegistries.ITEM.stream().filter(item -> item != Items.AIR)
+                    .map(item -> BuiltInRegistries.ITEM.getKey(item).toString()).toList();
+            case ENTITY -> BuiltInRegistries.ENTITY_TYPE.stream().filter(EntityType::canSummon)
+                    .map(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).toString()).toList();
+        };
     }
 
     @Override

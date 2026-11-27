@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.text.*;
 import dev.sixik.unigui.demo.ui.*;
 import dev.sixik.unigui.demo.ui.interactive.space_ship_minigame.SolarNavigationScreen;
 import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
+import dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost;
 import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
 import dev.sixik.unigui.testmod.client.ui.InventoryDemoScreen;
 import dev.sixik.unigui.testmod.client.ui.LevelMapScreen;
@@ -118,6 +119,7 @@ public final class TestModClient implements ClientModInitializer {
     }
 
     public static void openUnityInspector() {
+        MinecraftDemoHost.install();
         UnityInspectorScreen.open();
     }
 

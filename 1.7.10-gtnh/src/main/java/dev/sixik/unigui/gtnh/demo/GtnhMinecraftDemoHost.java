@@ -14,11 +14,17 @@ import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemTooltip;
 import dev.sixik.unigui.widgets.minecraft.MinecraftWidgets;
 import net.minecraft.client.Minecraft;
+import net.minecraft.block.Block;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.EntityList;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -33,6 +39,23 @@ public final class GtnhMinecraftDemoHost implements DemoMinecraftHost {
     @Override
     public SceneShowcase.Blocks sceneBlocks() {
         return SceneShowcase.Blocks.MODERN;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> sceneElementIds(SceneElementKind kind) {
+        Collection<?> keys = switch (kind) {
+            case BLOCK -> Block.blockRegistry.getKeys();
+            case ITEM -> Item.itemRegistry.getKeys();
+            case ENTITY -> EntityList.stringToClassMapping.keySet();
+        };
+        List<String> ids = new ArrayList<>(keys.size());
+        for (Object key : keys) {
+            if (key != null && !"minecraft:air".equals(key.toString())) ids.add(key.toString());
+        }
+        return ids;
     }
 
     @Override

@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.demo.ui.scene.SceneTransformGizmo.Space;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
@@ -25,6 +26,7 @@ import dev.sixik.unigui.widgets.interaction.NumberField;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Элементы управления Scene View в стиле Unity, которые живут внутри панели Scene и не могут из неё выйти:
@@ -32,7 +34,9 @@ import java.util.function.BooleanSupplier;
  * инструментов с докингом - {@link UnityToolsOverlay}.
  */
 final class UnitySceneToolbar {
-    /** Инструменты трансформации Scene View. */
+    /**
+     * Инструменты трансформации Scene View.
+     */
     enum Tool {
         HAND, MOVE, ROTATE, SCALE, RECT, TRANSFORM
     }
@@ -49,9 +53,10 @@ final class UnitySceneToolbar {
      * <p>Если элементы не помещаются, по краям появляются кнопки со стрелками; кнопка видна, только пока в её
      * сторону есть что прокручивать, и при удержании двигает строку. Колесо мыши тоже прокручивает строку.</p>
      *
+     * @param onSpaceChanged receives the coordinate space selected for the gizmo
      * @return готовая панель высотой {@value #BAR_HEIGHT} px
      */
-    static StackPanel createTopBar() {
+    static StackPanel createTopBar(Consumer<Space> onSpaceChanged) {
         StackPanel host = new StackPanel();
         host.layout(style -> style.widthPercent(100.0f).height(BAR_HEIGHT).flexGrow(0.0f).flexShrink(0.0f));
 
@@ -63,7 +68,7 @@ final class UnitySceneToolbar {
         background.layout(style -> style.sizePercent(100.0f, 100.0f));
         host.addChild(background);
 
-        ScrollView scroll = new ScrollView(buildTopBarContent());
+        ScrollView scroll = new ScrollView(buildTopBarContent(onSpaceChanged));
         scroll.layout(style -> style.sizePercent(100.0f, 100.0f)
                 .overflowX(Overflow.AUTO).overflowY(Overflow.HIDDEN));
         // Полосы прокрутки не нужны: их заменяют стрелки по краям.
@@ -84,7 +89,9 @@ final class UnitySceneToolbar {
         return host;
     }
 
-    /** Кнопка-стрелка у края панели: при удержании прокручивает панель в свою сторону. */
+    /**
+     * Кнопка-стрелка у края панели: при удержании прокручивает панель в свою сторону.
+     */
     private static final class EdgeArrow extends Button {
         private static final float SPEED = 420.0f;
         private final ScrollView scroll;
@@ -135,7 +142,9 @@ final class UnitySceneToolbar {
         }
     }
 
-    /** Невидимый наблюдатель: показывает стрелку, только если в её сторону панель можно прокрутить. */
+    /**
+     * Невидимый наблюдатель: показывает стрелку, только если в её сторону панель можно прокрутить.
+     */
     private static final class ArrowWatcher extends Box {
         private final ScrollView scroll;
         private final EdgeArrow left;
@@ -173,7 +182,13 @@ final class UnitySceneToolbar {
         }
     }
 
-    private static HBox buildTopBarContent() {
+    /**
+     * Builds the controls hosted in the scrollable toolbar.
+     *
+     * @param onSpaceChanged receives changes to the gizmo axes
+     * @return row containing the scene view controls
+     */
+    private static HBox buildTopBarContent(Consumer<Space> onSpaceChanged) {
         HBox bar = new HBox();
         bar.themeEnabled(false);
         bar.borderVisible(false);
@@ -185,7 +200,8 @@ final class UnitySceneToolbar {
                 .flexGrow(0.0f).flexShrink(0.0f));
 
         bar.addChild(dropdown("Center", UnityIcons.CUBE_OUTLINE_ICON, List.of("Center", "Pivot")));
-        bar.addChild(dropdown("Local", UnityIcons.CUBE_OUTLINE_ICON, List.of("Local", "Global")));
+        bar.addChild(dropdown("Global", UnityIcons.CUBE_OUTLINE_ICON, List.of("Local", "Global"),
+                option -> onSpaceChanged.accept("Local".equals(option) ? Space.LOCAL : Space.GLOBAL)));
         bar.addChild(verticalSeparator());
 
         boolean[] grid = {true};
@@ -215,7 +231,9 @@ final class UnitySceneToolbar {
         return bar;
     }
 
-    /** Фон кнопки при наведении и нажатии. */
+    /**
+     * Фон кнопки при наведении и нажатии.
+     */
     static void paintHover(dev.sixik.unigui.api.render.DrawScope draw, Button btn, RectView b) {
         if (btn.pressed()) {
             draw.rectFilled(b.x(), b.y(), b.width(), b.height(), UnityStyles.BG_WORKSPACE);
@@ -234,7 +252,9 @@ final class UnitySceneToolbar {
         return button;
     }
 
-    /** Кнопка-переключатель с иконкой: выбранное состояние подсвечивается синим. */
+    /**
+     * Кнопка-переключатель с иконкой: выбранное состояние подсвечивается синим.
+     */
     private static Button iconToggle(UiIcon icon, float width, BooleanSupplier selected, Runnable toggle) {
         Button button = flatButton(width, BUTTON_HEIGHT);
         button.renderer(WidgetRender.of(Button.class, (draw, btn) -> {
@@ -252,7 +272,9 @@ final class UnitySceneToolbar {
         return button;
     }
 
-    /** Текстовая кнопка-переключатель. */
+    /**
+     * Текстовая кнопка-переключатель.
+     */
     private static Button textToggle(String text, float width, BooleanSupplier selected, Runnable toggle) {
         Button button = flatButton(width, BUTTON_HEIGHT);
         button.renderer(WidgetRender.of(Button.class, (draw, btn) -> {
@@ -282,10 +304,24 @@ final class UnitySceneToolbar {
      * Выпадающая кнопка с необязательной иконкой, подписью и стрелкой. Выбранный пункт становится подписью.
      */
     private static Button dropdown(String initial, UiIcon icon, List<String> options) {
-        String[] current = {initial};
+        return dropdown(initial, icon, options, option -> {
+        });
+    }
+
+    /**
+     * Builds a dropdown that updates its label and notifies the caller on selection.
+     *
+     * @param initial    starting label
+     * @param icon       optional icon
+     * @param options    labels shown in the menu
+     * @param onSelected receives the chosen label
+     * @return dropdown button
+     */
+    private static Button dropdown(String initial, UiIcon icon, List<String> options, Consumer<String> onSelected) {
         float iconSpace = icon == null ? 0.0f : 18.0f;
         float width = 10.0f + iconSpace + TextEngine.measureLineWidth(longest(initial, options)) + 22.0f;
         Button button = flatButton(width, BUTTON_HEIGHT);
+        button.text(initial);
         button.renderer(WidgetRender.of(Button.class, (draw, btn) -> {
             RectView b = btn.layoutBounds();
             ColorView bg = btn.pressed() ? UnityStyles.BG_BUTTON_ACTIVE
@@ -297,7 +333,7 @@ final class UnitySceneToolbar {
                 icon.draw(draw, x, b.y() + (b.height() - 13.0f) * 0.5f, 13.0f, UnityStyles.TEXT_PRIMARY);
                 x += iconSpace;
             }
-            RichText rich = RichText.plain(current[0]);
+            RichText rich = RichText.plain(btn.text());
             float textHeight = TextEngine.measureTextHeight(draw.context(), rich);
             float available = Math.max(0.0f, b.x() + b.width() - 16.0f - x);
             draw.pushTextClip(x, b.y(), available, b.height());
@@ -318,8 +354,8 @@ final class UnitySceneToolbar {
             float menuWidth = Math.max(110.0f, width);
             for (String option : options) {
                 UnityStyles.addContextMenuItem(menu, option, true, menuWidth, () -> {
-                    current[0] = option;
-                    button.invalidate(dev.sixik.unigui.api.core.InvalidationFlags.VISUAL);
+                    button.text(option);
+                    onSelected.accept(option);
                 });
             }
             overlay.addOverlay(menu);

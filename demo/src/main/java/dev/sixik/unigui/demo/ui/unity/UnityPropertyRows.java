@@ -4,26 +4,25 @@ import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Alignment;
+import dev.sixik.unigui.api.layout.FlexWrap;
+import dev.sixik.unigui.api.math.ColorView;
 import dev.sixik.unigui.api.math.MutableColor;
+import dev.sixik.unigui.api.math.Vec3View;
 import dev.sixik.unigui.api.widget.CheckboxState;
 import dev.sixik.unigui.api.widget.Visibility;
-import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.widgets.containers.Box;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.feedback.OverlayLayer;
-import dev.sixik.unigui.widgets.interaction.Button;
-import dev.sixik.unigui.widgets.interaction.Checkbox;
-import dev.sixik.unigui.widgets.interaction.ComboBox;
-import dev.sixik.unigui.widgets.interaction.NumberField;
-import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.interaction.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
+import java.util.function.Supplier;
 
 /**
  * Фабрика стандартных строк свойств инспектора Unity (Vector3, Slider, ComboBox, Checkbox, Color, HelpBox).
@@ -38,69 +37,90 @@ public final class UnityPropertyRows {
      */
     public static HBox vector3Row(String labelText, double xVal, double yVal, double zVal,
                                   DoubleConsumer onX, DoubleConsumer onY, DoubleConsumer onZ) {
+        VectorFields fields = vectorFields(labelText, xVal, yVal, zVal);
+        if (onX != null) fields.x().onValueChanged(e -> onX.accept(e.newValue()));
+        if (onY != null) fields.y().onValueChanged(e -> onY.accept(e.newValue()));
+        if (onZ != null) fields.z().onValueChanged(e -> onZ.accept(e.newValue()));
+        return fields.row();
+    }
+
+    /**
+     * Builds a vector editor with a left-aligned label and three axes, wrapping on narrow panels.
+     *
+     * @param label property name
+     * @param x     initial X component
+     * @param y     initial Y component
+     * @param z     initial Z component
+     * @return row and its editable inputs
+     */
+    static VectorFields vectorFields(String label, double x, double y, double z) {
         HBox row = new HBox();
-        row.spacing(6.0f);
-        row.layout(style -> style.widthPercent(100.0f).height(UnityStyles.ROW_HEIGHT)
-                .align(Alignment.START, Alignment.CENTER)
-                .flexGrow(0.0f).flexShrink(0.0f));
+        row.layout(style -> style.widthPercent(100.0f).flexShrink(0.0f)
+                .flexWrap(FlexWrap.WRAP).gap(2.0f, 4.0f).alignItems(Align.CENTER));
+        Label title = UnityStyles.label(label);
+        title.layout(style -> style.width(52.0f).maxWidth(UnityStyles.LABEL_WIDTH)
+                .flexGrow(0.65f).flexShrink(0.0f));
+        row.addChild(title);
+        HBox axes = new HBox();
+        axes.layout(style -> style.width(176.0f).maxWidthPercent(100.0f)
+                .flexGrow(1.0f).flexShrink(1.0f).flexWrap(FlexWrap.WRAP)
+                .gap(2.0f, 4.0f).alignItems(Align.CENTER));
+        row.addChild(axes);
+        return new VectorFields(row, addAxis(axes, "X", UnityStyles.AXIS_X, x),
+                addAxis(axes, "Y", UnityStyles.AXIS_Y, y), addAxis(axes, "Z", UnityStyles.AXIS_Z, z));
+    }
 
-        row.addChild(UnityStyles.label(labelText));
+    /**
+     * Appends a colored axis label and a numeric field that can grow but cannot shrink below 46 UI units.
+     *
+     * @param row   parent row
+     * @param axis  axis label
+     * @param color label color
+     * @param value initial axis value
+     * @return the numeric input
+     */
+    private static NumberField addAxis(HBox row, String axis, ColorView color, double value) {
+        HBox group = new HBox();
+        group.layout(style -> style.width(56.0f).height(UnityStyles.ROW_HEIGHT)
+                .flexGrow(1.0f).flexShrink(0.0f).alignItems(Align.CENTER));
+        Label axisLabel = new Label(axis);
+        axisLabel.color(color);
+        axisLabel.layout(style -> style.width(10.0f).height(UnityStyles.ROW_HEIGHT).flexShrink(0.0f));
+        NumberField field = new NumberField();
+        UnityStyles.styleNumberField(field);
+        field.value(value);
+        field.layout(style -> style.width(46.0f).minWidth(46.0f).flexGrow(1.0f).flexShrink(0.0f));
+        group.addChild(axisLabel);
+        group.addChild(field);
+        row.addChild(group);
+        return field;
+    }
 
-        HBox fields = new HBox();
-        fields.spacing(4.0f);
-        fields.layout(style -> style.heightPercent(100.0f).flexGrow(1.0f));
+    /**
+     * Vector row and controls for each component.
+     */
+    record VectorFields(HBox row, NumberField x, NumberField y, NumberField z) {
+        /**
+         * Refreshes the fields without sending transform edits back to the scene.
+         *
+         * @param position current vector value
+         */
+        void set(Vec3View position) {
+            x.silentValue(position.x());
+            y.silentValue(position.y());
+            z.silentValue(position.z());
+        }
 
-        // X
-        HBox xBox = new HBox();
-        xBox.spacing(2.0f);
-        xBox.layout(style -> style.heightPercent(100.0f).flexGrow(1.0f).align(Alignment.START, Alignment.CENTER));
-        Label xLabel = new Label("X");
-        xLabel.color(UnityStyles.AXIS_X);
-        xLabel.layout(style -> style.width(10.0f).height(UnityStyles.ROW_HEIGHT));
-        NumberField xField = new NumberField();
-        UnityStyles.styleNumberField(xField);
-        xField.value(xVal);
-        xField.layout(style -> style.height(UnityStyles.ROW_HEIGHT).flexGrow(1.0f));
-        if (onX != null) xField.onValueChanged(e -> onX.accept(e.newValue()));
-        xBox.addChild(xLabel);
-        xBox.addChild(xField);
-
-        // Y
-        HBox yBox = new HBox();
-        yBox.spacing(2.0f);
-        yBox.layout(style -> style.heightPercent(100.0f).flexGrow(1.0f).align(Alignment.START, Alignment.CENTER));
-        Label yLabel = new Label("Y");
-        yLabel.color(UnityStyles.AXIS_Y);
-        yLabel.layout(style -> style.width(10.0f).height(UnityStyles.ROW_HEIGHT));
-        NumberField yField = new NumberField();
-        UnityStyles.styleNumberField(yField);
-        yField.value(yVal);
-        yField.layout(style -> style.height(UnityStyles.ROW_HEIGHT).flexGrow(1.0f));
-        if (onY != null) yField.onValueChanged(e -> onY.accept(e.newValue()));
-        yBox.addChild(yLabel);
-        yBox.addChild(yField);
-
-        // Z
-        HBox zBox = new HBox();
-        zBox.spacing(2.0f);
-        zBox.layout(style -> style.heightPercent(100.0f).flexGrow(1.0f).align(Alignment.START, Alignment.CENTER));
-        Label zLabel = new Label("Z");
-        zLabel.color(UnityStyles.AXIS_Z);
-        zLabel.layout(style -> style.width(10.0f).height(UnityStyles.ROW_HEIGHT));
-        NumberField zField = new NumberField();
-        UnityStyles.styleNumberField(zField);
-        zField.value(zVal);
-        zField.layout(style -> style.height(UnityStyles.ROW_HEIGHT).flexGrow(1.0f));
-        if (onZ != null) zField.onValueChanged(e -> onZ.accept(e.newValue()));
-        zBox.addChild(zLabel);
-        zBox.addChild(zField);
-
-        fields.addChild(xBox);
-        fields.addChild(yBox);
-        fields.addChild(zBox);
-
-        row.addChild(fields);
-        return row;
+        /**
+         * Runs an update whenever one component is committed.
+         *
+         * @param action reads and applies the current field values
+         */
+        void onChange(Runnable action) {
+            x.onValueChanged(event -> action.run());
+            y.onValueChanged(event -> action.run());
+            z.onValueChanged(event -> action.run());
+        }
     }
 
     /**
@@ -216,6 +236,19 @@ public final class UnityPropertyRows {
      * Строка поля цвета (Background с плашкой цвета и пипеткой).
      */
     public static HBox colorFieldRow(String labelText, MutableColor initialColor, OverlayLayer overlayLayer) {
+        return colorFieldRow(labelText, initialColor, checkpoint -> {
+        });
+    }
+
+    /**
+     * Builds the color control and exposes a snapshot of its swatch and preset index.
+     *
+     * @param labelText          property caption
+     * @param initialColor       backing color, updated when selecting a preset
+     * @param registerCheckpoint receives a supplier of the current color restore action
+     * @return the color property row
+     */
+    static HBox colorFieldRow(String labelText, MutableColor initialColor, Consumer<Supplier<Runnable>> registerCheckpoint) {
         HBox row = new HBox();
         row.spacing(6.0f);
         row.layout(style -> style.widthPercent(100.0f).height(UnityStyles.ROW_HEIGHT)
@@ -258,6 +291,15 @@ public final class UnityPropertyRows {
                 MutableColor.rgba255(115, 115, 115, 255)   // Medium Gray
         };
         int[] colorIndex = {0};
+        registerCheckpoint.accept(() -> {
+            int savedIndex = colorIndex[0];
+            MutableColor savedColor = new MutableColor().set(initialColor);
+            return () -> {
+                colorIndex[0] = savedIndex;
+                initialColor.set(savedColor);
+                swatch.background().set(savedColor);
+            };
+        });
 
         swatch.on(PointerPressedEvent.TYPE, event -> {
             if (event.button() == PointerButton.PRIMARY) {
@@ -444,6 +486,17 @@ public final class UnityPropertyRows {
      * Секция Command Buffers со списком и кнопкой "Remove all".
      */
     public static VBox commandBuffersBlock() {
+        return commandBuffersBlock(checkpoint -> {
+        });
+    }
+
+    /**
+     * Builds the Command Buffers foldout and exposes a snapshot of its example entries.
+     *
+     * @param registerCheckpoint receives a supplier of the current list restore action
+     * @return command buffer section
+     */
+    static VBox commandBuffersBlock(Consumer<Supplier<Runnable>> registerCheckpoint) {
         VBox block = new VBox();
         block.spacing(2.0f);
         block.layout(style -> style.widthPercent(100.0f).flexGrow(0.0f).flexShrink(0.0f));
@@ -526,6 +579,19 @@ public final class UnityPropertyRows {
         };
 
         rebuildList.run();
+        registerCheckpoint.accept(() -> {
+            List<String> savedBuffers = List.copyOf(buffers);
+            boolean expanded = open[0];
+            return () -> {
+                if (!savedBuffers.equals(buffers)) {
+                    buffers.clear();
+                    buffers.addAll(savedBuffers);
+                    rebuildList.run();
+                }
+                open[0] = expanded;
+                listContainer.visibility(expanded ? Visibility.VISIBLE : Visibility.COLLAPSED);
+            };
+        });
 
         foldoutHeader.on(PointerPressedEvent.TYPE, event -> {
             if (event.button() == PointerButton.PRIMARY) {

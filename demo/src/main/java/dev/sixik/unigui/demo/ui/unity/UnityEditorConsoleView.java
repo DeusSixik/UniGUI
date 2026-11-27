@@ -4,13 +4,8 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.Align;
-import dev.sixik.unigui.widgets.containers.Box;
-import dev.sixik.unigui.widgets.containers.HBox;
-import dev.sixik.unigui.widgets.containers.LinearBox;
-import dev.sixik.unigui.widgets.containers.ScrollView;
-import dev.sixik.unigui.widgets.containers.VBox;
+import dev.sixik.unigui.widgets.containers.*;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.display.CanvasWidget;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 
@@ -31,7 +26,8 @@ public class UnityEditorConsoleView extends LinearBox {
         ERROR
     }
 
-    public record LogEntry(LogType type, String message, String stackTrace, String time) {}
+    public record LogEntry(LogType type, String message, String stackTrace, String time) {
+    }
 
     private final List<LogEntry> entries = new ArrayList<>();
     private final VBox logListContainer = new VBox();

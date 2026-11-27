@@ -1,38 +1,56 @@
 package dev.sixik.unigui.demo.ui.unity;
 
-import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.math.MutableColor;
-import dev.sixik.unigui.api.render.Paint;
-import dev.sixik.unigui.widgets.containers.Box;
+import dev.sixik.unigui.api.math.MutableVec3;
+import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
 import dev.sixik.unigui.widgets.core.Orientation;
-import dev.sixik.unigui.widgets.display.CanvasWidget;
-import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.rendering.Scene3D;
 
 /**
- * Интерактивный видовой экран Game View в стиле Unity:
- * панель инструментов (Display 1, Free Aspect, Scale, Maximize on Play, Mute Audio, Stats, Gizmos),
- * рендеринг игрового кадра (включая анимацию при запуске Play mode)
- * и оверлей статистики (Statistics: FPS, Batches, Tris, Verts).
+ * Unity-style Game view with a fixed camera rendering the editable scene.
  */
 public class UnityEditorGameView extends LinearBox {
-    private final CanvasWidget gameCanvas = new CanvasWidget();
+    /**
+     * Preview viewport with its own camera and no camera input.
+     */
+    private final Scene3D viewport;
 
     private boolean isPlaying = false;
+    /**
+     * Whether Play is temporarily frozen.
+     */
+    private boolean paused;
     private boolean statsVisible = false;
     private boolean maximizeOnPlay = false;
     private boolean muteAudio = false;
 
-    private static final MutableColor BG_GAME = new MutableColor(0.10f, 0.10f, 0.10f, 1.0f);
-    private static final MutableColor COLOR_GRID = new MutableColor(0.20f, 0.20f, 0.22f, 0.5f);
     private static final MutableColor STATS_BG = new MutableColor(0.12f, 0.12f, 0.14f, 0.88f);
     private static final MutableColor STATS_BORDER = new MutableColor(0.25f, 0.25f, 0.28f, 0.8f);
 
+    /**
+     * Creates an empty Game view.
+     */
     public UnityEditorGameView() {
+        this(new Scene());
+    }
+
+    /**
+     * Creates a preview of the editor's shared scene.
+     *
+     * @param scene graph shared with the Scene tab
+     */
+    UnityEditorGameView(Scene scene) {
         super(Orientation.VERTICAL);
+        viewport = new Scene3D(scene).cameraControls(false);
+        viewport.clearColor().set(0.09f, 0.105f, 0.135f, 1.0f);
+        viewport.camera().setPerspective((float) Math.toRadians(45.0), 0.05f, 128.0f);
+        viewport.orbit().setOrbit(new MutableVec3(0, 0.55f, 0), 8.0f, -0.28, 0.3);
+        viewport.layout(style -> style.widthPercent(100.0f).height(0.0f).flexGrow(1.0f));
         spacing(0.0f);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
@@ -66,7 +84,7 @@ public class UnityEditorGameView extends LinearBox {
         statsBtn.onClick(e -> {
             statsVisible = !statsVisible;
             updateToggleVisual(statsBtn, statsVisible);
-            gameCanvas.invalidate(InvalidationFlags.VISUAL);
+            viewport.requestRender();
         });
         toolbar.addChild(statsBtn);
 
@@ -75,102 +93,21 @@ public class UnityEditorGameView extends LinearBox {
         addChild(toolbar);
         addChild(UnityStyles.separatorLine());
 
-        // 2. Игровой Canvas
-        gameCanvas.layout(style -> style.sizePercent(100.0f, 100.0f)
-                .flexGrow(1.0f).flexShrink(1.0f));
-
-        gameCanvas.onDraw(context -> {
-            float x = gameCanvas.layoutBounds().x();
-            float y = gameCanvas.layoutBounds().y();
-            float w = gameCanvas.layoutBounds().width();
-            float h = gameCanvas.layoutBounds().height();
-
-            if (w <= 1.0f || h <= 1.0f) return;
-
-            // Заливка фона
-            context.rectFilled(x, y, w, h, BG_GAME);
-
-            float cx = x + w * 0.5f;
-            float cy = y + h * 0.55f;
-
-            // Сетка перспективы пола
-            int gridLines = 14;
-            float gridSpan = Math.min(w * 0.45f, 260.0f);
-            float vanishY = cy - 70.0f;
-
-            for (int i = -gridLines; i <= gridLines; i++) {
-                float gx = (float) i / gridLines;
-                float startX = cx + gx * gridSpan;
-                float startY = cy + 120.0f;
-                float endX = cx + gx * (gridSpan * 0.12f);
-                float endY = vanishY;
-
-                context.addLine(startX, startY, endX, endY, COLOR_GRID, 1.0f);
+        viewport.painter((context, width, height) -> {
+            if (!isPlaying || paused) {
+                context.addText(paused ? "Play mode paused" : "Play mode stopped. Press ▶ in toolbar to run.",
+                        8.0f, height - 20.0f, Math.max(0.0f, width - 16.0f), 18.0f, UnityStyles.TEXT_MUTED);
             }
-
-            for (int i = 0; i <= 8; i++) {
-                float t = (float) i / 8.0f;
-                float curY = cy + 120.0f - (120.0f + 70.0f) * (t * t);
-                float curSpan = gridSpan * (1.0f - t * 0.88f);
-                context.addLine(cx - curSpan, curY, cx + curSpan, curY, COLOR_GRID, 1.0f);
-            }
-
-            // Отрисовка 3D объекта (Куб)
-            float angle = isPlaying ? (System.currentTimeMillis() % 4000L) / 4000.0f * (float) (Math.PI * 2) : 0.45f;
-            drawCube(context, cx, cy - 20.0f, 44.0f, angle);
-
-            // Статус внизу, если пауза/игра
-            if (isPlaying) {
-                // Запрос непрерывной перерисовки для плавной анимации
-                gameCanvas.invalidate(InvalidationFlags.VISUAL);
-            } else {
-                String hint = "Play mode stopped. Press ▶ in toolbar to run.";
-                context.addText(hint, x + 8.0f, y + h - 20.0f, w - 16.0f, 18.0f, UnityStyles.TEXT_MUTED);
-            }
-
-            // Оверлей статистики (Unity Statistics panel)
             if (statsVisible) {
-                drawStatsOverlay(context, x + w - 210.0f, y + 10.0f, 200.0f, 130.0f);
+                float overlayWidth = Math.min(200.0f, width - 20.0f);
+                if (overlayWidth > 0)
+                    drawStatsOverlay(context, width - overlayWidth - 10.0f, 10.0f, overlayWidth, 130.0f);
             }
         });
-
-        addChild(gameCanvas);
+        addChild(viewport);
     }
 
-    private void drawCube(dev.sixik.unigui.api.render.RenderContext context, float cx, float cy, float s, float angle) {
-        float cos = (float) Math.cos(angle);
-        float sin = (float) Math.sin(angle);
-
-        // Вершины изометрического куба с вращением
-        float rx = s * 0.866f * cos;
-        float ry = s * 0.5f;
-
-        // Верхняя грань
-        context.pathClear();
-        context.pathLineTo(cx, cy - s);
-        context.pathLineTo(cx + rx, cy - s * 0.5f + sin * 6.0f);
-        context.pathLineTo(cx, cy + sin * 4.0f);
-        context.pathLineTo(cx - rx, cy - s * 0.5f - sin * 6.0f);
-        context.pathFillConvex(UnityStyles.CUBE_BLUE_TOP);
-
-        // Левая грань
-        context.pathClear();
-        context.pathLineTo(cx - rx, cy - s * 0.5f - sin * 6.0f);
-        context.pathLineTo(cx, cy + sin * 4.0f);
-        context.pathLineTo(cx, cy + s + sin * 4.0f);
-        context.pathLineTo(cx - rx, cy + s * 0.5f - sin * 6.0f);
-        context.pathFillConvex(UnityStyles.CUBE_BLUE_LEFT);
-
-        // Правая грань
-        context.pathClear();
-        context.pathLineTo(cx, cy + sin * 4.0f);
-        context.pathLineTo(cx + rx, cy - s * 0.5f + sin * 6.0f);
-        context.pathLineTo(cx + rx, cy + s * 0.5f + sin * 6.0f);
-        context.pathLineTo(cx, cy + s + sin * 4.0f);
-        context.pathFillConvex(UnityStyles.CUBE_BLUE_RIGHT);
-    }
-
-    private void drawStatsOverlay(dev.sixik.unigui.api.render.RenderContext context, float sx, float sy, float sw, float sh) {
+    private void drawStatsOverlay(RenderContext context, float sx, float sy, float sw, float sh) {
         context.rectFilled(sx, sy, sw, sh, STATS_BG);
         context.addRect(sx, sy, sw, sh, STATS_BORDER, 1.0f);
 
@@ -183,8 +120,9 @@ public class UnityEditorGameView extends LinearBox {
         context.addLine(sx, py, sx + sw, py, STATS_BORDER, 1.0f);
         py += 6.0f;
 
-        String fps = isPlaying ? "60.0 FPS (16.6ms)" : "0.0 FPS (paused)";
-        context.addText(fps, px, py, tw, 16.0f, isPlaying ? UnityStyles.PLAY_GREEN : UnityStyles.TEXT_MUTED);
+        boolean running = isPlaying && !paused;
+        String fps = running ? "60.0 FPS (16.6ms)" : "0.0 FPS (paused)";
+        context.addText(fps, px, py, tw, 16.0f, running ? UnityStyles.PLAY_GREEN : UnityStyles.TEXT_MUTED);
         py += 15.0f;
 
         context.addText("Batches: 14   Saved: 6", px, py, tw, 15.0f, UnityStyles.TEXT_PRIMARY);
@@ -204,7 +142,18 @@ public class UnityEditorGameView extends LinearBox {
 
     public void setPlaying(boolean playing) {
         this.isPlaying = playing;
-        gameCanvas.invalidate(InvalidationFlags.VISUAL);
+        paused = false;
+        viewport.requestRender();
+    }
+
+    /**
+     * Updates the transport status while keeping the fixed preview camera active.
+     *
+     * @param paused whether the current Play session is paused
+     */
+    void setPaused(boolean paused) {
+        this.paused = paused;
+        viewport.requestRender();
     }
 
     public boolean isPlaying() {
