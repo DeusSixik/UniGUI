@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.docs.WikiThrows;
 
@@ -44,7 +45,12 @@ import dev.sixik.unigui.api.docs.WikiThrows;
         examples = @AiDoc.Example(title = "Add overhead light", code = """
                 scene.setDirectionalLight(new DirectionalLight(1, -2, 1, 0xFFF1DB, 0.7f));
                 """))
-public record DirectionalLight(float x, float y, float z, int colorRgb, float intensity) {
+public record DirectionalLight(
+        @WikiParameter(description = "World-space X component of the ray direction.") float x,
+        @WikiParameter(description = "World-space Y component of the ray direction.") float y,
+        @WikiParameter(description = "World-space Z component of the ray direction.") float z,
+        @WikiParameter(description = "RGB color in the low 24 bits.") int colorRgb,
+        @WikiParameter(description = "Finite nonnegative brightness multiplier.") float intensity) {
     /**
      * Normalizes the ray direction by dividing x, y and z by {@code sqrt(x*x + y*y + z*z)}.
      *

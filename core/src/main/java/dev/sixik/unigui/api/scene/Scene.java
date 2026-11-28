@@ -32,6 +32,7 @@ import java.util.function.Consumer;
         culled can still have visible children. The default lighting is white ambient light with unit intensity.
         """)
 @WikiSection(title = "<key:scene.section.shadows.title>", order = 30, markdown = "<key:scene.section.shadows.body>")
+@WikiSection(title = "<key:scene.legacy.gl.title>", order = 40, markdown = "<key:scene.legacy.gl.body>")
 @WikiExample(title = "<key:scene.example.directional.shadows.title>", code = """
         scene.setAmbientLight(new AmbientLight(0xD7E7FF, 0.6f))
              .setDirectionalLight(new DirectionalLight(-1, -2, 1, 0xFFF1DC, 0.8f))
@@ -51,6 +52,7 @@ import java.util.function.Consumer;
 @WikiLink(label = "DirectionalLight", target = "page:scene-directional-light")
 @WikiLink(label = "LightNode", target = "page:scene-light-node")
 @WikiLink(label = "FogVolume", target = "page:scene-fog-volume")
+@WikiLink(label = "SceneWireframe", target = "page:scene-wireframe")
 @AiDoc(
         summary = "Scene graph that owns root nodes and shared lighting.",
         purpose = "Manage scene content independently of the widget that displays it.",
@@ -58,10 +60,11 @@ import java.util.function.Consumer;
                 "Read and mutate the scene on the UI thread.",
                 "Reparenting retains the local transform. A root node reports null from `parent()` and the owning graph from `scene()`.",
                 "Do not mutate the scene inside `visitVisible` callbacks.",
-                "Scene lights apply to custom LIT meshes and optionally to baked Minecraft blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.",
-                "On these versions set directional shadows to let baked blocks and custom meshes cast shadows on each other."
+                "Scene lights apply to custom LIT meshes and optionally to baked Minecraft blocks on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.",
+                "On these versions set directional shadows to let baked blocks and custom meshes cast shadows on each other.",
+                "The advanced scene passes on GTNH 1.7.10 and Cleanroom 1.12.2 require OpenGL 3.2 or later."
         },
-        related = {"Scene3D", "SceneNode", "AmbientLight", "DirectionalLight", "LightNode", "FogVolume"},
+        related = {"Scene3D", "SceneNode", "AmbientLight", "DirectionalLight", "LightNode", "FogVolume", "SceneWireframe"},
         examples = @AiDoc.Example(title = "Add a group with a light source", code = """
                 Scene scene = new Scene();
                 SceneNode group = new SceneNode().setPosition(2, 0, 0);
@@ -263,14 +266,14 @@ public final class Scene {
     }
 
     /**
-     * Configures directional shadows for indexed meshes and baked blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     * Configures directional shadows for indexed meshes and baked blocks on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
      *
      * @param shadows shadow volume and quality settings, or null to disable the shadow pass
      * @return this scene
      */
     @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, summary = "<key:scene.api.set.directional.shadows.summary>")
     @WikiReturn("<key:scene.api.return.scene>")
-    @AiDoc(section = "Lighting", summary = "Configures a directional shadow volume for custom meshes and baked blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
+    @AiDoc(section = "Lighting", summary = "Configures a directional shadow volume for custom meshes and baked blocks on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
     public Scene setDirectionalShadows(
             @WikiParameter(description = "<key:scene.api.set.directional.shadows.param.shadows>") DirectionalShadows shadows) {
         if (!Objects.equals(directionalShadows, shadows)) {
@@ -288,7 +291,7 @@ public final class Scene {
     }
 
     /**
-     * Uses the scene ambient and directional lights for baked Minecraft blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     * Uses the scene ambient and directional lights for baked Minecraft blocks on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
      *
      * @param enabled true to use the scene lights with Minecraft's texture tint and ambient occlusion
      * @return this scene
@@ -404,7 +407,14 @@ public final class Scene {
      * @param pass     renderer call that reads the scene
      * @throws NullPointerException if an argument is null
      */
-    public void renderWireframe(SceneWireframe settings, Runnable pass) {
+    @WikiMethod(section = "<key:scene.wireframe.pass.section>", sectionOrder = 30, order = 10,
+            summary = "<key:scene.wireframe.pass.summary>")
+    @WikiThrows(type = NullPointerException.class, description = "<key:scene.wireframe.pass.null>")
+    @AiDoc(section = "Render passes", sectionOrder = 30, order = 10,
+            summary = "Runs a synchronous wireframe render pass and restores the previous settings when it exits.")
+    public void renderWireframe(
+            @WikiParameter(description = "<key:scene.wireframe.pass.settings>") SceneWireframe settings,
+            @WikiParameter(description = "<key:scene.wireframe.pass.callback>") Runnable pass) {
         Objects.requireNonNull(settings, "settings");
         Objects.requireNonNull(pass, "pass");
         SceneWireframe previous = wireframe;
@@ -419,6 +429,11 @@ public final class Scene {
     /**
      * @return wireframe settings of the render pass in progress, or null to draw filled surfaces only
      */
+    @WikiMethod(section = "<key:scene.wireframe.pass.section>", sectionOrder = 30, order = 20,
+            summary = "<key:scene.wireframe.active>")
+    @WikiReturn("<key:scene.wireframe.active.return>")
+    @AiDoc(section = "Render passes", sectionOrder = 30, order = 20,
+            summary = "Returns the active wireframe settings, or null outside a wireframe pass.")
     public SceneWireframe wireframe() {
         return wireframe;
     }

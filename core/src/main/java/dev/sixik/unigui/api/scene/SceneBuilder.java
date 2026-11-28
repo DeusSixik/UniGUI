@@ -45,6 +45,8 @@ import java.util.function.Consumer;
         """)
 @WikiLink(label = "Scene3D", target = "page:scene-3d")
 @WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
+@WikiLink(label = "SceneSequence", target = "page:scene-sequence")
+@WikiLink(label = "ScenePlaybackController", target = "page:scene-playback-controller")
 @WikiLink(label = "SceneAnchor3D", target = "page:scene-anchor-3d")
 @AiDoc(summary = "Builds a seekable 3D scene sequence from timed commands and local stages.",
         purpose = "Author the scene graph and its timeline alongside each other for replayable demonstrations.",

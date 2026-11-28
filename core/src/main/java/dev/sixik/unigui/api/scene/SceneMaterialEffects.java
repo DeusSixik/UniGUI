@@ -2,12 +2,14 @@ package dev.sixik.unigui.api.scene;
 
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 
 /**
- * Reusable, seekable material effects for Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scene nodes.
+ * Reusable, seekable material effects for GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scene nodes.
  * Each factory returns an immutable preset with RGB in the first three parameters and intensity in the fourth.
  * Set an interval with {@link SceneMaterialEffect#withTiming(float, float)} and advance {@link Scene#setMaterialTime(float)}.
  */
@@ -18,7 +20,7 @@ import dev.sixik.unigui.api.render.shaders.ShaderHandle;
         node.setMaterialEffect(SceneMaterialEffects.scanline().withTiming(6f, 2f));
         scene.setMaterialTime(7f);
         """)
-@AiDoc(summary = "Built-in dissolve, scanline, hologram and pulse material effects for Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scenes.",
+@AiDoc(summary = "Built-in dissolve, scanline, hologram and pulse material effects for GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scenes.",
         purpose = "Apply a seekable shader preset to a SceneNode without supplying GLSL.",
         criticalRules = {
                 "Apply a preset with SceneNode.setMaterialEffect(preset.withTiming(startSeconds, durationSeconds)).",
@@ -136,6 +138,9 @@ public final class SceneMaterialEffects {
      *
      * @return shared untimed dissolve preset
      */
+    @WikiMethod(order = 10, summary = "Dissolves the surface with a highlighted edge.")
+    @WikiReturn("the dissolve preset")
+    @AiDoc(order = 10, summary = "Dissolves the surface with a highlighted edge.")
     public static SceneMaterialEffect dissolve() {
         return DISSOLVE;
     }
@@ -145,6 +150,9 @@ public final class SceneMaterialEffects {
      *
      * @return shared untimed scanline preset
      */
+    @WikiMethod(order = 20, summary = "Sweeps a scanline across the surface.")
+    @WikiReturn("the scanline preset")
+    @AiDoc(order = 20, summary = "Sweeps a scanline across the surface.")
     public static SceneMaterialEffect scanline() {
         return SCANLINE;
     }
@@ -154,6 +162,9 @@ public final class SceneMaterialEffects {
      *
      * @return shared untimed hologram preset
      */
+    @WikiMethod(order = 30, summary = "Applies holographic stripes and gaps.")
+    @WikiReturn("the hologram preset")
+    @AiDoc(order = 30, summary = "Applies holographic stripes and gaps.")
     public static SceneMaterialEffect hologram() {
         return HOLOGRAM;
     }
@@ -163,6 +174,9 @@ public final class SceneMaterialEffects {
      *
      * @return shared untimed pulse preset
      */
+    @WikiMethod(order = 40, summary = "Pulses the surface emission.")
+    @WikiReturn("the pulse preset")
+    @AiDoc(order = 40, summary = "Pulses the surface emission.")
     public static SceneMaterialEffect pulse() {
         return PULSE;
     }

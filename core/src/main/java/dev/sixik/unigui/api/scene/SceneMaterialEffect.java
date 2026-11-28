@@ -2,14 +2,18 @@ package dev.sixik.unigui.api.scene;
 
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
+import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 
 import java.util.Objects;
 
 /**
- * Adds a GLSL surface function to indexed meshes, baked Minecraft blocks and supported item and entity models in Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+ * Adds a GLSL surface function to indexed meshes, baked Minecraft blocks and supported item and entity models in GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
  *
  * <p>Create the handle with {@link ShaderHandle#fragmentSource(String, String)}. The source defines this
  * function. The scene supplies the version directive, vertex stage, base texture, shading and blending.
@@ -70,7 +74,7 @@ import java.util.Objects;
         node.setMaterialEffect(new SceneMaterialEffect(shader).withTiming(6f, 2f));
         scene.setMaterialTime(7f);
         """)
-@AiDoc(summary = "GLSL fragment surface functions for indexed 3D geometry on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.",
+@AiDoc(summary = "GLSL fragment surface functions for indexed 3D geometry on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.",
         purpose = "Modify color and alpha or add emission while retaining scene lighting and shadow behavior.",
         criticalRules = {
                 "Supply an embedded GLSL function with ShaderHandle.fragmentSource. UniGUI supplies the version, main and vertex stage.",
@@ -120,7 +124,12 @@ public record SceneMaterialEffect(ShaderHandle shader, float x, float y, float z
      *
      * @param shader embedded scene surface function
      */
-    public SceneMaterialEffect(ShaderHandle shader) {
+    @WikiMethod(order = 10, summary = "Creates an untimed surface effect with zero user parameters.")
+    @WikiThrows(type = NullPointerException.class, description = "If the shader is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the handle has no embedded fragment source or includes a vertex stage.")
+    @AiDoc(order = 10, summary = "Creates an untimed surface effect with zero user parameters.")
+    public SceneMaterialEffect(
+            @WikiParameter(description = "Handle with an embedded sceneSurface function.") ShaderHandle shader) {
         this(shader, 0, 0, 0, 0);
     }
 
@@ -132,7 +141,13 @@ public record SceneMaterialEffect(ShaderHandle shader, float x, float y, float z
      * @return effect with the same shader, user parameters and cutoff
      * @throws IllegalArgumentException if the start or duration is invalid
      */
-    public SceneMaterialEffect withTiming(float startSeconds, float durationSeconds) {
+    @WikiMethod(order = 20, summary = "Sets the interval used by the shader's progress and elapsed-time functions.")
+    @WikiReturn("a copy with the new timing")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If a setting is outside its documented range.")
+    @AiDoc(order = 20, summary = "Sets the interval used by the shader's progress and elapsed-time functions.")
+    public SceneMaterialEffect withTiming(
+            @WikiParameter(description = "Finite start time on the scene clock, in seconds.") float startSeconds,
+            @WikiParameter(description = "Finite positive duration in seconds.") float durationSeconds) {
         return new SceneMaterialEffect(shader, x, y, z, w, new Timing(startSeconds, durationSeconds), alphaCutoff);
     }
 
@@ -143,7 +158,12 @@ public record SceneMaterialEffect(ShaderHandle shader, float x, float y, float z
      * @return effect using the new cutoff
      * @throws IllegalArgumentException if the cutoff is outside [0, 1]
      */
-    public SceneMaterialEffect withAlphaCutoff(float minimumAlpha) {
+    @WikiMethod(order = 30, summary = "Sets the post-effect alpha threshold for the color and shadow passes.")
+    @WikiReturn("a copy with the new cutoff")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If a setting is outside its documented range.")
+    @AiDoc(order = 30, summary = "Sets the post-effect alpha threshold for the color and shadow passes.")
+    public SceneMaterialEffect withAlphaCutoff(
+            @WikiParameter(description = "Minimum surviving alpha in [0, 1]. Zero disables the cutoff.") float minimumAlpha) {
         return new SceneMaterialEffect(shader, x, y, z, w, timing, minimumAlpha);
     }
 
@@ -157,7 +177,15 @@ public record SceneMaterialEffect(ShaderHandle shader, float x, float y, float z
      * @return effect with the same shader, interval and cutoff
      * @throws IllegalArgumentException if any parameter is nonfinite
      */
-    public SceneMaterialEffect withParameters(float x, float y, float z, float w) {
+    @WikiMethod(order = 40, summary = "Sets the four user values passed to the shader.")
+    @WikiReturn("a copy with the new parameters")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If a setting is outside its documented range.")
+    @AiDoc(order = 40, summary = "Sets the four user values passed to the shader.")
+    public SceneMaterialEffect withParameters(
+            @WikiParameter(description = "First finite shader parameter.") float x,
+            @WikiParameter(description = "Second finite shader parameter.") float y,
+            @WikiParameter(description = "Third finite shader parameter.") float z,
+            @WikiParameter(description = "Fourth finite shader parameter.") float w) {
         return new SceneMaterialEffect(shader, x, y, z, w, timing, alphaCutoff);
     }
 

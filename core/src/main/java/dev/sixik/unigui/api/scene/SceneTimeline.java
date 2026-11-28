@@ -71,6 +71,7 @@ import java.util.Objects;
         """)
 @WikiLink(label = "Scene3D", target = "page:scene-3d")
 @WikiLink(label = "SceneBuilder", target = "page:scene-builder")
+@WikiLink(label = "ScenePlaybackController", target = "page:scene-playback-controller")
 @WikiLink(label = "SceneNode", target = "page:scene-node")
 @WikiLink(label = "SceneAnchor3D", target = "page:scene-anchor-3d")
 @WikiLink(label = "BlockNode", target = "page:block-node")
@@ -90,14 +91,14 @@ import java.util.Objects;
                 "Use action for a seekable entity clip. The active clip with the latest start time wins. At equal start times, the last added clip wins.",
                 "Use `timeline.materialEffect(start, end, preset, endBehavior, nodes...)` for a seekable surface effect. This supplies its own shader time in local timeline seconds. Use `track(node).materialEffect(seconds, effect)` for discrete changes to the base effect.",
                 "EffectEnd.RESTORE uses the sampled base effect at the end, HOLD freezes the final shader time, and HIDE suppresses the target subtree. Use the returned clip's `setEffect(preset, endBehavior)` to switch presets for all its targets. Null disables the clip. Sample again to apply the selection.",
-                "Use head and walk on EntityNode tracks. Walk drives native locomotion on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x. Use state on BlockNode tracks.",
+                "Use head and walk on EntityNode tracks. Walk drives native locomotion on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x. Use state on BlockNode tracks.",
                 "Make onSample and during callbacks derive state from the supplied absolute time or progress.",
                 "For custom playback controls, create `new ScenePlaybackController(timeline.duration(), timeline::sample)` and pass frame deltas to `update`. Use `play`, `pause`, `seek`, and `replay`. Seek preserves playback state until the end.",
                 "Use `SceneBuilder` to populate a scene and compile timed commands into a SceneTimeline. Use `sequence.timeline()` to add tracks that need the low-level API.",
                 "Use `timeline.trackAnchor(anchor)` to keyframe a UI anchor's local or world position, screen offset in logical UI units, and visibility. `visibleBetween(from, to)` uses an inclusive start and an exclusive end.",
                 "Use `stop(viewport)` before scrubbing manually. `play(viewport)` restarts from time zero."
         },
-        related = {"Scene3D", "SceneBuilder", "SceneNode", "BlockNode", "EntityNode", "StructureNode"},
+        related = {"Scene3D", "SceneBuilder", "ScenePlaybackController", "SceneNode", "BlockNode", "EntityNode", "StructureNode"},
         examples = @AiDoc.Example(title = "Play and seek a furnace tutorial", code = """
                 SceneTimeline tutorial = new SceneTimeline().assemble(floor, 0, 2).duration(5);
                 tutorial.track(furnace)

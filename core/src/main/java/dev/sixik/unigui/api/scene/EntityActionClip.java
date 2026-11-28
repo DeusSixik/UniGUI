@@ -3,8 +3,11 @@ package dev.sixik.unigui.api.scene;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 
 import java.util.Objects;
 
@@ -38,13 +41,20 @@ import java.util.Objects;
                 "The active interval includes its start and excludes its end. Repeat count counts additional cycles.",
                 "Compute the entire action pose from normalized cycle progress. The selected clip can change when seeking."
         }, related = {"EntityNode", "SceneTimeline", "MinecraftEntityActions"})
-public record EntityActionClip<S>(float durationSeconds, Class<S> stateType, PoseSampler<S> sampler) {
+public record EntityActionClip<S>(
+        @WikiParameter(description = "Finite positive duration of one cycle at speed 1, in seconds.") float durationSeconds,
+        @WikiParameter(description = "Native render-state class accepted by the sampler.") Class<S> stateType,
+        @WikiParameter(description = "Callback that writes a complete pose at normalized progress in [0, 1).") PoseSampler<S> sampler) {
     /**
      * Validates the clip inputs.
      *
      * @throws IllegalArgumentException if durationSeconds is nonpositive or nonfinite
      * @throws NullPointerException if stateType or sampler is null
      */
+    @WikiMethod(order = 10, summary = "Creates a typed pose sampler with a nominal duration.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the duration is nonpositive or nonfinite.")
+    @WikiThrows(type = NullPointerException.class, description = "If the state type or sampler is null.")
+    @AiDoc(order = 10, summary = "Creates a typed pose sampler with a nominal duration.")
     public EntityActionClip {
         if (!Float.isFinite(durationSeconds) || durationSeconds <= 0) {
             throw new IllegalArgumentException("Action duration must be finite and positive");

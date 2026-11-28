@@ -59,7 +59,11 @@ import java.util.Objects;
                 BlockSpec furnace = BlockSpec.parse("minecraft:furnace[facing=south]");
                 BlockSpec wool = BlockSpec.parse("minecraft:wool@14");
                 """))
-public record BlockSpec(String text, String id, Map<String, String> properties, int meta) {
+public record BlockSpec(
+        @WikiParameter(description = "Original block specification.") String text,
+        @WikiParameter(description = "Namespaced block ID.") String id,
+        @WikiParameter(description = "Block-state properties, copied into an immutable map.") Map<String, String> properties,
+        @WikiParameter(description = "Nonnegative legacy metadata, or -1 when omitted.") int meta) {
     /**
      * Default namespace for an ID without a colon.
      */

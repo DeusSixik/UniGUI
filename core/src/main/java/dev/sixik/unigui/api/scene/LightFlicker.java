@@ -3,8 +3,12 @@ package dev.sixik.unigui.api.scene;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 
 import java.util.Objects;
 
@@ -56,7 +60,11 @@ public final class LightFlicker {
      * @param seed arbitrary seed that distinguishes one flame from another
      * @return reusable preset
      */
-    public static LightFlicker fire(long seed) {
+    @WikiMethod(order = 10, summary = "Creates a seeded fire flicker preset.")
+    @WikiReturn("a reusable preset")
+    @AiDoc(order = 10, summary = "Creates a seeded fire flicker preset.")
+    public static LightFlicker fire(
+            @WikiParameter(description = "Seed used to vary the flicker pattern.") long seed) {
         return new LightFlicker(seed);
     }
 
@@ -72,7 +80,14 @@ public final class LightFlicker {
      * @throws NullPointerException     if the base light is null
      * @throws IllegalArgumentException if time is nonfinite
      */
-    public LocalLight sample(LocalLight base, float elapsedSeconds) {
+    @WikiMethod(order = 20, summary = "Samples the preset at a specified time.")
+    @WikiReturn("a light with the sampled tint and intensity and the other base settings")
+    @WikiThrows(type = NullPointerException.class, description = "If the light is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the time is nonfinite.")
+    @AiDoc(order = 20, summary = "Samples the preset at a specified time.")
+    public LocalLight sample(
+            @WikiParameter(description = "Original light configuration. Pass the same base light for each sample.") LocalLight base,
+            @WikiParameter(description = "Finite seconds since ignition. Negative values sample time zero.") float elapsedSeconds) {
         Objects.requireNonNull(base, "base");
         if (!Float.isFinite(elapsedSeconds)) throw new IllegalArgumentException("Flicker time must be finite");
         if (base.intensity() == 0 || base.colorRgb() == 0) return base;

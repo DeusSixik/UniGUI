@@ -69,7 +69,7 @@ import java.util.function.Consumer;
                 "The local origin is at the feet and the unrotated body faces +Z.",
                 "A type preview may need a loaded client world and can be recreated on world change.",
                 "`setHead` uses radians. Positive yaw turns toward the entity's right shoulder. Positive pitch tilts down. Use the node's rotation for the body.",
-                "Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x apply setAnimation and timeline walk keys to native idle and locomotion. Move the SceneNode to control travel.",
+                "GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x apply setAnimation and timeline walk keys to native idle and locomotion. Move the SceneNode to control travel.",
                 "On Minecraft 26.x, use setNativeAnimation for mob-specific render-state fields. Write a complete pose on every call and use the sampled ageInTicks as the clock."
         },
         related = {"SceneNode", "ScenePlatform", "Scene3D", "SceneTimeline"},
@@ -258,7 +258,7 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
-     * Overrides the native model clock and locomotion on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x.
+     * Overrides the native model clock and locomotion on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x.
      *
      * @param seconds      absolute animation time in seconds, finite and nonnegative
      * @param walkPhase    accumulated gait phase in vanilla model units

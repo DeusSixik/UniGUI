@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.render.TextureHandle;
@@ -53,8 +54,13 @@ import java.util.Objects;
                         Material.AlphaMode.TRANSLUCENT, 0.5f, Material.Culling.NONE);
                 node.setMaterial(glass);
                 """))
-public record Material(int colorArgb, TextureHandle texture, Shading shading,
-                       AlphaMode alphaMode, float alphaCutoff, Culling culling) {
+public record Material(
+        @WikiParameter(description = "ARGB tint multiplied by vertex and texture colors.") int colorArgb,
+        @WikiParameter(description = "Backend texture handle, or null for an untextured surface.") TextureHandle texture,
+        @WikiParameter(description = "Scene lighting mode.") Shading shading,
+        @WikiParameter(description = "Alpha handling mode.") AlphaMode alphaMode,
+        @WikiParameter(description = "Minimum alpha in CUTOUT mode, in [0, 1].") float alphaCutoff,
+        @WikiParameter(description = "Faces excluded from rendering.") Culling culling) {
     /**
      * Opaque white unlit surface with back-face culling.
      */

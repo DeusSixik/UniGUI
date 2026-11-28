@@ -3,13 +3,17 @@ package dev.sixik.unigui.api.scene;
 import dev.sixik.unigui.api.docs.AiDoc;
 import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
+import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
+import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
+import dev.sixik.unigui.api.docs.WikiThrows;
 
 import java.util.Objects;
 
 /**
- * A transformable volume of colored haze on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+ * A transformable volume of colored haze on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
  */
 @WikiPage(title = "FogVolume", slug = "scene-fog-volume", category = "<key:scene.category>",
         summary = "<key:fog.volume.summary>")
@@ -25,7 +29,7 @@ import java.util.Objects;
         """)
 @WikiLink(label = "SpotLight", target = "page:scene-spot-light")
 @WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
-@AiDoc(summary = "A transformable fog box or sphere for Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scenes.",
+@AiDoc(summary = "A transformable fog box or sphere for GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3 scenes.",
         criticalRules = {
                 "Add FogVolume as a root or child. Base half-extents or radius are one local unit.",
                 "Density is extinction per world unit. Zero disables the volume.",
@@ -109,7 +113,14 @@ public final class FogVolume extends SceneNode {
      * @throws NullPointerException     if shape is null
      * @throws IllegalArgumentException if density is invalid
      */
-    public FogVolume(Shape shape, int colorRgb, float density) {
+    @WikiMethod(order = 10, summary = "Creates a fog volume at its local origin.")
+    @WikiThrows(type = NullPointerException.class, description = "If the shape is null.")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the density is negative or nonfinite.")
+    @AiDoc(order = 10, summary = "Creates a fog volume at its local origin.")
+    public FogVolume(
+            @WikiParameter(description = "Box or sphere in the node's local coordinates.") Shape shape,
+            @WikiParameter(description = "Packed RGB color. The high byte is ignored.") int colorRgb,
+            @WikiParameter(description = "Finite nonnegative extinction per world unit.") float density) {
         this.shape = Objects.requireNonNull(shape, "shape");
         this.colorRgb = colorRgb & 0xFFFFFF;
         this.density = nonnegative(density);
@@ -135,7 +146,11 @@ public final class FogVolume extends SceneNode {
      * @param colorRgb packed RGB, ignoring the high byte
      * @return this volume
      */
-    public FogVolume setColorRgb(int colorRgb) {
+    @WikiMethod(order = 20, summary = "Changes the fog color.")
+    @WikiReturn("this volume")
+    @AiDoc(order = 20, summary = "Changes the fog color.")
+    public FogVolume setColorRgb(
+            @WikiParameter(description = "Packed RGB color. The high byte is ignored.") int colorRgb) {
         int rgb = colorRgb & 0xFFFFFF;
         if (this.colorRgb != rgb) {
             this.colorRgb = rgb;
@@ -158,7 +173,12 @@ public final class FogVolume extends SceneNode {
      * @return this volume
      * @throws IllegalArgumentException if density is invalid
      */
-    public FogVolume setDensity(float density) {
+    @WikiMethod(order = 30, summary = "Changes extinction per world unit.")
+    @WikiReturn("this volume")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the density is negative or nonfinite.")
+    @AiDoc(order = 30, summary = "Changes extinction per world unit.")
+    public FogVolume setDensity(
+            @WikiParameter(description = "Finite nonnegative extinction. Zero disables the fog.") float density) {
         if (this.density != nonnegative(density)) {
             this.density = density;
             invalidateContent();
@@ -181,7 +201,12 @@ public final class FogVolume extends SceneNode {
      * @return this volume
      * @throws IllegalArgumentException if width is outside [0, 1]
      */
-    public FogVolume setEdgeSoftness(float width) {
+    @WikiMethod(order = 40, summary = "Changes how gradually fog fades at its boundary.")
+    @WikiReturn("this volume")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the width is outside [0, 1] or NaN.")
+    @AiDoc(order = 40, summary = "Changes how gradually fog fades at its boundary.")
+    public FogVolume setEdgeSoftness(
+            @WikiParameter(description = "Fade fraction in [0, 1]. Zero uses a hard boundary.") float width) {
         if (!(width >= 0 && width <= 1)) throw new IllegalArgumentException("Invalid fog edge width");
         if (edgeSoftness != width) {
             edgeSoftness = width;
@@ -204,7 +229,12 @@ public final class FogVolume extends SceneNode {
      * @return this volume
      * @throws NullPointerException if noise is null
      */
-    public FogVolume setNoise(Noise noise) {
+    @WikiMethod(order = 50, summary = "Changes local density variation.")
+    @WikiReturn("this volume")
+    @WikiThrows(type = NullPointerException.class, description = "If the noise settings are null.")
+    @AiDoc(order = 50, summary = "Changes local density variation.")
+    public FogVolume setNoise(
+            @WikiParameter(description = "Noise scale, strength and velocity, or Noise.NONE for uniform density.") Noise noise) {
         if (!this.noise.equals(Objects.requireNonNull(noise, "noise"))) {
             this.noise = noise;
             invalidateContent();
@@ -226,7 +256,12 @@ public final class FogVolume extends SceneNode {
      * @return this volume
      * @throws IllegalArgumentException if strength is invalid
      */
-    public FogVolume setLightScattering(float strength) {
+    @WikiMethod(order = 60, summary = "Changes scattering from the first active spotlight.")
+    @WikiReturn("this volume")
+    @WikiThrows(type = IllegalArgumentException.class, description = "If the strength is negative or nonfinite.")
+    @AiDoc(order = 60, summary = "Changes scattering from the first active spotlight.")
+    public FogVolume setLightScattering(
+            @WikiParameter(description = "Finite nonnegative scattering brightness multiplier.") float strength) {
         if (lightScattering != nonnegative(strength)) {
             lightScattering = strength;
             invalidateContent();

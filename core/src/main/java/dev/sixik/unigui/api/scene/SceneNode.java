@@ -151,7 +151,7 @@ public class SceneNode {
      */
     private Material material = Material.DEFAULT;
     /**
-     * Base GLSL function for this node's indexed surfaces on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3, or null.
+     * Base GLSL function for this node's indexed surfaces on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3, or null.
      */
     private SceneMaterialEffect materialEffect;
     /**
@@ -614,14 +614,14 @@ public class SceneNode {
     }
 
     /**
-     * Assigns a base surface shader to this node's mesh, baked blocks and supported native models on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     * Assigns a base surface shader to this node's mesh, baked blocks and supported native models on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
      *
      * @param effect effect and parameters, or null for the default shader
      * @return this node
      */
     @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, summary = "<key:scene.node.api.set.material.effect.summary>")
     @WikiReturn("<key:scene.api.return.node>")
-    @AiDoc(section = "Geometry and picking", summary = "Assigns a GLSL surface effect to meshes, baked blocks and supported item and entity models on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
+    @AiDoc(section = "Geometry and picking", summary = "Assigns a GLSL surface effect to meshes, baked blocks and supported item and entity models on GTNH 1.7.10, Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
     public final SceneNode setMaterialEffect(
             @WikiParameter(description = "<key:scene.node.api.set.material.effect.param.effect>") SceneMaterialEffect effect) {
         if (!Objects.equals(materialEffect, effect)) {

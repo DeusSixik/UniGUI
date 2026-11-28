@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.docs.WikiExample;
 import dev.sixik.unigui.api.docs.WikiLink;
 import dev.sixik.unigui.api.docs.WikiMethod;
 import dev.sixik.unigui.api.docs.WikiPage;
+import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.docs.WikiThrows;
 
@@ -38,7 +39,9 @@ import dev.sixik.unigui.api.docs.WikiThrows;
         examples = @AiDoc.Example(title = "Lower ambient intensity", code = """
                 scene.setAmbientLight(new AmbientLight(0xBFD6FF, 0.4f));
                 """))
-public record AmbientLight(int colorRgb, float intensity) {
+public record AmbientLight(
+        @WikiParameter(description = "RGB color in the low 24 bits.") int colorRgb,
+        @WikiParameter(description = "Finite nonnegative multiplier. Zero disables the light.") float intensity) {
     /**
      * Neutral white ambient light with unit intensity.
      */
