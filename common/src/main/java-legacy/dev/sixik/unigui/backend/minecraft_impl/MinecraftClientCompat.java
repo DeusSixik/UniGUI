@@ -1,5 +1,6 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.EntityActionClip;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Overlay;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,6 +18,21 @@ import org.jetbrains.annotations.Nullable;
  * типам сущностей только через этот класс; у каждой версии своя реализация.</p>
  */
 public final class MinecraftClientCompat {
+    /**
+     * @return the native six-tick main-hand swing preset
+     */
+    static EntityActionClip<?> mainHandSwing() {
+        return LegacySceneAnimation.SWING;
+    }
+
+    /**
+     * Whether native item and entity models can use scene surface effects.
+     */
+    public static final boolean NATIVE_SCENE_MATERIALS = true;
+    /**
+     * Whether the backend can draw vanilla particle emitters in Scene3D.
+     */
+    public static final boolean NATIVE_SCENE_PARTICLES = true;
     public static final EntityType<? extends LivingEntity> ZOMBIE = EntityType.ZOMBIE;
     public static final EntityType<? extends LivingEntity> SKELETON = EntityType.SKELETON;
     public static final EntityType<? extends LivingEntity> CREEPER = EntityType.CREEPER;

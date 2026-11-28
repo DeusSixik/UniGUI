@@ -4,12 +4,14 @@ import dev.sixik.unigui.api.core.InvalidationFlags;
 import dev.sixik.unigui.api.event.PointerExitedEvent;
 import dev.sixik.unigui.api.event.PointerMovedEvent;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.layout.Overflow;
 import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.RectView;
+import dev.sixik.unigui.api.scene.FogVolume;
 import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.api.scene.SceneNode;
 import dev.sixik.unigui.api.widget.Widget;
@@ -37,6 +39,7 @@ import dev.sixik.unigui.widgets.navigation.TreeViewNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
@@ -45,13 +48,13 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Панель Hierarchy в стиле редактора Unity:
+ * Unity Editor-style Hierarchy panel:
  * <ul>
- *   <li>Полноценный компонент {@link TreeView} со стилями Unity;</li>
- *   <li>Кастомный рендеринг строк и процедурные векторные иконки для каждого типа GameObject;</li>
- *   <li>Кнопка «+ v» (Create) с выпадающим меню создания объектов сцены;</li>
- *   <li>Drag-and-Drop перетаскивание компонентов (reorder выше/ниже, reparenting внутрь объекта);</li>
- *   <li>Строка поиска с фильтрацией объектов сцены.</li>
+ *   <li>Full-featured {@link TreeView} component with Unity styling;</li>
+ *   <li>Custom row rendering and procedural vector icons for each GameObject type;</li>
+ *   <li>"+ v" (Create) button with a dropdown menu to create scene objects;</li>
+ *   <li>Drag-and-Drop reordering (above/below) and reparenting (into an object);</li>
+ *   <li>Search bar with scene object filtering.</li>
  * </ul>
  */
 public class UnityEditorHierarchyView extends LinearBox {
@@ -60,7 +63,7 @@ public class UnityEditorHierarchyView extends LinearBox {
      */
     private static final String PAYLOAD_TYPE = "unity.gameobject";
     /**
-     * Ширина колонки глаза слева от дерева.
+     * Width of the visibility eye gutter column to the left of the tree.
      */
     private static final float EYE_GUTTER_WIDTH = 16.0f;
     /**
@@ -77,6 +80,10 @@ public class UnityEditorHierarchyView extends LinearBox {
         EMPTY,
         CAMERA,
         LIGHT,
+        /**
+         * Volume of colored haze.
+         */
+        FOG_VOLUME,
         PLAYER,
         CUBE,
         SPHERE,
@@ -152,13 +159,25 @@ public class UnityEditorHierarchyView extends LinearBox {
      */
     private TreeViewNode sceneNode;
     /**
-     * Selected scene object, or null for the scene row.
+     * Active scene object: the last one clicked, shown in the Inspector header. Null for the scene row.
      */
     private UnitySceneObject selected;
     /**
-     * Detached snapshot used for scene-object paste, or null until copied.
+     * Every selected object in selection order, including the active one.
      */
-    private UnitySceneObject clipboard;
+    private final LinkedHashSet<UnitySceneObject> selection = new LinkedHashSet<>();
+    /**
+     * Start of a Shift range, normally the last object clicked without Shift.
+     */
+    private UnitySceneObject rangeAnchor;
+    /**
+     * Row reported by the last tree selection event, used to tell a click on the active row apart.
+     */
+    private TreeViewNode selectionEventRow;
+    /**
+     * Detached snapshots used for scene-object paste, empty until copied.
+     */
+    private List<UnitySceneObject> clipboard = List.of();
     /**
      * Suppresses transient selection events during tree replacement.
      */
@@ -221,7 +240,7 @@ public class UnityEditorHierarchyView extends LinearBox {
         spacing(0.0f);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        // 1. Верхняя панель: кнопка создания и строка поиска
+        // 1. Top bar: create button and search bar
         HBox topBar = new HBox();
         topBar.spacing(4.0f);
         topBar.layout(style -> style.widthPercent(100.0f).height(24.0f)
@@ -244,19 +263,23 @@ public class UnityEditorHierarchyView extends LinearBox {
         addChild(topBar);
         addChild(UnityStyles.separatorLine());
 
-        // 2. Настройка TreeView со стилями Unity
+        // 2. Configure TreeView with Unity styling
         UnityStyles.styleTreeView(treeView);
-        // Дерево занимает всю ширину прокручиваемой области, но не сжимается: узкая панель прокручивается по X.
-        // Именно widthPercent, а не flexGrow: растущий ребёнок при измерении без ограничения ширины
-        // давал бы 0 в ширину содержимого, и прокручиваться было бы нечему.
+        // Tree spans the full scrollable width without shrinking so a narrow panel scrolls along X.
+        // Uses widthPercent instead of flexGrow: a growing child measured with an unconstrained width
+        // would resolve to 0 content width, leaving nothing to scroll.
         treeView.layout(style -> style.widthPercent(100.0f).flexGrow(0.0f).flexShrink(0.0f));
 
-        // Кастомный рендерер строк TreeView: базовый визуал строки + иконка видимости слева, в отдельной
-        // колонке перед деревом, пока на строку наведён указатель (или он над колонкой напротив строки).
+        // Custom TreeView row renderer: default row visuals plus a left visibility eye icon in a separate
+        // gutter column before the tree whenever the pointer hovers the row (or the gutter beside it).
         treeView.renderer((draw, widget) -> {
             if (widget instanceof TreeView.TreeRowButton row) {
-                row.renderRowVisual(draw);
                 UnitySceneObject object = row.node().userData(UnitySceneObject.class);
+                if (object != null && selection.contains(object) && treeView.selectedNode() != row.node()) {
+                    RectView b = row.layoutBounds();
+                    draw.rectFilled(b.x(), b.y(), b.width(), b.height(), UnityStyles.SELECTION_BLUE);
+                }
+                row.renderRowVisual(draw);
                 if (object != null && (!object.visible() || row.hovered() || row == eyeGutterRow)) {
                     RectView b = row.layoutBounds();
                     float eyeSize = 10.0f;
@@ -268,10 +291,18 @@ public class UnityEditorHierarchyView extends LinearBox {
             }
         });
 
-        // Настройка Drag-and-Drop на каждой создаваемой строке
+        // Configure Drag-and-Drop on every created row
         treeView.onRowCreated(row -> {
             TreeViewNode node = row.node();
-            if (node == sceneNode) return; // Корень сцены не перетаскивается
+            if (node == sceneNode) return; // Scene root cannot be dragged
+            // A click on the row that is already selected in the tree sends no selection event.
+            row.onClick(event -> {
+                boolean handled = selectionEventRow == node;
+                selectionEventRow = null;
+                if (handled || rebuilding) return;
+                UnitySceneObject object = node.userData(UnitySceneObject.class);
+                if (object != null) clickSelect(object, controlDown(), shiftDown());
+            });
 
             DragController.attach(row)
                     .dragged(row)
@@ -281,19 +312,22 @@ public class UnityEditorHierarchyView extends LinearBox {
                     .ghost(DragGhost.text());
         });
 
-        // Подписка на Drag-события для интерактивного перемещения элементов в иерархии
+        // Subscribe to selection and drag events for interactive hierarchy reordering
         treeView.onSelectionChanged(e -> {
             if (rebuilding) return;
             TreeViewNode row = treeView.selectedNode();
-            setSelected(row == null ? null : row.userData(UnitySceneObject.class));
+            selectionEventRow = row;
+            UnitySceneObject object = row == null ? null : row.userData(UnitySceneObject.class);
+            if (object == null) setSelection(List.of(), null);
+            else clickSelect(object, controlDown(), shiftDown());
         });
         for (SceneNode root : scene.roots()) {
             if (!root.children().isEmpty()) expanded.add(root);
         }
         rebuildTree();
 
-        // Колонка глаза слева от дерева - левый padding содержимого: колонка и дерево прокручиваются вместе,
-        // а указатель над колонкой напротив строки тоже показывает глаз этой строки.
+        // Left eye gutter column acting as content left padding: column and tree scroll together,
+        // and hovering the gutter opposite a row also reveals that row's visibility eye.
         HBox scrollContent = new HBox();
         scrollContent.spacing(0.0f);
         scrollContent.layout(style -> style.widthPercent(100.0f).minHeightPercent(100.0f)
@@ -342,7 +376,7 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Строка напротив указателя, когда он над колонкой глаза: для неё тоже показывается глаз.
+     * Row opposite the pointer when hovering over the eye gutter column so its visibility eye is shown too.
      */
     private void updateEyeGutterRow(float rootY) {
         TreeView.TreeRowButton found = null;
@@ -398,6 +432,7 @@ public class UnityEditorHierarchyView extends LinearBox {
             treeView.endBatch();
             rebuilding = false;
         }
+        selection.removeIf(object -> object.scene() != scene);
         treeView.silentSelect(selected != null ? rows.get(selected) : sceneSelected ? sceneNode : null);
     }
 
@@ -422,8 +457,8 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Обработка DragOver: вычисление позиции вставки (BEFORE, AFTER, INTO, END_OF_SCENE)
-     * и отрисовка аутентичного индикатора Unity в OverlayLayer.
+     * Handles DragOver: computes the insertion target (BEFORE, AFTER, INTO, END_OF_SCENE)
+     * and draws an authentic Unity drop indicator in the OverlayLayer.
      */
     private void handleDragOver(DragOverEvent event) {
         if (!editable) return;
@@ -453,7 +488,7 @@ public class UnityEditorHierarchyView extends LinearBox {
         float treeW = treeView.layoutBounds().width();
 
         if (hoveredNode != null && hoveredRow != null) {
-            // Запрет бросать узел в самого себя или в своих потомков
+            // Disallow dropping a node into itself or any of its descendants
             if (draggedNode != null && hoveredNode.isAncestor(draggedNode)) {
                 currentDropIntent = null;
                 session.clearIndicator();
@@ -465,28 +500,28 @@ public class UnityEditorHierarchyView extends LinearBox {
             float h = bounds.height();
 
             if (hoveredNode == sceneNode) {
-                // Корень сцены: бросок внутрь сцены
+                // Scene root: drop inside the scene
                 session.showIndicator(treeX + 2.0f, bounds.y() + 1.0f, treeW - 4.0f, h - 2.0f, HOVER_DROP);
                 currentDropIntent = new DropIntent(DropAction.INTO, sceneNode);
                 event.accept(event.currentTarget());
             } else if (relY < h * 0.28f) {
-                // Вставка выше узла (BEFORE)
+                // Insert above node (BEFORE)
                 session.showIndicator(treeX + 2.0f, bounds.y() - 1.0f, treeW - 4.0f, 2.0f, INDICATOR_LINE);
                 currentDropIntent = new DropIntent(DropAction.BEFORE, hoveredNode);
                 event.accept(event.currentTarget());
             } else if (relY > h * 0.72f) {
-                // Вставка ниже узла (AFTER)
+                // Insert below node (AFTER)
                 session.showIndicator(treeX + 2.0f, bounds.y() + h - 1.0f, treeW - 4.0f, 2.0f, INDICATOR_LINE);
                 currentDropIntent = new DropIntent(DropAction.AFTER, hoveredNode);
                 event.accept(event.currentTarget());
             } else {
-                // Бросок внутрь узла (INTO / reparenting)
+                // Drop inside node (INTO / reparenting)
                 session.showIndicator(treeX + 2.0f, bounds.y() + 1.0f, treeW - 4.0f, h - 2.0f, HOVER_DROP);
                 currentDropIntent = new DropIntent(DropAction.INTO, hoveredNode);
                 event.accept(event.currentTarget());
             }
         } else {
-            // Указатель ниже всех строк: добавление в конец сцены
+            // Pointer is below all rows: append to the end of the scene
             List<TreeViewNode> visible = treeView.visibleNodes();
             float lineY = treeView.layoutBounds().y() + 4.0f;
             if (!visible.isEmpty()) {
@@ -509,8 +544,8 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Обработка DragDrop: применение перестановки или смены родителя (reparenting)
-     * в структуре TreeView.
+     * Handles DragDrop: applies the reorder or reparenting operation
+     * in the TreeView structure.
      */
     private void handleDragDrop(DragDropEvent event) {
         if (!editable || currentDropIntent == null) return;
@@ -573,14 +608,28 @@ public class UnityEditorHierarchyView extends LinearBox {
      * @param after   whether to place the node after the sibling
      */
     private void moveObject(UnitySceneObject object, SceneNode parent, SceneNode sibling, boolean after) {
-        if ((object.scene() != null && object.scene() != scene) || (parent != null && parent.scene() != scene)) return;
+        if (insertObject(object, parent, sibling, after)) selectObject(object);
+    }
+
+    /**
+     * Places a node like {@link #moveObject} without changing the selection.
+     *
+     * @param object  node to move
+     * @param parent  destination parent, or null for a scene root
+     * @param sibling insertion reference, or null to append
+     * @param after   whether to place the node after the sibling
+     * @return whether the node was placed
+     */
+    private boolean insertObject(UnitySceneObject object, SceneNode parent, SceneNode sibling, boolean after) {
+        if ((object.scene() != null && object.scene() != scene) || (parent != null && parent.scene() != scene))
+            return false;
         for (SceneNode ancestor = parent; ancestor != null; ancestor = ancestor.parent()) {
-            if (ancestor == object) return;
+            if (ancestor == object) return false;
         }
         List<SceneNode> siblings = new ArrayList<>(parent == null ? scene.roots() : parent.children());
         siblings.remove(object);
         int index = sibling == null ? siblings.size() : siblings.indexOf(sibling);
-        if (index < 0) return;
+        if (index < 0) return false;
         if (sibling != null && after) index++;
 
         saveExpansion();
@@ -592,7 +641,7 @@ public class UnityEditorHierarchyView extends LinearBox {
         for (SceneNode node : suffix) attach(node, parent);
         if (parent != null) expanded.add(parent);
         rebuildTree();
-        selectObject(object);
+        return true;
     }
 
     /**
@@ -670,7 +719,8 @@ public class UnityEditorHierarchyView extends LinearBox {
         Widget target = event.target();
         while (target != null && !(target instanceof TreeView.TreeRowButton)) target = target.parent();
         TreeView.TreeRowButton row = (TreeView.TreeRowButton) target;
-        selectObject(row == null ? null : row.node().userData(UnitySceneObject.class));
+        UnitySceneObject object = row == null ? null : row.node().userData(UnitySceneObject.class);
+        if (object == null || !selection.contains(object)) selectObject(object);
         openObjectMenu(event.rootX(), event.rootY());
         event.cancel();
     }
@@ -702,8 +752,16 @@ public class UnityEditorHierarchyView extends LinearBox {
         UnityStyles.addContextMenuItem(menu, "Plane", true, menuWidth, () -> addObject("Plane", GameObjectType.PLANE, false));
         UnityStyles.addContextMenuSeparator(menu, menuWidth);
 
-        addCreateItem(menu, menuWidth, "Light > Directional Light", "Directional Light", GameObjectType.LIGHT);
-        addCreateItem(menu, menuWidth, "Light > Point Light", "Point Light", GameObjectType.LIGHT);
+        UnityStyles.addContextMenuItem(menu, "Light > Directional Light", true, menuWidth,
+                () -> addLight("Directional Light", UnityLight.Kind.DIRECTIONAL));
+        UnityStyles.addContextMenuItem(menu, "Light > Point Light", true, menuWidth,
+                () -> addLight("Point Light", UnityLight.Kind.POINT));
+        UnityStyles.addContextMenuItem(menu, "Light > Spot Light", true, menuWidth,
+                () -> addLight("Spot Light", UnityLight.Kind.SPOT));
+        UnityStyles.addContextMenuItem(menu, "Effects > Fog Volume (Box)", true, menuWidth,
+                () -> addFog("Fog Volume", FogVolume.Shape.BOX));
+        UnityStyles.addContextMenuItem(menu, "Effects > Fog Volume (Sphere)", true, menuWidth,
+                () -> addFog("Fog Sphere", FogVolume.Shape.SPHERE));
         addCreateItem(menu, menuWidth, "Audio > Audio Source", "Audio Source", GameObjectType.AUDIO);
         addCreateItem(menu, menuWidth, "Camera", "Camera", GameObjectType.CAMERA);
         UnityStyles.addContextMenuSeparator(menu, menuWidth);
@@ -720,7 +778,7 @@ public class UnityEditorHierarchyView extends LinearBox {
                 savePrefab.accept(selected);
         });
         UnityStyles.addContextMenuItem(menu, "Copy", "Ctrl+C", selected != null, menuWidth, this::copySelected);
-        UnityStyles.addContextMenuItem(menu, "Paste", "Ctrl+V", clipboard != null, menuWidth, this::paste);
+        UnityStyles.addContextMenuItem(menu, "Paste", "Ctrl+V", !clipboard.isEmpty(), menuWidth, this::paste);
         UnityStyles.addContextMenuItem(menu, "Duplicate", "Ctrl+D", selected != null, menuWidth, this::duplicateSelected);
         UnityStyles.addContextMenuItem(menu, "Delete Selected", "Delete", selected != null, menuWidth, this::deleteSelected);
 
@@ -788,6 +846,41 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
+     * Creates and selects a light. A directional light starts above the scene, local lights start one block
+     * above the next free ground slot.
+     *
+     * @param baseName preferred display label
+     * @param kind     light type
+     */
+    private void addLight(String baseName, UnityLight.Kind kind) {
+        if (!editable) return;
+        saveExpansion();
+        UnitySceneObject object = UnitySceneObject.light(uniqueObjectName(baseName), kind);
+        if (kind == UnityLight.Kind.DIRECTIONAL) object.setPosition(0, 3, 0);
+        else positionNewRoot(object, kind == UnityLight.Kind.SPOT ? 2.5f : 1.5f);
+        attach(object, null);
+        rebuildTree();
+        selectObject(object);
+    }
+
+    /**
+     * Creates and selects a fog volume resting on the ground in the next free slot. The volume is two blocks wide
+     * and deep and one block high, so it reads as a layer of ground haze.
+     *
+     * @param baseName preferred display label
+     * @param shape    volume shape
+     */
+    private void addFog(String baseName, FogVolume.Shape shape) {
+        if (!editable) return;
+        saveExpansion();
+        UnitySceneObject object = UnitySceneObject.fog(uniqueObjectName(baseName), shape);
+        positionNewRoot(object, 0.5f);
+        attach(object, null);
+        rebuildTree();
+        selectObject(object);
+    }
+
+    /**
      * Places a new root in the next slot of the foreground grid.
      *
      * @param object newly created scene node
@@ -826,63 +919,114 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Removes the selected subtree and selects its former parent.
+     * Removes every selected subtree and selects the active object's former parent, unless it was removed too.
      *
      * @return whether a scene object was removed
      */
     boolean deleteSelected() {
         if (!editable || selected == null) return false;
         saveExpansion();
-        UnitySceneObject parent = (UnitySceneObject) selected.parent();
-        selected.detach();
+        List<UnitySceneObject> removed = topLevelSelection();
+        SceneNode parent = selected.parent();
+        for (UnitySceneObject object : removed) object.detach();
+        UnitySceneObject next = parent instanceof UnitySceneObject object && object.scene() == scene ? object : null;
         expanded.removeIf(node -> node.scene() != scene);
-        setSelected(parent);
+        setSelection(next == null ? List.of() : List.of(next), next);
         rebuildTree();
-        selectObject(parent);
+        selectObject(next);
         return true;
     }
 
     /**
-     * Saves a snapshot of the selected subtree in the editor's object clipboard.
+     * Saves snapshots of the selected subtrees in the editor's object clipboard.
      *
      * @return whether an object was copied
      */
     boolean copySelected() {
         if (selected == null) return false;
-        clipboard = selected.copySubtree();
+        List<UnitySceneObject> copies = new ArrayList<>();
+        for (UnitySceneObject object : topLevelSelection()) copies.add(object.copySubtree());
+        clipboard = List.copyOf(copies);
         return true;
     }
 
     /**
-     * Inserts a copy of the selected subtree immediately after the original.
+     * Inserts a copy of each selected subtree immediately after its original and selects the copies.
      *
      * @return whether an object was duplicated
      */
     boolean duplicateSelected() {
-        return selected != null && insertCopy(selected);
+        if (!editable || selected == null) return false;
+        List<UnitySceneObject> copies = new ArrayList<>();
+        UnitySceneObject activeCopy = null;
+        for (UnitySceneObject source : topLevelSelection()) {
+            UnitySceneObject copy = source.copySubtree();
+            copy.rename(uniqueObjectName(source.name()));
+            if (!insertObject(copy, source.parent(), source, true)) continue;
+            copies.add(copy);
+            if (source == selected || activeCopy == null) activeCopy = copy;
+        }
+        return selectCopies(copies, activeCopy);
     }
 
     /**
-     * Inserts an independent copy from the clipboard beside the selection, or as a root.
+     * Inserts independent copies from the clipboard after the active object, or as roots.
      *
      * @return whether an object was pasted
      */
     boolean paste() {
-        return clipboard != null && insertCopy(clipboard);
+        if (!editable || clipboard.isEmpty()) return false;
+        List<UnitySceneObject> copies = new ArrayList<>();
+        SceneNode parent = selected == null ? null : selected.parent();
+        SceneNode sibling = selected;
+        for (UnitySceneObject source : clipboard) {
+            UnitySceneObject copy = source.copySubtree();
+            copy.rename(uniqueObjectName(source.name()));
+            if (!insertObject(copy, parent, sibling, true)) continue;
+            copies.add(copy);
+            sibling = copy;
+        }
+        return selectCopies(copies, copies.isEmpty() ? null : copies.get(copies.size() - 1));
     }
 
     /**
-     * Inserts and selects a copy using the existing hierarchy placement logic.
+     * Selects newly inserted copies and reveals the active one.
      *
-     * @param source object or detached snapshot to copy
-     * @return whether the copy was added to the scene
+     * @param copies copies in the scene
+     * @param active copy to make active
+     * @return whether any copy was inserted
      */
-    private boolean insertCopy(UnitySceneObject source) {
-        if (!editable) return false;
-        UnitySceneObject copy = source.copySubtree();
-        copy.rename(uniqueObjectName(source.name()));
-        moveObject(copy, selected == null ? null : selected.parent(), selected, true);
-        return copy.scene() == scene;
+    private boolean selectCopies(List<UnitySceneObject> copies, UnitySceneObject active) {
+        if (copies.isEmpty()) return false;
+        selectObject(active);
+        List<UnitySceneObject> ordered = new ArrayList<>(copies);
+        ordered.remove(active);
+        ordered.add(active);
+        setSelection(ordered, active);
+        return true;
+    }
+
+    /**
+     * @return selected objects without those whose ancestor is selected, in hierarchy order
+     */
+    private List<UnitySceneObject> topLevelSelection() {
+        List<UnitySceneObject> result = new ArrayList<>();
+        for (SceneNode root : scene.roots()) collectTopLevel(root, result);
+        return result;
+    }
+
+    /**
+     * Adds the highest selected objects of one subtree in depth-first order.
+     *
+     * @param node   subtree root
+     * @param result output list
+     */
+    private void collectTopLevel(SceneNode node, List<UnitySceneObject> result) {
+        if (node instanceof UnitySceneObject object && selection.contains(object)) {
+            result.add(object);
+            return;
+        }
+        for (SceneNode child : node.children()) collectTopLevel(child, result);
     }
 
     /**
@@ -909,13 +1053,14 @@ public class UnityEditorHierarchyView extends LinearBox {
         saveExpansion();
         Set<SceneNode> savedExpansion = new HashSet<>(expanded);
         UnitySceneObject savedSelection = selected;
+        List<UnitySceneObject> savedObjects = List.copyOf(selection);
         boolean sceneSelected = treeView.selectedNode() == sceneNode;
         int savedMeshSlot = nextMeshSlot;
         return () -> {
             nextMeshSlot = savedMeshSlot;
             expanded.clear();
             expanded.addAll(savedExpansion);
-            setSelected(savedSelection);
+            setSelection(savedObjects, savedSelection);
             rebuildTree();
             if (savedSelection == null) treeView.silentSelect(sceneSelected ? sceneNode : null);
         };
@@ -929,18 +1074,34 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Synchronizes selection with a viewport hit. A background click clears the tree selection.
+     * @return every selected object in selection order; the active object is last unless it was re-ordered
+     */
+    List<UnitySceneObject> selectedObjects() {
+        return List.copyOf(selection);
+    }
+
+    /**
+     * Synchronizes selection with a viewport hit. Ctrl or Shift adds or removes the hit object, a plain
+     * background click clears the tree selection.
      *
      * @param node hit object, or null for a background click
      */
     void selectFromViewport(SceneNode node) {
         while (node != null && !(node instanceof UnitySceneObject)) node = node.parent();
+        boolean additive = controlDown() || shiftDown();
         if (node != null) {
-            selectObject(node);
+            if (!additive) {
+                selectObject(node);
+                return;
+            }
+            if (!rows.containsKey(node)) searchInput.text("");
+            revealRow(rows.get(node));
+            clickSelect((UnitySceneObject) node, true, false);
             return;
         }
+        if (additive) return;
         treeView.silentSelect(null);
-        setSelected(null);
+        setSelection(List.of(), null);
     }
 
     /**
@@ -953,11 +1114,92 @@ public class UnityEditorHierarchyView extends LinearBox {
         if (node != null && !rows.containsKey(node)) searchInput.text("");
         TreeViewNode row = node == null ? sceneNode : rows.get(node);
         if (row == null) return;
+        revealRow(row);
+        treeView.silentSelect(row);
+        UnitySceneObject object = (UnitySceneObject) node;
+        rangeAnchor = object;
+        setSelection(object == null ? List.of() : List.of(object), object);
+    }
+
+    /**
+     * Expands every ancestor of a row.
+     *
+     * @param row tree row, or null
+     */
+    private void revealRow(TreeViewNode row) {
+        if (row == null) return;
         for (TreeViewNode ancestor = row.parent(); ancestor != null; ancestor = ancestor.parent()) {
             ancestor.expanded(true);
         }
-        treeView.silentSelect(row);
-        setSelected((UnitySceneObject) node);
+    }
+
+    /**
+     * Applies a click like Unity's Hierarchy: a plain click selects only the object, Ctrl toggles it and
+     * Shift selects the visible rows between the range anchor and the object.
+     *
+     * @param object  clicked object
+     * @param control whether Ctrl (or Cmd) is held
+     * @param shift   whether Shift is held
+     */
+    private void clickSelect(UnitySceneObject object, boolean control, boolean shift) {
+        List<UnitySceneObject> next = new ArrayList<>();
+        UnitySceneObject active = object;
+        if (shift && rangeAnchor != null && rows.containsKey(rangeAnchor)) {
+            if (control) next.addAll(selection);
+            List<TreeViewNode> visible = treeView.visibleNodes();
+            int from = visible.indexOf(rows.get(rangeAnchor));
+            int to = visible.indexOf(rows.get(object));
+            if (from < 0 || to < 0) {
+                next.add(object);
+            } else {
+                int step = from <= to ? 1 : -1;
+                for (int i = from; ; i += step) {
+                    UnitySceneObject rowObject = visible.get(i).userData(UnitySceneObject.class);
+                    if (rowObject != null) {
+                        next.remove(rowObject);
+                        next.add(rowObject);
+                    }
+                    if (i == to) break;
+                }
+            }
+        } else if (control) {
+            next.addAll(selection);
+            rangeAnchor = object;
+            if (next.remove(object)) {
+                active = next.isEmpty() ? null : next.get(next.size() - 1);
+            } else {
+                next.add(object);
+            }
+        } else {
+            rangeAnchor = object;
+            next.add(object);
+        }
+        if (active != null) {
+            next.remove(active);
+            next.add(active);
+        }
+        TreeViewNode activeRow = active == null ? null : rows.get(active);
+        if (treeView.selectedNode() != activeRow) treeView.silentSelect(activeRow);
+        setSelection(next, active);
+        treeView.invalidate(InvalidationFlags.VISUAL);
+        for (TreeViewNode row : treeView.visibleNodes()) {
+            if (row.rowButton() != null) row.rowButton().invalidate(InvalidationFlags.VISUAL);
+        }
+    }
+
+    /**
+     * @return whether Ctrl or the platform's command key is held in this editor
+     */
+    private boolean controlDown() {
+        return uiContext() != null && uiContext().keyboard().isAnyDown(KeyCodes.LEFT_CONTROL,
+                KeyCodes.RIGHT_CONTROL, KeyCodes.LEFT_SUPER, KeyCodes.RIGHT_SUPER);
+    }
+
+    /**
+     * @return whether Shift is held in this editor
+     */
+    private boolean shiftDown() {
+        return uiContext() != null && uiContext().keyboard().isAnyDown(KeyCodes.LEFT_SHIFT, KeyCodes.RIGHT_SHIFT);
     }
 
     /**
@@ -997,13 +1239,27 @@ public class UnityEditorHierarchyView extends LinearBox {
     }
 
     /**
-     * Changes the selected object and notifies other panels.
+     * Changes the selection and notifies other panels when it differs.
      *
-     * @param object selected object, or null
+     * @param objects every selected object
+     * @param active  active object, or null when nothing is selected
      */
-    private void setSelected(UnitySceneObject object) {
-        if (selected == object) return;
-        selected = object;
-        if (selectionListener != null) selectionListener.accept(object);
+    private void setSelection(List<UnitySceneObject> objects, UnitySceneObject active) {
+        LinkedHashSet<UnitySceneObject> next = new LinkedHashSet<>();
+        for (UnitySceneObject object : objects) {
+            if (object != null && object.scene() == scene) next.add(object);
+        }
+        if (active != null && active.scene() != scene) active = null;
+        if (active != null) {
+            next.remove(active);
+            next.add(active);
+        } else if (!next.isEmpty()) {
+            for (UnitySceneObject object : next) active = object;
+        }
+        if (selected == active && List.copyOf(selection).equals(List.copyOf(next))) return;
+        selected = active;
+        selection.clear();
+        selection.addAll(next);
+        if (selectionListener != null) selectionListener.accept(active);
     }
 }

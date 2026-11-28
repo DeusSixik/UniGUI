@@ -1,5 +1,7 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.math.Aabb;
+
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
@@ -47,6 +49,14 @@ import java.util.WeakHashMap;
  */
 final class SceneBlockMeshes {
     /**
+     * Neutral cardinal shade retains vertex tint and AO for scene-lit surfaces.
+     */
+    private static final CardinalLighting NEUTRAL_CARDINAL = new CardinalLighting(1, 1, 1, 1, 1, 1);
+    /**
+     * Surface mode of this bake cache.
+     */
+    private final Material.Shading shading;
+    /**
      * Предел числа переиспользуемых состояний одиночных блоков.
      */
     private static final int SINGLE_LIMIT = 256;
@@ -73,7 +83,7 @@ final class SceneBlockMeshes {
     /**
      * Рабочий источник блоков для отсечения, AO, tint и жидкостей.
      */
-    private final BlockView view = new BlockView();
+    private final BlockView view;
     /**
      * Текущие модели блоков Minecraft. Идентичность меняется при перезагрузке ресурсов.
      */
@@ -95,6 +105,17 @@ final class SceneBlockMeshes {
      * Создаёт пустые кэши для одного рендер-бэкенда.
      */
     SceneBlockMeshes() {
+        this(false);
+    }
+
+    /**
+     * Creates a separate bake cache for vanilla lighting or real-time scene lighting.
+     *
+     * @param relight whether to bake tint and AO with neutral directional shading
+     */
+    SceneBlockMeshes(boolean relight) {
+        shading = relight ? Material.Shading.LIT : Material.Shading.UNLIT;
+        view = new BlockView(relight ? NEUTRAL_CARDINAL : CardinalLighting.DEFAULT);
     }
 
     /**
@@ -185,16 +206,53 @@ final class SceneBlockMeshes {
             case CUTOUT -> Material.AlphaMode.CUTOUT;
             case TRANSLUCENT -> Material.AlphaMode.TRANSLUCENT;
         };
-        return new Material(0xFFFFFFFF, handle, Material.Shading.UNLIT, alpha, 0.5f, Material.Culling.BACK);
+        return new Material(0xFFFFFFFF, handle, shading, alpha, 0.5f, Material.Culling.BACK);
     }
 
     /**
      * Подготовленный меш.
      *
-     * @param mesh     геометрия в координатах узла.
-     * @param material атлас и режим прозрачности.
+     * @param mesh        геометрия в координатах узла.
+     * @param material    атлас и режим прозрачности.
+     * @param nativeLayer texture bindings and render state for native geometry, or null for blocks
      */
-    record Surface(Mesh3D mesh, Material material) {
+    record Surface(Mesh3D mesh, Material material, SceneNativeLayer nativeLayer) {
+        /**
+         * Wraps baked block geometry using a texture handle provided by the material.
+         *
+         * @param mesh     geometry in node-local units
+         * @param material block layer material
+         */
+        Surface(Mesh3D mesh, Material material) {
+            this(mesh, material, null);
+        }
+    }
+
+    /**
+     * Computes a common local AABB for an effect across all of a node's meshes and layers.
+     * The component-wise union extends each minimum downward and each maximum upward.
+     *
+     * @param surfaces   baked model layers regardless of their visibility in a particular pass
+     * @param meshBounds optional bounds of an additional custom mesh on the same node
+     * @return shared bounds in node-local coordinates, or null if there is no geometry
+     */
+    static Aabb surfaceBounds(List<Surface> surfaces, Aabb meshBounds) {
+        if (surfaces.isEmpty()) return meshBounds;
+        Aabb first = meshBounds == null ? surfaces.getFirst().mesh().bounds() : meshBounds;
+        float minX = first.minX(), minY = first.minY(), minZ = first.minZ();
+        float maxX = first.maxX(), maxY = first.maxY(), maxZ = first.maxZ();
+        for (int i = meshBounds == null ? 1 : 0; i < surfaces.size(); i++) {
+            Aabb next = surfaces.get(i).mesh().bounds();
+            minX = Math.min(minX, next.minX());
+            minY = Math.min(minY, next.minY());
+            minZ = Math.min(minZ, next.minZ());
+            maxX = Math.max(maxX, next.maxX());
+            maxY = Math.max(maxY, next.maxY());
+            maxZ = Math.max(maxZ, next.maxZ());
+        }
+        if (minX == first.minX() && minY == first.minY() && minZ == first.minZ()
+                && maxX == first.maxX() && maxY == first.maxY() && maxZ == first.maxZ()) return first;
+        return new Aabb(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     /**
@@ -339,6 +397,10 @@ final class SceneBlockMeshes {
      */
     private static final class BlockView implements BlockAndTintGetter {
         /**
+         * Per-face brightness supplied to the block and fluid bakers.
+         */
+        private final CardinalLighting cardinal;
+        /**
          * Текущая структура или null для одиночного блока.
          */
         private StructureNode structure;
@@ -346,6 +408,13 @@ final class SceneBlockMeshes {
          * Состояние одиночного блока в начале координат.
          */
         private BlockState single;
+
+        /**
+         * @param cardinal directional shade to use in the vertex colors
+         */
+        private BlockView(CardinalLighting cardinal) {
+            this.cardinal = cardinal;
+        }
 
         /**
          * {@inheritDoc}
@@ -378,7 +447,7 @@ final class SceneBlockMeshes {
          */
         @Override
         public CardinalLighting cardinalLighting() {
-            return CardinalLighting.DEFAULT;
+            return cardinal;
         }
 
         /**
@@ -433,7 +502,7 @@ final class SceneBlockMeshes {
     /**
      * Накопитель квадов. Жидкости Minecraft передают вершины в координатах секции.
      */
-    private static final class MeshBuilder implements VertexConsumer {
+    static final class MeshBuilder implements VertexConsumer {
         /**
          * XYZ вершин в единицах узла.
          */
@@ -470,7 +539,7 @@ final class SceneBlockMeshes {
          * @param y координата начала секции по Y.
          * @param z координата начала секции по Z.
          */
-        private MeshBuilder(int x, int y, int z) {
+        MeshBuilder(int x, int y, int z) {
             this.x = x;
             this.y = y;
             this.z = z;
@@ -585,11 +654,18 @@ final class SceneBlockMeshes {
         }
 
         /**
+         * @return whether the layer emitted any vertices
+         */
+        boolean isEmpty() {
+            return colors.isEmpty();
+        }
+
+        /**
          * Разбивает квады на два треугольника по диагонали 0–2.
          *
          * @return индексированная геометрия.
          */
-        private Mesh3D build() {
+        Mesh3D build() {
             int count = colors.size();
             if (count % 4 != 0) throw new IllegalStateException("Minecraft emitted an incomplete block quad");
             int[] indices = new int[count / 4 * 6];

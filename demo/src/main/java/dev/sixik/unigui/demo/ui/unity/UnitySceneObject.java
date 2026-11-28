@@ -1,12 +1,20 @@
 package dev.sixik.unigui.demo.ui.unity;
 
+import java.util.EnumSet;
+import java.util.List;
+
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.scene.BlockNode;
 import dev.sixik.unigui.api.scene.EntityNode;
+import dev.sixik.unigui.api.scene.FogVolume;
 import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.LightNode;
+import dev.sixik.unigui.api.scene.PointLight;
+import dev.sixik.unigui.api.scene.SpotLight;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.SceneMaterialEffect;
 import dev.sixik.unigui.api.scene.SceneNode;
 import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SceneElementKind;
 
@@ -60,6 +68,45 @@ final class UnitySceneObject extends SceneNode {
      * Quaternion corresponding to the last values entered in the Inspector.
      */
     private final MutableQuat anglesRotation = new MutableQuat();
+    /**
+     * Light component settings, or null without a Light component. Light objects start with one.
+     */
+    private UnityLight light;
+    /**
+     * Rotator component speed around the local Y axis in degrees per second, or NaN without a Rotator.
+     */
+    private float rotatorSpeed = Float.NaN;
+    /**
+     * Mesh Renderer shape, or null without a Mesh Renderer.
+     */
+    private GameObjectType meshShape;
+    /**
+     * Material Effect component settings, or null without the component.
+     */
+    private UnityMaterialEffect effect;
+    /**
+     * Components switched off by their Inspector checkbox. They keep their settings but have no effect.
+     */
+    private final EnumSet<Component> disabled = EnumSet.noneOf(Component.class);
+
+    /**
+     * Components that can be added, removed and switched off; Transform is fixed.
+     */
+    enum Component {
+        MESH_RENDERER, LIGHT, ROTATOR, MATERIAL_EFFECT, FOG_VOLUME
+    }
+    /**
+     * Fog Volume component settings, or null without the component.
+     */
+    private UnityFog fog;
+    /**
+     * Render node of the enabled Fog Volume, or null.
+     */
+    private FogVolume fogNode;
+    /**
+     * Render node of a point or spot light, or null.
+     */
+    private LightNode lightNode;
 
     /**
      * Creates a detached object at the origin.
@@ -87,26 +134,35 @@ final class UnitySceneObject extends SceneNode {
         this.type = type;
         this.minecraftId = minecraftId;
         switch (type) {
-            case MINECRAFT_BLOCK -> addChild(new BlockNode(minecraftId).setPosition(-0.5f, -0.5f, -0.5f));
-            case MINECRAFT_ITEM -> addChild(new ItemNode(minecraftId));
+            case MINECRAFT_BLOCK -> addChild(new BlockNode(blockPreviewState(minecraftId)).setPosition(-0.5f, -0.5f, -0.5f));
+            case MINECRAFT_ITEM -> {
+                var item = new ItemNode(minecraftId);
+                if (minecraftId.equals("minecraft:furnace")) item.setDisplay(ItemNode.Display.GUI);
+                addChild(item);
+            }
             case MINECRAFT_ENTITY -> addChild(new EntityNode(minecraftId));
+            case LIGHT -> setLight(UnityLight.defaults(UnityLight.Kind.POINT));
+            case FOG_VOLUME -> setFog(UnityFog.defaults(FogVolume.Shape.BOX));
             default -> {
             }
         }
-        setMesh(switch (type) {
-            case CUBE -> CUBE;
-            case SPHERE -> SPHERE;
-            case CAPSULE -> CAPSULE;
-            case PLANE -> PLANE;
-            default -> null;
-        });
-        setMaterial(material(switch (type) {
-            case CUBE -> 0xFF62ADD7;
-            case SPHERE -> 0xFFBF88DA;
-            case CAPSULE -> 0xFF71C8A5;
-            case PLANE -> 0xFF495361;
-            default -> 0xFFFFFFFF;
-        }));
+        meshShape = MESH_SHAPES.contains(type) ? type : null;
+        setMesh(shapeMesh(meshShape));
+        setMaterial(material(shapeColor(type)));
+    }
+
+    /**
+     * Faces directional props toward the default scene and preview cameras, which look from positive Z.
+     *
+     * @param id registry identifier or a block specification with explicit state
+     * @return block specification for the visual node
+     */
+    private static String blockPreviewState(String id) {
+        return switch (id) {
+            case "minecraft:furnace", "minecraft:lit_furnace", "minecraft:chest", "minecraft:trapped_chest",
+                    "minecraft:ender_chest" -> id + "[facing=south]";
+            default -> id;
+        };
     }
 
     /**
@@ -170,11 +226,337 @@ final class UnitySceneObject extends SceneNode {
         copy.setScale(value.x(), value.y(), value.z());
         origin(value);
         copy.setOrigin(value.x(), value.y(), value.z());
-        copy.setVisible(visible()).setMesh(mesh()).setMaterial(material());
+        copy.setVisible(visible());
+        copy.setDisabledComponents(disabled);
+        copy.setMeshShape(meshShape);
+        copy.setMaterial(material());
+        copy.setLight(light);
+        copy.setFog(fog);
+        copy.setRotatorSpeed(rotatorSpeed);
+        copy.setMaterialEffectSettings(effect);
         for (SceneNode child : children()) {
             if (child instanceof UnitySceneObject object) copy.addChild(object.copySubtree());
         }
         return copy;
+    }
+
+    /**
+     * Creates a light with the defaults of its type. Directional lights start tilted down like Unity's,
+     * spotlights start pointing straight down.
+     *
+     * @param name display name
+     * @param kind light type
+     * @return detached light object at the origin
+     */
+    static UnitySceneObject light(String name, UnityLight.Kind kind) {
+        UnitySceneObject object = new UnitySceneObject(name, GameObjectType.LIGHT);
+        object.setLight(UnityLight.defaults(kind));
+        switch (kind) {
+            case DIRECTIONAL -> object.setAngles(-50, -30, 0);
+            case SPOT -> object.setAngles(-90, 0, 0);
+            default -> {
+            }
+        }
+        return object;
+    }
+
+    /**
+     * Creates a fog volume two units wide and deep and one unit high: the node has unit half-extents, so the scale
+     * is half the size.
+     *
+     * @param name  display name
+     * @param shape volume shape
+     * @return detached fog object at the origin
+     */
+    static UnitySceneObject fog(String name, FogVolume.Shape shape) {
+        UnitySceneObject object = new UnitySceneObject(name, GameObjectType.FOG_VOLUME);
+        object.setFog(UnityFog.defaults(shape));
+        object.setScale(1, 0.5f, 1);
+        return object;
+    }
+
+    /**
+     * @return Fog Volume settings, or null without the component
+     */
+    UnityFog fog() {
+        return fog;
+    }
+
+    /**
+     * Adds, changes or removes the Fog Volume component and updates its render node. Any object can carry fog; the
+     * volume follows the object's transform.
+     *
+     * @param settings new settings, or null to remove the component
+     */
+    void setFog(UnityFog settings) {
+        fog = settings;
+        applyFog();
+    }
+
+    /**
+     * Creates, updates or removes the fog node. A shape change replaces the node, since its shape is fixed.
+     */
+    private void applyFog() {
+        UnityFog settings = fog;
+        if (settings == null || disabled.contains(Component.FOG_VOLUME)) {
+            if (fogNode != null) {
+                fogNode.detach();
+                fogNode = null;
+            }
+            return;
+        }
+        if (fogNode != null && fogNode.shape() == settings.shape()) {
+            settings.apply(fogNode);
+            return;
+        }
+        if (fogNode != null) fogNode.detach();
+        fogNode = settings.toNode();
+        addChild(fogNode);
+    }
+
+    /**
+     * @return Light component settings, or null without a Light component
+     */
+    UnityLight light() {
+        return light;
+    }
+
+    /**
+     * Adds, replaces or removes the Light component and updates the render node. Any object can carry a light.
+     * A directional light has no node: the editor writes it to the scene's single directional light instead.
+     *
+     * @param settings new settings, or null to remove the component
+     */
+    void setLight(UnityLight settings) {
+        light = settings;
+        applyLight();
+    }
+
+    /**
+     * Creates, updates or removes the render node of an enabled point or spot light.
+     */
+    private void applyLight() {
+        UnityLight settings = light;
+        if (settings == null || settings.kind() == UnityLight.Kind.DIRECTIONAL || disabled.contains(Component.LIGHT)) {
+            if (lightNode != null) {
+                lightNode.detach();
+                lightNode = null;
+            }
+            return;
+        }
+        var source = settings.kind() == UnityLight.Kind.SPOT
+                ? new SpotLight(settings.colorRgb(), settings.intensity(), settings.range(),
+                (float) Math.toRadians(settings.innerSpotAngle() * 0.5), (float) Math.toRadians(settings.spotAngle() * 0.5))
+                .withShadows(settings.toSpotShadows())
+                : new PointLight(settings.colorRgb(), settings.intensity(), settings.range());
+        if (lightNode == null) {
+            lightNode = new LightNode(source);
+            addChild(lightNode);
+        } else {
+            lightNode.setLight(source);
+        }
+    }
+
+    /**
+     * Primitive shapes a Mesh Renderer can draw.
+     */
+    static final List<GameObjectType> MESH_SHAPES = List.of(GameObjectType.CUBE, GameObjectType.SPHERE,
+            GameObjectType.CAPSULE, GameObjectType.PLANE);
+
+    /**
+     * @return the Mesh Renderer shape, or null without a Mesh Renderer
+     */
+    GameObjectType meshShape() {
+        return meshShape;
+    }
+
+    /**
+     * Adds, changes or removes the Mesh Renderer. The surface takes the shape's default color.
+     *
+     * @param shape one of {@link #MESH_SHAPES}, or null to remove the component
+     * @throws IllegalArgumentException for a type that is not a primitive shape
+     */
+    void setMeshShape(GameObjectType shape) {
+        if (shape != null && !MESH_SHAPES.contains(shape)) throw new IllegalArgumentException("Not a mesh shape: " + shape);
+        if (shape == meshShape) return;
+        meshShape = shape;
+        applyMesh();
+        setMaterial(material(shapeColor(shape)));
+    }
+
+    /**
+     * Shows the Mesh Renderer shape while the component is enabled.
+     */
+    private void applyMesh() {
+        setMesh(meshShape != null && !disabled.contains(Component.MESH_RENDERER) ? shapeMesh(meshShape) : null);
+    }
+
+    /**
+     * @param component optional component
+     * @return false when its checkbox is off
+     */
+    boolean componentEnabled(Component component) {
+        return !disabled.contains(component);
+    }
+
+    /**
+     * Switches a component on or off, keeping its settings.
+     *
+     * @param component optional component
+     * @param enabled   new checkbox state
+     */
+    void setComponentEnabled(Component component, boolean enabled) {
+        if (enabled == !disabled.contains(component)) return;
+        if (enabled) disabled.remove(component);
+        else disabled.add(component);
+        applyComponents();
+    }
+
+    /**
+     * @return components that are switched off, as a copy
+     */
+    EnumSet<Component> disabledComponents() {
+        return EnumSet.copyOf(disabled);
+    }
+
+    /**
+     * Replaces the switched-off components.
+     *
+     * @param components components to switch off
+     */
+    void setDisabledComponents(java.util.Set<Component> components) {
+        disabled.clear();
+        disabled.addAll(components);
+        applyComponents();
+    }
+
+    /**
+     * Applies the enabled state to the mesh, the light node and the material effect.
+     */
+    private void applyComponents() {
+        applyMesh();
+        applyLight();
+        applyFog();
+        appliedEffectStart = Float.NaN;
+        tickMaterialEffect(lastSceneTime);
+    }
+
+    /**
+     * Scene time of the last effect update, for re-applying it when the component changes.
+     */
+    private float lastSceneTime;
+    /**
+     * Loop start of the effect currently on the node, or NaN when it must be rebuilt.
+     */
+    private float appliedEffectStart = Float.NaN;
+
+    /**
+     * @return Material Effect settings, or null without the component
+     */
+    UnityMaterialEffect materialEffectSettings() {
+        return effect;
+    }
+
+    /**
+     * Adds, changes or removes the Material Effect component.
+     *
+     * @param settings shader and parameters, or null to remove the component
+     */
+    void setMaterialEffectSettings(UnityMaterialEffect settings) {
+        effect = settings;
+        appliedEffectStart = Float.NaN;
+        tickMaterialEffect(lastSceneTime);
+    }
+
+    /**
+     * Keeps the shader effect on the node timed to the loop containing the scene time. The node only changes when
+     * a new loop starts or the settings change.
+     *
+     * @param sceneTime scene material time in seconds
+     */
+    void tickMaterialEffect(float sceneTime) {
+        lastSceneTime = sceneTime;
+        if (effect == null || disabled.contains(Component.MATERIAL_EFFECT)) {
+            appliedEffectStart = Float.NaN;
+            applyMaterialEffect(null);
+            return;
+        }
+        float start = (float) Math.floor(sceneTime / effect.period()) * effect.period();
+        if (start == appliedEffectStart) return;
+        appliedEffectStart = start;
+        applyMaterialEffect(effect.toEffect(sceneTime));
+    }
+
+    /**
+     * Sets the effect on this object and on its Minecraft content. A block, item or entity is a child node of the
+     * object, and the renderer reads the effect of each node separately; it is not inherited from the parent.
+     * Child objects keep their own components, and light nodes have no surface.
+     *
+     * @param value shader and parameters, or null for the default shader
+     */
+    private void applyMaterialEffect(SceneMaterialEffect value) {
+        setMaterialEffect(value);
+        for (SceneNode child : children()) {
+            if (child instanceof BlockNode || child instanceof ItemNode || child instanceof EntityNode) {
+                child.setMaterialEffect(value);
+            }
+        }
+    }
+
+    /**
+     * @param shape primitive type
+     * @return shared mesh of the shape, or null for other types
+     */
+    private static Mesh3D shapeMesh(GameObjectType shape) {
+        return shape == null ? null : switch (shape) {
+            case CUBE -> CUBE;
+            case SPHERE -> SPHERE;
+            case CAPSULE -> CAPSULE;
+            case PLANE -> PLANE;
+            default -> null;
+        };
+    }
+
+    /**
+     * @param shape primitive type, or null
+     * @return default surface color of the shape
+     */
+    private static int shapeColor(GameObjectType shape) {
+        return shape == null ? 0xFFFFFFFF : switch (shape) {
+            case CUBE -> 0xFF62ADD7;
+            case SPHERE -> 0xFFBF88DA;
+            case CAPSULE -> 0xFF71C8A5;
+            case PLANE -> 0xFF495361;
+            default -> 0xFFFFFFFF;
+        };
+    }
+
+    /**
+     * @return Rotator speed in degrees per second, or NaN without a Rotator component
+     */
+    float rotatorSpeed() {
+        return rotatorSpeed;
+    }
+
+    /**
+     * Adds, changes or removes the Rotator component, which spins the object around its local Y axis in Play mode.
+     *
+     * @param degreesPerSecond speed, or NaN to remove the component
+     */
+    void setRotatorSpeed(float degreesPerSecond) {
+        rotatorSpeed = Float.isNaN(degreesPerSecond) ? Float.NaN : Math.max(-3600, Math.min(3600, degreesPerSecond));
+    }
+
+    /**
+     * Advances the Rotator: the Y angle grows by {@code speed * seconds}.
+     *
+     * @param seconds elapsed Play time
+     */
+    void tickRotator(float seconds) {
+        if (Float.isNaN(rotatorSpeed) || seconds <= 0 || disabled.contains(Component.ROTATOR)) return;
+        MutableVec3 current = angles();
+        float y = (current.y() + rotatorSpeed * seconds) % 360;
+        setAngles(current.x(), y, current.z());
     }
 
     /**

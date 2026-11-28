@@ -1,6 +1,5 @@
 package dev.sixik.unigui.gtnh.commands;
 
-import dev.sixik.unigui.backend.shared.LegacyFurnaceDemo;
 import dev.sixik.unigui.backend.shared.LegacySceneDemo;
 import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
 import dev.sixik.unigui.demo.ui.DominionScreen;
@@ -24,10 +23,6 @@ import dev.sixik.unigui.gtnh.demo.MinecraftLab;
 import dev.sixik.unigui.gtnh.demo.TextLab;
 import dev.sixik.unigui.gtnh.demo.TextureLab;
 import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.common.util.ForgeDirection;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -91,19 +86,9 @@ public final class GtnhDemoLauncher {
             case "culling" -> MarkerCullingDemoScreen.open();
             case "scaling" -> MarkerScalingDemoScreen.open();
             case "scene" -> LegacySceneDemo.open(() -> new BlockNode("minecraft:furnace@3"));
-            case "furnace" -> openFurnace();
+            case "furnace" -> GtnhFurnaceDemo.open();
             default -> throw new IllegalArgumentException("Unknown UniGUI demo: " + name);
         }
     }
 
-    /**
-     * Opens the shared tutorial using 1.7.10 block metadata and icons.
-     */
-    private static void openFurnace() {
-        int facing = ForgeDirection.SOUTH.ordinal();
-        var furnace = BlockNode.of(Blocks.furnace, facing);
-        LegacyFurnaceDemo.open(center -> BlockNode.of(Blocks.stonebrick, center ? 3 : 0),
-            furnace, lit -> furnace.setState(lit ? Blocks.lit_furnace : Blocks.furnace, facing),
-            new ItemStack(Blocks.stonebrick), new ItemStack(Blocks.furnace), new ItemStack(Items.coal));
-    }
 }

@@ -46,6 +46,7 @@ import dev.sixik.unigui.api.scene.OrbitCameraController;
 import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.api.scene.SceneNode;
 import dev.sixik.unigui.api.scene.ScenePicker;
+import dev.sixik.unigui.api.scene.SceneWireframe;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.impl.layout.ZOrder;
@@ -254,6 +255,23 @@ public final class Scene3D extends RenderToTexture {
      * Whether to highlight object hits without a unit cell.
      */
     private boolean highlightObjects;
+    /**
+     * Whether the 3D pass applies the scene's lights. Only this viewport is affected.
+     */
+    private boolean sceneLighting = true;
+    /**
+     * Whether the 3D pass draws scene geometry. When false only the clear color is drawn, for overlays such as
+     * an editor wireframe.
+     */
+    private boolean sceneGeometry = true;
+    /**
+     * Wireframe drawing of this viewport, or null for filled surfaces only.
+     */
+    private SceneWireframe wireframe;
+    /**
+     * Empty graph rendered when scene geometry is hidden.
+     */
+    private static final Scene EMPTY_SCENE = new Scene();
     /**
      * Lower corner of the cell found during the latest hover sample.
      */
@@ -551,6 +569,73 @@ public final class Scene3D extends RenderToTexture {
     }
 
     /**
+     * Turns the scene's lights on or off for this viewport only, like the lighting toggle of an editor's scene view.
+     * With lighting off, lit meshes show their base color and Minecraft content uses its own lighting. The scene
+     * itself and other viewports are unchanged.
+     *
+     * @param enabled false to render this viewport without scene lights
+     * @return this viewport
+     */
+    public Scene3D sceneLighting(boolean enabled) {
+        if (sceneLighting != enabled) {
+            sceneLighting = enabled;
+            requestRender();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether this viewport applies the scene's lights
+     */
+    public boolean sceneLighting() {
+        return sceneLighting;
+    }
+
+    /**
+     * Shows or hides the scene geometry in this viewport. With geometry hidden the 3D pass only clears the target,
+     * so the painter can draw a wireframe or other overlay instead. Picking still uses the scene.
+     *
+     * @param enabled false to clear the target without drawing the scene
+     * @return this viewport
+     */
+    public Scene3D sceneGeometry(boolean enabled) {
+        if (sceneGeometry != enabled) {
+            sceneGeometry = enabled;
+            requestRender();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether this viewport draws the scene geometry
+     */
+    public boolean sceneGeometry() {
+        return sceneGeometry;
+    }
+
+    /**
+     * Draws this viewport as a wireframe. The renderer draws the edges of everything it renders, Minecraft content
+     * included; other viewports of the same scene are not affected. See {@link Scene#renderWireframe}.
+     *
+     * @param settings edge colors and whether surfaces stay visible, or null to draw filled surfaces only
+     * @return this viewport
+     */
+    public Scene3D wireframe(SceneWireframe settings) {
+        if (!java.util.Objects.equals(wireframe, settings)) {
+            wireframe = settings;
+            requestRender();
+        }
+        return this;
+    }
+
+    /**
+     * @return wireframe settings of this viewport, or null
+     */
+    public SceneWireframe wireframe() {
+        return wireframe;
+    }
+
+    /**
      * Adds a node supplied by an XAML declaration.
      *
      * @param content declaration that supplies a built node.
@@ -653,6 +738,21 @@ public final class Scene3D extends RenderToTexture {
             @WikiParameter(description = "detached child widget.") Widget widget,
             @WikiParameter(description = "finite world-space point.") Vec3View point) {
         return addAnchor(widget, null, point);
+    }
+
+    /**
+     * Anchors a detached widget using coordinates on a node or in the world.
+     *
+     * @param widget detached child widget
+     * @param node anchoring node, or null for world space
+     * @param x finite X in node-local or world units
+     * @param y finite Y in node-local or world units
+     * @param z finite Z in node-local or world units
+     * @return anchor for adjusting the point and UI pivot
+     * @throws IllegalArgumentException if a coordinate is nonfinite or the widget cannot be attached
+     */
+    public SceneAnchor3D addAnchor(Widget widget, SceneNode node, float x, float y, float z) {
+        return addAnchor(widget, node, new MutableVec3(x, y, z));
     }
 
     /**
@@ -919,10 +1019,20 @@ public final class Scene3D extends RenderToTexture {
         camera.setViewport(logicalWidth, logicalHeight);
         long sceneRevision = scene.revision();
         long cameraRevision = camera.revision();
-        backend.scene3D().render(target, scene, camera,
-                Math.min(target.width(), logicalWidth * coordinateScale),
-                Math.min(target.height(), logicalHeight * coordinateScale), clearColor(), partialTick,
-                highlight == null ? null : highlight.renderable());
+        float width = Math.min(target.width(), logicalWidth * coordinateScale);
+        float height = Math.min(target.height(), logicalHeight * coordinateScale);
+        if (!sceneGeometry) {
+            backend.scene3D().render(target, EMPTY_SCENE, camera, width, height, clearColor(), partialTick, null);
+        } else {
+            Runnable pass = () -> backend.scene3D().render(target, scene, camera, width, height, clearColor(),
+                    partialTick, highlight == null ? null : highlight.renderable());
+            if (!sceneLighting) {
+                Runnable lit = pass;
+                pass = () -> scene.renderUnlit(lit);
+            }
+            if (wireframe != null) scene.renderWireframe(wireframe, pass);
+            else pass.run();
+        }
         renderedSceneRevision = sceneRevision;
         renderedCameraRevision = cameraRevision;
     }

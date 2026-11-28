@@ -44,6 +44,18 @@ public class UnityEditorGameView extends LinearBox {
      *
      * @param scene graph shared with the Scene tab
      */
+    /**
+     * Keeps the shared scene lit by its directional light object while only the Game tab is shown.
+     *
+     * @param frame frame timing
+     */
+    @Override
+    public void tick(dev.sixik.unigui.api.core.FrameContext frame) {
+        UnityPlayMode.tick(viewport.scene(), frame);
+        UnitySceneOverlay.syncSceneLighting(viewport.scene());
+        super.tick(frame);
+    }
+
     UnityEditorGameView(Scene scene) {
         super(Orientation.VERTICAL);
         viewport = new Scene3D(scene).cameraControls(false);
@@ -54,7 +66,7 @@ public class UnityEditorGameView extends LinearBox {
         spacing(0.0f);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        // 1. Панель инструментов Game View
+        // 1. Game View toolbar
         HBox toolbar = new HBox();
         toolbar.spacing(6.0f);
         toolbar.layout(style -> style.widthPercent(100.0f).height(20.0f)
@@ -143,6 +155,7 @@ public class UnityEditorGameView extends LinearBox {
     public void setPlaying(boolean playing) {
         this.isPlaying = playing;
         paused = false;
+        UnityPlayMode.setRunning(viewport.scene(), playing);
         viewport.requestRender();
     }
 
@@ -153,6 +166,7 @@ public class UnityEditorGameView extends LinearBox {
      */
     void setPaused(boolean paused) {
         this.paused = paused;
+        UnityPlayMode.setRunning(viewport.scene(), isPlaying && !paused);
         viewport.requestRender();
     }
 

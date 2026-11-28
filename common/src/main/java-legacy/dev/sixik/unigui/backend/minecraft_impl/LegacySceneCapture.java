@@ -3,6 +3,7 @@ package dev.sixik.unigui.backend.minecraft_impl;
 import dev.sixik.unigui.api.backend.UniGuiLogger;
 import dev.sixik.unigui.api.backend.UniGuiRuntime;
 import dev.sixik.unigui.tests.SceneMeshDemo;
+import dev.sixik.unigui.tests.SceneTutorialDemo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.GuiGraphics;
@@ -27,7 +28,7 @@ public final class LegacySceneCapture {
     /**
      * Распознаёт режимы захвата 3D.
      */
-    private static final boolean ENABLED = "scene_blocks".equals(MODE) || "scene".equals(MODE);
+    private static final boolean ENABLED = "scene_blocks".equals(MODE) || "scene".equals(MODE) || "scene_furnace".equals(MODE);
     /**
      * Ждёт запуска локального мира, если захват должен включать сущность.
      */
@@ -40,6 +41,14 @@ public final class LegacySceneCapture {
      * Число отрисованных кадров после открытия демонстрации.
      */
     private static int frames;
+    /**
+     * Optional time to let an animated capture play before reading the framebuffer, in nanoseconds.
+     */
+    private static final long PLAY_NANOS = Long.getLong("unigui.debug.scenePlaybackMillis", 0L) * 1_000_000L;
+    /**
+     * Timestamp of the first demo frame, in nanoseconds.
+     */
+    private static long firstFrame;
     /**
      * Уже поставлено открытие демонстрации на клиентский поток.
      */
@@ -55,13 +64,14 @@ public final class LegacySceneCapture {
      * @param graphics контекст кадра, который нужно отправить на GPU перед снимком.
      */
     public static void afterScreenRender(Screen screen, GuiGraphics graphics) {
-        if (!ENABLED || frames >= 60) return;
+        if (!ENABLED || frames < 0) return;
         Minecraft client = Minecraft.getInstance();
         if (!opened) {
             if (!IN_WORLD && screen instanceof TitleScreen) open(client);
             return;
         }
         if (!(screen instanceof MinecraftWidgetScreen)) return;
+        if (frames == 0) firstFrame = System.nanoTime();
         if (++frames == 30 && !HOVER.isEmpty()) {
             String[] coordinates = HOVER.split(",");
             try {
@@ -71,7 +81,7 @@ public final class LegacySceneCapture {
                 LOGGER.warn("unigui.debug.hover must be x,y in GUI coordinates");
             }
         }
-        if (frames < 60) return;
+        if (frames < 60 || System.nanoTime() - firstFrame < PLAY_NANOS) return;
         graphics.flush();
         var output = client.gameDirectory.toPath().resolve("unigui-capture").resolve(MODE).resolve("screen.png");
         try (var image = Screenshot.takeScreenshot(client.getMainRenderTarget())) {
@@ -81,6 +91,7 @@ public final class LegacySceneCapture {
         } catch (IOException failure) {
             LOGGER.error("UniGUI scene capture failed", failure);
         }
+        frames = Integer.MIN_VALUE;
         client.stop();
     }
 
@@ -101,6 +112,10 @@ public final class LegacySceneCapture {
     private static void open(Minecraft client) {
         if (opened || client.getOverlay() != null) return;
         opened = true;
-        client.tell("scene".equals(MODE) ? SceneMeshDemo::openDemo : SceneMeshDemo::openBlocksDemo);
+        client.tell(switch (MODE) {
+            case "scene" -> SceneMeshDemo::openDemo;
+            case "scene_furnace" -> SceneTutorialDemo::openFurnace;
+            default -> SceneMeshDemo::openBlocksDemo;
+        });
     }
 }

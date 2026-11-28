@@ -9,7 +9,7 @@ import net.minecraft.world.item.enchantment.Enchantments;
 /**
  * Item data that the demo gallery builds differently on 1.20.1 (NBT) and 1.21.1 (data components).
  */
-final class MinecraftDemoCompat {
+public final class MinecraftDemoCompat {
     private MinecraftDemoCompat() {
     }
 
@@ -18,8 +18,17 @@ final class MinecraftDemoCompat {
     }
 
     static ItemStack enchantedSword() {
-        ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
-        sword.enchant(Enchantments.SHARPNESS, 3);
-        return sword;
+        return glint(new ItemStack(Items.DIAMOND_SWORD));
+    }
+
+    /**
+     * Enables vanilla foil on a stack owned by a demo.
+     *
+     * @param stack the demo stack to update
+     * @return the same stack with foil
+     */
+    public static ItemStack glint(ItemStack stack) {
+        stack.enchant(Enchantments.SHARPNESS, 3);
+        return stack;
     }
 }

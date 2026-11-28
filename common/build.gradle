@@ -8,6 +8,7 @@ sourceSets {
         // Линейка версий (source_line, например java-26 для 26.1.2 и 26.2) держит общий код, а java-<версия>,
         // если такая папка есть, — классы, отличающиеся у конкретной версии. Один класс не может лежать в обеих
         // папках: отличающийся класс переносится из общей папки во все папки версий линейки.
+        java.srcDir "../.minecraft-scene-gl/src/main/java"
         def sourceLine = versionProperty('source_line')
         if (sourceLine) java.srcDir lineSourceDir(file("src/main/java-${sourceLine}"))
         def versionSources = file("src/main/java-${versionProject.minecraft_version}")
@@ -20,10 +21,26 @@ sourceSets {
     }
 }
 
+def sceneMixins = !unobfuscated ? ['SceneWalkAnimationAccess', 'LegacySceneParticleEngineAccess',
+        'LegacySceneParticleAccess', 'LegacySceneSpriteAccess'] :
+        versionProject.minecraft_version == '26.3' ? ['SceneParticleEngineAccess', 'SceneParticleMixin'] : []
+if (!sceneMixins.isEmpty()) {
+    tasks.named('processResources') {
+        inputs.property('sceneMixins', sceneMixins)
+        filesMatching('unigui.mixins.json') {
+            filter { line ->
+                if (line.trim() != '"client": [') return line
+                line + '\n    "' + sceneMixins.join('",\n    "') + '",'
+            }
+        }
+    }
+}
+
 def sceneTest = sourceSets.create("sceneTest") {
     java.setSrcDirs(["src/test/java-scene"])
     if (unobfuscated) java.srcDir "src/test/java-scene-26"
     else java.srcDir "src/test/java-scene-legacy"
+    if (versionProject.minecraft_version == '26.3') java.srcDir "src/test/java-scene-26.3"
     compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
     runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
 }
@@ -32,6 +49,26 @@ tasks.register("sceneTest", Test) {
     description = "Runs JUnit tests for Minecraft scenes."
     testClassesDirs = sceneTest.output.classesDirs
     classpath = sceneTest.runtimeClasspath
+}
+
+if (!unobfuscated || versionProject.minecraft_version == '26.3') {
+    def sceneJmh = sourceSets.create("sceneJmh") {
+        java.setSrcDirs([unobfuscated ? "src/jmh/java-26.3" : "src/jmh/java-legacy"])
+        compileClasspath += sourceSets.main.output + configurations.compileClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.runtimeClasspath
+    }
+    dependencies {
+        sceneJmhImplementation 'org.openjdk.jmh:jmh-core:1.37'
+        sceneJmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    }
+    tasks.register("sceneJmh", JavaExec) {
+        group = "verification"
+        description = "Benchmarks native scene geometry capture with JMH."
+        classpath = sceneJmh.runtimeClasspath
+        mainClass = "org.openjdk.jmh.Main"
+        args "-prof", "gc"
+        javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    }
 }
 
 dependencies {

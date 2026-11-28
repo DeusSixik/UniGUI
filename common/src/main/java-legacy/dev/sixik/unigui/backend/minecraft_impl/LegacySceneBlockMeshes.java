@@ -61,7 +61,7 @@ final class LegacySceneBlockMeshes {
     /**
      * Кэш одиночных моделей Minecraft.
      */
-    private final LinkedHashMap<BlockState, List<Surface>> singles = new LinkedHashMap<>(32, 0.75f, true);
+    private final LinkedHashMap<BlockState, List<GlScenePlatform.Surface>> singles = new LinkedHashMap<>(32, 0.75f, true);
     /**
      * Кэш секций. После удаления секции её геометрия доступна сборщику мусора.
      */
@@ -69,7 +69,11 @@ final class LegacySceneBlockMeshes {
     /**
      * Общий источник блоков для тесселятора.
      */
-    private final BlockView view = new BlockView();
+    private final BlockView view;
+    /**
+     * Shading selected for this cache's atlas materials.
+     */
+    private final Material.Shading shading;
     /**
      * Временная поза блока при запекании.
      */
@@ -88,15 +92,25 @@ final class LegacySceneBlockMeshes {
     private final Material[] materials = new Material[Material.AlphaMode.values().length];
 
     /**
+     * Creates a block cache using vanilla face shading or scene lights.
+     *
+     * @param relight whether to retain biome tint and AO while removing vanilla directional shading
+     */
+    LegacySceneBlockMeshes(boolean relight) {
+        view = new BlockView(relight);
+        shading = relight ? Material.Shading.LIT : Material.Shading.UNLIT;
+    }
+
+    /**
      * Получает слои одной модели в начале координат.
      *
      * @param state ванильное состояние блока.
      * @return слои с готовыми мешами.
      */
-    List<Surface> single(BlockState state) {
+    List<GlScenePlatform.Surface> single(BlockState state) {
         var client = Minecraft.getInstance();
         refresh(client);
-        List<Surface> cached = singles.get(state);
+        List<GlScenePlatform.Surface> cached = singles.get(state);
         if (cached != null) return cached;
         view.single = state;
         try {
@@ -118,7 +132,7 @@ final class LegacySceneBlockMeshes {
      * @param section   запекаемая секция.
      * @return слои с готовыми мешами.
      */
-    List<Surface> section(StructureNode structure, StructureNode.Section section) {
+    List<GlScenePlatform.Surface> section(StructureNode structure, StructureNode.Section section) {
         var client = Minecraft.getInstance();
         refresh(client);
         BakedSection cached = sections.get(section);
@@ -160,17 +174,8 @@ final class LegacySceneBlockMeshes {
                 .withOptions(TextureOptions.nearest());
         for (Material.AlphaMode alpha : Material.AlphaMode.values()) {
             materials[alpha.ordinal()] = new Material(0xFFFFFFFF, texture,
-                    Material.Shading.UNLIT, alpha, 0.1f, Material.Culling.BACK);
+                    shading, alpha, 0.1f, Material.Culling.BACK);
         }
-    }
-
-    /**
-     * Готовая геометрия слоя.
-     *
-     * @param mesh     индексированный меш.
-     * @param material ванильная текстура и настройки прозрачности.
-     */
-    record Surface(Mesh3D mesh, Material material) {
     }
 
     /**
@@ -179,7 +184,7 @@ final class LegacySceneBlockMeshes {
      * @param revision версия структуры.
      * @param surfaces слои секции.
      */
-    private record BakedSection(long revision, List<Surface> surfaces) {
+    private record BakedSection(long revision, List<GlScenePlatform.Surface> surfaces) {
     }
 
     /**
@@ -201,7 +206,7 @@ final class LegacySceneBlockMeshes {
         /**
          * Полупрозрачные меши сгруппированы по блоку для сортировки.
          */
-        private final List<Surface> surfaces = new ArrayList<>();
+        private final List<GlScenePlatform.Surface> surfaces = new ArrayList<>();
         /**
          * Накопитель прозрачных квадов текущего блока.
          */
@@ -258,7 +263,7 @@ final class LegacySceneBlockMeshes {
          *
          * @return индексированные слои блока или секции.
          */
-        List<Surface> finish() {
+        List<GlScenePlatform.Surface> finish() {
             finishLayer(solid, Material.AlphaMode.OPAQUE);
             finishLayer(cutout, Material.AlphaMode.CUTOUT);
             return surfaces;
@@ -272,7 +277,8 @@ final class LegacySceneBlockMeshes {
          */
         private void finishLayer(SceneBlockVertexConsumer vertices, Material.AlphaMode alpha) {
             Mesh3D mesh = vertices.build();
-            if (mesh != null) surfaces.add(new Surface(mesh, materials[alpha.ordinal()]));
+            if (mesh != null)
+                surfaces.add(new GlScenePlatform.Surface(mesh, materials[alpha.ordinal()], null, false, false));
         }
     }
 
@@ -280,6 +286,18 @@ final class LegacySceneBlockMeshes {
      * Ванильный интерфейс локального мира для моделей сцены.
      */
     private static final class BlockView implements BlockAndTintGetter, LightChunkGetter {
+        /**
+         * Suppresses vanilla directional face shading for scene-lit blocks.
+         */
+        private final boolean relight;
+
+        /**
+         * @param relight whether to defer directional lighting to the scene
+         */
+        BlockView(boolean relight) {
+            this.relight = relight;
+        }
+
         /**
          * Движок без освещаемых чанков. Фиксированный свет задаёт этот BlockView.
          */
@@ -388,7 +406,7 @@ final class LegacySceneBlockMeshes {
          */
         @Override
         public float getShade(Direction direction, boolean shade) {
-            if (!shade) return 1.0f;
+            if (!shade || relight) return 1.0f;
             return switch (direction) {
                 case DOWN -> 0.5f;
                 case UP -> 1.0f;

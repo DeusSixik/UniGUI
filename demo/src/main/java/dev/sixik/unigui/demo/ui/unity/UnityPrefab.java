@@ -3,6 +3,7 @@ package dev.sixik.unigui.demo.ui.unity;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.scene.BlockSpec;
+import dev.sixik.unigui.api.scene.FogVolume;
 import dev.sixik.unigui.api.scene.SceneNode;
 
 import java.io.DataInputStream;
@@ -29,7 +30,19 @@ final class UnityPrefab {
     /**
      * File signature and format version.
      */
-    private static final int FORMAT = 0x55504602;
+    private static final int FORMAT_V2 = 0x55504602;
+    /**
+     * Version 2 plus the components of each object: Light, Mesh Renderer, Rotator and Material Effect.
+     */
+    private static final int FORMAT_V3 = 0x55504603;
+    /**
+     * Version 3 plus the Fog Volume component.
+     */
+    private static final int FORMAT_V4 = 0x55504604;
+    /**
+     * Current format: version 4 plus light shadow settings.
+     */
+    private static final int FORMAT = 0x55504605;
     /**
      * Upper bound on nesting for the recursive file reader and writer.
      */
@@ -128,10 +141,15 @@ final class UnityPrefab {
      */
     static UnityPrefab read(UUID id, DataInputStream input) throws IOException {
         int format = input.readInt();
-        if (format != FORMAT && format != FORMAT_V1) throw new IOException("Unsupported prefab format");
+        if (format != FORMAT && format != FORMAT_V4 && format != FORMAT_V3 && format != FORMAT_V2 && format != FORMAT_V1) {
+            throw new IOException("Unsupported prefab format");
+        }
         String name = input.readUTF();
         if (name.isBlank()) throw new IOException("Missing prefab name");
-        Node root = Node.read(input, 0, format != FORMAT_V1);
+        Node root = Node.read(input, 0, format != FORMAT_V1,
+                format == FORMAT || format == FORMAT_V4 || format == FORMAT_V3,
+                format == FORMAT || format == FORMAT_V4,
+                format == FORMAT);
         if (input.read() != -1) throw new IOException("Extra data after prefab");
         return new UnityPrefab(id, name, root);
     }
@@ -152,7 +170,9 @@ final class UnityPrefab {
      */
     private record Node(String name, GameObjectType type, String minecraftId, boolean visible, MutableVec3 position,
                         MutableQuat rotation,
-                        MutableVec3 angles, MutableVec3 scale, MutableVec3 origin, List<Node> children) {
+                        MutableVec3 angles, MutableVec3 scale, MutableVec3 origin, boolean components, UnityLight light,
+                        GameObjectType meshShape, float rotatorSpeed, int disabledMask, UnityMaterialEffect effect,
+                        UnityFog fog, List<Node> children) {
         /**
          * Copies the editable values and child order from a live object.
          *
@@ -169,7 +189,9 @@ final class UnityPrefab {
             }
             return new Node(object.name(), object.type(), object.minecraftId(), object.visible(), object.position(new MutableVec3()),
                     object.rotation(new MutableQuat()), object.angles(), object.scale(new MutableVec3()),
-                    object.origin(new MutableVec3()), List.copyOf(children));
+                    object.origin(new MutableVec3()), true, object.light(), object.meshShape(), object.rotatorSpeed(),
+                    componentMask(object.disabledComponents()), object.materialEffectSettings(), object.fog(),
+                    List.copyOf(children));
         }
 
         /**
@@ -182,6 +204,14 @@ final class UnityPrefab {
             object.restoreRotation(rotation, angles);
             object.setScale(scale.x(), scale.y(), scale.z());
             object.setOrigin(origin.x(), origin.y(), origin.z());
+            if (components) {
+                object.setLight(light);
+                object.setMeshShape(meshShape);
+                object.setRotatorSpeed(rotatorSpeed);
+                object.setMaterialEffectSettings(effect);
+                object.setFog(fog);
+                object.setDisabledComponents(components(disabledMask));
+            }
             for (Node child : children) object.addChild(child.instantiate());
             return object;
         }
@@ -205,6 +235,46 @@ final class UnityPrefab {
             writeVector(output, angles);
             writeVector(output, scale);
             writeVector(output, origin);
+            // Components: Light (flag and settings), Mesh Renderer (shape index or -1) and Rotator (speed or NaN).
+            output.writeBoolean(light != null);
+            if (light != null) {
+                output.writeUTF(light.kind().name());
+                output.writeInt(light.colorRgb());
+                output.writeFloat(light.intensity());
+                output.writeFloat(light.range());
+                output.writeFloat(light.spotAngle());
+                output.writeFloat(light.innerSpotAngle());
+                output.writeBoolean(light.shadows());
+                output.writeInt(light.shadowResolution());
+                output.writeFloat(light.shadowBias());
+                output.writeFloat(light.shadowStrength());
+                output.writeFloat(light.shadowSize());
+            }
+            output.writeByte(meshShape == null ? -1 : UnitySceneObject.MESH_SHAPES.indexOf(meshShape));
+            output.writeFloat(rotatorSpeed);
+            // Switched-off components as a bit mask, then the Material Effect (flag, shader, color, strength, loop).
+            output.writeInt(disabledMask);
+            output.writeBoolean(effect != null);
+            if (effect != null) {
+                output.writeUTF(effect.preset().name());
+                output.writeInt(effect.colorRgb());
+                output.writeFloat(effect.strength());
+                output.writeFloat(effect.period());
+            }
+            // Fog Volume: flag, shape, color, density, edge, noise strength and scale, XYZ drift, scattering.
+            output.writeBoolean(fog != null);
+            if (fog != null) {
+                output.writeUTF(fog.shape().name());
+                output.writeInt(fog.colorRgb());
+                output.writeFloat(fog.density());
+                output.writeFloat(fog.edgeSoftness());
+                output.writeFloat(fog.noiseStrength());
+                output.writeFloat(fog.noiseScale());
+                output.writeFloat(fog.driftX());
+                output.writeFloat(fog.driftY());
+                output.writeFloat(fog.driftZ());
+                output.writeFloat(fog.lightScattering());
+            }
             output.writeInt(children.size());
             for (Node child : children) child.write(output);
         }
@@ -215,10 +285,13 @@ final class UnityPrefab {
          * @param input            source stream
          * @param depth            nesting relative to the saved root
          * @param withMinecraftIds whether the format permits Minecraft object types and their IDs
+         * @param withLights       whether the format stores the version 3 components
+         * @param withFog          whether the format stores the Fog Volume component
          * @return decoded subtree
          * @throws IOException if the data is incomplete or values fall outside the file format
          */
-        static Node read(DataInputStream input, int depth, boolean withMinecraftIds) throws IOException {
+        static Node read(DataInputStream input, int depth, boolean withMinecraftIds, boolean withLights,
+                         boolean withFog, boolean withLightShadows) throws IOException {
             checkDepth(depth);
             String name = input.readUTF();
             GameObjectType type = GameObjectType.valueOf(input.readUTF());
@@ -235,11 +308,91 @@ final class UnityPrefab {
             MutableVec3 angles = readVector(input);
             MutableVec3 scale = readVector(input);
             MutableVec3 origin = readVector(input);
+            UnityLight light = null;
+            GameObjectType meshShape = null;
+            float rotatorSpeed = Float.NaN;
+            int disabledMask = 0;
+            UnityMaterialEffect effect = null;
+            UnityFog fog = null;
+            if (withLights && input.readBoolean()) {
+                UnityLight.Kind kind;
+                try {
+                    kind = UnityLight.Kind.valueOf(input.readUTF());
+                } catch (IllegalArgumentException e) {
+                    throw new IOException("Unknown light type", e);
+                }
+                int colorRgb = input.readInt();
+                float intensity = input.readFloat();
+                float range = input.readFloat();
+                float spotAngle = input.readFloat();
+                float innerSpotAngle = input.readFloat();
+                if (withLightShadows) {
+                    light = new UnityLight(kind, colorRgb, intensity, range, spotAngle, innerSpotAngle,
+                            input.readBoolean(), input.readInt(), input.readFloat(), input.readFloat(), input.readFloat());
+                } else {
+                    light = new UnityLight(kind, colorRgb, intensity, range, spotAngle, innerSpotAngle);
+                }
+            }
+            if (withLights) {
+                int shape = input.readByte();
+                if (shape < -1 || shape >= UnitySceneObject.MESH_SHAPES.size()) throw new IOException("Unknown mesh shape");
+                meshShape = shape < 0 ? null : UnitySceneObject.MESH_SHAPES.get(shape);
+                rotatorSpeed = input.readFloat();
+                if (Float.isInfinite(rotatorSpeed)) throw new IOException("Invalid rotator speed");
+                disabledMask = input.readInt();
+                if ((disabledMask & ~((1 << UnitySceneObject.Component.values().length) - 1)) != 0) {
+                    throw new IOException("Unknown disabled components");
+                }
+                if (input.readBoolean()) {
+                    UnityMaterialEffect.Preset preset;
+                    try {
+                        preset = UnityMaterialEffect.Preset.valueOf(input.readUTF());
+                    } catch (IllegalArgumentException e) {
+                        throw new IOException("Unknown material effect", e);
+                    }
+                    effect = new UnityMaterialEffect(preset, input.readInt(), input.readFloat(), input.readFloat());
+                }
+            }
+            if (withFog && input.readBoolean()) {
+                FogVolume.Shape shape;
+                try {
+                    shape = FogVolume.Shape.valueOf(input.readUTF());
+                } catch (IllegalArgumentException e) {
+                    throw new IOException("Unknown fog shape", e);
+                }
+                fog = new UnityFog(shape, input.readInt(), input.readFloat(), input.readFloat(), input.readFloat(),
+                        input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat());
+            }
             int count = input.readInt();
             if (count < 0) throw new IOException("Invalid prefab child count");
             List<Node> children = new ArrayList<>();
-            for (int i = 0; i < count; i++) children.add(read(input, depth + 1, withMinecraftIds));
-            return new Node(name, type, minecraftId, visible, position, rotation, angles, scale, origin, List.copyOf(children));
+            for (int i = 0; i < count; i++) {
+                children.add(read(input, depth + 1, withMinecraftIds, withLights, withFog, withLightShadows));
+            }
+            return new Node(name, type, minecraftId, visible, position, rotation, angles, scale, origin, withLights, light,
+                    meshShape, rotatorSpeed, disabledMask, effect, fog, List.copyOf(children));
+        }
+
+        /**
+         * @param components switched-off components
+         * @return one bit per component ordinal
+         */
+        static int componentMask(java.util.Set<UnitySceneObject.Component> components) {
+            int mask = 0;
+            for (UnitySceneObject.Component component : components) mask |= 1 << component.ordinal();
+            return mask;
+        }
+
+        /**
+         * @param mask one bit per component ordinal
+         * @return the switched-off components
+         */
+        static java.util.EnumSet<UnitySceneObject.Component> components(int mask) {
+            var result = java.util.EnumSet.noneOf(UnitySceneObject.Component.class);
+            for (UnitySceneObject.Component component : UnitySceneObject.Component.values()) {
+                if ((mask & 1 << component.ordinal()) != 0) result.add(component);
+            }
+            return result;
         }
 
         /**

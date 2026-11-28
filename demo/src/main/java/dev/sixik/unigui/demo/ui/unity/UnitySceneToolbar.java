@@ -13,6 +13,7 @@ import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.widget.render.WidgetRender;
+import dev.sixik.unigui.demo.ui.scene.SceneTransformGizmo.Pivot;
 import dev.sixik.unigui.demo.ui.scene.SceneTransformGizmo.Space;
 import dev.sixik.unigui.impl.text.TextEngine;
 import dev.sixik.unigui.widgets.containers.Box;
@@ -29,13 +30,13 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Элементы управления Scene View в стиле Unity, которые живут внутри панели Scene и не могут из неё выйти:
- * верхняя строка настроек (Center/Local, сетка, привязка, режим отображения, Gizmos). Плавающая панель
- * инструментов с докингом - {@link UnityToolsOverlay}.
+ * Unity-style Scene View controls hosted inside the Scene panel without escaping its bounds:
+ * top settings bar (Center/Local, grid, snapping, draw mode, Gizmos). The floating dockable
+ * toolbar is {@link UnityToolsOverlay}.
  */
 final class UnitySceneToolbar {
     /**
-     * Инструменты трансформации Scene View.
+     * Scene View transform tools.
      */
     enum Tool {
         HAND, MOVE, ROTATE, SCALE, RECT, TRANSFORM
@@ -48,15 +49,16 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Верхняя строка Scene View с горизонтальной прокруткой.
+     * Horizontally scrollable Scene View top bar.
      *
-     * <p>Если элементы не помещаются, по краям появляются кнопки со стрелками; кнопка видна, только пока в её
-     * сторону есть что прокручивать, и при удержании двигает строку. Колесо мыши тоже прокручивает строку.</p>
+     * <p>When controls overflow, arrow buttons appear at the edges; each button is visible only while
+     * content can scroll in that direction and scrolls the bar while held. Mouse wheel scrolling also works.</p>
      *
-     * @param onSpaceChanged receives the coordinate space selected for the gizmo
-     * @return готовая панель высотой {@value #BAR_HEIGHT} px
+     * @param options   settings edited by the bar
+     * @param onChanged runs after any setting changes
+     * @return top bar with height {@value #BAR_HEIGHT} px
      */
-    static StackPanel createTopBar(Consumer<Space> onSpaceChanged) {
+    static StackPanel createTopBar(UnitySceneViewOptions options, Runnable onChanged) {
         StackPanel host = new StackPanel();
         host.layout(style -> style.widthPercent(100.0f).height(BAR_HEIGHT).flexGrow(0.0f).flexShrink(0.0f));
 
@@ -68,10 +70,10 @@ final class UnitySceneToolbar {
         background.layout(style -> style.sizePercent(100.0f, 100.0f));
         host.addChild(background);
 
-        ScrollView scroll = new ScrollView(buildTopBarContent(onSpaceChanged));
+        ScrollView scroll = new ScrollView(buildTopBarContent(options, onChanged));
         scroll.layout(style -> style.sizePercent(100.0f, 100.0f)
                 .overflowX(Overflow.AUTO).overflowY(Overflow.HIDDEN));
-        // Полосы прокрутки не нужны: их заменяют стрелки по краям.
+        // Scrollbars are omitted and replaced by edge arrow buttons.
         scroll.scrollStep(48.0f);
         scroll.scrollbarTrackColor().set(UnityStyles.BG_TOOLBAR.r(), UnityStyles.BG_TOOLBAR.g(),
                 UnityStyles.BG_TOOLBAR.b(), 0.0f);
@@ -82,7 +84,7 @@ final class UnitySceneToolbar {
 
         EdgeArrow left = new EdgeArrow(scroll, -1);
         EdgeArrow right = new EdgeArrow(scroll, 1);
-        // Скрытые виджеты не получают tick, поэтому показом стрелок управляет всегда видимый наблюдатель.
+        // Hidden widgets do not receive tick, so an always-visible watcher controls arrow visibility.
         host.addChild(new ArrowWatcher(scroll, left, right, host));
         host.addChild(left);
         host.addChild(right);
@@ -90,7 +92,7 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Кнопка-стрелка у края панели: при удержании прокручивает панель в свою сторону.
+     * Edge arrow button: scrolls the toolbar in its direction while held.
      */
     private static final class EdgeArrow extends Button {
         private static final float SPEED = 420.0f;
@@ -143,7 +145,7 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Невидимый наблюдатель: показывает стрелку, только если в её сторону панель можно прокрутить.
+     * Invisible watcher: shows an arrow only when the bar can scroll in that direction.
      */
     private static final class ArrowWatcher extends Box {
         private final ScrollView scroll;
@@ -185,45 +187,68 @@ final class UnitySceneToolbar {
     /**
      * Builds the controls hosted in the scrollable toolbar.
      *
-     * @param onSpaceChanged receives changes to the gizmo axes
+     * @param options   settings edited by the controls
+     * @param onChanged runs after a setting changes
      * @return row containing the scene view controls
      */
-    private static HBox buildTopBarContent(Consumer<Space> onSpaceChanged) {
+    private static HBox buildTopBarContent(UnitySceneViewOptions options, Runnable onChanged) {
         HBox bar = new HBox();
         bar.themeEnabled(false);
         bar.borderVisible(false);
         bar.spacing(4.0f);
-        // Ширина по содержимому и без сжатия: именно так строка выходит за видимую область и прокручивается.
+        // Size to content without shrinking so the row can overflow and scroll horizontally.
         bar.layout(style -> style.height(BAR_HEIGHT)
                 .padding(6.0f, 0.0f, 6.0f, 0.0f)
                 .alignItems(Align.CENTER)
                 .flexGrow(0.0f).flexShrink(0.0f));
 
-        bar.addChild(dropdown("Center", UnityIcons.CUBE_OUTLINE_ICON, List.of("Center", "Pivot")));
-        bar.addChild(dropdown("Global", UnityIcons.CUBE_OUTLINE_ICON, List.of("Local", "Global"),
-                option -> onSpaceChanged.accept("Local".equals(option) ? Space.LOCAL : Space.GLOBAL)));
+        bar.addChild(dropdown(options.pivot == Pivot.CENTER ? "Center" : "Pivot", UnityIcons.CUBE_OUTLINE_ICON,
+                List.of("Center", "Pivot"), option -> {
+                    options.pivot = "Pivot".equals(option) ? Pivot.PIVOT : Pivot.CENTER;
+                    onChanged.run();
+                }));
+        bar.addChild(dropdown(options.space == Space.LOCAL ? "Local" : "Global", UnityIcons.CUBE_OUTLINE_ICON,
+                List.of("Local", "Global"), option -> {
+                    options.space = "Local".equals(option) ? Space.LOCAL : Space.GLOBAL;
+                    onChanged.run();
+                }));
         bar.addChild(verticalSeparator());
 
-        boolean[] grid = {true};
-        bar.addChild(iconToggle(UnityIcons.GRID_ICON, 24.0f, () -> grid[0], () -> grid[0] = !grid[0]));
-        bar.addChild(numberField("1", 36.0f));
+        bar.addChild(iconToggle(UnityIcons.GRID_ICON, 24.0f, () -> options.grid, () -> {
+            options.grid = !options.grid;
+            onChanged.run();
+        }));
         bar.addChild(verticalSeparator());
 
-        // Привязка перемещения, вращения и масштаба.
-        for (String[] snap : new String[][]{{"0.25"}, {"15"}, {"1"}}) {
-            bar.addChild(numberField(snap[0], 40.0f));
-        }
+        // Snapping: the magnet toggles it persistently, holding Ctrl enables it while dragging.
+        bar.addChild(iconToggle(UnityIcons.SNAP_ICON, 24.0f, () -> options.snap, () -> {
+            options.snap = !options.snap;
+            onChanged.run();
+        }));
+        bar.addChild(iconLabel(UnityIcons.TOOL_MOVE_ICON));
+        bar.addChild(snapField(options.moveStep, value -> options.moveStep = (float) value, onChanged));
+        bar.addChild(iconLabel(UnityIcons.TOOL_ROTATE_ICON));
+        bar.addChild(snapField(options.rotateStep, value -> options.rotateStep = (float) value, onChanged));
+        bar.addChild(iconLabel(UnityIcons.TOOL_SCALE_ICON));
+        bar.addChild(snapField(options.scaleStep, value -> options.scaleStep = (float) value, onChanged));
 
         Box spacer = new Box();
         spacer.themeEnabled(false);
         spacer.layout(style -> style.width(16.0f).height(1.0f).flexGrow(1.0f).flexShrink(0.0f));
         bar.addChild(spacer);
 
-        bar.addChild(dropdown("Shaded", null, List.of("Shaded", "Wireframe", "Shaded Wireframe")));
+        List<String> modes = new java.util.ArrayList<>();
+        for (UnitySceneViewOptions.DrawMode mode : UnitySceneViewOptions.DrawMode.values()) modes.add(mode.label());
+        bar.addChild(dropdown(options.drawMode.label(), null, modes, option -> {
+            options.drawMode = UnitySceneViewOptions.DrawMode.fromLabel(option);
+            onChanged.run();
+        }));
         boolean[] twoD = {false};
         bar.addChild(textToggle("2D", 26.0f, () -> twoD[0], () -> twoD[0] = !twoD[0]));
-        boolean[] light = {true};
-        bar.addChild(iconToggle(UnityIcons.SUN_ICON, 24.0f, () -> light[0], () -> light[0] = !light[0]));
+        bar.addChild(iconToggle(UnityIcons.SUN_ICON, 24.0f, () -> options.lighting, () -> {
+            options.lighting = !options.lighting;
+            onChanged.run();
+        }));
         boolean[] audio = {false};
         bar.addChild(iconToggle(UnityIcons.SPEAKER_ICON, 24.0f, () -> audio[0], () -> audio[0] = !audio[0]));
         bar.addChild(dropdown("Effects", null, List.of("Skybox", "Fog", "Flares", "Always Refresh")));
@@ -232,7 +257,43 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Фон кнопки при наведении и нажатии.
+     * Small non-interactive icon placed before a snap field.
+     *
+     * @param icon glyph to draw
+     * @return 14 px wide label
+     */
+    private static Button iconLabel(UiIcon icon) {
+        Button label = flatButton(14.0f, BUTTON_HEIGHT);
+        label.enabled(false);
+        label.renderer(WidgetRender.of(Button.class, (draw, btn) -> {
+            RectView b = btn.layoutBounds();
+            icon.draw(draw, b.x() + 1.0f, b.y() + (b.height() - 12.0f) * 0.5f, 12.0f, UnityStyles.TEXT_MUTED);
+        }));
+        return label;
+    }
+
+    /**
+     * Numeric snap step that ignores values that are not positive.
+     *
+     * @param value     initial step
+     * @param apply     stores an accepted step
+     * @param onChanged runs after a step is stored
+     * @return the field
+     */
+    private static NumberField snapField(float value, java.util.function.DoubleConsumer apply, Runnable onChanged) {
+        NumberField field = numberField(Float.toString(value), 40.0f);
+        field.range(0.0, 360.0);
+        field.step(value >= 1 ? 1.0 : 0.05);
+        field.onValueChanged(event -> {
+            if (!(event.newValue() > 0)) return;
+            apply.accept(event.newValue());
+            onChanged.run();
+        });
+        return field;
+    }
+
+    /**
+     * Button background on hover and press.
      */
     static void paintHover(dev.sixik.unigui.api.render.DrawScope draw, Button btn, RectView b) {
         if (btn.pressed()) {
@@ -253,7 +314,7 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Кнопка-переключатель с иконкой: выбранное состояние подсвечивается синим.
+     * Icon toggle button: highlights the active state in blue.
      */
     private static Button iconToggle(UiIcon icon, float width, BooleanSupplier selected, Runnable toggle) {
         Button button = flatButton(width, BUTTON_HEIGHT);
@@ -273,7 +334,7 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Текстовая кнопка-переключатель.
+     * Text toggle button.
      */
     private static Button textToggle(String text, float width, BooleanSupplier selected, Runnable toggle) {
         Button button = flatButton(width, BUTTON_HEIGHT);
@@ -301,7 +362,7 @@ final class UnitySceneToolbar {
     }
 
     /**
-     * Выпадающая кнопка с необязательной иконкой, подписью и стрелкой. Выбранный пункт становится подписью.
+     * Dropdown button with an optional icon, label, and arrow. The selected item becomes the label.
      */
     private static Button dropdown(String initial, UiIcon icon, List<String> options) {
         return dropdown(initial, icon, options, option -> {

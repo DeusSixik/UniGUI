@@ -9,14 +9,14 @@ import dev.sixik.unigui.api.render.UiIcon;
 import dev.sixik.unigui.widgets.display.CanvasWidget;
 
 /**
- * Процедурные векторные иконки в стиле редактора Unity.
+ * Procedural vector icons in the Unity Editor style.
  */
 public final class UnityIcons {
     private UnityIcons() {
     }
 
     /**
-     * Синий изометрический куб GameObject (3D).
+     * Blue isometric GameObject cube (3D).
      */
     public static CanvasWidget gameObjectCube(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -28,7 +28,7 @@ public final class UnityIcons {
             float cy = y + size * 0.5f;
             float r = size * 0.44f;
 
-            // Верхняя грань (светло-синий)
+            // Top face (light blue)
             context.pathClear();
             context.pathLineTo(cx, cy - r);
             context.pathLineTo(cx + r * 0.866f, cy - r * 0.5f);
@@ -36,7 +36,7 @@ public final class UnityIcons {
             context.pathLineTo(cx - r * 0.866f, cy - r * 0.5f);
             context.pathFillConvex(UnityStyles.CUBE_BLUE_TOP);
 
-            // Левая грань (средне-синий)
+            // Left face (medium blue)
             context.pathClear();
             context.pathLineTo(cx - r * 0.866f, cy - r * 0.5f);
             context.pathLineTo(cx, cy);
@@ -44,7 +44,7 @@ public final class UnityIcons {
             context.pathLineTo(cx - r * 0.866f, cy + r * 0.5f);
             context.pathFillConvex(UnityStyles.CUBE_BLUE_LEFT);
 
-            // Правая грань (тёмно-синий)
+            // Right face (dark blue)
             context.pathClear();
             context.pathLineTo(cx, cy);
             context.pathLineTo(cx + r * 0.866f, cy - r * 0.5f);
@@ -56,7 +56,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Transform (3 оси координат: красная X, зелёная Y, синяя Z).
+     * Transform icon (3 coordinate axes: red X, green Y, blue Z).
      */
     public static CanvasWidget transformAxes(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -68,15 +68,15 @@ public final class UnityIcons {
             float cy = y + size * 0.55f;
             float len = size * 0.38f;
 
-            // Ось Y (вверх, зелёная)
+            // Y axis (up, green)
             context.line(cx, cy, cx, cy - len, Paint.fill(UnityStyles.AXIS_Y));
             context.circleFilled(cx - 1.0f, cy - len - 1.0f, 2.0f, 2.0f, UnityStyles.AXIS_Y);
 
-            // Ось X (вправо-вниз, красная)
+            // X axis (bottom-right, red)
             context.line(cx, cy, cx + len * 0.866f, cy + len * 0.5f, Paint.fill(UnityStyles.AXIS_X));
             context.circleFilled(cx + len * 0.866f - 1.0f, cy + len * 0.5f - 1.0f, 2.0f, 2.0f, UnityStyles.AXIS_X);
 
-            // Ось Z (влево-вниз, синяя)
+            // Z axis (bottom-left, blue)
             context.line(cx, cy, cx - len * 0.866f, cy + len * 0.5f, Paint.fill(UnityStyles.AXIS_Z));
             context.circleFilled(cx - len * 0.866f - 1.0f, cy + len * 0.5f - 1.0f, 2.0f, 2.0f, UnityStyles.AXIS_Z);
         });
@@ -84,7 +84,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка камеры (сине-голубой силуэт видеокамеры).
+     * Camera icon (blue video camera silhouette).
      */
     public static CanvasWidget cameraIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -97,10 +97,10 @@ public final class UnityIcons {
             float bx = x + size * 0.12f;
             float by = y + (size - bh) * 0.5f;
 
-            // Корпус камеры
+            // Camera body
             context.rectFilled(bx, by, bw, bh, UnityStyles.AXIS_Z);
 
-            // Объектив (трапеция справа)
+            // Lens (trapezoid on the right)
             float lx = bx + bw + 1.0f;
             float ly = by + bh * 0.5f;
             context.pathClear();
@@ -114,7 +114,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Audio Listener (золотые наушники).
+     * Audio Listener icon (gold headphones).
      */
     public static CanvasWidget audioListenerIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -126,7 +126,7 @@ public final class UnityIcons {
             float cy = y + size * 0.5f;
             float r = size * 0.36f;
 
-            // Оголовье (дуга вверху)
+            // Headband (top arc)
             context.pathClear();
             int segs = 8;
             for (int i = 0; i <= segs; i++) {
@@ -137,7 +137,7 @@ public final class UnityIcons {
             }
             context.pathStroke(UnityStyles.AUDIO_GOLD, false, 1.6f);
 
-            // Левый и правый наушники
+            // Left and right ear cups
             float ew = size * 0.18f;
             float eh = size * 0.32f;
             context.rectFilled(cx - r - ew * 0.5f, cy - eh * 0.3f, ew, eh, UnityStyles.AUDIO_GOLD);
@@ -147,8 +147,8 @@ public final class UnityIcons {
     }
 
     /**
-     * Стрелка foldout (▼ раскрыто, ▶ свернуто):
-     * В стиле Unity — вытянутая по вертикали и узкая по горизонтали в свёрнутом виде.
+     * Foldout arrow (expanded: down triangle, collapsed: right triangle):
+     * Styled after Unity — vertically elongated and horizontally narrow when collapsed.
      */
     public static CanvasWidget foldoutArrow(float size, boolean expanded) {
         CanvasWidget canvas = new CanvasWidget();
@@ -161,12 +161,12 @@ public final class UnityIcons {
 
             context.pathClear();
             if (expanded) {
-                // Стрелка вниз ▼
+                // Down arrow
                 context.pathLineTo(cx - 3.5f, cy - 2.0f);
                 context.pathLineTo(cx + 3.5f, cy - 2.0f);
                 context.pathLineTo(cx, cy + 2.5f);
             } else {
-                // Стрелка вправо ▶ (сужена по ширине, увеличена по высоте)
+                // Right arrow (narrower horizontally, taller vertically)
                 context.pathLineTo(cx - 1.5f, cy - 4.0f);
                 context.pathLineTo(cx + 2.5f, cy);
                 context.pathLineTo(cx - 1.5f, cy + 4.0f);
@@ -177,7 +177,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Отрисовка вопросительного знака '?' в кружке через DrawScope.
+     * Draws a '?' question mark inside a circle via DrawScope.
      */
     public static void drawHelpQuestionMark(DrawScope draw, float cx, float cy, float r, ColorView col) {
         draw.circleStroke(cx - r, cy - r, r * 2.0f, r * 2.0f, col, 1.0f);
@@ -191,7 +191,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Отрисовка вопросительного знака '?' в кружке через RenderContext.
+     * Draws a '?' question mark inside a circle via RenderContext.
      */
     public static void drawHelpQuestionMark(RenderContext context, float cx, float cy, float r, ColorView col) {
         context.circleStroke(cx - r, cy - r, r * 2.0f, r * 2.0f, col, 1.0f);
@@ -205,7 +205,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка помощи '?' в кружке.
+     * Help icon ('?' inside a circle).
      */
     public static CanvasWidget helpIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -222,7 +222,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка пресета / настроек (горизонтальные ползунки).
+     * Preset / settings icon (horizontal sliders).
      */
     public static CanvasWidget presetIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -234,11 +234,11 @@ public final class UnityIcons {
             float cy = y + size * 0.5f;
             float w = size * 0.75f;
 
-            // Верхняя линия и бегунок
+            // Top track and thumb
             context.line(cx - w * 0.5f, cy - 2.5f, cx + w * 0.5f, cy - 2.5f, Paint.fill(UnityStyles.TEXT_MUTED));
             context.circleFilled(cx - 1.5f, cy - 4.0f, 3.0f, 3.0f, UnityStyles.TEXT_MUTED);
 
-            // Нижняя линия и бегунок
+            // Bottom track and thumb
             context.line(cx - w * 0.5f, cy + 2.5f, cx + w * 0.5f, cy + 2.5f, Paint.fill(UnityStyles.TEXT_MUTED));
             context.circleFilled(cx + 1.0f, cy + 1.0f, 3.0f, 3.0f, UnityStyles.TEXT_MUTED);
         });
@@ -246,7 +246,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка контекстного меню '⋮' (3 точки).
+     * Context menu icon (three vertical dots).
      */
     public static CanvasWidget contextMenuIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -266,7 +266,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка мишени ⊙ (пикер ассета Render Texture / Object).
+     * Target picker icon (Render Texture / Object asset selector).
      */
     public static CanvasWidget targetPickerIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -285,7 +285,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка пипетки для выбора цвета.
+     * Eyedropper icon for color picking.
      */
     public static CanvasWidget eyedropperIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -296,7 +296,7 @@ public final class UnityIcons {
             float cx = x + size * 0.5f;
             float cy = y + size * 0.5f;
 
-            // Диагональная пипетка
+            // Diagonal dropper
             context.line(cx + 3.0f, cy - 3.0f, cx - 1.0f, cy + 1.0f, Paint.fill(UnityStyles.TEXT_MUTED));
             context.line(cx - 1.0f, cy + 1.0f, cx - 3.5f, cy + 3.5f, Paint.fill(UnityStyles.TEXT_PRIMARY));
             context.circleFilled(cx + 2.5f, cy - 3.5f, 2.0f, 2.0f, UnityStyles.TEXT_MUTED);
@@ -305,7 +305,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка предупреждения / инфо (кружок с восклицательным знаком !).
+     * Warning / info icon (circle with exclamation mark '!').
      */
     public static CanvasWidget warningIcon(float size) {
         CanvasWidget canvas = new CanvasWidget();
@@ -317,10 +317,10 @@ public final class UnityIcons {
             float cy = y + size * 0.5f;
             float r = size * 0.44f;
 
-            // Светлый кружок
+            // Light circle background
             context.circleFilled(cx - r, cy - r, r * 2.0f, r * 2.0f, UnityStyles.TEXT_HELP_BOX);
 
-            // Иконка восклицательного знака: сужающийся к низу клин (вверху шире, внизу уже)
+            // Exclamation mark wedge: wider at top, narrower at bottom
             context.pathClear();
             context.pathLineTo(cx - 1.25f, cy - r * 0.52f);
             context.pathLineTo(cx + 1.25f, cy - r * 0.52f);
@@ -328,17 +328,17 @@ public final class UnityIcons {
             context.pathLineTo(cx - 0.65f, cy + r * 0.16f);
             context.pathFillConvex(UnityStyles.BG_WORKSPACE);
 
-            // Основная линия для гарантированной прорисовки на всех бэкендах
+            // Core vertical stroke to guarantee crisp rendering across all backends
             context.addLine(cx, cy - r * 0.52f, cx, cy + r * 0.16f, UnityStyles.BG_WORKSPACE, 2.0f);
 
-            // Точка восклицательного знака
+            // Exclamation dot
             context.circleFilled(cx - 1.15f, cy + r * 0.46f - 1.15f, 2.3f, 2.3f, UnityStyles.BG_WORKSPACE);
         });
         return canvas;
     }
 
     /**
-     * Иконка замочка (Lock Inspector).
+     * Padlock icon (Lock Inspector).
      */
     public static CanvasWidget lockIcon(float size, boolean locked) {
         CanvasWidget canvas = new CanvasWidget();
@@ -351,15 +351,15 @@ public final class UnityIcons {
             float bw = size * 0.5f;
             float bh = size * 0.38f;
 
-            // Корпус замка
+            // Lock body
             context.rectFilled(cx - bw * 0.5f, cy - bh * 0.2f, bw, bh, UnityStyles.TEXT_MUTED);
 
-            // Дужка
+            // Shackle
             float sr = size * 0.22f;
             float sy = cy - bh * 0.2f;
             context.circleStroke(cx - sr, sy - sr * 1.4f, sr * 2.0f, sr * 2.0f, UnityStyles.TEXT_MUTED, 1.2f);
             if (!locked) {
-                // Разомкнутая дужка
+                // Open shackle cutout
                 context.rectFilled(cx + sr * 0.4f, sy - sr * 0.8f, sr * 0.8f, sr * 0.8f, UnityStyles.BG_WINDOW);
             }
         });
@@ -367,11 +367,11 @@ public final class UnityIcons {
     }
 
     // =========================================================================
-    // Векторные иконки для вкладок докинга (UiIcon)
+    // Vector Icons for Docking Tabs (UiIcon)
     // =========================================================================
 
     /**
-     * Иконка вкладки Scene (изометрический куб).
+     * Scene tab icon (isometric cube).
      */
     public static final UiIcon SCENE_TAB_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -398,7 +398,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Иконка вкладки Game (треугольник Play).
+     * Game tab icon (Play triangle).
      */
     public static final UiIcon GAME_TAB_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -412,7 +412,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Иконка вкладки Hierarchy (иерархические полосы).
+     * Hierarchy tab icon (hierarchical bars).
      */
     public static final UiIcon HIERARCHY_TAB_ICON = (draw, x, y, size, tint) -> {
         float pad = size * 0.12f;
@@ -424,7 +424,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Иконка вкладки Inspector (ползунки свойств).
+     * Inspector tab icon (property sliders).
      */
     public static final UiIcon INSPECTOR_TAB_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -437,7 +437,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Иконка вкладки Project (папка проекта).
+     * Project tab icon (project folder).
      */
     public static final UiIcon PROJECT_TAB_ICON = (draw, x, y, size, tint) -> {
         float fx = x + size * 0.1f;
@@ -449,7 +449,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Иконка вкладки Console (терминал логов).
+     * Console tab icon (log terminal).
      */
     public static final UiIcon CONSOLE_TAB_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.12f;
@@ -462,10 +462,10 @@ public final class UnityIcons {
         draw.addLine(cx + 7.5f, cy + h - 3.5f, cx + w - 3.0f, cy + h - 3.5f, tint, 1.2f);
     };
 
-    // ---- Иконки инструментов Scene View -------------------------------------------------------
+    // ---- Scene View Tool Icons ------------------------------------------------------------------
 
     /**
-     * Заливка равнобедренного треугольника-наконечника стрелки: остриё в (tipX, tipY), основание перпендикулярно оси.
+     * Fills an isosceles arrowhead triangle with apex at (tipX, tipY) and base perpendicular to (dirX, dirY).
      */
     private static void arrowHead(DrawScope draw, float tipX, float tipY, float dirX, float dirY, float len,
                                   float halfWidth, ColorView tint) {
@@ -481,7 +481,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Инструмент View (рука): ладонь и четыре пальца.
+     * View tool (hand): palm and four fingers.
      */
     public static final UiIcon TOOL_HAND_ICON = (draw, x, y, size, tint) -> {
         float t = Math.max(1.0f, size * 0.09f);
@@ -502,7 +502,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Инструмент Move: крест с четырьмя стрелками.
+     * Move tool: four-way arrow cross.
      */
     public static final UiIcon TOOL_MOVE_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -520,7 +520,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Инструмент Rotate: дуга почти в полный круг со стрелкой.
+     * Rotate tool: nearly full circular arc with an arrowhead.
      */
     public static final UiIcon TOOL_ROTATE_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -532,7 +532,7 @@ public final class UnityIcons {
         draw.pathClear();
         draw.pathArcTo(cx, cy, r, start, end, 18);
         draw.pathStroke(tint, false, t);
-        // Стрелка на конце дуги: касательная направлена по ходу угла.
+        // Arrowhead at the arc end: tangent points along increasing angle.
         float ex = cx + (float) Math.cos(end) * r;
         float ey = cy + (float) Math.sin(end) * r;
         float dx = -(float) Math.sin(end);
@@ -541,7 +541,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Инструмент Scale: квадрат с диагональной стрелкой в угол.
+     * Scale tool: square with a diagonal arrow toward the corner.
      */
     public static final UiIcon TOOL_SCALE_ICON = (draw, x, y, size, tint) -> {
         float t = Math.max(1.0f, size * 0.09f);
@@ -551,7 +551,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Инструмент Rect: рамка с квадратиками в углах.
+     * Rect tool: frame with corner handles.
      */
     public static final UiIcon TOOL_RECT_ICON = (draw, x, y, size, tint) -> {
         float t = Math.max(1.0f, size * 0.08f);
@@ -566,7 +566,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Универсальный инструмент Transform: окружность с осями и точкой в центре.
+     * Universal Transform tool: circle with axes and a center box.
      */
     public static final UiIcon TOOL_TRANSFORM_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -580,7 +580,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Контурный куб (кнопка выбора режима инструментов).
+     * Wireframe cube (tool mode selector button).
      */
     public static final UiIcon CUBE_OUTLINE_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -605,7 +605,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Сетка (Grid Visibility).
+     * Grid (Grid Visibility).
      */
     public static final UiIcon GRID_ICON = (draw, x, y, size, tint) -> {
         float t = Math.max(1.0f, size * 0.08f);
@@ -619,7 +619,28 @@ public final class UnityIcons {
     };
 
     /**
-     * Солнце (Lighting).
+     * Magnet (Grid Snapping): U-shaped arc with poles at the top.
+     */
+    public static final UiIcon SNAP_ICON = (draw, x, y, size, tint) -> {
+        float t = Math.max(1.4f, size * 0.13f);
+        float cx = x + size * 0.5f;
+        float cy = y + size * 0.52f;
+        float r = size * 0.24f;
+        float top = y + size * 0.18f;
+        draw.pathClear();
+        draw.pathLineTo(cx - r, top);
+        for (int i = 0; i <= 8; i++) {
+            double angle = Math.PI * i / 8.0;
+            draw.pathLineTo(cx - r * (float) Math.cos(angle), cy + r * (float) Math.sin(angle));
+        }
+        draw.pathLineTo(cx + r, top);
+        draw.pathStroke(tint, false, t);
+        draw.rectFilled(cx - r - t * 0.5f, top - t * 0.2f, t, t * 1.2f, UnityStyles.AXIS_X);
+        draw.rectFilled(cx + r - t * 0.5f, top - t * 0.2f, t, t * 1.2f, UnityStyles.AXIS_Z);
+    };
+
+    /**
+     * Sun (Lighting).
      */
     public static final UiIcon SUN_ICON = (draw, x, y, size, tint) -> {
         float cx = x + size * 0.5f;
@@ -637,7 +658,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Динамик (Audio).
+     * Speaker (Audio).
      */
     public static final UiIcon SPEAKER_ICON = (draw, x, y, size, tint) -> {
         float t = Math.max(1.0f, size * 0.08f);
@@ -653,7 +674,7 @@ public final class UnityIcons {
     };
 
     /**
-     * Маленький треугольник-стрелка выпадающего списка.
+     * Small triangle dropdown arrow.
      */
     public static void drawDropdownArrow(DrawScope draw, float cx, float cy, float size, ColorView tint) {
         draw.pathClear();
@@ -721,6 +742,26 @@ public final class UnityIcons {
         draw.addLine(cx + r + 1.0f, cy, cx + r + 2.5f, cy, UnityStyles.AXIS_X, 1.2f);
     }
 
+    /**
+     * Draws a small cloud over three haze lines.
+     *
+     * @param draw drawing area
+     * @param x    left edge of the icon
+     * @param y    top edge of the icon
+     * @param size side of the icon square
+     */
+    public static void drawFogIcon(DrawScope draw, float x, float y, float size) {
+        float r = size * 0.16f;
+        draw.circleFilled(x + size * 0.22f, y + size * 0.26f, r * 2.0f, r * 2.0f, UnityStyles.TEXT_PRIMARY);
+        draw.circleFilled(x + size * 0.40f, y + size * 0.14f, r * 2.4f, r * 2.4f, UnityStyles.TEXT_PRIMARY);
+        draw.rectFilled(x + size * 0.30f, y + size * 0.36f, size * 0.42f, r * 1.2f, UnityStyles.TEXT_PRIMARY);
+        for (int i = 0; i < 3; i++) {
+            float ly = y + size * (0.66f + 0.13f * i);
+            float inset = size * (i == 1 ? 0.18f : 0.08f);
+            draw.addLine(x + inset, ly, x + size - inset, ly, UnityStyles.TEXT_MUTED, 1.2f);
+        }
+    }
+
     public static void drawSceneIcon(DrawScope draw, float x, float y, float size) {
         float w = size * 0.75f;
         float h = size * 0.65f;
@@ -759,19 +800,19 @@ public final class UnityIcons {
     }
 
     /**
-     * Молния EventSystem. Контур молнии вогнутый, поэтому он разложен на два выпуклых многоугольника
-     * с одинаковым направлением обхода: {@code pathFillConvex} корректно заливает только выпуклые фигуры.
-     * Второй многоугольник чуть заходит в первый, чтобы по общему ребру не просвечивал шов.
+     * EventSystem lightning bolt. The silhouette is concave, so it is split into two convex polygons
+     * with matching winding order: {@code pathFillConvex} only fills convex shapes properly.
+     * The second polygon slightly overlaps the first so no seam shows along the shared edge.
      *
-     * @param draw область рисования
-     * @param x    левый край иконки
-     * @param y    верхний край иконки
-     * @param size сторона квадрата иконки
+     * @param draw draw scope
+     * @param x    left edge of the icon
+     * @param y    top edge of the icon
+     * @param size side length of the icon square
      */
     public static void drawEventSystemIcon(DrawScope draw, float x, float y, float size) {
         ColorView color = UnityStyles.WARNING_YELLOW;
 
-        // Верхняя часть: остриё вверху справа и левый излом.
+        // Upper half: top-right tip and left bend.
         draw.pathClear();
         draw.pathLineTo(x + size * 0.64f, y + size * 0.04f);
         draw.pathLineTo(x + size * 0.22f, y + size * 0.56f);
@@ -779,7 +820,7 @@ public final class UnityIcons {
         draw.pathLineTo(x + size * 0.56f, y + size * 0.40f);
         draw.pathFillConvex(color);
 
-        // Нижняя часть: правый излом и остриё внизу.
+        // Lower half: right bend and bottom tip.
         draw.pathClear();
         draw.pathLineTo(x + size * 0.56f, y + size * 0.37f);
         draw.pathLineTo(x + size * 0.45f, y + size * 0.56f);
@@ -789,13 +830,13 @@ public final class UnityIcons {
     }
 
     /**
-     * Рисует иконку, соответствующую типу GameObject.
+     * Draws an icon matching the given GameObject type.
      *
-     * @param draw область рисования
-     * @param type тип объекта; {@code null} трактуется как пустой объект
-     * @param x    левый край иконки
-     * @param y    верхний край иконки
-     * @param size сторона квадрата иконки
+     * @param draw draw scope
+     * @param type object type; {@code null} is treated as an empty GameObject
+     * @param x    left edge of the icon
+     * @param y    top edge of the icon
+     * @param size side length of the icon square
      */
     public static void drawGameObjectIcon(DrawScope draw, UnityEditorHierarchyView.GameObjectType type,
                                           float x, float y, float size) {
@@ -803,6 +844,7 @@ public final class UnityIcons {
         switch (type) {
             case CAMERA -> drawCameraIcon(draw, x, y, size);
             case LIGHT -> drawLightIcon(draw, x, y, size);
+            case FOG_VOLUME -> drawFogIcon(draw, x, y, size);
             case PLAYER, MINECRAFT_ENTITY -> drawPlayerIcon(draw, x, y, size);
             case MINECRAFT_BLOCK -> drawProjectPrefabCube(draw, x, y, size);
             case CANVAS, UI_PANEL, UI_BUTTON, UI_TEXT -> drawCanvasIcon(draw, x, y, size);
@@ -814,11 +856,11 @@ public final class UnityIcons {
     }
 
     /**
-     * Виджет-иконка, которая каждый кадр рисует иконку текущего типа объекта.
+     * Icon widget that renders the icon for the current GameObject type each frame.
      *
-     * @param size сторона иконки
-     * @param type поставщик текущего типа
-     * @return холст с иконкой
+     * @param size icon side length
+     * @param type supplier for the current type
+     * @return canvas widget drawing the icon
      */
     public static CanvasWidget gameObjectIcon(float size,
                                               java.util.function.Supplier<UnityEditorHierarchyView.GameObjectType> type) {
@@ -848,11 +890,11 @@ public final class UnityIcons {
     }
 
     /**
-     * Рисует большую иконку папки для Project View:
-     * контурная (прозрачная внутри), если пустая, или заполненная, если содержит ассеты.
+     * Draws a folder icon for the Project View:
+     * outlined (hollow inside) when empty, or filled when it contains assets.
      */
     public static void drawProjectFolder(DrawScope draw, float x, float y, float w, float h, boolean empty) {
-        // Пропорции папки 48x38 сохраняются при любом размере: от 14 px в списке до крупных иконок.
+        // Preserves 48x38 folder proportions at any size, from 14 px list rows to large tiles.
         float avail = Math.min(w, h / 0.792f);
         float fw = avail * 0.92f;
         float fh = fw * 0.792f;
@@ -865,7 +907,7 @@ public final class UnityIcons {
 
         if (empty) {
             ColorView outlineColor = MutableColor.rgba255(0x9A, 0xA8, 0xBA, 0xFF);
-            // Углы дуг задаются в радианах.
+            // Arc angles are specified in radians.
             final float half = (float) (Math.PI * 0.5);
             final float pi = (float) Math.PI;
             draw.pathClear();
@@ -878,7 +920,7 @@ public final class UnityIcons {
             draw.pathArcTo(fx + fw - r, fy + fh - r, r, 0.0f, half, 6);
             draw.pathLineTo(fx + r, fy + fh);
             draw.pathArcTo(fx + r, fy + fh - r, r, half, pi, 6);
-            // Путь замкнут флагом closed: повторная точка в начале дала бы шип на стыке.
+            // Path is closed via the closed flag; repeating the start vertex would create a spike at the seam.
             draw.pathStroke(outlineColor, true, Math.max(1.0f, 2.0f * k));
         } else {
             draw.roundedRectFilled(fx, fy, tabW + 5.0f * k, tabH + 5.0f * k, r, MutableColor.rgba255(0x76, 0x86, 0x98, 0xFF));
@@ -888,7 +930,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Unity Scene (белый трёхмерный изометрический куб с вырезами и полостью в центре).
+     * Unity Scene icon (white 3D isometric cube with cutouts and a hollow center cavity).
      */
     public static void drawProjectSceneCube(DrawScope draw, float x, float y, float size) {
         float cx = x + size * 0.5f;
@@ -905,7 +947,7 @@ public final class UnityIcons {
         ColorView colRight = MutableColor.rgba255(0xAF, 0xAF, 0xAF, 0xFF);
         ColorView colCavity = MutableColor.rgba255(0x28, 0x28, 0x28, 0xFF);
 
-        // Внутренняя тёмная полость куба
+        // Dark inner cavity of the cube
         draw.pathClear();
         draw.pathLineTo(cx, cy - rIn);
         draw.pathLineTo(cx + wIn, cy - h2In);
@@ -915,7 +957,7 @@ public final class UnityIcons {
         draw.pathLineTo(cx - wIn, cy - h2In);
         draw.pathFillConvex(colCavity);
 
-        // 1. Верхняя грань (чистый белый цвет)
+        // 1. Top face (pure white)
         draw.pathClear();
         draw.pathLineTo(cx - W, cy - H2);
         draw.pathLineTo(cx, cy - R);
@@ -930,7 +972,7 @@ public final class UnityIcons {
         draw.pathLineTo(cx, cy - rIn);
         draw.pathFillConvex(colTop);
 
-        // 2. Левая грань (светло-серый)
+        // 2. Left face (light gray)
         draw.pathClear();
         draw.pathLineTo(cx - W, cy - H2);
         draw.pathLineTo(cx - wIn, cy - h2In);
@@ -945,7 +987,7 @@ public final class UnityIcons {
         draw.pathLineTo(cx, cy + R);
         draw.pathFillConvex(colLeft);
 
-        // 3. Правая грань (серый средней яркости)
+        // 3. Right face (mid gray)
         draw.pathClear();
         draw.pathLineTo(cx + wIn, cy - h2In);
         draw.pathLineTo(cx + W, cy - H2);
@@ -962,7 +1004,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Unity Prefab (синий изометрический трёхмерный куб).
+     * Unity Prefab icon (blue 3D isometric cube).
      */
     public static void drawProjectPrefabCube(DrawScope draw, float x, float y, float size) {
         float cx = x + size * 0.5f;
@@ -1032,7 +1074,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Material (объёмная сфера с бликом).
+     * Material icon (shaded sphere with a specular highlight).
      */
     public static void drawProjectMaterial(DrawScope draw, float x, float y, float size) {
         float cx = x + size * 0.5f;
@@ -1047,7 +1089,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Script C# (лист документа с загнутым уголком и символом #).
+     * C# Script icon (document sheet with a folded corner and '#' glyph).
      */
     public static void drawProjectScript(DrawScope draw, float x, float y, float size) {
         float dw = size * 0.62f;
@@ -1084,7 +1126,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Texture (рамка с миниатюрой пейзажа).
+     * Texture icon (framed landscape thumbnail).
      */
     public static void drawProjectTexture(DrawScope draw, float x, float y, float size) {
         float tw = size * 0.74f;
@@ -1111,7 +1153,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Иконка Package (картонная коробка).
+     * Package icon (cardboard box).
      */
     public static void drawProjectPackage(DrawScope draw, float x, float y, float size) {
         float cx = x + size * 0.5f;
@@ -1146,7 +1188,7 @@ public final class UnityIcons {
     }
 
     /**
-     * Маршрутизатор отрисовки иконок Project View.
+     * Dispatcher for Project View asset icons.
      */
     public static void drawProjectItemIcon(DrawScope draw, String type, boolean emptyFolder, float x, float y, float w, float h) {
         if (type == null) type = "scene";
@@ -1163,14 +1205,14 @@ public final class UnityIcons {
     }
 
     /**
-     * Рисует иконку "+ с маленькой стрелочкой dropdown" (кнопка создания / Create) в стиле редактора Unity.
+     * Draws a Unity-style "+ with small dropdown arrow" icon for the Create button.
      *
-     * @param draw  область рисования
-     * @param x     X координаты кнопки
-     * @param y     Y координаты кнопки
-     * @param w     ширина кнопки
-     * @param h     высота кнопки
-     * @param color цвет иконки
+     * @param draw  draw scope
+     * @param x     button left coordinate
+     * @param y     button top coordinate
+     * @param w     button width
+     * @param h     button height
+     * @param color icon color
      */
     public static void drawCreateDropdownIcon(DrawScope draw, float x, float y, float w, float h, ColorView color) {
         float cx = x + w * 0.5f;
@@ -1178,11 +1220,11 @@ public final class UnityIcons {
         float px = cx - 3.5f;
         float py = cy - 1.0f;
 
-        // Плюс: вертикальный и горизонтальный штрихи (толщина 2.0px, длина 12.0px)
+        // Plus sign: vertical and horizontal bars (2.0px thick, 12.0px long)
         draw.rectFilled(px - 1.0f, py - 6.0f, 2.0f, 12.0f, color);
         draw.rectFilled(px - 6.0f, py - 1.0f, 12.0f, 2.0f, color);
 
-        // Маленькая стрелочка dropdown справа внизу от плюса (ширина 5px, высота 3px)
+        // Small dropdown triangle at the bottom-right of the plus (5px wide, 3px tall)
         float triLeft = px + 8.0f;
         float triRight = px + 13.0f;
         float triTop = py + 5.5f;

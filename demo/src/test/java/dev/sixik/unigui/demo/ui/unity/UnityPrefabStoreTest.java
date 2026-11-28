@@ -134,9 +134,15 @@ class UnityPrefabStoreTest {
         store.save(cube);
         Path file = store.path(cube.id());
         byte[] contents = Files.readAllBytes(file);
-        // Primitive nodes have identical records in both versions. Only their header differs.
-        contents[3] = 1;
-        Files.write(file, contents);
-        assertEquals(CUBE, store.load(unreadable -> {}).get(0).instantiate().type());
+        // A version 1 record is the current one without the component block (light flag, mesh shape byte, rotator
+        // float, disabled mask, effect flag and fog flag: 12 bytes) that sits just before the trailing child count.
+        byte[] versionOne = new byte[contents.length - 12];
+        System.arraycopy(contents, 0, versionOne, 0, contents.length - 16);
+        System.arraycopy(contents, contents.length - 4, versionOne, contents.length - 16, 4);
+        versionOne[3] = 1;
+        Files.write(file, versionOne);
+        UnitySceneObject loaded = store.load(unreadable -> {}).get(0).instantiate();
+        assertEquals(CUBE, loaded.type());
+        assertEquals(CUBE, loaded.meshShape());
     }
 }

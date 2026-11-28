@@ -9,6 +9,7 @@ import dev.sixik.unigui.api.docs.WikiParameter;
 import dev.sixik.unigui.api.docs.WikiReturn;
 import dev.sixik.unigui.api.docs.WikiSection;
 import dev.sixik.unigui.api.docs.WikiThrows;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -25,10 +26,10 @@ import java.util.Objects;
  * </ul>
  * <p>Parsing checks syntax. The installed {@link ScenePlatform} resolves IDs, properties and values.</p>
  *
- * @param text trimmed source string.
- * @param id namespaced block ID.
+ * @param text       trimmed source string.
+ * @param id         namespaced block ID.
  * @param properties immutable map of properties in source order.
- * @param meta legacy metadata, or {@code -1} when omitted.
+ * @param meta       legacy metadata, or {@code -1} when omitted.
  */
 @WikiPage(
         title = "BlockSpec", slug = "block-spec",
@@ -67,11 +68,11 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
     /**
      * Validates the fields and makes the property map immutable.
      *
-     * @param text source block specification.
-     * @param id namespaced block ID.
+     * @param text       source block specification.
+     * @param id         namespaced block ID.
      * @param properties block-state properties.
-     * @param meta nonnegative metadata, or -1 when omitted.
-     * @throws NullPointerException if text, id or properties is null.
+     * @param meta       nonnegative metadata, or -1 when omitted.
+     * @throws NullPointerException     if text, id or properties is null.
      * @throws IllegalArgumentException if meta is below -1.
      */
     @WikiMethod(section = "Parsing", sectionOrder = 10, order = 10,
@@ -92,7 +93,7 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
      *
      * @param value text such as {@code minecraft:furnace[facing=north]} or {@code minecraft:wool@14}.
      * @return parsed block specification.
-     * @throws NullPointerException if value is null.
+     * @throws NullPointerException     if value is null.
      * @throws IllegalArgumentException if the syntax is invalid.
      */
     @WikiMethod(section = "Parsing", sectionOrder = 10, order = 20,
@@ -161,7 +162,7 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
      * Adds the default namespace and validates the characters in the ID.
      *
      * @param source source string for error messages.
-     * @param id ID without properties or metadata.
+     * @param id     ID without properties or metadata.
      * @return the namespaced ID.
      */
     private static String normalizeId(String source, String id) {
@@ -183,8 +184,8 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
      * Parses comma-separated {@code name=value} properties.
      *
      * @param source source string for error messages.
-     * @param body text inside the brackets.
-     * @param out output map for parsed properties.
+     * @param body   text inside the brackets.
+     * @param out    output map for parsed properties.
      */
     private static void parseProperties(String source, String body, Map<String, String> out) {
         if (body.isBlank()) return;
@@ -202,7 +203,7 @@ public record BlockSpec(String text, String id, Map<String, String> properties, 
      * Parses nonnegative legacy metadata.
      *
      * @param source source string for error messages.
-     * @param value text after {@code @}.
+     * @param value  text after {@code @}.
      * @return the metadata.
      */
     private static int parseMeta(String source, String value) {

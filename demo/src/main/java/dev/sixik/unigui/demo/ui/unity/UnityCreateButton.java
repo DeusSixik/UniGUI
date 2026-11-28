@@ -4,7 +4,7 @@ import dev.sixik.unigui.api.render.DrawScope;
 import dev.sixik.unigui.widgets.interaction.Button;
 
 /**
- * Кнопка создания (+) с маленькой стрелочкой dropdown в стиле редактора Unity.
+ * Unity-style create (+) button with a small dropdown arrow.
  */
 public class UnityCreateButton extends Button {
     public UnityCreateButton() {

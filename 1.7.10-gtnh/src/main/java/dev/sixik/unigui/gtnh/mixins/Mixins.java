@@ -14,22 +14,30 @@ public enum Mixins implements IMixins {
      * Overlay layers see mouse and keyboard events first; vanilla tooltips are kept above the overlay.
      */
     GUI_SCREEN_OVERLAY(new MixinBuilder()
-            .setPhase(Phase.EARLY)
-            .addClientMixins("MixinGuiScreenUniGuiOverlay")),
+        .setPhase(Phase.EARLY)
+        .addClientMixins("MixinGuiScreenUniGuiOverlay")),
 
     /**
      * Silences the vanilla slot under an overlay panel.
      */
     GUI_CONTAINER_OVERLAY(new MixinBuilder()
-            .setPhase(Phase.EARLY)
-            .addClientMixins("MixinGuiContainerUniGuiOverlay")),
+        .setPhase(Phase.EARLY)
+        .addClientMixins("MixinGuiContainerUniGuiOverlay")),
 
     /**
      * Tracks the "Loading level" screens and draws loading layers over them.
      */
     LOADING_SCREEN(new MixinBuilder()
-            .setPhase(Phase.EARLY)
-            .addClientMixins("MixinLoadingScreenRenderer"));
+        .setPhase(Phase.EARLY)
+        .addClientMixins("MixinLoadingScreenRenderer")),
+
+    /**
+     * Streams posed native model geometry and exposes atlas sprite data for Scene3D.
+     */
+    SCENE_RENDERING(new MixinBuilder()
+        .setPhase(Phase.EARLY)
+        .addClientMixins("MixinSceneTessellator", "MixinSceneModelRenderer", "SceneParticleAccess",
+            "MixinSceneEntityBrightness", "SceneTileRendererAccess"));
 
     private final MixinBuilder builder;
 

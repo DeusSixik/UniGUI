@@ -11,8 +11,8 @@ import dev.sixik.unigui.widgets.feedback.ContextMenu;
 import dev.sixik.unigui.widgets.interaction.Button;
 
 /**
- * Тема каркаса редакторов в стиле Unity: цвета, вкладки, меню. Весь вид берётся из {@link UnityStyles}, поэтому
- * сам каркас остаётся нейтральным.
+ * Unity-style theme for the editor shell: colors, tabs, and menus. All visuals come from {@link UnityStyles}
+ * so the shell itself stays neutral.
  */
 public final class UnityEditorTheme implements EditorTheme {
     @Override

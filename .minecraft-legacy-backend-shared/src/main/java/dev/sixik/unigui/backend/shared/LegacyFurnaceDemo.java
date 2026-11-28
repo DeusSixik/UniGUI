@@ -57,7 +57,7 @@ public final class LegacyFurnaceDemo {
      * @param stack item used as the icon.
      * @return preview with a 16-unit icon and hidden label and decorations.
      */
-    private static MinecraftItemPreviewWidget preview(ItemStack stack) {
+    public static MinecraftItemPreviewWidget preview(ItemStack stack) {
         var preview = new MinecraftItemPreviewWidget("", stack);
         preview.previewSize(16).labelVisible(false);
         return preview.decorations(false);

@@ -1,5 +1,6 @@
 package dev.sixik.unigui.widgets.rendering;
 
+import dev.sixik.unigui.api.animation.AnimationEasing;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
 import dev.sixik.unigui.api.core.InvalidationFlags;
@@ -28,10 +29,12 @@ import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
 import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.api.scene.SceneNode;
+import dev.sixik.unigui.api.scene.SceneTimeline;
 import dev.sixik.unigui.api.widget.Visibility;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.impl.render.DefaultRenderContext;
 import dev.sixik.unigui.impl.render.SimpleRenderTarget;
+import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.interaction.Button;
 import org.junit.jupiter.api.Test;
 
@@ -524,6 +527,59 @@ class Scene3DTest {
         h.render();
         assertFalse(anchor.visible());
         assertEquals(1, h.backend.rawCalls);
+    }
+
+    /** Drives both coordinate spaces and an interactive widget subtree from one seekable stage. */
+    @Test
+    void anchorTrack_seekMovesAndHidesWidgetSubtree() {
+        Harness h = new Harness();
+        h.scene.camera().setOrthographic(6, 0.1f, 20);
+        var panel = new VBox();
+        var button = new Button("Anchor");
+        var clicks = new AtomicInteger();
+        button.onClick(event -> clicks.incrementAndGet());
+        panel.addChild(button);
+        var anchor = h.scene.addAnchor(panel, h.node, 0, 0, 0);
+        var timeline = new SceneTimeline();
+        var stage = timeline.stage(1);
+        var track = stage.trackAnchor(anchor).visibleBetween(0, 2)
+                .position(0, 0, 0, 0).position(2, 2, 1, 0, AnimationEasing.QUAD_IN)
+                .screenOffset(0, 0, 0, null).screenOffset(2, 20, -8, null);
+        assertSame(track, stage.trackAnchor(anchor));
+        assertEquals(3, timeline.duration(), EPS);
+
+        timeline.sample(0);
+        h.render();
+        assertFalse(anchor.visible());
+        timeline.sample(1);
+        h.render();
+        assertTrue(anchor.visible());
+        assertEquals(130, centerX(button), EPS);
+        assertEquals(80, centerY(button), EPS);
+
+        timeline.sample(2);
+        h.render();
+        // The eased point adds (10, -5) UI units after projection. The offset track adds (10, -4).
+        assertEquals(150, centerX(button), EPS);
+        assertEquals(71, centerY(button), EPS);
+        assertEquals(1, h.backend.rawCalls);
+        h.input.pointerPressed(150, 71, 0, PointerButton.PRIMARY);
+        h.input.pointerReleased(150, 71, 0, PointerButton.PRIMARY);
+        assertEquals(1, clicks.get());
+        h.input.pointerPressed(150, 71, 0, PointerButton.PRIMARY);
+        assertSame(button, h.ui.capturedPointer(0));
+
+        timeline.sample(3);
+        h.render();
+        assertFalse(anchor.visible());
+        assertNull(h.ui.capturedPointer(0));
+        h.input.pointerReleased(150, 71, 0, PointerButton.PRIMARY);
+        assertEquals(1, clicks.get());
+        timeline.sample(1);
+        h.render();
+        assertTrue(anchor.visible());
+        assertEquals(130, centerX(button), EPS);
+        assertEquals(80, centerY(button), EPS);
     }
 
     @Test

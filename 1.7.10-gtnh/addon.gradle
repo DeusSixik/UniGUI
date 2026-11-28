@@ -171,6 +171,9 @@ tasks.named('processResources') {
         }
         includeEmptyDirs = false
     }
+    from({ zipTree(demoJar) }) {
+        include 'assets/unigui/textures/scene/**'
+    }
 }
 
 tasks.withType(Test).configureEach {

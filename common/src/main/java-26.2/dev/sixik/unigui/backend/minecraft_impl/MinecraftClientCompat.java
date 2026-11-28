@@ -1,14 +1,17 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.scene.EntityActionClip;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Overlay;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderBuffers;
+import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -21,6 +24,36 @@ import org.jetbrains.annotations.Nullable;
  * типам сущностей только через этот класс; у каждой версии своя реализация.</p>
  */
 public final class MinecraftClientCompat {
+    /**
+     * @return the native main-hand swing preset
+     */
+    static EntityActionClip<?> mainHandSwing() {
+        return MainHandSwing.CLIP;
+    }
+
+    /**
+     * Loads the native swing state when a caller first requests the clip.
+     */
+    private static final class MainHandSwing {
+        /**
+         * Uses the native swing's duration converted from ticks to seconds.
+         */
+        private static final EntityActionClip<ArmedEntityRenderState> CLIP = new EntityActionClip<>(
+                SwingAnimation.DEFAULT.duration() / 20f, ArmedEntityRenderState.class, (state, phase) -> {
+            state.attackArm = state.mainArm;
+            state.swingAnimationType = SwingAnimation.DEFAULT.type();
+            state.attackTime = phase;
+        });
+    }
+
+    /**
+     * Whether native item and entity models can use scene surface effects.
+     */
+    public static final boolean NATIVE_SCENE_MATERIALS = UiMesh3DPipeline.SUPPORTS_SURFACE_EFFECTS;
+    /**
+     * Whether the backend can draw vanilla particle emitters in Scene3D.
+     */
+    public static final boolean NATIVE_SCENE_PARTICLES = false;
     public static final EntityType<? extends LivingEntity> ZOMBIE = EntityTypes.ZOMBIE;
     public static final EntityType<? extends LivingEntity> SKELETON = EntityTypes.SKELETON;
     public static final EntityType<? extends LivingEntity> CREEPER = EntityTypes.CREEPER;

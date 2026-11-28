@@ -13,6 +13,11 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.scene.Camera3D;
 import dev.sixik.unigui.api.scene.SceneNode;
+import dev.sixik.unigui.api.scene.Material;
+import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.render.SimpleTextureHandle;
+import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.backend.minecraft_impl.custom_renders.MinecraftRendererPlatformHook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.client.renderer.LightTexture;
@@ -21,7 +26,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -32,8 +36,10 @@ import org.lwjgl.opengl.GL14;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Рисует ванильные предметы, сущности и block entity в общей GL-цели.
@@ -87,6 +93,18 @@ final class LegacySceneFeatures implements MultiBufferSource {
      * Вращение билбордов при уже применённой сценовой матрице вида.
      */
     private final Quaternionf billboard = new Quaternionf();
+    /** Local meshes shared by all depth and color passes of one frame. Null values select vanilla fallback. */
+    private final Map<SceneNode, List<GlScenePlatform.Surface>> captures = new IdentityHashMap<>();
+    /** Quad consumers keyed by native layer during a local capture. */
+    private final Map<RenderType, SceneBlockVertexConsumer> capturedLayers = new LinkedHashMap<>();
+    /** Whether buffers should collect local indexed meshes. */
+    private boolean capturing;
+    /** Frame-relative scene pose override for the vanilla entity renderer. */
+    private final LegacySceneAnimation animation = new LegacySceneAnimation();
+    /** Whether a native layer requires the whole node to use vanilla rendering. */
+    private boolean unsupported;
+    /** Consumer used to discard unsupported primitives before falling back to vanilla rendering. */
+    private final SceneBlockVertexConsumer skipped = new SceneBlockVertexConsumer();
 
     /**
      * Рисует модели в цель со своим видом и проекцией. Сортировка квадов видит координаты камеры.
@@ -163,6 +181,137 @@ final class LegacySceneFeatures implements MultiBufferSource {
     }
 
     /**
+     * Captures a vanilla model in local coordinates for material, light and depth passes.
+     *
+     * @param node native model node
+     * @param partialTick fractional client tick
+     * @return quad meshes, or null if the node needs a native special pass
+     */
+    List<GlScenePlatform.Surface> capture(SceneNode node, float partialTick) {
+        if (captures.containsKey(node)) return captures.get(node);
+        Minecraft client = Minecraft.getInstance();
+        if (node instanceof ItemNode item) {
+            var stack = MinecraftScene.renderStack(item);
+            if (MinecraftRendererPlatformHook.hasCustomItemRendererImpl(stack)
+                    || client.getItemRenderer().getModel(stack, client.level, null, 0).isCustomRenderer()) {
+                captures.put(node, null);
+                return null;
+            }
+        }
+        var dispatcher = client.getEntityRenderDispatcher();
+        var original = dispatcher.cameraOrientation();
+        transform.identity();
+        capturing = true;
+        try {
+            dispatcher.overrideCameraOrientation(billboard);
+            submitModel(client, node, partialTick);
+            var result = unsupported ? null : bakeLayers();
+            captures.put(node, result);
+            return result;
+        } finally {
+            dispatcher.overrideCameraOrientation(original);
+            capturing = unsupported = false;
+            capturedLayers.clear();
+            skipped.clear();
+        }
+    }
+
+    /**
+     * Converts the layer's normal, texture and alpha information to a scene surface. The render type
+     * resolves the same atlas or texture used by the vanilla model, including resource pack overrides.
+     *
+     * @return indexed surfaces, or null when any nonempty layer cannot be captured
+     */
+    private List<GlScenePlatform.Surface> bakeLayers() {
+        var result = new ArrayList<GlScenePlatform.Surface>(capturedLayers.size());
+        var shader = RenderSystem.getShader();
+        int texture = RenderSystem.getShaderTexture(0);
+        int overlay = RenderSystem.getShaderTexture(1);
+        int lightmap = RenderSystem.getShaderTexture(2);
+        var textureMatrix = RenderSystem.getTextureMatrix();
+        boolean depthWrite = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+        boolean cullEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE);
+        try {
+            for (var entry : capturedLayers.entrySet()) {
+                var mesh = entry.getValue().build();
+                if (mesh == null) continue;
+                var type = entry.getKey();
+                RenderSystem.setShaderTexture(0, 0);
+                // Vanilla's default write mask and cull shards assume these states are already enabled.
+                RenderSystem.depthMask(true);
+                RenderSystem.enableCull();
+                type.setupRenderState();
+                try {
+                    var active = RenderSystem.getShader();
+                    int id = RenderSystem.getShaderTexture(0);
+                    if (active == null || id == 0) return null;
+                    String name = active.getName();
+                    boolean foil = name.contains("glint");
+                    var matrix = RenderSystem.getTextureMatrix();
+                    var glint = foil ? new GlScenePlatform.Glint(
+                            matrix.m00(), matrix.m10(), matrix.m30(), matrix.m01(), matrix.m11(), matrix.m31()) : null;
+                    boolean blend = foil || ScenePoseCompat.sortsOnUpload(type)
+                            || name.contains("translucent") || name.contains("eyes");
+                    var alpha = blend ? Material.AlphaMode.TRANSLUCENT : Material.AlphaMode.CUTOUT;
+                    var base = new SimpleTextureHandle("unigui:scene_native/" + id, 1, 1, id)
+                            .withOptions(TextureOptions.nearest());
+                    var shading = foil || name.contains("emissive") || name.contains("eyes")
+                            ? Material.Shading.UNLIT : Material.Shading.LIT;
+                    var cull = GL11.glIsEnabled(GL11.GL_CULL_FACE) ? Material.Culling.BACK : Material.Culling.NONE;
+                    var material = new Material(0xffffffff, base, shading, alpha, 0.1f, cull);
+                    boolean translucentCutout = blend && usesTranslucentCutout(name);
+                    boolean translucentDepthWrite = blend && !foil && GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+                    result.add(new GlScenePlatform.Surface(mesh, material, glint, translucentDepthWrite, translucentCutout));
+                } finally {
+                    type.clearRenderState();
+                }
+            }
+            return result;
+        } finally {
+            RenderSystem.setShaderTexture(0, texture);
+            RenderSystem.setShaderTexture(1, overlay);
+            RenderSystem.setShaderTexture(2, lightmap);
+            RenderSystem.setTextureMatrix(textureMatrix);
+            RenderSystem.setShader(() -> shader);
+            RenderSystem.depthMask(depthWrite);
+            if (cullEnabled) RenderSystem.enableCull();
+            else RenderSystem.disableCull();
+        }
+    }
+
+    /**
+     * Identifies vanilla blended model shaders with a 0.1 alpha cutoff. The names match both
+     * namespaced and plain shader IDs used by the legacy Minecraft loaders.
+     *
+     * @param shaderName name of the vanilla shader selected by the render type
+     * @return whether to apply the material cutoff before writing blended color and depth
+     */
+    static boolean usesTranslucentCutout(String shaderName) {
+        int separator = shaderName.indexOf(':');
+        String path = separator == -1 ? shaderName : shaderName.substring(separator + 1);
+        return switch (path) {
+            case "rendertype_item_entity_translucent_cull",
+                 "rendertype_entity_translucent_cull",
+                 "rendertype_entity_translucent",
+                 "rendertype_entity_translucent_emissive" -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Retires meshes unique to this frame after every render pass consumes them.
+     *
+     * @param retire removes each temporary mesh from the renderer's GPU cache
+     */
+    void endFrame(Consumer<Mesh3D> retire) {
+        for (var surfaces : captures.values()) {
+            if (surfaces == null) continue;
+            for (var surface : surfaces) retire.accept(surface.mesh());
+        }
+        captures.clear();
+    }
+
+    /**
      * Набирает геометрию модели с данным преобразованием из координат узла.
      *
      * @param client      текущий клиент.
@@ -172,6 +321,17 @@ final class LegacySceneFeatures implements MultiBufferSource {
     private void submit(Minecraft client, SceneNode node, float partialTick) {
         node.worldMatrix(world).copyColumnMajor(entries, 0);
         transform.set(entries).mulLocal(view);
+        submitModel(client, node, partialTick);
+    }
+
+    /**
+     * Submits the model in the configured coordinate space.
+     *
+     * @param client current client
+     * @param node model node
+     * @param partialTick fractional client tick
+     */
+    private void submitModel(Minecraft client, SceneNode node, float partialTick) {
         if (node instanceof BlockNode block) {
             submitBlockEntity(client, MinecraftScene.blockEntity(block), BlockPos.ZERO, partialTick);
         } else if (node instanceof StructureNode structure) {
@@ -191,34 +351,20 @@ final class LegacySceneFeatures implements MultiBufferSource {
             client.getItemRenderer().renderStatic(MinecraftScene.renderStack(item), MinecraftScene.context(item.display()), LightTexture.FULL_BRIGHT,
                     OverlayTexture.NO_OVERLAY, pose, this, client.level, 0);
         } else if (node instanceof EntityNode entity) {
-            Entity model = MinecraftScene.entity(entity);
+            var model = MinecraftScene.entity(entity);
             if (model == null) return;
-            if (entity.hasHead()) applyHead(model, entity);
-            resetPose();
-            var renderer = client.getEntityRenderDispatcher().getRenderer(model);
-            var offset = renderer.getRenderOffset(model, partialTick);
-            pose.translate(offset.x, offset.y, offset.z);
-            renderer.render(model, Mth.rotLerp(partialTick, model.yRotO, model.getYRot()),
-                    partialTick, pose, this, LightTexture.FULL_BRIGHT);
-        }
-    }
-
-    /**
-     * Поворачивает голову относительно тела. Minecraft хранит абсолютное рыскание головы в градусах; значения
-     * прошлого тика тоже меняются, чтобы интерполяция не раскачивала голову.
-     *
-     * @param model сущность.
-     * @param node  узел с углами в радианах.
-     */
-    private static void applyHead(Entity model, EntityNode node) {
-        float pitch = (float) Math.toDegrees(node.headPitch());
-        model.setXRot(pitch);
-        model.xRotO = pitch;
-        if (model instanceof net.minecraft.world.entity.LivingEntity living) {
-            float yaw = living.yBodyRot + (float) Math.toDegrees(node.headYaw());
-            living.yHeadRot = yaw;
-            living.yHeadRotO = yaw;
-            living.yBodyRotO = living.yBodyRot;
+            boolean animated = entity.hasAnimation() || entity.hasHead() || entity.hasNativeAnimation() || entity.hasAction();
+            float sampledTick = animated ? animation.apply(model, entity, partialTick) : partialTick;
+            try {
+                resetPose();
+                var renderer = client.getEntityRenderDispatcher().getRenderer(model);
+                var offset = renderer.getRenderOffset(model, sampledTick);
+                pose.translate(offset.x, offset.y, offset.z);
+                renderer.render(model, Mth.rotLerp(sampledTick, model.yRotO, model.getYRot()),
+                        sampledTick, pose, this, LightTexture.FULL_BRIGHT);
+            } finally {
+                if (animated) animation.restore(model);
+            }
         }
     }
 
@@ -252,6 +398,13 @@ final class LegacySceneFeatures implements MultiBufferSource {
      */
     @Override
     public VertexConsumer getBuffer(RenderType type) {
+        if (capturing) {
+            if (type.mode() == VertexFormat.Mode.QUADS) {
+                return capturedLayers.computeIfAbsent(type, ignored -> new SceneBlockVertexConsumer());
+            }
+            unsupported = true;
+            return skipped;
+        }
         boolean grouped = type.canConsolidateConsecutiveGeometry();
         Layer layer = grouped ? groupedLayers.get(type) : null;
         if (layer == null) {

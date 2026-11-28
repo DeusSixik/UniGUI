@@ -148,10 +148,6 @@ public final class WikiMarkdownGenerator {
                 // Optional Minecraft or loader classes may not be present in every documentation runtime.
             }
         }
-        pages.sort(Comparator
-                .comparing((Class<?> type) -> type.getAnnotation(WikiPage.class).category().toLowerCase(Locale.ROOT))
-                .thenComparingInt(type -> type.getAnnotation(WikiPage.class).order())
-                .thenComparing(type -> type.getAnnotation(WikiPage.class).title().toLowerCase(Locale.ROOT)));
         validateUniqueSlugs(pages);
         return List.copyOf(pages);
     }
@@ -199,8 +195,15 @@ public final class WikiMarkdownGenerator {
             StringBuilder index = new StringBuilder("# ")
                     .append(localization.resolve("<key:wiki.index.title>", locale, "wiki.index.title"))
                     .append("\n\n");
+            List<Class<?>> orderedPages = new ArrayList<>(pages);
+            orderedPages.sort(Comparator
+                    .comparing((Class<?> type) -> localization.resolve(type.getAnnotation(WikiPage.class).category(),
+                            locale, type.getName() + ".category"))
+                    .thenComparingInt(type -> type.getAnnotation(WikiPage.class).order())
+                    .thenComparing(type -> localization.resolve(type.getAnnotation(WikiPage.class).title(),
+                            locale, type.getName() + ".title"), String.CASE_INSENSITIVE_ORDER));
             String currentCategory = null;
-            for (Class<?> type : pages) {
+            for (Class<?> type : orderedPages) {
                 WikiPage page = type.getAnnotation(WikiPage.class);
                 String context = type.getName();
                 String title = localization.resolve(page.title(), locale, context + ".title");

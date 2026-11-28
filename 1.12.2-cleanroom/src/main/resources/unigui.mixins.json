@@ -8,7 +8,12 @@
     "MixinGuiScreenUniGuiOverlay",
     "MixinGuiContainerUniGuiOverlay",
     "MixinGuiUtilsTooltipOrder",
-    "MixinLoadingScreenRenderer"
+    "MixinLoadingScreenRenderer",
+    "MixinSceneModelRenderer",
+    "MixinSceneVertexUploader",
+    "SceneParticleAccess",
+    "SceneParticleFactories",
+    "SceneTileEntityAccess"
   ],
   "mixins": [],
   "server": [],

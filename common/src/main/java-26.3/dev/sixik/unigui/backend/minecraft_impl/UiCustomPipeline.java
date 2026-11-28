@@ -128,6 +128,20 @@ final class UiCustomPipeline {
     }
 
     /**
+     * Releases an evicted variant after queued draws have used its compiled pipelines.
+     */
+    void releaseAfterFrame() {
+        if (pipelines.isEmpty()) return;
+        RenderSystem.queueFencedTask(() -> {
+            for (RenderPipeline pipeline : pipelines.values()) {
+                CompiledRenderPipeline compiled = COMPILED.remove(pipeline);
+                if (compiled != null) compiled.close();
+            }
+            pipelines.clear();
+        });
+    }
+
+    /**
      * Отмечает успешную отрисовку: при первой пишет в журнал, каким бэкендом рисует путь.
      */
     void drawn() {

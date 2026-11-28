@@ -12,6 +12,7 @@ import dev.sixik.unigui.api.docs.WikiThrows;
 import dev.sixik.unigui.api.math.Aabb;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A Minecraft entity model with its feet at the local origin.
@@ -34,6 +35,23 @@ import java.util.Objects;
         preview is temporarily absent until its world is available. `clearHead()` removes the explicit head
         override.
         """)
+@WikiSection(title = "<key:entity.node.section.animation.title>", order = 20, markdown = "<key:entity.node.section.animation.body>")
+@WikiExample(title = "<key:entity.node.example.walk.title>", code = """
+        var zombie = new EntityNode("minecraft:zombie");
+        scene.addRoot(zombie);
+        timeline.track(zombie)
+                .position(0, 0, 0, 0).position(2, 0, 0, 2)
+                .walk(0, 0, 0.6f).walk(2, 14, 0.6f).walk(2.2f, 14, 0);
+        """)
+@WikiExample(title = "<key:entity.node.example.golem.title>", code = """
+        var golem = new EntityNode("minecraft:iron_golem");
+        scene.addRoot(golem);
+        golem.setNativeAnimation(IronGolemRenderState.class, state -> {
+            float attackTick = state.ageInTicks - 20;
+            state.attackTicksRemaining = attackTick >= 0 && attackTick < 10 ? 10 - attackTick : 0;
+        });
+        timeline.onSample(seconds -> golem.setAnimation(seconds, 0, 0));
+        """)
 @WikiExample(title = "Preview a zombie looking down", code = """
         EntityNode zombie = new EntityNode("minecraft:zombie");
         zombie.setPosition(2, 0, 0).setHead(0.35f, 0.2f);
@@ -43,13 +61,16 @@ import java.util.Objects;
 @WikiLink(label = "ScenePlatform", target = "page:scene-platform")
 @WikiLink(label = "Scene3D", target = "page:scene-3d")
 @WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
+@WikiLink(label = "EntityActionClip", target = "page:entity-action-clip")
 @AiDoc(
         summary = "A Minecraft entity preview with body transform and optional head rotation.",
         purpose = "Display an entity or an entity type in a UI scene.",
         criticalRules = {
                 "The local origin is at the feet and the unrotated body faces +Z.",
                 "A type preview may need a loaded client world and can be recreated on world change.",
-                "`setHead` uses radians. Positive yaw turns toward the entity's right shoulder. Positive pitch tilts down. Use the node's rotation for the body."
+                "`setHead` uses radians. Positive yaw turns toward the entity's right shoulder. Positive pitch tilts down. Use the node's rotation for the body.",
+                "Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x apply setAnimation and timeline walk keys to native idle and locomotion. Move the SceneNode to control travel.",
+                "On Minecraft 26.x, use setNativeAnimation for mob-specific render-state fields. Write a complete pose on every call and use the sampled ageInTicks as the clock."
         },
         related = {"SceneNode", "ScenePlatform", "Scene3D", "SceneTimeline"},
         examples = @AiDoc.Example(title = "Preview a zombie looking down", code = """
@@ -78,6 +99,26 @@ public final class EntityNode extends SceneNode {
      * Head yaw and pitch relative to the body, in radians.
      */
     private float headYaw, headPitch;
+    /**
+     * Whether the scene supplies the native model clock and locomotion.
+     */
+    private boolean animation;
+    /**
+     * Absolute playback time in seconds, accumulated gait phase and normalized stride strength.
+     */
+    private float animationSeconds, walkPhase, walkStrength;
+    /**
+     * Optional callback for the extracted render state of a particular backend type.
+     */
+    private Consumer<Object> nativeAnimation;
+    /**
+     * Action selected by the last sample of a timeline with action clips for this node.
+     */
+    private EntityActionClip<?> action;
+    /**
+     * Normalized phase of the selected clip's current cycle, in [0, 1).
+     */
+    private float actionProgress;
 
     /**
      * Creates an entity preview from a type ID.
@@ -131,7 +172,7 @@ public final class EntityNode extends SceneNode {
      * Rotates the head relative to the body. Zero yaw faces local +Z, positive yaw turns toward
      * the entity's right shoulder, and positive pitch tilts down. Use {@link #setRotation} for the body.
      *
-     * @param yaw yaw in radians.
+     * @param yaw   yaw in radians.
      * @param pitch pitch in radians.
      * @return this node.
      * @throws IllegalArgumentException if either angle is nonfinite.
@@ -145,7 +186,8 @@ public final class EntityNode extends SceneNode {
     public EntityNode setHead(
             @WikiParameter(description = "yaw in radians.") float yaw,
             @WikiParameter(description = "pitch in radians.") float pitch) {
-        if (!Float.isFinite(yaw) || !Float.isFinite(pitch)) throw new IllegalArgumentException("Head angles must be finite");
+        if (!Float.isFinite(yaw) || !Float.isFinite(pitch))
+            throw new IllegalArgumentException("Head angles must be finite");
         if (!head || headYaw != yaw || headPitch != pitch) {
             head = true;
             headYaw = yaw;
@@ -216,6 +258,161 @@ public final class EntityNode extends SceneNode {
     }
 
     /**
+     * Overrides the native model clock and locomotion on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.x.
+     *
+     * @param seconds      absolute animation time in seconds, finite and nonnegative
+     * @param walkPhase    accumulated gait phase in vanilla model units
+     * @param walkStrength stride strength in [0, 1]
+     * @return this node
+     * @throws IllegalArgumentException if any input is nonfinite or outside its range
+     */
+    @WikiMethod(section = "<key:scene.api.section.animation>", sectionOrder = 30, summary = "<key:entity.node.api.set.animation.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @WikiThrows(type = IllegalArgumentException.class, description = "<key:entity.node.api.set.animation.throws.IllegalArgumentException>")
+    @AiDoc(section = "Animation", summary = "Samples idle time in seconds, accumulated gait phase and normalized stride strength.")
+    public EntityNode setAnimation(
+            @WikiParameter(description = "<key:entity.node.api.set.animation.param.seconds>") float seconds,
+            @WikiParameter(description = "<key:entity.node.api.set.animation.param.phase>") float walkPhase,
+            @WikiParameter(description = "<key:entity.node.api.set.animation.param.strength>") float walkStrength) {
+        if (!Float.isFinite(seconds) || seconds < 0 || !Float.isFinite(walkPhase)
+                || !(walkStrength >= 0 && walkStrength <= 1)) {
+            throw new IllegalArgumentException("Invalid entity animation time or locomotion");
+        }
+        if (!animation || animationSeconds != seconds || this.walkPhase != walkPhase || this.walkStrength != walkStrength) {
+            animation = true;
+            animationSeconds = seconds;
+            this.walkPhase = walkPhase;
+            this.walkStrength = walkStrength;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
+     * Restores the native entity's clock and locomotion.
+     *
+     * @return this node
+     */
+    @WikiMethod(section = "<key:scene.api.section.animation>", sectionOrder = 30, summary = "<key:entity.node.api.clear.animation.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @AiDoc(section = "Animation", summary = "Removes the explicit clock and locomotion override.")
+    public EntityNode clearAnimation() {
+        if (animation) {
+            animation = false;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether the model clock and locomotion are overridden
+     */
+    public boolean hasAnimation() {
+        return animation;
+    }
+
+    /**
+     * @return the last explicit animation time in seconds
+     */
+    public float animationSeconds() {
+        return animationSeconds;
+    }
+
+    /**
+     * @return the last explicit gait phase in native model units
+     */
+    public float walkPhase() {
+        return walkPhase;
+    }
+
+    /**
+     * @return the last explicit stride strength in [0, 1]
+     */
+    public float walkStrength() {
+        return walkStrength;
+    }
+
+    /**
+     * Configures a typed callback for a pose owned by the current frame. The backend calls it after applying
+     * the scene clock and locomotion. Use absolute animation time and sample the full pose on each call.
+     *
+     * @param stateType native render-state class to accept
+     * @param sampler   updates the transient state when it matches stateType
+     * @param <S>       native render-state type
+     * @return this node
+     * @throws NullPointerException if either argument is null
+     */
+    @WikiMethod(section = "<key:scene.api.section.animation>", sectionOrder = 30, summary = "<key:entity.node.api.set.native.animation.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @WikiThrows(type = NullPointerException.class, description = "<key:entity.node.api.set.native.animation.throws.NullPointerException>")
+    @AiDoc(section = "Animation", summary = "Customize the transient vanilla state after the scene clock and gait have been applied.")
+    public <S> EntityNode setNativeAnimation(
+            @WikiParameter(description = "<key:entity.node.api.set.native.animation.param.state.type>") Class<S> stateType,
+            @WikiParameter(description = "<key:entity.node.api.set.native.animation.param.sampler>") Consumer<? super S> sampler) {
+        Objects.requireNonNull(stateType, "stateType");
+        Objects.requireNonNull(sampler, "sampler");
+        nativeAnimation = state -> {
+            if (stateType.isInstance(state)) sampler.accept(stateType.cast(state));
+        };
+        invalidateContent();
+        return this;
+    }
+
+    /**
+     * Removes the native animation callback.
+     *
+     * @return this node
+     */
+    @WikiMethod(section = "<key:scene.api.section.animation>", sectionOrder = 30, summary = "<key:entity.node.api.clear.native.animation.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @AiDoc(section = "Animation", summary = "Removes the callback registered with setNativeAnimation.")
+    public EntityNode clearNativeAnimation() {
+        if (nativeAnimation != null) {
+            nativeAnimation = null;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether a native animation callback has been configured
+     */
+    public boolean hasNativeAnimation() {
+        return nativeAnimation != null;
+    }
+
+    /**
+     * @return whether a timeline action is active at the current sample
+     */
+    public boolean hasAction() {
+        return action != null;
+    }
+
+    /**
+     * Applies the timeline's selected action and invalidates cached rendering on a pose change.
+     *
+     * @param clip     selected clip, or null outside an action interval
+     * @param progress normalized cycle phase in [0, 1)
+     */
+    void setTimelineAction(EntityActionClip<?> clip, float progress) {
+        if (action != clip || actionProgress != progress) {
+            action = clip;
+            actionProgress = progress;
+            invalidateContent();
+        }
+    }
+
+    /**
+     * Applies the user animation callback, then the selected timeline action, during backend rendering.
+     *
+     * @param state transient native render state that will be submitted for this node
+     */
+    public void sampleNativeAnimation(Object state) {
+        if (nativeAnimation != null) nativeAnimation.accept(state);
+        if (action != null) action.apply(state, actionProgress);
+    }
+
+    /**
      * Reads the entity type ID.
      *
      * @return the ID, or null for native input.
@@ -264,7 +461,7 @@ public final class EntityNode extends SceneNode {
      *
      * @param platform platform adapter.
      * @return the native entity, or null if temporarily unavailable.
-     * @throws IllegalArgumentException if the type is unknown.
+     * @throws IllegalArgumentException      if the type is unknown.
      * @throws UnsupportedOperationException if the platform cannot render scene entities.
      */
     @WikiMethod(section = "Resolution", sectionOrder = 30, order = 20,

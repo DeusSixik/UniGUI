@@ -6,6 +6,7 @@ import dev.sixik.unigui.api.render.TextureWrap;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL33;
@@ -14,7 +15,7 @@ import org.lwjgl.opengl.GL33;
  * Applies {@link TextureOptions} (filters, wrap) to textures for the duration of a draw and takes them back.
  *
  * <p>With OpenGL 3.3 the options live in cached sampler objects, one per distinct option set: binding a sampler
- * overrides the texture's own parameters without touching them, and unbinding gives the texture back to vanilla.
+ * overrides the texture's own parameters without touching them. The previous sampler binding is restored.
  * Without sampler objects the parameters are written to the texture bound on the unit and the previous values
  * restored afterwards. Default options ({@link TextureOptions#isDefault()}) change nothing, as in the 1.20 backend,
  * so vanilla textures draw exactly as vanilla draws them.</p>
@@ -47,7 +48,7 @@ final class CleanroomSamplerState {
     }
 
     /**
-     * Applies the options to the texture bound on a unit. Without sampler objects that unit must be the active one.
+     * Applies the options to the texture bound on a unit.
      *
      * @param unit    texture unit index, 0 for {@code GL_TEXTURE0}
      * @param options sampling options; {@code null} or default does nothing
@@ -59,15 +60,22 @@ final class CleanroomSamplerState {
         if (entry == units.length) grow();
         units[entry] = unit;
         if (supportsSamplerObjects()) {
+            saved[entry * 4] = GL30.glGetIntegeri(GL33.GL_SAMPLER_BINDING, unit);
             GL33.glBindSampler(unit, sampler(options));
             asSampler[entry] = true;
         } else {
             int base = entry * 4;
-            saved[base] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
-            saved[base + 1] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
-            saved[base + 2] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S);
-            saved[base + 3] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T);
-            applyToBoundTexture(options);
+            int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+            try {
+                saved[base] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER);
+                saved[base + 1] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER);
+                saved[base + 2] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S);
+                saved[base + 3] = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T);
+                applyToBoundTexture(options);
+            } finally {
+                GL13.glActiveTexture(active);
+            }
             asSampler[entry] = false;
         }
         depth++;
@@ -88,13 +96,19 @@ final class CleanroomSamplerState {
         if (depth == 0) return;
         int entry = --depth;
         if (asSampler[entry]) {
-            GL33.glBindSampler(units[entry], 0);
+            GL33.glBindSampler(units[entry], saved[entry * 4]);
         } else {
             int base = entry * 4;
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, saved[base]);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, saved[base + 1]);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, saved[base + 2]);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, saved[base + 3]);
+            int active = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + units[entry]);
+            try {
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, saved[base]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, saved[base + 1]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, saved[base + 2]);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, saved[base + 3]);
+            } finally {
+                GL13.glActiveTexture(active);
+            }
         }
     }
 

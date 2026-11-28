@@ -31,8 +31,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Секция компонента Unity Inspector с заголовком, стрелкой foldout,
- * чекбоксом активности, иконкой, кнопками контекстного меню и телом свойств.
+ * Unity Inspector component section with a header, foldout arrow,
+ * active checkbox, icon, context menu tools and property body.
  */
 public class    UnityComponentSection extends LinearBox {
     private final String title;
@@ -85,7 +85,7 @@ public class    UnityComponentSection extends LinearBox {
         this.iconCanvas = icon;
         this.overlayLayer = overlayLayer;
 
-        // Поверхность шапки
+        // Header surface
         headerSurface.themeEnabled(false);
         headerSurface.backgroundVisible(true);
         headerSurface.background().set(UnityStyles.BG_HEADER);
@@ -100,7 +100,7 @@ public class    UnityComponentSection extends LinearBox {
         headerRow.layout(style -> style.sizePercent(100.0f, 100.0f)
                 .alignItems(Align.CENTER));
 
-        // Стрелка сворачивания / разворачивания (аккуратная, вытянутая в высоту)
+        // Foldout arrow (compact, vertically elongated)
         arrowCanvas.layout(style -> style.size(10.0f, UnityStyles.COMPONENT_HEADER_HEIGHT).flexGrow(0.0f).flexShrink(0.0f));
         arrowCanvas.onDraw(context -> {
             float x = arrowCanvas.layoutBounds().x();
@@ -111,12 +111,12 @@ public class    UnityComponentSection extends LinearBox {
 
             context.pathClear();
             if (expanded) {
-                // Стрелка вниз ▼
+                // Down arrow
                 context.pathLineTo(cx - 3.5f, cy - 2.0f);
                 context.pathLineTo(cx + 3.5f, cy - 2.0f);
                 context.pathLineTo(cx, cy + 2.5f);
             } else {
-                // Стрелка вправо ▶ (увеличенная высота, суженная ширина)
+                // Right arrow (taller and narrower)
                 context.pathLineTo(cx - 1.5f, cy - 4.0f);
                 context.pathLineTo(cx + 2.5f, cy);
                 context.pathLineTo(cx - 1.5f, cy + 4.0f);
@@ -132,8 +132,8 @@ public class    UnityComponentSection extends LinearBox {
 
         headerRow.addChild(arrowCanvas);
 
-        // Опциональный чекбокс включения компонента (как у Camera, Audio Listener)
-        // В Unity идёт сразу после стрелки foldout и перед иконкой
+        // Optional component enable checkbox (like Camera, Audio Listener).
+        // In Unity it sits right after the foldout arrow and before the icon.
         if (hasEnableCheckbox) {
             activeCheckbox = new Checkbox();
             UnityStyles.styleCheckbox(activeCheckbox);
@@ -153,24 +153,24 @@ public class    UnityComponentSection extends LinearBox {
             activeCheckbox = null;
         }
 
-        // Иконка компонента
+        // Component icon
         if (iconCanvas != null) {
             headerRow.addChild(iconCanvas);
         }
 
-        // Заголовок компонента
+        // Component title
         titleLabel = new Label(this.title);
         titleLabel.color(UnityStyles.TEXT_BOLD);
         titleLabel.layout(style -> style.height(UnityStyles.COMPONENT_HEADER_HEIGHT).flexGrow(0.0f).flexShrink(0.0f));
         headerRow.addChild(titleLabel);
 
-        // Распорка до правых кнопок
+        // Spacer before right-side tool buttons
         Box spacer = new Box();
         spacer.themeEnabled(false);
         spacer.layout(style -> style.flexGrow(1.0f).height(1.0f));
         headerRow.addChild(spacer);
 
-        // Правые служебные кнопки: [?] помощь, ползунки пресетов, 3 точки меню
+        // Right-side utility buttons: [?] help, preset sliders, 3-dot menu
         tools.spacing(3.0f);
         tools.layout(style -> style.height(UnityStyles.COMPONENT_HEADER_HEIGHT).alignItems(Align.CENTER));
 
@@ -247,9 +247,9 @@ public class    UnityComponentSection extends LinearBox {
 
         headerSurface.addChild(headerRow);
 
-        // 1. Drag-and-drop перетаскивание секции за заголовок:
-        // Регистрируем ПЕРВЫМ, чтобы drag-жест обрабатывал события мыши раньше клика по заголовку
-        // и корректно гасил PointerReleasedEvent при завершении перетаскивания.
+        // 1. Drag-and-drop section reordering by header:
+        // Register FIRST so the drag gesture handles pointer events before the header click
+        // and cleanly consumes PointerReleasedEvent when a drag finishes.
         dragController = DragController.attach(headerSurface)
                 .dragged(this)
                 .payload(() -> DragPayload.of(this.title, "unity.component", this.title, this))
@@ -264,7 +264,7 @@ public class    UnityComponentSection extends LinearBox {
                     return true;
                 });
 
-        // 2. Клик по свободной области заголовка переключает развёрнутость на отпускании (если не было драга)
+        // 2. Clicking the free header area toggles expansion on release (when not dragging)
         headerSurface.on(PointerReleasedEvent.TYPE, event -> {
             if (event.phase() == EventPhase.CAPTURE) return;
             if (event.button() != PointerButton.PRIMARY) return;
@@ -280,7 +280,7 @@ public class    UnityComponentSection extends LinearBox {
             event.cancel();
         });
 
-        // Контейнер свойств
+        // Properties container
         contentHost.spacing(3.0f);
         contentHost.layout(style -> style.widthPercent(100.0f)
                 .padding(8.0f, 4.0f, 8.0f, 4.0f)

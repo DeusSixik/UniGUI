@@ -39,7 +39,8 @@ final class UnitySceneSnapshot {
     private void capture(UnitySceneObject object) {
         nodes.add(new NodeState(object, object.parent(), object.name(), object.visible(),
                 object.position(new MutableVec3()), object.rotation(new MutableQuat()), object.angles(),
-                object.scale(new MutableVec3())));
+                object.scale(new MutableVec3()), object.light(), object.meshShape(), object.rotatorSpeed(),
+                object.disabledComponents(), object.materialEffectSettings(), object.fog()));
         for (SceneNode child : object.children()) {
             if (child instanceof UnitySceneObject editable) capture(editable);
         }
@@ -74,9 +75,18 @@ final class UnitySceneSnapshot {
      * @param rotation original local quaternion
      * @param angles   original Inspector angles in degrees
      * @param scale    original local scale factors
+     * @param light        original Light component, or null
+     * @param meshShape    original Mesh Renderer shape, or null
+     * @param rotatorSpeed original Rotator speed, or NaN
+     * @param disabled     original switched-off components
+     * @param effect       original Material Effect, or null
+     * @param fog          original Fog Volume, or null
      */
     private record NodeState(UnitySceneObject object, SceneNode parent, String name, boolean visible,
-                             MutableVec3 position, MutableQuat rotation, MutableVec3 angles, MutableVec3 scale) {
+                             MutableVec3 position, MutableQuat rotation, MutableVec3 angles, MutableVec3 scale,
+                             UnityLight light, UnityEditorHierarchyView.GameObjectType meshShape, float rotatorSpeed,
+                             java.util.Set<UnitySceneObject.Component> disabled, UnityMaterialEffect effect,
+                             UnityFog fog) {
         /**
          * Restores the captured scene properties on the original node.
          */
@@ -86,6 +96,12 @@ final class UnitySceneSnapshot {
             object.setPosition(position.x(), position.y(), position.z());
             object.restoreRotation(rotation, angles);
             object.setScale(scale.x(), scale.y(), scale.z());
+            object.setLight(light);
+            object.setMeshShape(meshShape);
+            object.setRotatorSpeed(rotatorSpeed);
+            object.setMaterialEffectSettings(effect);
+            object.setFog(fog);
+            object.setDisabledComponents(disabled);
         }
     }
 }

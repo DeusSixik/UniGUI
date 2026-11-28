@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -152,6 +153,28 @@ class WikiMarkdownGeneratorTest {
         assertTrue(!markdown.contains("data-toc-label=\"of(String, [Style]"));
     }
 
+    /** Groups pages by the resolved category and orders them within the same index section. */
+    @Test
+    void writePages_mixedCategoryAnnotations_shareOneOrderedIndexSection() throws IOException {
+        Path languages = temporaryDirectory.resolve("categories-lang");
+        Path output = temporaryDirectory.resolve("categories-output");
+        Files.createDirectories(languages);
+        Files.writeString(languages.resolve("en.json"), """
+                {"wiki.index.title":"Wiki", "scene.category":"API/3D Scene"}
+                """);
+        WikiLocalization localization = WikiLocalization.load(languages, warning -> { });
+
+        WikiMarkdownGenerator.writePages(output, List.of(KeyCategoryPage.class, Style.class, LiteralCategoryPage.class),
+                localization, temporaryDirectory.resolve("categories-assets"));
+
+        String index = Files.readString(output.resolve("en/index.md"));
+        assertEquals(List.of("## API", "## API / 3D Scene"),
+                index.lines().filter(line -> line.startsWith("## ")).toList());
+        assertTrue(index.indexOf("- [Literal]") < index.indexOf("- [Localized]"));
+        assertTrue(Files.exists(output.resolve("en/api/3d-scene/literal-category.md")));
+        assertTrue(Files.exists(output.resolve("en/api/3d-scene/key-category.md")));
+    }
+
     @Test
     void localization_missingRussianKey_warnsAndFallsBackToEnglish() throws IOException {
         Path languages = temporaryDirectory.resolve("fallback-lang");
@@ -241,5 +264,15 @@ class WikiMarkdownGeneratorTest {
 
     @WikiPage(title = "StyleDefinition", slug = "style-definition")
     static class StyleDefinition {
+    }
+
+    /** Reference page with a literal category. */
+    @WikiPage(title = "Literal", slug = "literal-category", category = "API/3D Scene", order = 10)
+    static class LiteralCategoryPage {
+    }
+
+    /** Reference page with a category key that resolves to the same group. */
+    @WikiPage(title = "Localized", slug = "key-category", category = "<key:scene.category>", order = 20)
+    static class KeyCategoryPage {
     }
 }

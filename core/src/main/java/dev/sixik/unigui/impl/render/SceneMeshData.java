@@ -1,10 +1,12 @@
 package dev.sixik.unigui.impl.render;
 
+import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.math.Mat4View;
 import dev.sixik.unigui.api.scene.AmbientLight;
 import dev.sixik.unigui.api.scene.DirectionalLight;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.SceneMaterialEffect;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -25,6 +27,10 @@ public final class SceneMeshData {
      * Размер std140 блока SceneMesh: mat4, mat3 с выровненными столбцами и шесть vec4.
      */
     public static final int UNIFORM_BYTES = 208;
+    /**
+     * Size of the bounds and effect clock tail of the surface block, in bytes.
+     */
+    public static final int EFFECT_BYTES = 3 * 4 * Float.BYTES;
 
     private SceneMeshData() {
     }
@@ -113,6 +119,40 @@ public final class SceneMeshData {
         for (int column = 0; column < 4; column++) {
             for (int row = 0; row < 4; row++) out.putFloat((float) clip.get(row, column));
         }
+    }
+
+    /**
+     * Writes the local bounds and effect clock as three std140 vec4s.
+     *
+     * @param out          native-order buffer with {@link #EFFECT_BYTES} writable bytes
+     * @param bounds       the complete local bounds shared by the node's rendered layers
+     * @param effect       the surface effect, or null when using the default surface
+     * @param sceneSeconds finite scene clock time in seconds
+     * @throws IndexOutOfBoundsException if there is insufficient space in the buffer
+     */
+    public static void writeEffectUniform(ByteBuffer out, Aabb bounds, SceneMaterialEffect effect, float sceneSeconds) {
+        writeEffectUniform(out, bounds, effect, sceneSeconds, false);
+    }
+
+    /**
+     * Writes the local bounds, effect clock and spotlight receiver flag as three std140 vec4s.
+     *
+     * @param out                native-order buffer with {@link #EFFECT_BYTES} writable bytes
+     * @param bounds             the complete local bounds shared by the node's rendered layers
+     * @param effect             the surface effect, or null when using the default surface
+     * @param sceneSeconds       finite scene clock time in seconds
+     * @param receiveSpotShadows whether to sample the perspective shadow maps on this surface
+     * @throws IndexOutOfBoundsException if there is insufficient space in the buffer
+     */
+    public static void writeEffectUniform(ByteBuffer out, Aabb bounds, SceneMaterialEffect effect, float sceneSeconds,
+                                          boolean receiveSpotShadows) {
+        Objects.checkFromIndexSize(out.position(), EFFECT_BYTES, out.limit());
+        putVector(out, bounds.minX(), bounds.minY(), bounds.minZ(), 0);
+        putVector(out, bounds.maxX(), bounds.maxY(), bounds.maxZ(), 0);
+        SceneMaterialEffect.Timing timing = effect == null ? null : effect.timing();
+        float elapsed = timing == null ? Math.max(0, sceneSeconds) : timing.elapsedAt(sceneSeconds);
+        float progress = timing == null ? 0 : timing.progressAt(sceneSeconds);
+        putVector(out, elapsed, progress, effect == null ? 0 : effect.alphaCutoff(), receiveSpotShadows ? 1 : 0);
     }
 
     /**

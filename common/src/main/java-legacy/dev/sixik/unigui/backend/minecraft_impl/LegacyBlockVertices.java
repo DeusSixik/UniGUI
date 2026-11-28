@@ -20,6 +20,8 @@ abstract class LegacyBlockVertices {
      * Цвета ARGB, включая tint и AO.
      */
     private final IntArrayList colors = new IntArrayList();
+    /** Local XYZ normals with one direction per vertex. */
+    private final FloatArrayList normals = new FloatArrayList();
     /**
      * Дополнительный перенос жидкостей из координат секции.
      */
@@ -50,6 +52,9 @@ abstract class LegacyBlockVertices {
         positions.add(y + yOffset);
         positions.add(z + zOffset);
         colors.add(0xFFFFFFFF);
+        normals.add(0);
+        normals.add(0);
+        normals.add(1);
         uvs.add(0);
         uvs.add(0);
     }
@@ -78,6 +83,28 @@ abstract class LegacyBlockVertices {
     }
 
     /**
+     * Stores the current vertex normal supplied by the vanilla renderer.
+     *
+     * @param x X component of the local direction
+     * @param y Y component of the local direction
+     * @param z Z component of the local direction
+     */
+    final void direction(float x, float y, float z) {
+        int end = normals.size();
+        normals.set(end - 3, x);
+        normals.set(end - 2, y);
+        normals.set(end - 1, z);
+    }
+
+    /** Resets the captured vertices while retaining their buffers. */
+    final void clear() {
+        positions.clear();
+        uvs.clear();
+        colors.clear();
+        normals.clear();
+    }
+
+    /**
      * Запекает квады по диагонали 0–2 в треугольники.
      *
      * @return меш с цветами ванильного освещения или null для пустого слоя.
@@ -95,6 +122,6 @@ abstract class LegacyBlockVertices {
             indices[index++] = vertex + 2;
             indices[index++] = vertex + 3;
         }
-        return new Mesh3D(positions.toFloatArray(), null, uvs.toFloatArray(), colors.toIntArray(), indices);
+        return new Mesh3D(positions.toFloatArray(), normals.toFloatArray(), uvs.toFloatArray(), colors.toIntArray(), indices);
     }
 }

@@ -60,6 +60,7 @@ final class SceneBlockVertexConsumer extends LegacyBlockVertices implements Vert
      */
     @Override
     public VertexConsumer normal(float x, float y, float z) {
+        direction(x, y, z);
         return this;
     }
 

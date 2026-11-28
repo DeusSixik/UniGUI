@@ -5,14 +5,19 @@ import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.scene.BlockNode;
 import dev.sixik.unigui.api.scene.BlockSpec;
 import dev.sixik.unigui.api.scene.Material;
+import dev.sixik.unigui.api.scene.EntityNode;
+import net.minecraft.entity.Entity;
 import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.backend.shared.LegacyBlockIds;
 import dev.sixik.unigui.backend.shared.LegacyBlockModels;
+import dev.sixik.unigui.backend.shared.LegacyChestModel;
 import dev.sixik.unigui.backend.shared.LegacySceneQuads;
 import dev.sixik.unigui.backend.shared.LegacySceneVanilla;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockFurnace;
 import net.minecraft.block.BlockGrass;
 import net.minecraft.client.renderer.texture.TextureMap;
+import net.minecraft.init.Blocks;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.ColorizerGrass;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -50,6 +55,14 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
      */
     private static final int PILLAR = 31;
     /**
+     * Render type of a cactus with vertical faces offset inward.
+     */
+    private static final int CACTUS = 13;
+    /**
+     * Offset of the vertical cactus faces in blocks, matching the vanilla tessellator translation.
+     */
+    private static final float CACTUS_SIDE_INSET = 1f / 16;
+    /**
      * Temperature and rainfall of the plains biome, used for grass that is not in a world.
      */
     private static final double PLAINS_TEMPERATURE = 0.8, PLAINS_RAINFALL = 0.4;
@@ -60,6 +73,14 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
         new SimpleTextureHandle(TextureMap.locationBlocksTexture.toString(), 0, 0);
 
     private GtnhScene() {
+    }
+
+    /**
+     * @param node entity node @return native preview, or null until a world is available
+     */
+    public static Entity entity(EntityNode node) {
+        var handle = (GtnhSceneContent.SceneEntity) node.nativeEntity(PLATFORM);
+        return handle == null ? null : handle.entity();
     }
 
     /**
@@ -152,11 +173,28 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
      */
     @Override
     public LegacyBlockModels.Surface bake(Object nativeState) {
+        return bake(nativeState, false);
+    }
+
+    /**
+     * @param nativeState resolved block and metadata
+     * @param lit         whether scene lighting will replace vanilla face shading
+     * @return baked surface in block coordinates, or null for unsupported geometry
+     */
+    LegacyBlockModels.Surface bake(Object nativeState, boolean lit) {
         GtnhBlockState state = (GtnhBlockState) nativeState;
         Block block = state.block();
         int metadata = state.meta();
+        String chestTexture = chestTexture(block);
+        if (chestTexture != null) return LegacyChestModel.bake(chestTexture, metadata, lit);
         int type = block.getRenderType();
-        if (type != STANDARD && type != PILLAR) return null;
+        if (type < 0) return null;
+        // Every other shape (stairs, beds, anvils, rails, plants, mod handlers) comes from the game's own renderer.
+        if (type != STANDARD && type != PILLAR && type != CACTUS)
+            return GtnhBlockShapes.bake(block, metadata, ATLAS, lit);
+        // An unplaced furnace has no horizontal metadata. Use the vanilla inventory facing in that case.
+        if (block instanceof BlockFurnace && (metadata < 2 || metadata > 5)) metadata = ForgeDirection.SOUTH.ordinal();
+        float inset = type == CACTUS ? CACTUS_SIDE_INSET : 0;
         block.setBlockBoundsForItemRender();
         float[] box = {(float) block.getBlockBoundsMinX(), (float) block.getBlockBoundsMinY(),
             (float) block.getBlockBoundsMinZ(), (float) block.getBlockBoundsMaxX(), (float) block.getBlockBoundsMaxY(),
@@ -169,17 +207,28 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
         for (int side = 0; side < CORNERS.length; side++) {
             IIcon sprite = block.getIcon(side, metadata);
             if (sprite == null) return null;
-            face(mesh, side, box, sprite, grass && side != 1 ? 0xFFFFFFFF : tint);
+            face(mesh, side, box, sprite, grass && side != 1 ? 0xFFFFFFFF : tint, lit, inset);
             if (grass && side > 1) {
                 IIcon overlay = BlockGrass.getIconSideOverlay();
-                if (overlay != null) face(mesh, side, box, overlay, tint);
+                if (overlay != null) face(mesh, side, box, overlay, tint, lit, inset);
             }
         }
         Material.AlphaMode alpha = block.getRenderBlockPass() > 0 ? Material.AlphaMode.TRANSLUCENT
             : block.isOpaqueCube() && !grass ? Material.AlphaMode.OPAQUE : Material.AlphaMode.CUTOUT;
-        // Face shading is baked like in the world, so scene lights do not change Minecraft blocks.
-        return new LegacyBlockModels.Surface(mesh.build(), new Material(0xFFFFFFFF, ATLAS, Material.Shading.UNLIT, alpha,
+        var shading = lit ? Material.Shading.LIT : Material.Shading.UNLIT;
+        return new LegacyBlockModels.Surface(mesh.build(), new Material(0xFFFFFFFF, ATLAS, shading, alpha,
             0.1f, Material.Culling.BACK));
+    }
+
+    /**
+     * @param block block associated with the placed model or the inventory stack
+     * @return chest texture basename, or null for a block handled by the ordinary renderer
+     */
+    static String chestTexture(Block block) {
+        if (block == Blocks.chest) return "normal";
+        if (block == Blocks.trapped_chest) return "trapped";
+        if (block == Blocks.ender_chest) return "ender";
+        return null;
     }
 
     /**
@@ -190,10 +239,13 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
      * @param box    block bounds as min X, Y, Z and max X, Y, Z within the unit cell.
      * @param sprite sprite occupying a subrectangle of the block atlas.
      * @param color  packed ARGB block tint.
+     * @param lit    whether the renderer supplies face shading.
+     * @param inset  inward offset for vertical faces in blocks, measured along the face normal.
      */
-    private static void face(LegacySceneQuads mesh, int side, float[] box, IIcon sprite, int color) {
+    private static void face(LegacySceneQuads mesh, int side, float[] box, IIcon sprite, int color, boolean lit,
+                             float inset) {
         ForgeDirection normal = ForgeDirection.getOrientation(side);
-        int shaded = LegacySceneQuads.shade(color, normal.offsetX, normal.offsetY, normal.offsetZ);
+        int shaded = lit ? color : LegacySceneQuads.shade(color, normal.offsetX, normal.offsetY, normal.offsetZ);
         int[] corners = CORNERS[side];
         for (int i = 0; i < corners.length; i += 3) {
             float x = box[corners[i] * 3], y = box[corners[i + 1] * 3 + 1], z = box[corners[i + 2] * 3 + 2];
@@ -205,7 +257,8 @@ public final class GtnhScene implements ScenePlatform, LegacyBlockModels.Baker, 
                 default -> x;
             };
             float t = side < 2 ? z : 1 - y;
-            mesh.vertex(x, y, z, (float) sprite.getInterpolatedU(s * 16), (float) sprite.getInterpolatedV(t * 16),
+            mesh.vertex(x - normal.offsetX * inset, y, z - normal.offsetZ * inset,
+                (float) sprite.getInterpolatedU(s * 16), (float) sprite.getInterpolatedV(t * 16),
                 normal.offsetX, normal.offsetY, normal.offsetZ, shaded);
         }
     }

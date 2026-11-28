@@ -7,7 +7,8 @@
 # This script verifies the wrapper jar and falls back to a plain Gradle
 # distribution download (version pinned in gradle-wrapper.properties).
 
-GRADLE_VERSION=8.12.1
+GRADLE_VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-.*/\1/p' gradle/wrapper/gradle-wrapper.properties 2>/dev/null | head -n 1)
+: "${GRADLE_VERSION:=9.5.1}"
 GRADLE_CMD=./gradlew
 
 # The JitPack "latest" image occasionally fails to provision the JDK via

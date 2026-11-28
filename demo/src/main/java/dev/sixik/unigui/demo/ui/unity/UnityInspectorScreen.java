@@ -42,13 +42,13 @@ import java.util.function.Function;
 import static dev.sixik.unigui.demo.ui.unity.UnityEditorHierarchyView.GameObjectType;
 
 /**
- * Демонстрационный экран полнофункционального редактора Unity с системой Docking:
- * перемещаемые и отделяемые панели Hierarchy, Scene, Game, Inspector, Project и Console,
- * переключение раскладок окон (Default, 2 by 3, Reset), управление Play/Pause
- * и меню Window для восстановления панелей.
+ * Full-featured Unity Editor demo screen with a docking system:
+ * movable and detachable Hierarchy, Scene, Game, Inspector, Project, and Console panels,
+ * layout preset switching (Default, 2 by 3, Reset), Play/Pause controls,
+ * and a Window menu for restoring closed panels.
  *
- * <p>Окно собирает общий каркас {@link EditorShell}: меню, панель инструментов, докинг и меню Window. Здесь остаётся
- * только то, что относится к Unity: сами панели, тема {@link UnityEditorTheme}, кнопки Play/Layers/Layout.</p>
+ * <p>Builds the common {@link EditorShell} frame (menu bar, toolbar, docking, and Window menu), keeping here
+ * only what is specific to Unity: the editor panels themselves, {@link UnityEditorTheme}, and Play/Layers/Layout controls.</p>
  */
 public final class UnityInspectorScreen {
     /**
@@ -93,7 +93,7 @@ public final class UnityInspectorScreen {
     }
 
     /**
-     * Представления, которые панели создают при сборке каркаса; после сборки они связываются между собой.
+     * Views created by panels while building the shell; wired together after assembly.
      */
     private static final class Views {
         /**
@@ -140,13 +140,13 @@ public final class UnityInspectorScreen {
                 snapshot.restore();
                 restoreComponents.run();
                 restoreHierarchy.run();
-                inspector.setTargetObject(hierarchy.selectedObject());
+                inspector.setTargetObjects(hierarchy.selectedObjects(), hierarchy.selectedObject());
             };
         }
     }
 
     /**
-     * Панель Unity: заголовок, иконка вкладки, область и доля окна при открытии из меню Window.
+     * Unity panel descriptor: title, tab icon, dock slot, and window share when reopened from the Window menu.
      */
     private record UnityPanel(String id, String title, PanelSlot slot, float share, UiIcon icon,
                               Function<EditorContext, Widget> factory) implements EditorPanel {
@@ -200,8 +200,8 @@ public final class UnityInspectorScreen {
 
         views.hierarchy.onObjectSelected(object -> {
             views.project.clearPrefabSelection();
-            views.scene.selectObject(object);
-            views.inspector.setTargetObject(object);
+            views.scene.selectObjects(views.hierarchy.selectedObjects(), object);
+            views.inspector.setTargetObjects(views.hierarchy.selectedObjects(), object);
         });
         views.hierarchy.onVisibilityChanged(views.inspector::refreshVisibility);
         views.hierarchy.onSavePrefab(views.project::canSavePrefabs, views.project::savePrefab);
@@ -259,9 +259,9 @@ public final class UnityInspectorScreen {
      * @return the initial scene shown by a new editor window
      */
     private static Scene createSampleScene() {
-        Scene scene = new Scene().setAmbientLight(new AmbientLight(0xDBE8FF, 0.48f))
-                .setDirectionalLight(new DirectionalLight(-0.5f, -0.8f, -0.35f, 0xFFF1DB, 0.75f));
-
+        // Minecraft blocks, items and entities follow the scene lights like the other objects, so a scene without
+        // a sun is dark for them too instead of keeping vanilla full-bright lighting.
+        Scene scene = new Scene().setMinecraftBlockLighting(true);
         scene.addRoot(new UnitySceneObject("Ground", GameObjectType.PLANE).setScale(10, 1, 9));
         UnitySceneObject props = new UnitySceneObject("Props", GameObjectType.EMPTY);
         UnitySceneObject cube = new UnitySceneObject("Cube", GameObjectType.CUBE);
@@ -271,6 +271,12 @@ public final class UnityInspectorScreen {
         props.addChild(new UnitySceneObject("Sphere", GameObjectType.SPHERE).setPosition(0.1f, 0.5f, 0));
         props.addChild(new UnitySceneObject("Capsule", GameObjectType.CAPSULE).setPosition(1.55f, 1, -0.4f));
         scene.addRoot(props);
+        // The sun is an ordinary Hierarchy object, as in Unity: deleting or hiding it leaves the scene dark.
+        UnitySceneObject sun = UnitySceneObject.light("Directional Light", UnityLight.Kind.DIRECTIONAL);
+        sun.setPosition(0, 3, 0);
+        sun.setLight(sun.light().withShadows(true));
+        scene.addRoot(sun);
+        UnitySceneOverlay.syncSceneLighting(scene);
         return scene;
     }
 
@@ -408,7 +414,7 @@ public final class UnityInspectorScreen {
     }
 
     /**
-     * Кнопка раскладок: Default, 2 by 3 и Reset Layout.
+     * Layout preset button: Default, 2 by 3, and Reset Layout.
      */
     private static Button layoutButton(EditorShell shell) {
         Button layoutBtn = new Button("Default v");

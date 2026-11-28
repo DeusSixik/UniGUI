@@ -1,6 +1,5 @@
 package dev.sixik.unigui.tests;
 
-import dev.sixik.unigui.backend.minecraft_impl.MinecraftScene;
 import dev.sixik.unigui.api.animation.NamedWidgetRegistry;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.core.FramePhase;
@@ -12,15 +11,22 @@ import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.EntityNode;
 import dev.sixik.unigui.api.scene.ItemNode;
+import dev.sixik.unigui.api.scene.SceneNode;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftClientCompat;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftParticleEmitter;
+import dev.sixik.unigui.backend.minecraft_impl.MinecraftScene;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
 import dev.sixik.unigui.impl.core.DefaultUIContext;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.interaction.Slider;
+import dev.sixik.unigui.widgets.rendering.RenderToTexture.UpdateMode;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
 import dev.sixik.unigui.widgets.rendering.SceneAnchor3D;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FurnaceBlock;
@@ -32,6 +38,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Проверяет ввод и восстановление состояния Java-туториала. */
@@ -131,9 +140,9 @@ final class SceneTutorialDemoTest {
         assertFalse(h.hopper.visible());
     }
 
-    /** Проверяет сборку, отскок, зажигание и сброс всех узлов при повторе. */
+    /** Checks floor construction, bounce, ignition, dissolve and replay through the tutorial controls. */
     @Test
-    void furnace_seekAndReplay_restorePositionsRotationAndFire() {
+    void furnace_seekAndReplay_restorePositionsFireAndDissolve() {
         var sequence = SceneFurnaceTutorial.create();
         var demo = new SceneTutorialPlayer(sequence);
         DefaultUIContext ui = new DefaultUIContext();
@@ -151,11 +160,24 @@ final class SceneTutorialDemoTest {
         // The furnace turns around its own bottom center, so its position is the pivot.
         var pivot = furnace;
         var sparks = nodes.stream().filter(node -> node.mesh() != null).toList();
+        var emitters = furnace.children().stream().filter(MinecraftParticleEmitter.class::isInstance)
+                .map(MinecraftParticleEmitter.class::cast).toList();
+        var floorSmoke = nodes.subList(0, 9).stream().flatMap(tile -> tile.children().stream())
+                .filter(MinecraftParticleEmitter.class::isInstance).map(MinecraftParticleEmitter.class::cast).toList();
+        var models = nodes.stream().filter(node -> node instanceof ItemNode || node instanceof EntityNode).toList();
+        assertEquals(MinecraftClientCompat.NATIVE_SCENE_MATERIALS ? 4 : 0, models.size());
+        if (MinecraftClientCompat.NATIVE_SCENE_MATERIALS) {
+            assertEquals(2, models.stream().filter(ItemNode.class::isInstance).count());
+            assertEquals(2, models.stream().filter(EntityNode.class::isInstance).count());
+        }
         var position = new MutableVec3();
         var rotation = new MutableQuat();
+        assertNotNull(sequence.viewport().scene().directionalShadows());
+        assertTrue(sequence.viewport().scene().minecraftBlockLighting());
 
         assertFalse(pivot.visible());
         assertFalse(firstTile.visible());
+        assertTrue(models.stream().noneMatch(SceneNode::visible));
         slider.value(0.29f);
         assertTrue(firstTile.visible());
         assertEquals(-0.125f, firstTile.position(position).y(), EPS);
@@ -175,6 +197,7 @@ final class SceneTutorialDemoTest {
         slider.value(impact.seconds());
         assertEquals(1, pivot.position(position).y(), EPS);
         assertFalse(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
+        assertNull(furnace.materialEffect());
 
         slider.value(impact.seconds() + 0.25f);
         assertEquals(1.28f, pivot.position(position).y(), EPS);
@@ -186,17 +209,114 @@ final class SceneTutorialDemoTest {
 
         slider.value(ignition.seconds() + 0.26f);
         assertTrue(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
-        assertEquals(4, sparks.stream().filter(node -> node.visible()).count());
+        assertNotNull(furnace.materialEffect());
+        assertEquals(ignition.seconds() + 0.26f, sequence.viewport().scene().materialTime(), EPS);
+        if (MinecraftClientCompat.NATIVE_SCENE_PARTICLES) {
+            assertTrue(sparks.isEmpty());
+            assertEquals(1, emitters.size());
+            assertSame(ParticleTypes.FLAME, emitters.get(0).particle());
+            assertNull(emitters.get(0).softParticles());
+            assertEquals(0.26, emitters.get(0).time(), EPS);
+            assertEquals(8, floorSmoke.size());
+            for (int i = 0; i < floorSmoke.size(); i++) {
+                var smoke = floorSmoke.get(i);
+                assertSame(nodes.get(i < 4 ? i : i + 1), smoke.parent());
+                assertSame(ParticleTypes.CAMPFIRE_COSY_SMOKE, smoke.particle());
+                assertNotNull(smoke.softParticles());
+                assertTrue(smoke.softParticles().widthScale() > smoke.softParticles().heightScale());
+                smoke.position(position);
+                assertEquals(0.5f, position.x(), EPS);
+                assertEquals(1.16f, position.y(), EPS);
+                assertEquals(0.5f, position.z(), EPS);
+                assertTrue(Math.abs(smoke.motion().y()) < Math.abs(smoke.motion().z()));
+                assertEquals(0.26, smoke.time(), EPS);
+            }
+        } else {
+            assertTrue(floorSmoke.isEmpty());
+            assertEquals(4, sparks.stream().filter(node -> node.visible()).count());
+        }
         slider.value(5.25f);
         assertTrue(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
+        var zombie = models.stream().filter(EntityNode.class::isInstance).map(EntityNode.class::cast)
+                .filter(mob -> "minecraft:zombie".equals(mob.typeId())).findFirst().orElse(null);
+        float stride = 0;
+        float forward = 0;
+        if (zombie != null) {
+            assertTrue(zombie.hasAnimation());
+            assertEquals(1.25f, zombie.animationSeconds(), EPS);
+            assertTrue(zombie.walkStrength() > 0);
+            stride = zombie.walkPhase();
+            forward = zombie.position(position).z();
+            assertTrue(forward > 0.2f);
+            assertEquals(15 * Math.hypot(position.x() + 0.55f, forward - 0.2f), stride, EPS);
+            assertFalse(zombie.hasAction());
+            slider.value(ignition.seconds() + 1.75f);
+            assertTrue(zombie.hasAction());
+            assertEquals(0, zombie.walkStrength(), EPS);
+            slider.value(5.25f);
+            assertFalse(zombie.hasAction());
+        }
         assertTrue(sparks.stream().noneMatch(node -> node.visible()));
+        var heat = furnace.materialEffect();
+        assertTrue(models.stream().allMatch(node -> node.materialEffect() == null));
+
+        assertEquals(8, sequence.duration());
+        assertEquals(6, sequence.checkpoints().get(4).seconds(), EPS);
+        var dissolve = widgets.require("tutorial-checkpoint-5").layoutBounds();
+        InputHandle input = new InputHandle(demo, ui);
+        float markerX = dissolve.x() + dissolve.width() / 2;
+        float markerY = dissolve.y() + dissolve.height() / 2;
+        input.pointerPressed(markerX, markerY, 0, PointerButton.PRIMARY);
+        input.pointerReleased(markerX, markerY, 0, PointerButton.PRIMARY);
+        assertEquals(6, slider.value(), EPS);
+        assertEquals(6, sequence.viewport().scene().materialTime(), EPS);
+        var surface = furnace.materialEffect();
+        assertEquals(6, surface.timing().startSeconds(), EPS);
+        assertEquals(2, surface.timing().durationSeconds(), EPS);
+        assertEquals(0, surface.timing().progressAt(sequence.viewport().scene().materialTime()), EPS);
+        assertTrue(furnace.visible());
+        assertEquals(models.isEmpty() ? UpdateMode.ON_CHANGE : UpdateMode.EVERY_FRAME, sequence.viewport().updateMode());
+        for (SceneNode model : models) {
+            assertTrue(model.visible());
+            assertSame(surface, model.materialEffect());
+        }
+        if (zombie != null) assertFalse(zombie.hasAction());
+
+        slider.value(7);
+        assertTrue(furnace.visible());
+        assertTrue(models.stream().allMatch(SceneNode::visible));
+        assertSame(surface, furnace.materialEffect());
+        assertEquals(7, sequence.viewport().scene().materialTime(), EPS);
+        assertEquals(0.5f, surface.timing().progressAt(sequence.viewport().scene().materialTime()), EPS);
+        slider.value(8);
+        assertEquals(1, surface.timing().progressAt(sequence.viewport().scene().materialTime()), EPS);
+        assertFalse(furnace.visible());
+        assertEquals(UpdateMode.ON_CHANGE, sequence.viewport().updateMode());
+        assertTrue(models.stream().noneMatch(SceneNode::visible));
+        assertTrue(firstTile.visible());
+        assertTrue(lastTile.visible());
+        slider.value(5.25f);
+        if (zombie != null) {
+            assertEquals(stride, zombie.walkPhase(), EPS);
+            assertEquals(forward, zombie.position(position).z(), EPS);
+        }
+        assertEquals(0, surface.timing().progressAt(sequence.viewport().scene().materialTime()), EPS);
+        assertTrue(furnace.visible());
+        assertTrue(models.stream().allMatch(SceneNode::visible));
+        assertSame(heat, furnace.materialEffect());
+        assertEquals(5.25f, sequence.viewport().scene().materialTime(), EPS);
+
         slider.value(impact.seconds() + 0.25f);
         assertFalse(MinecraftScene.state(furnace).getValue(FurnaceBlock.LIT));
+        assertNull(furnace.materialEffect());
+        assertEquals(0, sequence.viewport().scene().materialTime(), EPS);
         assertEquals(1.28f, pivot.position(position).y(), EPS);
         assertTrue(sparks.stream().noneMatch(node -> node.visible()));
+        for (var emitter : emitters) assertEquals(impact.seconds() + 0.25 - ignition.seconds(), emitter.time(), EPS);
+        for (var smoke : floorSmoke) assertEquals(impact.seconds() + 0.25 - ignition.seconds(), smoke.time(), EPS);
 
+        slider.value(8);
         var replay = widgets.require("tutorial-replay").layoutBounds();
-        InputHandle input = new InputHandle(demo, ui);
         float x = replay.x() + replay.width() / 2;
         float y = replay.y() + replay.height() / 2;
         input.pointerPressed(x, y, 0, PointerButton.PRIMARY);
@@ -205,6 +325,14 @@ final class SceneTutorialDemoTest {
         assertFalse(firstTile.visible());
         assertFalse(lastTile.visible());
         assertFalse(pivot.visible());
+        assertTrue(models.stream().noneMatch(SceneNode::visible));
+        assertNull(furnace.materialEffect());
+        assertEquals(0, sequence.viewport().scene().materialTime(), EPS);
+        for (var smoke : floorSmoke) assertEquals(-ignition.seconds(), smoke.time(), EPS);
+        if (zombie != null) {
+            assertEquals(0, zombie.walkStrength(), EPS);
+            assertEquals(0.2f, zombie.position(position).z(), EPS);
+        }
         demo.tick(new FrameContext(1, 0.25f, 0, FramePhase.ANIMATION));
         assertTrue(firstTile.visible());
     }

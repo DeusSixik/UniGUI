@@ -21,13 +21,13 @@ import dev.sixik.unigui.widgets.interaction.*;
 import dev.sixik.unigui.widgets.navigation.TreeView;
 
 /**
- * Цветовая палитра и стили в духе Unity Dark Theme (Unity 2020 / 2022+).
+ * Color palette and styles inspired by the Unity Dark Theme (Unity 2020 / 2022+).
  */
 public final class UnityStyles {
     private UnityStyles() {
     }
 
-    // --- Фоны и панели ---
+    // --- Backgrounds & Panels ---
     public static final MutableColor BG_WORKSPACE = MutableColor.rgba255(32, 32, 32, 255);        // #202020
     public static final MutableColor BG_WINDOW = MutableColor.rgba255(56, 56, 56, 255);           // #383838
     public static final MutableColor BG_PANEL = MutableColor.rgba255(48, 48, 48, 255);            // #303030
@@ -44,7 +44,7 @@ public final class UnityStyles {
     public static final MutableColor TAB_ACCENT = MutableColor.rgba255(59, 120, 216, 255);        // #3B78D8
     public static final MutableColor WARNING_YELLOW = MutableColor.rgba255(245, 185, 45, 255);     // #F5B92D
 
-    // --- Границы и разделители ---
+    // --- Borders & Separators ---
     public static final MutableColor BORDER_DEFAULT = MutableColor.rgba255(34, 34, 34, 255);      // #222222
     public static final MutableColor BORDER_SUBTLE = MutableColor.rgba255(44, 44, 44, 255);       // #2C2C2C
     public static final MutableColor BORDER_INPUT = MutableColor.rgba255(32, 32, 32, 255);        // #202020
@@ -52,19 +52,19 @@ public final class UnityStyles {
     public static final MutableColor BORDER_BUTTON = MutableColor.rgba255(48, 48, 48, 255);       // #303030
     public static final MutableColor SEPARATOR = MutableColor.rgba255(36, 36, 36, 255);           // #242424
 
-    // --- Цвета текста ---
+    // --- Text Colors ---
     public static final MutableColor TEXT_PRIMARY = MutableColor.rgba255(220, 220, 220, 255);     // #DCDCDC
     public static final MutableColor TEXT_LABEL = MutableColor.rgba255(190, 190, 190, 255);       // #BEBEBE
     public static final MutableColor TEXT_MUTED = MutableColor.rgba255(136, 136, 136, 255);       // #888888
     public static final MutableColor TEXT_BOLD = MutableColor.rgba255(236, 236, 236, 255);        // #ECECEC
     public static final MutableColor TEXT_HELP_BOX = MutableColor.rgba255(196, 196, 196, 255);    // #C4C4C4
 
-    // --- Оси координат Unity ---
+    // --- Unity Coordinate Axes ---
     public static final MutableColor AXIS_X = MutableColor.rgba255(224, 93, 93, 255);             // Red X
     public static final MutableColor AXIS_Y = MutableColor.rgba255(123, 209, 94, 255);            // Green Y
     public static final MutableColor AXIS_Z = MutableColor.rgba255(90, 148, 232, 255);            // Blue Z
 
-    // --- Акценты и иконки ---
+    // --- Accents & Icons ---
     public static final MutableColor CUBE_BLUE_TOP = MutableColor.rgba255(75, 163, 227, 255);
     public static final MutableColor CUBE_BLUE_LEFT = MutableColor.rgba255(32, 114, 196, 255);
     public static final MutableColor CUBE_BLUE_RIGHT = MutableColor.rgba255(16, 76, 140, 255);
@@ -72,26 +72,26 @@ public final class UnityStyles {
     public static final MutableColor SELECTION_BLUE = MutableColor.rgba255(44, 93, 136, 255);      // #2C5D88
     public static final MutableColor PLAY_GREEN = MutableColor.rgba255(63, 166, 82, 255);
 
-    // --- Выпадающие списки (Dropdown / ComboBox) в палитре Unity Dark ---
+    // --- Dropdown / ComboBox Palette (Unity Dark) ---
     public static final MutableColor BG_DROPDOWN_HOST = MutableColor.rgba255(34, 34, 34, 255);         // #222222
     public static final MutableColor BORDER_DROPDOWN_HOST = MutableColor.rgba255(44, 44, 44, 255);     // #2C2C2C
     public static final MutableColor BG_DROPDOWN_ITEM_NORMAL = MutableColor.rgba255(38, 38, 38, 255);  // #262626 (Unity dark gray)
-    public static final MutableColor BG_DROPDOWN_ITEM_CHECKED = MutableColor.rgba255(36, 68, 98, 255); // #244462 (глубокий Unity Blue)
-    public static final MutableColor BG_DROPDOWN_ITEM_HOVER = MutableColor.rgba255(44, 93, 136, 255);   // #2C5D88 (SELECTION_BLUE в Unity)
+    public static final MutableColor BG_DROPDOWN_ITEM_CHECKED = MutableColor.rgba255(36, 68, 98, 255); // #244462 (deep Unity Blue)
+    public static final MutableColor BG_DROPDOWN_ITEM_HOVER = MutableColor.rgba255(44, 93, 136, 255);   // #2C5D88 (Unity SELECTION_BLUE)
     public static final MutableColor BG_DROPDOWN_ITEM_PRESS = MutableColor.rgba255(32, 72, 112, 255);   // #204870
-    public static final MutableColor BORDER_DROPDOWN_ITEM_HOVER = MutableColor.rgba255(72, 142, 238, 255); // #488EEE (акцент Unity Focus Blue)
-    public static final MutableColor SCROLLBAR_TRACK = MutableColor.rgba255(26, 26, 26, 200);           // Тёмный трек скроллбара
-    public static final MutableColor SCROLLBAR_THUMB = MutableColor.rgba255(88, 88, 88, 220);           // Серый ползунок скроллбара Unity
+    public static final MutableColor BORDER_DROPDOWN_ITEM_HOVER = MutableColor.rgba255(72, 142, 238, 255); // #488EEE (Unity Focus Blue accent)
+    public static final MutableColor SCROLLBAR_TRACK = MutableColor.rgba255(26, 26, 26, 200);           // Dark scrollbar track
+    public static final MutableColor SCROLLBAR_THUMB = MutableColor.rgba255(88, 88, 88, 220);           // Gray Unity scrollbar thumb
 
-    // --- Размеры ---
+    // --- Dimensions ---
     public static final float ROW_HEIGHT = 18.0f;
     public static final float COMPONENT_HEADER_HEIGHT = 22.0f;
     public static final float LABEL_WIDTH = 112.0f;
 
     /**
-     * Кастомный рендерер Checkbox в стиле Unity:
-     * Тёмный квадрат с тонкой рамкой (белая при hover, синяя при press)
-     * и изящной белой галочкой (✓) правильных пропорций.
+     * Custom Unity-style Checkbox renderer:
+     * Dark square with a thin border (white on hover, blue when pressed)
+     * and a crisp white checkmark.
      */
     public static final WidgetRender CHECKBOX_RENDERER = WidgetRender.of(Checkbox.class, (draw, cb) -> {
         RectView bounds = cb.layoutBounds();
@@ -104,10 +104,10 @@ public final class UnityStyles {
         float indicatorX = x + Math.max(0.0f, width - boxSize) * 0.5f;
         float indicatorY = y + Math.max(0.0f, height - boxSize) * 0.5f;
 
-        // Фон чекбокса: Unity тёмно-серый
+        // Checkbox background: Unity dark gray
         draw.roundedRectFilled(indicatorX, indicatorY, boxSize, boxSize, 2.0f, BG_INPUT);
 
-        // Тонкая рамка (1px): синяя при нажатии, белая при наведении, одинаково тёмная в покое (Checked и Unchecked)
+        // Thin 1px border: blue when pressed, white when hovered, uniformly dark at rest (checked or unchecked)
         ColorView borderCol;
         if (!cb.enabled()) {
             borderCol = BORDER_INPUT;
@@ -120,7 +120,7 @@ public final class UnityStyles {
         }
         draw.roundedRectStroke(indicatorX, indicatorY, boxSize, boxSize, 2.0f, borderCol, 1.0f);
 
-        // Галочка (✓) в стиле Unity (изящная тонкая линия 1.15px, острый угол)
+        // Unity-style checkmark (sharp angle, crisp 1.15px stroke)
         if (cb.checked()) {
             float ix = indicatorX;
             float iy = indicatorY;
@@ -138,7 +138,7 @@ public final class UnityStyles {
                     indicatorY + (boxSize - dashH) * 0.5f, dashW, dashH, markCol);
         }
 
-        // Текст чекбокса (если есть)
+        // Checkbox text label (if present)
         String text = cb.text();
         if (text != null && !text.isEmpty()) {
             float textX = indicatorX + boxSize + cb.textGap();
@@ -148,8 +148,8 @@ public final class UnityStyles {
     });
 
     /**
-     * Рендерер кнопки выбора целевого объекта (Target Texture: ⊙)
-     * с центрированной векторной иконкой мишени/круга и подсветкой при наведении.
+     * Renderer for the object picker button (Target Texture)
+     * with a centered vector target/circle icon and hover highlight.
      */
     public static final WidgetRender TARGET_PICKER_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -173,7 +173,7 @@ public final class UnityStyles {
     });
 
     /**
-     * Рендерер кнопки пипетки выбора цвета с центрированной векторной пипеткой.
+     * Renderer for the eyedropper color picker button with a centered vector dropper icon.
      */
     public static final WidgetRender EYEDROPPER_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -199,11 +199,11 @@ public final class UnityStyles {
     });
 
     /**
-     * Рендерер опций выпадающего списка (ComboBox popup items) в палитре Unity:
-     * - Покой: нейтральный тёмно-серый фон (#262626), текст TEXT_PRIMARY (#DCDCDC)
-     * - Выбранный пункт: глубокий синий фон (#244462), текст TEXT_BOLD (#FFFFFF)
-     * - Наведение (Hover): фирменный Unity Selection Blue (#2C5D88), рамка фокуса (#488EEE), текст TEXT_BOLD (#FFFFFF)
-     * - Нажатие (Press): глубокий синий (#204870)
+     * Renderer for ComboBox popup options using the Unity palette:
+     * - Idle: neutral dark gray background (#262626), TEXT_PRIMARY text (#DCDCDC)
+     * - Selected: deep blue background (#244462), TEXT_BOLD text (#ECECEC)
+     * - Hover: Unity Selection Blue (#2C5D88), focus border (#488EEE), TEXT_BOLD text (#ECECEC)
+     * - Press: deep blue (#204870)
      */
     public static final WidgetRender DROPDOWN_OPTION_RENDERER = WidgetRender.of(ToggleButton.class, (draw, btn) -> {
         RectView bounds = btn.layoutBounds();
@@ -213,7 +213,7 @@ public final class UnityStyles {
         float height = Math.max(0.0f, bounds.height());
         if (width <= 0.0f || height <= 0.0f) return;
 
-        // Фон опции в палитре Unity Dark
+        // Option background in Unity Dark palette
         ColorView bg;
         if (btn.pressed()) {
             bg = BG_DROPDOWN_ITEM_PRESS;
@@ -226,12 +226,12 @@ public final class UnityStyles {
         }
         draw.rectFilled(x, y, width, height, bg);
 
-        // Тонкая рамка при наведении в стиле Unity Focus (1px)
+        // Thin Unity Focus hover border (1px)
         if (btn.hovered() && btn.enabled()) {
             draw.rectStroke(x, y, width, height, BORDER_DROPDOWN_ITEM_HOVER, 1.0f);
         }
 
-        // Белый текст опции (без uppercase, сохраняя оригинальный регистр строк)
+        // Light option text (preserving original casing, no forced uppercase)
         String plain = btn.text();
         RichText rich = btn.richText();
         float textX = x + 7.0f;
@@ -375,11 +375,11 @@ public final class UnityStyles {
     }
 
     /**
-     * Кастомный рендерер элементов контекстного меню в стиле Unity:
-     * - при наведении синяя подсветка SELECTION_BLUE и белый текст
-     * - при нажатии тёмно-синяя заливка BG_DROPDOWN_ITEM_PRESS
-     * - для отключённых элементов серый цвет TEXT_MUTED и отсутствие hover-фона
-     * - ровное выравнивание по левому краю с аккуратным отступом
+     * Custom Unity-style context menu item renderer:
+     * - blue SELECTION_BLUE highlight and bright text on hover
+     * - dark blue BG_DROPDOWN_ITEM_PRESS fill when pressed
+     * - muted TEXT_MUTED text and no hover fill for disabled items
+     * - clean left alignment with consistent horizontal padding
      */
     public static final WidgetRender CONTEXT_MENU_ITEM_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -436,10 +436,7 @@ public final class UnityStyles {
     });
 
     /**
-     * Стилизация всплывающего контекстного меню под тёмную тему Unity.
-     */
-    /**
-     * Стилизация TreeView под компактный и строгий вид иерархии / проекта Unity.
+     * Styles a TreeView with Unity's compact hierarchy/project layout.
      */
     public static void styleTreeView(TreeView tree) {
         if (tree == null) return;
@@ -460,6 +457,9 @@ public final class UnityStyles {
                 .put(StyleKeys.TREE_ICON_COLOR, TEXT_PRIMARY));
     }
 
+    /**
+     * Styles a popup context menu using Unity Dark Theme colors.
+     */
     public static void styleContextMenu(ContextMenu menu) {
         if (menu == null) return;
         menu.themeEnabled(false);
@@ -473,7 +473,7 @@ public final class UnityStyles {
     }
 
     /**
-     * Добавление элемента контекстного меню с кастомным рендерером и размером.
+     * Context menu item button carrying an optional right-aligned shortcut label.
      */
     public static class UnityContextMenuItem extends Button {
         private String shortcut;
@@ -523,7 +523,7 @@ public final class UnityStyles {
     }
 
     /**
-     * Добавление тонкого разделителя в контекстное меню Unity.
+     * Adds a thin Unity-style separator line to a context menu.
      */
     public static Separator addContextMenuSeparator(ContextMenu menu, float menuWidth) {
         Separator sep = new Separator();
@@ -535,7 +535,7 @@ public final class UnityStyles {
     }
 
     /**
-     * Стилизация подсказки Tooltip в стиле Unity.
+     * Styles a Tooltip widget in the Unity theme.
      */
     public static void styleTooltip(Tooltip tooltip) {
         if (tooltip == null) return;
@@ -551,7 +551,7 @@ public final class UnityStyles {
     }
 
     /**
-     * Сегментная кнопка пути в строке хлебных крошек Unity.
+     * Path segment button in the Unity breadcrumb bar.
      */
     public static class BreadcrumbSegmentButton extends Button {
         private boolean current;
@@ -573,10 +573,10 @@ public final class UnityStyles {
     }
 
     /**
-     * Рендерер сегментов пути (хлебных крошек) в стиле Unity:
-     * - текущая папка выделяется более ярким шрифтом (TEXT_BOLD)
-     * - промежуточные папки отображаются цветом TEXT_PRIMARY
-     * - при наведении или нажатии отображается аккуратный закруглённый hover-фон
+     * Renderer for Unity-style breadcrumb path segments:
+     * - highlights the current folder with brighter text (TEXT_BOLD)
+     * - renders ancestor folders in TEXT_PRIMARY
+     * - draws a subtle rounded hover/press background
      */
     public static final WidgetRender BREADCRUMB_SEGMENT_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -618,9 +618,9 @@ public final class UnityStyles {
     });
 
     /**
-     * Рендерер кнопки-стрелочки шеврона (>) в хлебных крошках Unity:
-     * - процедурная стрелочка вправо правильных пропорций Unity
-     * - при наведении подсвечивается ярким цветом и полупрозрачным фоном
+     * Renderer for the chevron (&gt;) button in Unity breadcrumbs:
+     * - procedural right-pointing arrow with Unity proportions
+     * - brightens text and draws a translucent background on hover
      */
     public static final WidgetRender BREADCRUMB_CHEVRON_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -648,7 +648,7 @@ public final class UnityStyles {
     });
 
     /**
-     * Элемент выпадающего меню хлебных крошек с отметкой активной папки (галочка в голубом квадрате).
+     * Breadcrumb dropdown menu item indicating the active folder with a check badge.
      */
     public static class BreadcrumbMenuItem extends Button {
         private boolean checked;
@@ -668,11 +668,10 @@ public final class UnityStyles {
     }
 
     /**
-     * Рендерер элементов выпадающего меню хлебных крошек (Скриншот 2):
-     * - при наведении синяя подсветка SELECTION_BLUE
-     * - слева слот для чекбокса
-     * - если элемент выбран (находится на текущем пути), рисуется голубой квадратик (#90C8F6)
-     * с тёмной галочкой внутри (✓)
+     * Renderer for breadcrumb dropdown menu items:
+     * - highlights with SELECTION_BLUE on hover
+     * - reserves a checkbox slot on the left
+     * - draws a light-blue square (#90C8F6) with a dark checkmark when the item is on the active path
      */
     public static final WidgetRender BREADCRUMB_DROPDOWN_ITEM_RENDERER = WidgetRender.of(Button.class, (draw, btn) -> {
         RectView b = btn.layoutBounds();
@@ -700,11 +699,11 @@ public final class UnityStyles {
             float boxX = x + 6.0f;
             float boxY = y + Math.max(0.0f, h - boxSize) * 0.5f;
 
-            // Голубой квадрат (#90C8F6)
+            // Light-blue square (#90C8F6)
             ColorView boxBg = MutableColor.rgba255(144, 200, 246, 255);
             draw.roundedRectFilled(boxX, boxY, boxSize, boxSize, 2.0f, boxBg);
 
-            // Тёмная галочка внутри квадрата (✓)
+            // Dark checkmark inside the square
             ColorView checkColor = MutableColor.rgba255(32, 32, 32, 255);
             draw.pathClear();
             draw.pathLineTo(boxX + 2.8f, boxY + 5.8f);
@@ -737,7 +736,7 @@ public final class UnityStyles {
     });
 
     /**
-     * Добавление элемента в выпадающее меню хлебных крошек.
+     * Adds an item to the breadcrumb dropdown menu.
      */
     public static Button addBreadcrumbDropdownItem(ContextMenu menu, String folderName, boolean isChecked, float menuWidth, Runnable action) {
         BreadcrumbMenuItem btn = new BreadcrumbMenuItem(folderName, isChecked);

@@ -32,6 +32,14 @@ To open a 3D demo immediately when the development client starts, use one of the
 
 From a world, enter `/unigui demo scene` for the basic 3D demo or `/unigui demo furnace` for the animated tutorial.
 
+With OpenGL 3.2 or newer, `Scene3D` supports scene lights and shadow maps, material effects, fog volumes and
+soft particles. The Furnace tutorial exercises them on vanilla blocks, items and mobs. Open it from a world
+to see the animated mob previews. The main-menu launch shows the furnace, items and particles.
+
+Use `CleanroomParticleEmitter` with `EnumParticleTypes.FLAME`, `SMOKE_NORMAL` or `SMOKE_LARGE`. Sample
+it from `timeline.onSample(emitter::setTime)` so it follows playback and seeking. Entity timelines support
+walk and head tracks and `CleanroomEntityActions.mainHandSwing()`.
+
 If `runClient` fails with `Unexpected lock protocol` in `PersistentDaemonRegistry`, close builds using the
 Cleanroom wrapper's Gradle version. In your Gradle user home (`%USERPROFILE%\.gradle` by default on Windows),
 rename `daemon\9.8.1\registry.bin.lock` to `registry.bin.lock.corrupt`, then rerun `runClient`. Gradle creates

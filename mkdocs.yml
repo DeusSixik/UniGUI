@@ -58,7 +58,7 @@ plugins:
       docs_structure: folder
       fallback_to_default: true
       reconfigure_material: true
-      reconfigure_search: true
+      reconfigure_search: false
       languages:
         - locale: en
           default: true

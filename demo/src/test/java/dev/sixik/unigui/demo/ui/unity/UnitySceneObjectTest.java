@@ -2,7 +2,10 @@ package dev.sixik.unigui.demo.ui.unity;
 
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.math.MutableQuat;
+import dev.sixik.unigui.api.scene.BlockNode;
+import dev.sixik.unigui.api.scene.ItemNode;
 import dev.sixik.unigui.api.scene.Scene;
+import dev.sixik.unigui.demo.ui.minecraft.DemoMinecraftHost.SceneElementKind;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -15,6 +18,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 class UnitySceneObjectTest {
     /** Allows float rounding in the quaternion rotation of a unit vector. */
     private static final float EPSILON = 1e-6f;
+
+    /**
+     * @param id original block source stored by the editor
+     * @param facing direction used by the render node, or null for an undirected block
+     */
+    @ParameterizedTest
+    @CsvSource({"minecraft:furnace, south", "minecraft:chest, south", "minecraft:furnace[facing=east], east",
+            "minecraft:furnace@3,", "minecraft:cactus,"})
+    void minecraft_facesDirectionalBlocksTowardDefaultCamera(String id, String facing) {
+        var object = UnitySceneObject.minecraft(SceneElementKind.BLOCK, "Block", id);
+        var block = (BlockNode) object.children().get(0);
+        assertEquals(id, object.minecraftId());
+        assertEquals(facing, block.spec().properties().get("facing"));
+    }
+
+    /** Verifies the furnace stack uses the same front-facing view as the inventory. */
+    @Test
+    void minecraft_furnaceStackUsesInventoryPlacement() {
+        var object = UnitySceneObject.minecraft(SceneElementKind.ITEM, "Furnace", "minecraft:furnace");
+        var item = (ItemNode) object.children().get(0);
+        assertEquals(ItemNode.Display.GUI, item.display());
+    }
 
     /** Verifies mesh-backed create-menu entries expose usable geometry and bounds. */
     @Test

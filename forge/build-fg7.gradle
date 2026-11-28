@@ -40,8 +40,9 @@ def versionDirs = { File base ->
 sourceSets {
     main {
         java.srcDirs = [
-                // У Forge 26.x своя шина событий (EventBus 7): исходники платформы отдельные.
+                // Forge 26.x uses its own event bus (EventBus 7), so platform sources are separate.
                 *versionDirs(file('src/main')),
+                rootProject.file('.minecraft-scene-gl/src/main/java'),
                 rootProject.file('common/src/main/java'),
                 *versionDirs(rootProject.file('common/src/main')),
                 rootProject.file('core/src/main/java'),

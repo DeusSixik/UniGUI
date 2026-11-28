@@ -1,5 +1,6 @@
 package dev.sixik.unigui.impl.render;
 
+import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
@@ -7,6 +8,8 @@ import dev.sixik.unigui.api.scene.AmbientLight;
 import dev.sixik.unigui.api.scene.DirectionalLight;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.SceneMaterialEffect;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -99,6 +102,43 @@ class SceneMeshDataTest {
         ByteBuffer out = buffer(SceneMeshData.UNIFORM_BYTES - 1);
         assertThrows(IndexOutOfBoundsException.class, () -> writeDefault(out, new MutableMat4()));
         assertEquals(0, out.position());
+    }
+
+    /** Verifies consecutive std140 bounds and clock vectors, including a plane with zero Y extent. */
+    @Test
+    void writeEffectUniform_timedSurface_packsBoundsProgressAndCutoff() {
+        var effect = new SceneMaterialEffect(ShaderHandle.fragmentSource("test:effect", "void testFunction() {}"))
+                .withTiming(6, 2).withAlphaCutoff(0.25f);
+        ByteBuffer out = buffer(16 + SceneMeshData.EFFECT_BYTES);
+        out.position(16);
+        SceneMeshData.writeEffectUniform(out, new Aabb(-2, 4, -6, 8, 4, 9), effect, 7);
+
+        assertEquals(16 + SceneMeshData.EFFECT_BYTES, out.position());
+        assertVector(out, 16, -2, 4, -6, 0);
+        assertVector(out, 32, 8, 4, 9, 0);
+        assertVector(out, 48, 1, 0.5f, 0.25f, 0);
+    }
+
+    /** Verifies untimed draws and the validation done before writing to a short buffer. */
+    @Test
+    void writeEffectUniform_defaultSurface_usesZeroProgressAndCutoff() {
+        var bounds = new Aabb(0, 0, 0, 1, 1, 1);
+        ByteBuffer out = buffer(SceneMeshData.EFFECT_BYTES);
+        SceneMeshData.writeEffectUniform(out, bounds, null, 7);
+        assertVector(out, 32, 7, 0, 0, 0);
+
+        out.clear();
+        out.limit(SceneMeshData.EFFECT_BYTES - 1);
+        assertThrows(IndexOutOfBoundsException.class, () -> SceneMeshData.writeEffectUniform(out, bounds, null, 7));
+        assertEquals(0, out.position());
+    }
+
+    /** Packs the spotlight receiver flag even when the material has no custom effect. */
+    @Test
+    void writeEffectUniform_spotShadowReceiver_setsLastClockComponent() {
+        var out = buffer(SceneMeshData.EFFECT_BYTES);
+        SceneMeshData.writeEffectUniform(out, new Aabb(0, 0, 0, 1, 1, 1), null, 2, true);
+        assertVector(out, 32, 2, 0, 0, 1);
     }
 
     /** Проверяет смещение матриц второго экземпляра в массиве std140. */

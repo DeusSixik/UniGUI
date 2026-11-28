@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 
 import java.util.Objects;
 
-public final class MinecraftRenderTarget implements ManagedRenderTarget {
+public final class MinecraftRenderTarget implements ManagedRenderTarget, GlScenePlatform.Target {
     private final RenderTargetOptions options;
     private final ColorTextureHandle colorTexture = new ColorTextureHandle(this);
     private RenderTarget nativeTarget;
@@ -79,6 +79,30 @@ public final class MinecraftRenderTarget implements ManagedRenderTarget {
     void bindWritePreserveContents() {
         ensureAlive();
         nativeTarget.bindWrite(true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int color() {
+        return nativeTarget().getColorTextureId();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int depth() {
+        return nativeTarget().getDepthTextureId();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void bind() {
+        bindWritePreserveContents();
     }
 
     void unbindWrite() {

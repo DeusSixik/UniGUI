@@ -1,20 +1,24 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
 import dev.sixik.unigui.api.math.Aabb;
+import dev.sixik.unigui.api.scene.EntityNode;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.state.CreeperRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.entity.state.ZombieRenderState;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 
 import java.util.Objects;
 
 /**
- * Разрешённая сущность {@link dev.sixik.unigui.api.scene.EntityNode} для 26.x. Начало координат у ног.
+ * Resolved {@link dev.sixik.unigui.api.scene.EntityNode} entity for 26.x. The origin is at the feet.
  *
- * <p>Источник — готовая сущность, готовое состояние рендера или тип для превью. Превью по типу создаётся при
- * появлении клиентского мира и пересоздаётся при его смене. Без мира зомби показывается через статичное
- * состояние рендера, а остальные типы не рисуются.</p>
+ * <p>The source is a live entity, a supplied render state, or a type for previews. Type-based previews
+ * are created when a client world appears and recreated if it changes. Without a world, a static model
+ * is available for certain types.</p>
  */
 final class SceneEntity {
     /**
@@ -26,7 +30,7 @@ final class SceneEntity {
      */
     private final EntityType<?> previewType;
     /**
-     * Готовое состояние рендера пользователя или статичный зомби без мира.
+     * Caller-supplied render state or static preview when no world is loaded.
      */
     private EntityRenderState fixedState;
 
@@ -92,21 +96,61 @@ final class SceneEntity {
     }
 
     /**
-     * Возвращает готовое состояние рендера, если сущности нет.
+     * Resolves a render state when the node has no live entity. Animated previews get a state
+     * owned by the current frame, so disabling a callback also restores the default pose.
      *
-     * @return состояние пользователя, статичный зомби без мира или null.
+     * @param animated whether the caller will override the preview pose
+     * @return caller-supplied state, a default preview state, or null for unsupported previews
      */
-    EntityRenderState fixedState() {
+    EntityRenderState fixedState(boolean animated) {
         if (previewType == null) return fixedState;
-        if (previewType != MinecraftClientCompat.ZOMBIE) return null;
-        if (fixedState == null) {
-            ZombieRenderState state = new ZombieRenderState();
-            state.entityType = previewType;
-            state.boundingBoxWidth = previewType.getWidth();
-            state.boundingBoxHeight = previewType.getHeight();
-            fixedState = state;
-        }
+        if (animated) return createPreviewState();
+        if (fixedState == null) fixedState = createPreviewState();
         return fixedState;
+    }
+
+    /**
+     * @return whether the caller owns the supplied state and its animation
+     */
+    boolean hasSuppliedState() {
+        return previewType == null && fixedState != null;
+    }
+
+    /**
+     * @return a fresh full-bright fallback for a preview that works outside a world, or null
+     */
+    private EntityRenderState createPreviewState() {
+        EntityRenderState state;
+        if (previewType == MinecraftClientCompat.ZOMBIE) {
+            state = new ZombieRenderState();
+        } else if (MinecraftClientCompat.NATIVE_SCENE_MATERIALS && previewType == MinecraftClientCompat.CREEPER) {
+            state = new CreeperRenderState();
+        } else {
+            return null;
+        }
+        state.entityType = previewType;
+        state.boundingBoxWidth = previewType.getWidth();
+        state.boundingBoxHeight = previewType.getHeight();
+        state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
+        return state;
+    }
+
+    /**
+     * Applies animation to the frame's native state. The vanilla age is {@code 20 * seconds}
+     * in ticks. Living models also receive the accumulated native walk phase and stride strength.
+     *
+     * @param node  scene animation inputs
+     * @param state freshly extracted entity or preview state
+     */
+    static void sampleAnimation(EntityNode node, EntityRenderState state) {
+        if (node.hasAnimation()) {
+            state.ageInTicks = (float) Math.min(20.0 * node.animationSeconds(), Float.MAX_VALUE);
+            if (state instanceof LivingEntityRenderState living) {
+                living.walkAnimationPos = node.walkPhase();
+                living.walkAnimationSpeed = node.walkStrength();
+            }
+        }
+        node.sampleNativeAnimation(state);
     }
 
     /**

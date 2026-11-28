@@ -25,15 +25,15 @@ import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
 /**
- * Фабрика стандартных строк свойств инспектора Unity (Vector3, Slider, ComboBox, Checkbox, Color, HelpBox).
+ * Factory for standard Unity Inspector property rows (Vector3, Slider, ComboBox, Checkbox, Color, HelpBox).
  */
 public final class UnityPropertyRows {
     private UnityPropertyRows() {
     }
 
     /**
-     * Строка Vector3 (Position, Rotation, Scale):
-     * Label слева, поля X, Y, Z с цветными метками справа.
+     * Vector3 row (Position, Rotation, Scale):
+     * Label on the left, X, Y, Z fields with colored axis tags on the right.
      */
     public static HBox vector3Row(String labelText, double xVal, double yVal, double zVal,
                                   DoubleConsumer onX, DoubleConsumer onY, DoubleConsumer onZ) {
@@ -124,8 +124,8 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Слайдер с числовым полем ввода (как Field of View в Camera):
-     * Перемещение ползунка синхронизируется с числовым полем и наоборот.
+     * Slider with a synchronized numeric field (like Field of View on Camera):
+     * moving the slider updates the numeric field and vice versa.
      */
     public static HBox sliderWithFieldRow(String labelText, float min, float max, float initialVal,
                                           Consumer<Float> onValueChanged) {
@@ -181,7 +181,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка выпадающего списка (ComboBox).
+     * Dropdown selector row (ComboBox).
      */
     public static HBox dropdownRow(String labelText, List<String> items, int defaultIndex,
                                    Consumer<String> onSelected) {
@@ -208,7 +208,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка одиночного чекбокса в стиле Unity с центрированием и тонкой белой галочкой.
+     * Unity-style single checkbox row with vertical centering and a thin white checkmark.
      */
     public static HBox checkboxRow(String labelText, boolean checked, Consumer<Boolean> onStateChanged) {
         HBox row = new HBox();
@@ -233,7 +233,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка поля цвета (Background с плашкой цвета и пипеткой).
+     * Color property row (Background with a color swatch and eyedropper button).
      */
     public static HBox colorFieldRow(String labelText, MutableColor initialColor, OverlayLayer overlayLayer) {
         return colorFieldRow(labelText, initialColor, checkpoint -> {
@@ -261,7 +261,7 @@ public final class UnityPropertyRows {
         colorHost.spacing(2.0f);
         colorHost.layout(style -> style.heightPercent(100.0f).flexGrow(1.0f).align(Alignment.START, Alignment.CENTER));
 
-        // Плашка с цветом
+        // Color swatch
         Box swatch = new Box();
         swatch.themeEnabled(false);
         swatch.backgroundVisible(true);
@@ -272,7 +272,7 @@ public final class UnityPropertyRows {
         swatch.radius(2.0f);
         swatch.layout(style -> style.height(UnityStyles.ROW_HEIGHT).flexGrow(1.0f));
 
-        // Кнопка пипетки
+        // Eyedropper button
         Button pickerBtn = new Button();
         pickerBtn.themeEnabled(false);
         pickerBtn.backgroundVisible(true);
@@ -283,9 +283,9 @@ public final class UnityPropertyRows {
         pickerBtn.layout(style -> style.size(18.0f, UnityStyles.ROW_HEIGHT).flexGrow(0.0f).flexShrink(0.0f));
         pickerBtn.addChild(UnityIcons.eyedropperIcon(14.0f));
 
-        // При клике циклически меняем популярные цвета Unity Camera (Белый -> Синий -> Тёмный -> Серый)
+        // Cycle through common Unity Camera background colors on click (White -> Blue -> Dark -> Gray)
         MutableColor[] presets = new MutableColor[]{
-                MutableColor.rgba255(255, 255, 255, 255), // White (как на скриншоте)
+                MutableColor.rgba255(255, 255, 255, 255), // White (matches screenshot)
                 MutableColor.rgba255(49, 77, 121, 255),   // Unity Default Skybox Blue
                 MutableColor.rgba255(25, 25, 25, 255),     // Solid Dark
                 MutableColor.rgba255(115, 115, 115, 255)   // Medium Gray
@@ -323,7 +323,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка с двумя числами (например Clipping Planes: Near / Far).
+     * Row with two numeric fields (such as Clipping Planes: Near / Far).
      */
     public static HBox twoFieldsRow(String labelText, String sub1, double val1, String sub2, double val2,
                                     DoubleConsumer onVal1, DoubleConsumer onVal2) {
@@ -369,7 +369,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка Viewport Rect: 2 строки (X, Y и W, H).
+     * Viewport Rect block: 2 rows (X, Y and W, H).
      */
     public static VBox viewportRectBlock(String labelText, double x, double y, double w, double h) {
         VBox block = new VBox();
@@ -385,7 +385,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка одного числового поля (например Depth).
+     * Single numeric input row (such as Depth).
      */
     public static HBox singleNumberRow(String labelText, double val, DoubleConsumer onVal) {
         HBox row = new HBox();
@@ -407,7 +407,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Строка выбора объекта (Target Texture: None (Render Texture) + ⊙).
+     * Object picker row (Target Texture: None (Render Texture) + target icon).
      */
     public static HBox objectPickerRow(String labelText, String objectName, String typeName) {
         HBox row = new HBox();
@@ -451,8 +451,8 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Блок предупреждения HelpBox (как предупреждение о Deferred + MSAA на скриншоте).
-     * Контейнер HBox с корректными отступами со всех сторон (включая низ).
+     * HelpBox warning banner (like the Deferred + MSAA warning).
+     * HBox container with uniform padding on all sides (including bottom).
      */
     public static HBox helpBox(String message) {
         HBox box = new HBox();
@@ -483,7 +483,7 @@ public final class UnityPropertyRows {
     }
 
     /**
-     * Секция Command Buffers со списком и кнопкой "Remove all".
+     * Command Buffers section with a list and a "Remove all" button.
      */
     public static VBox commandBuffersBlock() {
         return commandBuffersBlock(checkpoint -> {

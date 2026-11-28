@@ -13,8 +13,11 @@ import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.scene.Camera3D;
+import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.SceneNode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
+import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -31,6 +34,8 @@ import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Передаёт ванильным моделям мировые матрицы узлов и использует ту же глубину, что и меши.
@@ -132,20 +137,41 @@ final class SceneVanillaFeatures implements AutoCloseable {
     }
 
     /**
+     * Collects sprites using the scene camera and the emitter's absolute playback time.
+     *
+     * @param emitter visible emitter
+     * @param cameraView world-to-camera transform
+     */
+    void submit(MinecraftParticleEmitter emitter, MutableMat4 cameraView) {
+        submitted |= pass.collectParticles(emitter, cameraView);
+    }
+
+    /**
      * Записывает модель сущности с позой текущего кадра.
      *
      * @param node  узел сущности.
      * @param world мировое преобразование узла.
      */
     void submit(EntityNode node, MutableMat4 world) {
+        setPose(world);
+        submitted |= submitEntity(node, pass.storage());
+    }
+
+    /**
+     * Emits the entity's model commands using the active pose.
+     * @param node source of the model and head rotation
+     * @param storage receives vanilla feature submissions
+     * @return whether render state was available and submitted
+     */
+    private boolean submitEntity(EntityNode node, SubmitNodeStorage storage) {
         SceneEntity handle = MinecraftScene.handle(node);
-        if (handle == null) return;
+        if (handle == null) return false;
         var dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
         Entity model = handle.entity();
         EntityRenderState state;
         if (model == null) {
-            state = handle.fixedState();
-            if (state == null) return;
+            state = handle.fixedState(node.hasAnimation() || node.hasNativeAnimation() || node.hasAction() || node.hasHead());
+            if (state == null) return false;
         } else {
             state = dispatcher.extractEntity(model, partialTick);
             state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
@@ -155,14 +181,14 @@ final class SceneVanillaFeatures implements AutoCloseable {
             state.scoreText = null;
             state.leashStates = null;
         }
+        if (!handle.hasSuppliedState()) SceneEntity.sampleAnimation(node, state);
         if (node.hasHead() && state instanceof LivingEntityRenderState living) {
             // Состояние хранит поворот головы относительно тела в градусах.
             living.yRot = (float) Math.toDegrees(node.headYaw());
             living.xRot = (float) Math.toDegrees(node.headPitch());
         }
-        setPose(world);
-        submitted = true;
-        dispatcher.submit(state, vanillaCamera, 0, 0, 0, pose, pass.storage());
+        dispatcher.submit(state, vanillaCamera, 0, 0, 0, pose, storage);
+        return true;
     }
 
     /**
@@ -172,13 +198,37 @@ final class SceneVanillaFeatures implements AutoCloseable {
      * @param world мировое преобразование предмета.
      */
     void submit(ItemNode node, MutableMat4 world) {
-        ItemStack stack = MinecraftScene.renderStack(node);
-        if (stack.isEmpty()) return;
-        SceneItemModel.resolve(Minecraft.getInstance(), stack, MinecraftScene.context(node.display()), item);
-        if (item.isEmpty()) return;
         setPose(world);
-        submitted = true;
-        item.submit(pose, pass.storage(), LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
+        submitted |= submitItem(node, pass.storage());
+    }
+
+    /**
+     * Emits the item layers using the active pose.
+     * @param node source of the stack and display context
+     * @param storage receives vanilla feature submissions
+     * @return whether the resolved item contributed a model
+     */
+    private boolean submitItem(ItemNode node, SubmitNodeStorage storage) {
+        ItemStack stack = MinecraftScene.renderStack(node);
+        if (stack.isEmpty()) return false;
+        SceneItemModel.resolve(Minecraft.getInstance(), stack, MinecraftScene.context(node.display()), item);
+        if (item.isEmpty()) return false;
+        item.submit(pose, storage, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
+        return true;
+    }
+
+    /**
+     * Captures a native item or entity in node-local coordinates for both scene passes.
+     * @param node source item or entity participating in scene lighting or using a material effect
+     * @param retire drops GPU buffers when cached geometry is replaced
+     * @return local surfaces, or an empty list when vanilla should handle the node
+     */
+    List<SceneBlockMeshes.Surface> bake(SceneNode node, Consumer<Mesh3D> retire) {
+        pose.setIdentity();
+        return pass.bake(node, storage -> {
+            if (node instanceof EntityNode entity) submitEntity(entity, storage);
+            else if (node instanceof ItemNode sceneItem) submitItem(sceneItem, storage);
+        }, retire);
     }
 
     /**
@@ -209,6 +259,18 @@ final class SceneVanillaFeatures implements AutoCloseable {
      */
     boolean hasSubmissions() {
         return submitted;
+    }
+
+    /**
+     * Draws soft sprites using the same projection as the native feature pass.
+     *
+     * @param target scene color and depth
+     * @param camera camera supplying clip planes and projection mode
+     * @param width active viewport width in pixels
+     * @param height active viewport height in pixels
+     */
+    void renderSoftParticles(UiGpu.Target target, Camera3D camera, float width, float height) {
+        pass.renderSoftParticles(target, cameraProjection, camera, width, height);
     }
 
     /**
@@ -268,7 +330,7 @@ final class SceneVanillaFeatures implements AutoCloseable {
      * Освобождает накопленные команды после кадра или исключения.
      */
     void reset() {
-        if (submitted) pass.reset();
+        pass.reset();
         submitted = false;
     }
 

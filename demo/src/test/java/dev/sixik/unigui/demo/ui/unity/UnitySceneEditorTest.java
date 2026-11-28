@@ -60,7 +60,7 @@ class UnitySceneEditorTest {
         TreeViewNode row = fixture.tree.selectedNode();
         UnitySceneObject cube = row.userData(UnitySceneObject.class);
         assertEquals("Cube (1)", row.text());
-        assertSame(cube, fixture.viewport.scene().roots().get(2));
+        assertSame(cube, fixture.viewport.scene().roots().get(3));
         assertNotNull(cube.mesh());
 
         descendants(fixture.inspector, TextInput.class).get(0).text("Edited Cube");
@@ -116,7 +116,7 @@ class UnitySceneEditorTest {
         TreeViewNode scene = fixture.tree.roots().get(0);
         fixture.drag(fixture.tree.selectedNode(), scene, 0.5f);
         assertNull(cube.parent());
-        assertSame(cube, fixture.viewport.scene().roots().get(2));
+        assertSame(cube, fixture.viewport.scene().roots().get(3));
     }
 
     /** Verifies sibling order in the tree matches the graph after a drop. */
@@ -260,15 +260,40 @@ class UnitySceneEditorTest {
             assertTrue(bounds.x() + bounds.width() <= fixture.inspector.layoutBounds().x()
                     + fixture.inspector.layoutBounds().width());
         }
-        assertEquals(List.of("Transform", "Camera", "Audio Listener"),
-                descendants(fixture.inspector, UnityComponentSection.class).stream().map(UnityComponentSection::title).toList());
+        // Only the components the cube really has: no Camera or Audio Listener on every node.
+        assertEquals(List.of("Transform", "Mesh Renderer"), visibleSections(fixture.inspector).stream()
+                .map(UnityComponentSection::title).toList());
+        UnitySceneObject cube = fixture.tree.selectedNode().userData(UnitySceneObject.class);
         descendants(fixture.inspector, Button.class).stream()
                 .filter(button -> "Add Component".equals(button.text())).findFirst().orElseThrow().click();
-        UnityComponentSection added = descendants(fixture.inspector, UnityComponentSection.class).get(3);
-        assertEquals("Box Collider", added.title());
+        WindowWidget popup = descendants(fixture.root, WindowWidget.class).stream()
+                .filter(window -> "Add Component".equals(window.title()) && window.opened()).findFirst().orElseThrow();
+        TextInput search = descendants(popup, TextInput.class).get(0);
+        search.text("lig");
+        List<Button> rows = descendants(popup, Button.class).stream()
+                .filter(button -> button.text().startsWith("Rendering / ") || button.text().startsWith("Scripts / "))
+                .toList();
+        assertEquals(List.of("Rendering / Light"), rows.stream().map(Button::text).toList());
+        rows.get(0).click();
+        assertFalse(popup.opened());
+        assertNotNull(cube.light());
+        UnityComponentSection added = visibleSections(fixture.inspector).get(2);
+        assertEquals("Light", added.title());
         added.menuButton().click();
         fixture.chooseOpenMenuItem("Remove Component");
-        assertFalse(descendants(fixture.inspector, UnityComponentSection.class).contains(added));
+        assertNull(cube.light());
+        assertTrue(descendants(fixture.inspector, UnityComponentSection.class).contains(added));
+        assertEquals(List.of("Transform", "Mesh Renderer"), visibleSections(fixture.inspector).stream()
+                .map(UnityComponentSection::title).toList());
+    }
+
+    /**
+     * @param inspector Inspector panel
+     * @return component sections that are not collapsed, such as Light for a non-light object
+     */
+    private static List<UnityComponentSection> visibleSections(Widget inspector) {
+        return descendants(inspector, UnityComponentSection.class).stream()
+                .filter(section -> section.visibility() != Visibility.COLLAPSED).toList();
     }
 
     /** Verifies the screenshot layout at normal widths, with the label and all axes on a single line. */
@@ -449,7 +474,7 @@ class UnitySceneEditorTest {
         assertTrue(fixture.pressKey(KeyCodes.DELETE, 0));
         assertEquals(Visibility.COLLAPSED, fixture.preview().visibility());
         assertSame(props, fixture.tree.selectedNode());
-        assertEquals(2, fixture.viewport.scene().roots().size());
+        assertEquals(3, fixture.viewport.scene().roots().size());
     }
 
     /** Pausing Play blocks keyboard mutations and stopping restores the pre-Play scene. */
@@ -516,7 +541,7 @@ class UnitySceneEditorTest {
             clickPickerButton(fixture, picker, "Stone  ·  minecraft:stone");
             assertTrue(picker.opened());
             assertTrue(addToScene.enabled());
-            assertEquals(2, fixture.viewport.scene().roots().size());
+            assertEquals(3, fixture.viewport.scene().roots().size());
             var previewStone = pickerViewport.scene().roots().get(0);
             assertTrue(previewStone.children().get(0) instanceof BlockNode);
 
@@ -548,7 +573,7 @@ class UnitySceneEditorTest {
             ((WidgetBase) fixture.root).uiContext().dispatcher().drain();
             assertTrue(picker.children().isEmpty());
             UnitySceneObject stone = fixture.tree.selectedNode().userData(UnitySceneObject.class);
-            assertSame(stone, fixture.viewport.scene().roots().get(2));
+            assertSame(stone, fixture.viewport.scene().roots().get(3));
             assertNotSame(previewStone, stone);
             assertTrue(stone.children().get(0) instanceof BlockNode);
             assertEquals("minecraft:stone", stone.minecraftId());
@@ -561,7 +586,7 @@ class UnitySceneEditorTest {
             assertNotSame(stone.children().get(0), inspectorStone.children().get(0));
             assertTrue(fixture.pressKey(KeyCodes.D, KeyModifiers.CONTROL));
             assertTrue(fixture.pressKey(KeyCodes.DELETE, 0));
-            assertEquals(3, fixture.viewport.scene().roots().size());
+            assertEquals(4, fixture.viewport.scene().roots().size());
 
             picker = openMinecraftPicker(fixture);
             clickPickerButton(fixture, picker, "Items");
@@ -599,7 +624,7 @@ class UnitySceneEditorTest {
             fixture.clickAt(descendants(picker, TextInput.class).get(0), PointerButton.PRIMARY);
             assertTrue(fixture.pressKey(KeyCodes.ESCAPE, 0));
             assertFalse(picker.opened());
-            assertEquals(5, fixture.viewport.scene().roots().size());
+            assertEquals(6, fixture.viewport.scene().roots().size());
 
             fixture.button("▶").click();
             fixture.choose("Delete Selected");
@@ -646,7 +671,7 @@ class UnitySceneEditorTest {
         ((WidgetBase) fixture.root).uiContext().focusManager().requestFocus(target);
     }
 
-    /** Stopping Play restores identities, graph order, transforms, properties and Inspector components. */
+    /** Stopping Play restores identities, graph order, transforms, properties and components. */
     @Test
     void playStop_restoresPrePlaySceneAndComponents() {
         Fixture fixture = layout();
@@ -657,22 +682,21 @@ class UnitySceneEditorTest {
         UnitySceneObject cube = cubeRow.userData(UnitySceneObject.class);
         var originalChildren = List.copyOf(parent.children());
         fixture.tree.select(cubeRow);
-        fixture.button("Add Component").click();
-        UnityComponentSection original = descendants(fixture.inspector, UnityComponentSection.class).get(3);
+        addComponent(fixture, "Rotator");
+        assertEquals(90, cube.rotatorSpeed(), EPSILON);
         List<NumberField> fields = descendants(fixture.inspector, NumberField.class);
         fields.get(0).value(3.0);
-        fields.get(4).value(380);
-        fields.get(6).value(1.5);
 
         fixture.button("▶").click();
         fields.get(0).value(6.0);
-        fields.get(4).value(60);
-        fields.get(6).value(2.5);
         descendants(fixture.inspector, TextInput.class).get(0).text("Temporary");
         descendants(fixture.inspector, Checkbox.class).get(0).checked(false);
-        original.menuButton().click();
+        UnityComponentSection mesh = descendants(fixture.inspector, UnityComponentSection.class).stream()
+                .filter(section -> "Mesh Renderer".equals(section.title())).findFirst().orElseThrow();
+        mesh.menuButton().click();
         fixture.chooseOpenMenuItem("Remove Component");
-        fixture.button("Add Component").click();
+        assertNull(cube.mesh());
+        addComponent(fixture, "Light");
         fixture.drag(cubeRow, props.child(1), 0.5f);
         fixture.choose("Delete Selected");
         fixture.choose("Sphere");
@@ -682,16 +706,33 @@ class UnitySceneEditorTest {
 
         fixture.button("▶").click();
 
-        assertEquals(2, scene.roots().size());
+        assertEquals(3, scene.roots().size());
         assertEquals(originalChildren, parent.children());
         assertNull(runtimeObject.scene());
         assertEquals("Cube", cube.name());
         assertTrue(cube.visible());
         assertSame(cube, fixture.tree.selectedNode().userData(UnitySceneObject.class));
+        assertEquals(3, cube.position(new MutableVec3()).x(), EPSILON);
         assertEquals(3, fields.get(0).value(), EPSILON);
-        assertEquals(380, fields.get(4).value(), EPSILON);
-        assertEquals(1.5, fields.get(6).value(), EPSILON);
-        assertSame(original, descendants(fixture.inspector, UnityComponentSection.class).get(3));
+        assertEquals(UnityEditorHierarchyView.GameObjectType.CUBE, cube.meshShape());
+        assertNull(cube.light());
+        assertEquals(90, cube.rotatorSpeed(), EPSILON);
+        assertEquals(List.of("Transform", "Mesh Renderer", "Rotator"), visibleSections(fixture.inspector).stream()
+                .map(UnityComponentSection::title).toList());
+    }
+
+    /**
+     * Adds a component to the selection through the Add Component popup.
+     *
+     * @param fixture editor
+     * @param name    component name
+     */
+    private static void addComponent(Fixture fixture, String name) {
+        fixture.button("Add Component").click();
+        WindowWidget popup = descendants(fixture.root, WindowWidget.class).stream()
+                .filter(window -> "Add Component".equals(window.title()) && window.opened()).findFirst().orElseThrow();
+        descendants(popup, Button.class).stream().filter(button -> button.text().endsWith(" / " + name))
+                .findFirst().orElseThrow().click();
     }
 
     /** Pause blocks editing until resumed and is unavailable outside Play. */
@@ -746,7 +787,7 @@ class UnitySceneEditorTest {
         MutableVec3 initial = gameViewport.camera().position(new MutableVec3());
         fixture.viewport.orbit().setAngles(-1, 0.2);
         fixture.choose("Cube");
-        assertSame(fixture.tree.selectedNode().userData(UnitySceneObject.class), gameViewport.scene().roots().get(2));
+        assertSame(fixture.tree.selectedNode().userData(UnitySceneObject.class), gameViewport.scene().roots().get(3));
 
         dock.manager().selectPane("game");
         fixture.relayout();
@@ -783,7 +824,7 @@ class UnitySceneEditorTest {
                 <= fixture.inspector.layoutBounds().y() + fixture.inspector.layoutBounds().height() + EPSILON);
         assertNotSame(source, previewViewport.scene().roots().get(0));
         assertEquals(3, previewViewport.scene().roots().get(0).children().size());
-        assertEquals(2, fixture.viewport.scene().roots().size());
+        assertEquals(3, fixture.viewport.scene().roots().size());
 
         Fixture reopened = layout(UnityInspectorScreen.createScreen(directory));
         reopened.openPrefabs();
@@ -793,7 +834,7 @@ class UnitySceneEditorTest {
         reopened.relayout();
         reopened.clickAt(reopened.assetLabel("Props.prefab"), PointerButton.SECONDARY);
         reopened.chooseOpenMenuItem("Add to Scene");
-        assertEquals(3, reopened.viewport.scene().roots().size());
+        assertEquals(4, reopened.viewport.scene().roots().size());
         UnitySceneObject placed = reopened.tree.selectedNode().userData(UnitySceneObject.class);
         assertEquals("Props (1)", placed.name());
         assertEquals(3, placed.children().size());
@@ -812,7 +853,7 @@ class UnitySceneEditorTest {
         UnitySceneObject cube = cubeRow.userData(UnitySceneObject.class);
         fixture.dragTo(cubeRow.rowButton(), fixture.prefabsFolder().rowButton().layoutBounds(), PointerButton.PRIMARY);
         fixture.relayout();
-        assertEquals(2, fixture.viewport.scene().roots().size());
+        assertEquals(3, fixture.viewport.scene().roots().size());
         assertEquals(Visibility.VISIBLE, fixture.preview().visibility());
 
         TreeViewNode props = fixture.tree.roots().get(0).child(1);
@@ -828,7 +869,7 @@ class UnitySceneEditorTest {
         UnitySceneObject placed = fixture.tree.selectedNode().userData(UnitySceneObject.class);
         assertNotSame(cube, placed);
         assertNull(placed.parent());
-        assertEquals(3, fixture.viewport.scene().roots().size());
+        assertEquals(4, fixture.viewport.scene().roots().size());
         assertEquals(1.5, placed.position(new MutableVec3()).x(), EPSILON);
         assertEquals(1.0, placed.position(new MutableVec3()).z(), EPSILON);
         assertEquals(0, UnityScenePreview.subtreeBounds(placed).minY(), EPSILON);
@@ -847,7 +888,7 @@ class UnitySceneEditorTest {
         fixture.relayout();
         fixture.clickAt(fixture.assetLabel("Props.prefab"), PointerButton.SECONDARY);
         fixture.chooseOpenMenuItem("Add to Scene");
-        assertEquals(3, fixture.viewport.scene().roots().size());
+        assertEquals(4, fixture.viewport.scene().roots().size());
         fixture.rightClick(fixture.tree.roots().get(0).child(1));
         assertFalse(fixture.openMenu().itemWidgets().stream().filter(Button.class::isInstance).map(Button.class::cast)
                 .filter(button -> "Save as Prefab".equals(button.text())).findFirst().orElseThrow().enabled());
@@ -858,7 +899,7 @@ class UnitySceneEditorTest {
         assertFalse(fixture.openMenu().itemWidgets().stream().filter(Button.class::isInstance).map(Button.class::cast)
                 .filter(button -> "Add to Scene".equals(button.text())).findFirst().orElseThrow().enabled());
         fixture.button("▶").click();
-        assertEquals(2, fixture.viewport.scene().roots().size());
+        assertEquals(3, fixture.viewport.scene().roots().size());
     }
 
     /**

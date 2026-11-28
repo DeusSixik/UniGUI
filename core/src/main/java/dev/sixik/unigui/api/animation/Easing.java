@@ -21,11 +21,17 @@ package dev.sixik.unigui.api.animation;
  */
 @FunctionalInterface
 public interface Easing {
-    /** Число итераций Newton-Raphson при поиске параметра cubic-bezier. */
+    /**
+     * Number of Newton-Raphson iterations when solving for the cubic-bezier parameter.
+     */
     int BEZIER_NEWTON_ITERATIONS = 8;
-    /** Число итераций bisection fallback для устойчивого решения cubic-bezier. */
+    /**
+     * Number of bisection fallback iterations for a stable cubic-bezier solution.
+     */
     int BEZIER_BISECTION_ITERATIONS = 12;
-    /** Порог, при котором производная считается слишком малой для Newton-Raphson. */
+    /**
+     * Threshold below which the derivative is considered too small for Newton-Raphson.
+     */
     float BEZIER_DERIVATIVE_EPSILON = 0.000001f;
 
     /**
@@ -83,7 +89,9 @@ public interface Easing {
         }
     }
 
-    /** Реализация cubic-bezier, которая не создаёт временные объекты при {@link #apply(float)}. */
+    /**
+     * Allocation-free cubic-bezier implementation during {@link #apply(float)}.
+     */
     final class CubicBezierEasing implements Easing {
         private final float ax;
         private final float bx;
@@ -138,8 +146,16 @@ public interface Easing {
             return (lower + upper) * 0.5f;
         }
 
-        private float sampleX(float t) { return ((ax * t + bx) * t + cx) * t; }
-        private float sampleY(float t) { return ((ay * t + by) * t + cy) * t; }
-        private float sampleXDerivative(float t) { return (3.0f * ax * t + 2.0f * bx) * t + cx; }
+        private float sampleX(float t) {
+            return ((ax * t + bx) * t + cx) * t;
+        }
+
+        private float sampleY(float t) {
+            return ((ay * t + by) * t + cy) * t;
+        }
+
+        private float sampleXDerivative(float t) {
+            return (3.0f * ax * t + 2.0f * bx) * t + cx;
+        }
     }
 }

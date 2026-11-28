@@ -27,16 +27,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Плавающая панель инструментов Scene View с докингом внутри видового экрана, как оверлеи Unity.
+ * Floating Scene View toolbar with in-viewport docking, like Unity overlays.
  *
- * <p>Панель можно взять за «ручку» (две черты) и перетащить. Пока она в руке, поверх Scene подсвечиваются
- * зоны докинга: четыре угла, левый и правый края (панель становится вертикальной) и верхний и нижний края
- * (панель становится горизонтальной). Отпущенная над зоной панель встаёт в неё, отпущенная в другом месте
- * остаётся там, где её оставили. Выйти за границы Scene панель не может.</p>
+ * <p>The toolbar can be grabbed by its grip handle (two bars) and dragged. While dragged, docking zones
+ * highlight over the Scene: the four corners, left and right edges (making it vertical), and top and
+ * bottom edges (making it horizontal). Dropping over a zone snaps it into that slot; dropping elsewhere
+ * leaves it in place. The toolbar cannot leave the Scene bounds.</p>
  */
 final class UnityToolsOverlay {
     /**
-     * Зоны докинга панели внутри Scene View.
+     * Docking zones inside the Scene View.
      */
     enum Zone {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, LEFT, RIGHT, TOP, BOTTOM
@@ -68,11 +68,11 @@ final class UnityToolsOverlay {
     private Zone hotZone;
 
     /**
-     * Создаёт панель и добавляет её вместе со слоем зон докинга в {@code host}.
+     * Creates the toolbar and adds it along with the docking zone overlay to {@code host}.
      *
-     * @param host      контейнер видового экрана; панель ограничена его областью
-     * @param initial   выбранный сначала инструмент
-     * @param onChanged вызывается при выборе другого инструмента
+     * @param host      viewport container; the toolbar is constrained to its bounds
+     * @param initial   initially selected tool
+     * @param onChanged invoked when another tool is selected
      */
     UnityToolsOverlay(StackPanel host, Tool initial, Consumer<Tool> onChanged) {
         this.host = host;
@@ -89,7 +89,7 @@ final class UnityToolsOverlay {
     }
 
     /**
-     * @return текущий выбранный инструмент
+     * @return currently selected tool
      */
     Tool selectedTool() {
         return selected;
@@ -230,7 +230,7 @@ final class UnityToolsOverlay {
     }
 
     /**
-     * Панель следует за указателем внутри Scene, а зона под указателем подсвечивается.
+     * Moves the toolbar with the pointer inside Scene and highlights the zone underneath.
      */
     private void followPointer(float rootX, float rootY) {
         RectView h = host.layoutBounds();
@@ -252,7 +252,7 @@ final class UnityToolsOverlay {
     }
 
     /**
-     * Прямоугольник зоны в координатах хоста: {@code {x, y, width, height}}.
+     * Zone rectangle in host coordinates: {@code {x, y, width, height}}.
      */
     private static float[] zoneRect(Zone zone, float width, float height) {
         float corner = Math.min(CORNER_ZONE, Math.min(width, height) / 3.0f);
@@ -270,7 +270,7 @@ final class UnityToolsOverlay {
     }
 
     /**
-     * Ставит панель в зону: боковые края делают её вертикальной, верхний и нижний - горизонтальной.
+     * Docks the toolbar into a zone: side edges make it vertical, top and bottom make it horizontal.
      */
     private void applyZone(Zone zone) {
         switch (zone) {
@@ -296,7 +296,7 @@ final class UnityToolsOverlay {
     }
 
     /**
-     * Размеры панели и её элементов под вертикальную или горизонтальную раскладку.
+     * Sizes the toolbar and its buttons for vertical or horizontal layout.
      */
     private void applyOrientation(Orientation orientation) {
         boolean vertical = orientation == Orientation.VERTICAL;

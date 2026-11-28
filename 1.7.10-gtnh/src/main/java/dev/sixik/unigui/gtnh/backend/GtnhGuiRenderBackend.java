@@ -24,6 +24,7 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.backend.shared.LegacyGlSceneRenderer;
+import dev.sixik.unigui.backend.minecraft_impl.GlSceneRenderer;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
 import dev.sixik.unigui.impl.render.RenderTargetCache;
@@ -35,6 +36,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
@@ -81,6 +83,10 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
     private final LegacyGlSceneRenderer sceneRenderer =
         new LegacyGlSceneRenderer(GtnhGuiRenderBackend::sceneFramebuffer, GtnhTextures::sceneTexture,
             GtnhScene.PLATFORM);
+    /**
+     * Shader scene renderer, initialized when a scene first uses it.
+     */
+    private GlSceneRenderer advancedSceneRenderer;
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectPassList = new DrawList();
@@ -118,8 +124,8 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
     private RichText withDefaultFont(RichText text) {
         // mapTextRuns сохраняет inline-span'ы: пересборка через runs() теряла ширину иконок.
         return text.mapTextRuns(run -> run
-                .withFont(run.font() == null ? defaultFont : run.font())
-                .withText(GtnhLegacyFormatting.strip(run.text())));
+            .withFont(run.font() == null ? defaultFont : run.font())
+            .withText(GtnhLegacyFormatting.strip(run.text())));
     }
 
     @Override
@@ -154,7 +160,9 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
      */
     @Override
     public Scene3DRenderer scene3D() {
-        return sceneRenderer;
+        if (!GL.getCapabilities().OpenGL32) return sceneRenderer;
+        if (advancedSceneRenderer == null) advancedSceneRenderer = new GlSceneRenderer(new GtnhGlScenePlatform());
+        return advancedSceneRenderer;
     }
 
     /**
@@ -494,6 +502,10 @@ public final class GtnhGuiRenderBackend implements RenderBackend, UiPostEffectBa
         postEffectPingTargets.close();
         shaderRenderer.close();
         sceneRenderer.close();
+        if (advancedSceneRenderer != null) {
+            advancedSceneRenderer.close();
+            advancedSceneRenderer = null;
+        }
     }
 
     // ---- drawing ------------------------------------------------------------------------------------------------

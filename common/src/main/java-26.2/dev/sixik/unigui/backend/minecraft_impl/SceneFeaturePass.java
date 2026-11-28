@@ -1,9 +1,18 @@
 package dev.sixik.unigui.backend.minecraft_impl;
 
+import dev.sixik.unigui.api.math.MutableMat4;
+import dev.sixik.unigui.api.math.Mat4View;
+import dev.sixik.unigui.api.scene.Camera3D;
+import dev.sixik.unigui.api.scene.Mesh3D;
+import dev.sixik.unigui.api.scene.SceneNode;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.ScissorState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeStorage;
+
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Версионная отправка ванильной геометрии в offscreen-цель сцены.
@@ -35,6 +44,36 @@ final class SceneFeaturePass implements AutoCloseable {
      */
     SubmitNodeStorage storage() {
         return storage;
+    }
+
+    /**
+     * @param emitter source of native sprites
+     * @param view world-to-camera transform
+     * @return false because this version has no offscreen quad particle feature
+     */
+    boolean collectParticles(MinecraftParticleEmitter emitter, MutableMat4 view) {
+        return false;
+    }
+
+    /**
+     * @param target scene color and depth
+     * @param projection canonical camera projection
+     * @param camera camera supplying clip planes
+     * @param width active viewport width in pixels
+     * @param height active viewport height in pixels
+     */
+    void renderSoftParticles(UiGpu.Target target, Mat4View projection, Camera3D camera, float width, float height) {
+        // Soft particles use the 26.3 shader pipeline.
+    }
+
+    /**
+     * @param node source of the native model
+     * @param submit writes the native commands for the node
+     * @param retire releases evicted mesh buffers
+     * @return empty because native surface shaders are only available on 26.3
+     */
+    List<SceneBlockMeshes.Surface> bake(SceneNode node, Consumer<SubmitNodeStorage> submit, Consumer<Mesh3D> retire) {
+        return List.of();
     }
 
     /**

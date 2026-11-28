@@ -1,11 +1,14 @@
 package dev.sixik.unigui.impl.render;
 
+import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
 import dev.sixik.unigui.api.scene.AmbientLight;
 import dev.sixik.unigui.api.scene.DirectionalLight;
 import dev.sixik.unigui.api.scene.Material;
+import dev.sixik.unigui.api.scene.SceneMaterialEffect;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import org.openjdk.jmh.annotations.*;
 
 import java.nio.ByteBuffer;
@@ -40,6 +43,12 @@ public class SceneMeshDataBenchmark {
     private MutableMat4[] clips;
     /** Общий переиспользуемый выход с местом для отдельных uniform-блоков. */
     private ByteBuffer batch;
+    /** Captured local model bounds in blocks. */
+    private Aabb effectBounds;
+    /** Active interval in scene seconds with a shader alpha mask. */
+    private SceneMaterialEffect effect;
+    /** Reused std140 buffer for the effect bounds and clock. */
+    private ByteBuffer effectUniform;
 
     /** Готовит матрицы и данные одного меша. */
     @Setup
@@ -62,6 +71,10 @@ public class SceneMeshDataBenchmark {
             clips[i] = new MutableMat4().setProduct(projection, worlds[i]);
         }
         batch = ByteBuffer.allocateDirect(INSTANCES * SceneMeshData.UNIFORM_BYTES).order(ByteOrder.nativeOrder());
+        effectBounds = new Aabb(-0.45f, 0, -0.6f, 0.5f, 1.8f, 0.6f);
+        effect = new SceneMaterialEffect(ShaderHandle.fragmentSource("test:benchmark", "void testFunction() {}"))
+                .withTiming(6, 2).withAlphaCutoff(0.25f);
+        effectUniform = ByteBuffer.allocateDirect(SceneMeshData.EFFECT_BYTES).order(ByteOrder.nativeOrder());
     }
 
     /**
@@ -74,6 +87,14 @@ public class SceneMeshDataBenchmark {
         SceneMeshData.writeUniform(uniforms, clip, world, material, AmbientLight.WHITE, light, 1, 1,
                 true, false, false);
         return uniforms;
+    }
+
+    /** @return reusable buffer containing the effect data sampled at one second into the interval */
+    @Benchmark
+    public ByteBuffer writeEffectUniform() {
+        effectUniform.clear();
+        SceneMeshData.writeEffectUniform(effectUniform, effectBounds, effect, 7);
+        return effectUniform;
     }
 
     /**

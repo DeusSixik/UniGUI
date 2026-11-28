@@ -17,6 +17,7 @@ import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
 import dev.sixik.unigui.api.text.TextRun;
 import dev.sixik.unigui.backend.shared.LegacyGlSceneRenderer;
+import dev.sixik.unigui.backend.minecraft_impl.GlSceneRenderer;
 import dev.sixik.unigui.impl.render.DrawBatch;
 import dev.sixik.unigui.impl.render.DrawBatcher;
 import dev.sixik.unigui.impl.render.ScissorStack;
@@ -72,6 +73,10 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
     private final LegacyGlSceneRenderer sceneRenderer =
             new LegacyGlSceneRenderer(CleanroomGuiRenderBackend::sceneFramebuffer, CleanroomTextures::sceneTexture,
                     CleanroomScene.PLATFORM);
+    /**
+     * Shader pipeline for clients with OpenGL 3.2, created on first scene render.
+     */
+    private GlSceneRenderer advancedSceneRenderer;
     private final RenderTargetCache postEffectLayerTargets = new RenderTargetCache(this);
     private final RenderTargetCache postEffectPingTargets = new RenderTargetCache(this);
     private final DrawList postEffectPassList = new DrawList();
@@ -144,7 +149,9 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
      */
     @Override
     public Scene3DRenderer scene3D() {
-        return sceneRenderer;
+        if (!org.lwjgl.opengl.GL.getCapabilities().OpenGL32) return sceneRenderer;
+        if (advancedSceneRenderer == null) advancedSceneRenderer = new GlSceneRenderer(new CleanroomGlScenePlatform());
+        return advancedSceneRenderer;
     }
 
     /**
@@ -487,6 +494,7 @@ public final class CleanroomGuiRenderBackend implements RenderBackend, UiPostEff
         postEffectPingTargets.close();
         shaderRenderer.close();
         sceneRenderer.close();
+        if (advancedSceneRenderer != null) advancedSceneRenderer.close();
     }
 
     private void renderBatches(DrawList drawList) {

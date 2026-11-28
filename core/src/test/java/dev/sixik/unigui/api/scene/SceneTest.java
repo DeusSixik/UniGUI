@@ -5,6 +5,7 @@ import dev.sixik.unigui.api.math.Frustum3D;
 import dev.sixik.unigui.api.math.MutableMat4;
 import dev.sixik.unigui.api.math.MutableQuat;
 import dev.sixik.unigui.api.math.MutableVec3;
+import dev.sixik.unigui.api.render.shaders.ShaderHandle;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -19,6 +20,49 @@ class SceneTest {
     // Допуск округления мировой точки до float после композиции нескольких матриц.
     private static final float EPS = 1e-5f;
     private static final Aabb UNIT_BOUNDS = new Aabb(-1, -1, -1, 1, 1, 1);
+
+    /** Confirms that changing render inputs invalidates the graph only when the value changes. */
+    @Test
+    void sceneAndSurfaceSettings_changedValuesInvalidateCachedRender() {
+        SceneNode block = new BlockNode("minecraft:stone");
+        Scene scene = new Scene().addRoot(block);
+        long revision = scene.revision();
+        assertNull(scene.directionalShadows());
+        assertFalse(scene.minecraftBlockLighting());
+        assertTrue(block.castsShadow());
+        assertTrue(block.receivesShadow());
+
+        DirectionalShadows shadows = new DirectionalShadows(0, 1, 0, 8);
+        SceneMaterialEffect effect = new SceneMaterialEffect(ShaderHandle.fragmentSource("test:surface", "void example() {}"));
+        scene.setDirectionalShadows(shadows).setMinecraftBlockLighting(true).setMaterialTime(2);
+        block.setCastShadow(false).setReceiveShadow(false).setMaterialEffect(effect);
+        assertEquals(revision + 6, scene.revision());
+        assertSame(shadows, scene.directionalShadows());
+        assertSame(effect, block.materialEffect());
+        assertEquals(2, scene.materialTime(), EPS);
+
+        scene.setDirectionalShadows(new DirectionalShadows(0, 1, 0, 8))
+                .setMinecraftBlockLighting(true).setMaterialTime(2);
+        block.setCastShadow(false).setReceiveShadow(false).setMaterialEffect(effect);
+        assertEquals(revision + 6, scene.revision());
+        assertThrows(IllegalArgumentException.class, () -> scene.setMaterialTime(Float.NaN));
+        assertEquals(revision + 6, scene.revision());
+
+        scene.setDirectionalShadows(null);
+        block.setMaterialEffect(null);
+        assertEquals(revision + 8, scene.revision());
+    }
+
+    /** Rejects settings that cannot produce a finite projection or valid shadow comparison. */
+    @Test
+    void directionalShadows_invalidSettingsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(Float.NaN, 0, 0, 8));
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(0, 0, 0, Float.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(0, 0, 0, 8, 127, 0, 1));
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(0, 0, 0, 8, 1024, -0.01f, 1));
+        assertThrows(IllegalArgumentException.class, () -> new DirectionalShadows(0, 0, 0, 8, 1024, 0, 1.01f));
+    }
 
     @Test
     void worldMatrix_parentRotationScaleAndTranslation_composeWithChildPose() {

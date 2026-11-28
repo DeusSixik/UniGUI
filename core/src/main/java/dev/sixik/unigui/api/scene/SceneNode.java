@@ -44,7 +44,7 @@ import java.util.Objects;
 @WikiExample(title = "Supply custom object hover geometry", code = """
         SceneNode node = new SceneNode() {
             private final HoverHighlight highlight = new HoverHighlight(outlineMesh, outlineMaterial);
-
+        
             @Override
             public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
                 return highlight;
@@ -75,7 +75,7 @@ import java.util.Objects;
         examples = @AiDoc.Example(title = "Supply custom object hover geometry", code = """
                 SceneNode node = new SceneNode() {
                     private final HoverHighlight highlight = new HoverHighlight(outlineMesh, outlineMaterial);
-
+                
                     @Override
                     public HoverHighlight hoverHighlight(Vec3View cellOrigin) {
                         return highlight;
@@ -150,6 +150,30 @@ public class SceneNode {
      * Surface settings for the mesh.
      */
     private Material material = Material.DEFAULT;
+    /**
+     * Base GLSL function for this node's indexed surfaces on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3, or null.
+     */
+    private SceneMaterialEffect materialEffect;
+    /**
+     * Scheduled override for the base effect, or null.
+     */
+    private SceneMaterialEffect timelineMaterialEffect;
+    /**
+     * Shader time in local timeline seconds while {@link #timelineMaterialEffect} is set.
+     */
+    private float timelineMaterialTime;
+    /**
+     * Whether a completed material clip hides the node and its subtree.
+     */
+    private boolean hiddenByMaterialEffect;
+    /**
+     * Whether opaque and cutout indexed surfaces of this node enter the shadow map.
+     */
+    private boolean castsShadow = true;
+    /**
+     * Whether indexed surfaces of this node sample the scene's shadow map.
+     */
+    private boolean receivesShadow = true;
     /**
      * Explicit content bounds, or null to derive bounds from the content.
      */
@@ -228,7 +252,7 @@ public class SceneNode {
      *
      * @param child node to move.
      * @return this node.
-     * @throws NullPointerException if child is null.
+     * @throws NullPointerException     if child is null.
      * @throws IllegalArgumentException if adding the child would create a cycle.
      */
     @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 50,
@@ -491,7 +515,7 @@ public class SceneNode {
     }
 
     /**
-     * Reads this node's own visibility flag.
+     * Reads the node's visibility after any scheduled material effect has been applied.
      *
      * @return true if this node allows its subtree to be visited.
      */
@@ -501,7 +525,7 @@ public class SceneNode {
     @AiDoc(section = "Transforms and visibility", sectionOrder = 20, order = 120,
             summary = "Reads this node's own visibility flag.")
     public final boolean visible() {
-        return visible;
+        return visible && !hiddenByMaterialEffect;
     }
 
     /**
@@ -529,7 +553,7 @@ public class SceneNode {
      *
      * @return immutable geometry, or null.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 10,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 10,
             summary = "Reads the mesh.")
     @WikiReturn("immutable geometry, or null")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 10,
@@ -544,7 +568,7 @@ public class SceneNode {
      * @param mesh geometry in node coordinates, or null to remove it.
      * @return this node.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 20,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 20,
             summary = "Replaces this node's geometry.")
     @WikiReturn("this node")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 20,
@@ -563,7 +587,7 @@ public class SceneNode {
      *
      * @return the mesh material.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 30,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 30,
             summary = "Reads the surface settings.")
     @WikiReturn("the mesh material")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 30,
@@ -573,13 +597,115 @@ public class SceneNode {
     }
 
     /**
+     * @return the current surface effect, including any scheduled override, or null for the default shader
+     */
+    public final SceneMaterialEffect materialEffect() {
+        return timelineMaterialEffect != null ? timelineMaterialEffect : materialEffect;
+    }
+
+    /**
+     * Resolves the clock used by the current surface effect in both color and shadow passes.
+     *
+     * @param sceneSeconds fallback time in seconds supplied by the scene
+     * @return local shader time from a scheduled effect, or {@code sceneSeconds} for the base effect
+     */
+    public final float materialEffectTime(float sceneSeconds) {
+        return timelineMaterialEffect != null ? timelineMaterialTime : sceneSeconds;
+    }
+
+    /**
+     * Assigns a base surface shader to this node's mesh, baked blocks and supported native models on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     *
+     * @param effect effect and parameters, or null for the default shader
+     * @return this node
+     */
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, summary = "<key:scene.node.api.set.material.effect.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @AiDoc(section = "Geometry and picking", summary = "Assigns a GLSL surface effect to meshes, baked blocks and supported item and entity models on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
+    public final SceneNode setMaterialEffect(
+            @WikiParameter(description = "<key:scene.node.api.set.material.effect.param.effect>") SceneMaterialEffect effect) {
+        if (!Objects.equals(materialEffect, effect)) {
+            materialEffect = effect;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
+     * Applies a scheduled surface and visibility override while preserving the base properties.
+     *
+     * @param effect  timed surface effect, or null to release the surface override
+     * @param seconds finite local timeline time used by the shader, or zero if effect is null
+     * @param hide    true to suppress this node and its subtree until another sample releases it
+     */
+    final void setTimelineMaterialEffect(SceneMaterialEffect effect, float seconds, boolean hide) {
+        if (!Objects.equals(timelineMaterialEffect, effect) || timelineMaterialTime != seconds
+                || hiddenByMaterialEffect != hide) {
+            timelineMaterialEffect = effect;
+            timelineMaterialTime = seconds;
+            hiddenByMaterialEffect = hide;
+            invalidateContent();
+        }
+    }
+
+    /**
+     * @return whether this node's indexed opaque or cutout surfaces cast shadows
+     */
+    public final boolean castsShadow() {
+        return castsShadow;
+    }
+
+    /**
+     * Controls shadow casting for this node's indexed surfaces. Descendants own their own settings.
+     *
+     * @param enabled true to include opaque and cutout surfaces in the shadow pass
+     * @return this node
+     */
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 40, summary = "<key:scene.node.api.set.cast.shadow.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @AiDoc(section = "Lighting", summary = "Controls shadow casting by the node's indexed opaque and cutout surfaces.")
+    public final SceneNode setCastShadow(
+            @WikiParameter(description = "<key:scene.node.api.set.cast.shadow.param.enabled>") boolean enabled) {
+        if (castsShadow != enabled) {
+            castsShadow = enabled;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether this node's indexed surfaces receive shadows
+     */
+    public final boolean receivesShadow() {
+        return receivesShadow;
+    }
+
+    /**
+     * Controls shadow reception for this node's indexed surfaces. Descendants own their own settings.
+     *
+     * @param enabled true to apply directional shadows to this node
+     * @return this node
+     */
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 40, summary = "<key:scene.node.api.set.receive.shadow.summary>")
+    @WikiReturn("<key:scene.api.return.node>")
+    @AiDoc(section = "Lighting", summary = "Controls directional shadow reception by the node's indexed surfaces.")
+    public final SceneNode setReceiveShadow(
+            @WikiParameter(description = "<key:scene.node.api.set.receive.shadow.param.enabled>") boolean enabled) {
+        if (receivesShadow != enabled) {
+            receivesShadow = enabled;
+            invalidateContent();
+        }
+        return this;
+    }
+
+    /**
      * Replaces the surface settings.
      *
      * @param material new mesh material.
      * @return this node.
      * @throws NullPointerException if material is null.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 40,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 40,
             summary = "Replaces the surface settings.")
     @WikiReturn("this node")
     @WikiThrows(type = NullPointerException.class, description = "if material is null.")
@@ -600,7 +726,7 @@ public class SceneNode {
      *
      * @return the explicit AABB, derived content bounds, or null when neither is available.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 50,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 50,
             summary = "Reads the local bounds of this node's own content.")
     @WikiReturn("the explicit AABB, derived content bounds, or null when neither is available")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 50,
@@ -622,9 +748,9 @@ public class SceneNode {
     /**
      * Tests content represented by bounds or unit cells.
      *
-     * @param ray node-local ray.
-     * @param entry ray parameter at entry into the node bounds.
-     * @param limit maximum ray parameter for the search.
+     * @param ray        node-local ray.
+     * @param entry      ray parameter at entry into the node bounds.
+     * @param limit      maximum ray parameter for the search.
      * @param cellOrigin output for the lower cell corner. Leave it as NaN for an ordinary object hit.
      * @return nearest hit parameter, or positive infinity for a miss. Mesh triangles are tested separately.
      */
@@ -638,10 +764,10 @@ public class SceneNode {
      * external highlight data changes to refresh it under a stationary pointer.
      *
      * @param cellOrigin lower corner of the hit cell in node coordinates, or null for an object hit.
-     * The view is valid only during the call.
+     *                   The view is valid only during the call.
      * @return custom geometry and material, or null for the default AABB frame or cell highlight.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 70,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 70,
             summary = "Supplies a custom hover highlight. The viewport calls this on the UI thread when highlighting for the hit type is enabled. Reuse the result if possible and call `invalidateContent()` after external highlight data changes to refresh it under a stationary pointer.")
     @WikiReturn("custom geometry and material, or null for the default AABB frame or cell highlight")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 70,
@@ -656,14 +782,14 @@ public class SceneNode {
     /**
      * Geometry and material rendered against the scene depth buffer.
      *
-     * @param mesh geometry in node-local axes, relative to the hit cell corner or the node origin.
+     * @param mesh     geometry in node-local axes, relative to the hit cell corner or the node origin.
      * @param material highlight material.
      */
     public record HoverHighlight(Mesh3D mesh, Material material) {
         /**
          * Validates the mesh and material.
          *
-         * @param mesh geometry in local scene units.
+         * @param mesh     geometry in local scene units.
          * @param material highlight material.
          * @throws NullPointerException if mesh or material is null.
          */
@@ -679,7 +805,7 @@ public class SceneNode {
      * @param bounds local AABB, or null to use derived content bounds.
      * @return this node.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 60,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 60,
             summary = "Overrides the bounds used for culling and picking this node's content.")
     @WikiReturn("this node")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 60,
@@ -696,7 +822,7 @@ public class SceneNode {
     /**
      * Marks external node content as changed, for example after editing a texture or subclass data.
      */
-    @WikiMethod(section = "Geometry and picking", sectionOrder = 30, order = 80,
+    @WikiMethod(section = "<key:scene.api.section.geometry>", sectionOrder = 30, order = 80,
             summary = "Marks external node content as changed, for example after editing a texture or subclass data.")
     @AiDoc(section = "Geometry and picking", sectionOrder = 30, order = 80,
             summary = "Marks external node content as changed, for example after editing a texture or subclass data.")
@@ -735,7 +861,7 @@ public class SceneNode {
     /**
      * Finds the next node in a nonrecursive preorder traversal.
      *
-     * @param root traversal boundary, this node or an ancestor.
+     * @param root    traversal boundary, this node or an ancestor.
      * @param descend whether to visit the current node's children first.
      * @return next node, or null at the end of the subtree.
      */

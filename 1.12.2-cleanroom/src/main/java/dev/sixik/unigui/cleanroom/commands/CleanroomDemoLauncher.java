@@ -1,6 +1,5 @@
 package dev.sixik.unigui.cleanroom.commands;
 
-import dev.sixik.unigui.backend.shared.LegacyFurnaceDemo;
 import dev.sixik.unigui.backend.shared.LegacySceneDemo;
 import dev.sixik.unigui.api.scene.BlockNode;
 import dev.sixik.unigui.demo.ui.DockingWindowsDemoScreen;
@@ -21,12 +20,6 @@ import dev.sixik.unigui.demo.ui.WrenchNutMinigameScreen;
 import dev.sixik.unigui.demo.ui.unity.UnityInspectorScreen;
 import dev.sixik.unigui.demo.ui_tests.TestWidgetsScreen;
 import net.minecraft.client.Minecraft;
-import net.minecraft.block.BlockFurnace;
-import net.minecraft.block.BlockStoneBrick;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
 
 import java.util.List;
 import java.util.Locale;
@@ -78,22 +71,9 @@ public final class CleanroomDemoLauncher {
             case "culling" -> MarkerCullingDemoScreen.open();
             case "scaling" -> MarkerScalingDemoScreen.open();
             case "scene" -> LegacySceneDemo.open(() -> new BlockNode("minecraft:furnace[facing=south]"));
-            case "furnace" -> openFurnace();
+            case "furnace" -> CleanroomFurnaceDemo.open();
             default -> throw new IllegalArgumentException("Unknown UniGUI demo: " + name);
         }
     }
 
-    /**
-     * Opens the shared tutorial using 1.12.2 baked block models and icons.
-     */
-    private static void openFurnace() {
-        var cold = Blocks.FURNACE.getDefaultState().withProperty(BlockFurnace.FACING, EnumFacing.SOUTH);
-        var lit = Blocks.LIT_FURNACE.getDefaultState().withProperty(BlockFurnace.FACING, EnumFacing.SOUTH);
-        var bricks = Blocks.STONEBRICK.getDefaultState();
-        var centerTile = bricks.withProperty(BlockStoneBrick.VARIANT, BlockStoneBrick.EnumType.CHISELED);
-        var furnace = BlockNode.of(cold);
-        LegacyFurnaceDemo.open(center -> BlockNode.of(center ? centerTile : bricks),
-                furnace, burning -> furnace.setState(burning ? lit : cold),
-                new ItemStack(Blocks.STONEBRICK), new ItemStack(Blocks.FURNACE), new ItemStack(Items.COAL));
-    }
 }

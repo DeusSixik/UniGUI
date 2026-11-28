@@ -4,10 +4,17 @@ import dev.sixik.unigui.api.render.ManagedRenderTarget;
 import dev.sixik.unigui.api.render.RenderTargetOptions;
 import dev.sixik.unigui.api.render.TextureHandle;
 import dev.sixik.unigui.api.render.TextureOptions;
+import dev.sixik.unigui.backend.minecraft_impl.GlScenePlatform;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.shader.Framebuffer;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL30;
 
 import java.nio.IntBuffer;
 import java.util.Objects;
@@ -23,10 +30,14 @@ import java.util.Objects;
  * testing as a side effect; every call here goes through {@link Guard} so the caller's state survives. Render thread
  * only.</p>
  */
-public final class CleanroomRenderTarget implements ManagedRenderTarget {
+public final class CleanroomRenderTarget implements ManagedRenderTarget, GlScenePlatform.Target {
     private final RenderTargetOptions options;
     private final ColorTextureHandle colorTexture = new ColorTextureHandle(this);
     private Framebuffer framebuffer;
+    /**
+     * Sampleable depth for shader scene targets, or zero for ordinary UI targets.
+     */
+    private int sceneDepth;
     private int width;
     private int height;
     private boolean disposed;
@@ -48,6 +59,7 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
         try {
             framebuffer = new Framebuffer(this.width, this.height, this.options.useDepth());
             framebuffer.setFramebufferColor(0.0f, 0.0f, 0.0f, 0.0f);
+            attachSceneDepth();
         } finally {
             guard.restore();
         }
@@ -76,8 +88,10 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
         if (w == width && h == height) return;
         Guard guard = Guard.capture();
         try {
+            deleteSceneDepth();
             framebuffer.createBindFramebuffer(w, h);
             framebuffer.setFramebufferColor(0.0f, 0.0f, 0.0f, 0.0f);
+            attachSceneDepth();
         } finally {
             guard.restore();
         }
@@ -96,10 +110,76 @@ public final class CleanroomRenderTarget implements ManagedRenderTarget {
         disposed = true;
         Guard guard = Guard.capture();
         try {
+            deleteSceneDepth();
             framebuffer.deleteFramebuffer();
         } finally {
             guard.restore();
         }
+    }
+
+    /**
+     * Creates a sampleable depth attachment for scene post effects.
+     */
+    private void attachSceneDepth() {
+        if (!options.useDepth() || options.clearBeforeRender() || !GL.getCapabilities().OpenGL32) return;
+        int oldTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int unpack = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        sceneDepth = GL11.glGenTextures();
+        try {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+            GlStateManager.bindTexture(sceneDepth);
+            GlStateManager.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL14.GL_DEPTH_COMPONENT24,
+                    framebuffer.framebufferWidth, framebuffer.framebufferHeight, 0,
+                    GL11.GL_DEPTH_COMPONENT, GL11.GL_UNSIGNED_INT, null);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+            framebuffer.bindFramebuffer(false);
+            GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL11.GL_TEXTURE_2D, sceneDepth, 0);
+            framebuffer.checkFramebufferComplete();
+            OpenGlHelper.glDeleteRenderbuffers(framebuffer.depthBuffer);
+            framebuffer.depthBuffer = -1;
+        } catch (RuntimeException | Error failure) {
+            deleteSceneDepth();
+            throw failure;
+        } finally {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, unpack);
+            GlStateManager.bindTexture(oldTexture);
+        }
+    }
+
+    /**
+     * Releases the separately owned scene depth attachment.
+     */
+    private void deleteSceneDepth() {
+        if (sceneDepth != 0) GlStateManager.deleteTexture(sceneDepth);
+        sceneDepth = 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int color() {
+        return textureId();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int depth() {
+        return sceneDepth;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void bind() {
+        ensureAlive();
+        framebuffer.bindFramebuffer(true);
     }
 
     RenderTargetOptions options() {

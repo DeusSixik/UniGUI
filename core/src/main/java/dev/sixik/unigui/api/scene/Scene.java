@@ -31,6 +31,13 @@ import java.util.function.Consumer;
         Traversal is depth-first in insertion order. A hidden parent hides descendants. A node whose own bounds are
         culled can still have visible children. The default lighting is white ambient light with unit intensity.
         """)
+@WikiSection(title = "<key:scene.section.shadows.title>", order = 30, markdown = "<key:scene.section.shadows.body>")
+@WikiExample(title = "<key:scene.example.directional.shadows.title>", code = """
+        scene.setAmbientLight(new AmbientLight(0xD7E7FF, 0.6f))
+             .setDirectionalLight(new DirectionalLight(-1, -2, 1, 0xFFF1DC, 0.8f))
+             .setDirectionalShadows(new DirectionalShadows(0, 2, 0, 12))
+             .setMinecraftBlockLighting(true);
+        """)
 @WikiExample(title = "Add a group with a light source", code = """
         Scene scene = new Scene();
         SceneNode group = new SceneNode().setPosition(2, 0, 0);
@@ -42,6 +49,8 @@ import java.util.function.Consumer;
 @WikiLink(label = "SceneNode", target = "page:scene-node")
 @WikiLink(label = "AmbientLight", target = "page:scene-ambient-light")
 @WikiLink(label = "DirectionalLight", target = "page:scene-directional-light")
+@WikiLink(label = "LightNode", target = "page:scene-light-node")
+@WikiLink(label = "FogVolume", target = "page:scene-fog-volume")
 @AiDoc(
         summary = "Scene graph that owns root nodes and shared lighting.",
         purpose = "Manage scene content independently of the widget that displays it.",
@@ -49,9 +58,10 @@ import java.util.function.Consumer;
                 "Read and mutate the scene on the UI thread.",
                 "Reparenting retains the local transform. A root node reports null from `parent()` and the owning graph from `scene()`.",
                 "Do not mutate the scene inside `visitVisible` callbacks.",
-                "Scene lights apply to custom LIT meshes. Minecraft content uses vanilla or baked lighting."
+                "Scene lights apply to custom LIT meshes and optionally to baked Minecraft blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.",
+                "On these versions set directional shadows to let baked blocks and custom meshes cast shadows on each other."
         },
-        related = {"Scene3D", "SceneNode", "AmbientLight", "DirectionalLight"},
+        related = {"Scene3D", "SceneNode", "AmbientLight", "DirectionalLight", "LightNode", "FogVolume"},
         examples = @AiDoc.Example(title = "Add a group with a light source", code = """
                 Scene scene = new Scene();
                 SceneNode group = new SceneNode().setPosition(2, 0, 0);
@@ -69,6 +79,18 @@ public final class Scene {
      */
     private long revision;
     /**
+     * Optional light-space shadow volume for the directional light.
+     */
+    private DirectionalShadows directionalShadows;
+    /**
+     * Whether baked Minecraft geometry uses the scene lights on supported renderers.
+     */
+    private boolean minecraftBlockLighting;
+    /**
+     * Timeline time supplied to scene surface functions, in seconds.
+     */
+    private float materialTime;
+    /**
      * Shared ambient light for materials using LIT shading.
      */
     private AmbientLight ambientLight = AmbientLight.WHITE;
@@ -76,6 +98,15 @@ public final class Scene {
      * Shared directional light, or null when disabled.
      */
     private DirectionalLight directionalLight;
+    /**
+     * Number of nested {@link #renderUnlit(Runnable)} passes in progress. While positive, the lighting getters
+     * report a flat setup and {@link #visitVisible} skips light nodes. It is not part of the revision.
+     */
+    private int unlitPasses;
+    /**
+     * Wireframe settings of the {@link #renderWireframe} pass in progress, or null. It is not part of the revision.
+     */
+    private SceneWireframe wireframe;
 
     /**
      * Creates an empty scene with white ambient light.
@@ -155,13 +186,13 @@ public final class Scene {
      *
      * @return the ambient light settings.
      */
-    @WikiMethod(section = "Lighting", sectionOrder = 20, order = 10,
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, order = 10,
             summary = "Reads the ambient light.")
     @WikiReturn("the ambient light settings")
     @AiDoc(section = "Lighting", sectionOrder = 20, order = 10,
             summary = "Reads the ambient light.")
     public AmbientLight ambientLight() {
-        return ambientLight;
+        return unlitPasses > 0 ? AmbientLight.WHITE : ambientLight;
     }
 
     /**
@@ -174,7 +205,7 @@ public final class Scene {
      * @return this scene.
      * @throws NullPointerException if light is null.
      */
-    @WikiMethod(section = "Lighting", sectionOrder = 20, order = 20,
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, order = 20,
             summary = "Updates ambient light for custom meshes using `Material.Shading#LIT`.")
     @WikiReturn("this scene")
     @WikiThrows(type = NullPointerException.class, description = "if light is null.")
@@ -195,13 +226,13 @@ public final class Scene {
      *
      * @return the directional light, or null.
      */
-    @WikiMethod(section = "Lighting", sectionOrder = 20, order = 30,
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, order = 30,
             summary = "Reads the directional light.")
     @WikiReturn("the directional light, or null")
     @AiDoc(section = "Lighting", sectionOrder = 20, order = 30,
             summary = "Reads the directional light.")
     public DirectionalLight directionalLight() {
-        return directionalLight;
+        return unlitPasses > 0 ? null : directionalLight;
     }
 
     /**
@@ -210,7 +241,7 @@ public final class Scene {
      * @param light directional light settings, or null to disable it.
      * @return this scene.
      */
-    @WikiMethod(section = "Lighting", sectionOrder = 20, order = 40,
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, order = 40,
             summary = "Updates directional light for custom meshes using `Material.Shading#LIT`.")
     @WikiReturn("this scene")
     @AiDoc(section = "Lighting", sectionOrder = 20, order = 40,
@@ -225,13 +256,92 @@ public final class Scene {
     }
 
     /**
+     * @return settings for the directional light's shadow map, or null if disabled
+     */
+    public DirectionalShadows directionalShadows() {
+        return unlitPasses > 0 ? null : directionalShadows;
+    }
+
+    /**
+     * Configures directional shadows for indexed meshes and baked blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     *
+     * @param shadows shadow volume and quality settings, or null to disable the shadow pass
+     * @return this scene
+     */
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, summary = "<key:scene.api.set.directional.shadows.summary>")
+    @WikiReturn("<key:scene.api.return.scene>")
+    @AiDoc(section = "Lighting", summary = "Configures a directional shadow volume for custom meshes and baked blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.")
+    public Scene setDirectionalShadows(
+            @WikiParameter(description = "<key:scene.api.set.directional.shadows.param.shadows>") DirectionalShadows shadows) {
+        if (!Objects.equals(directionalShadows, shadows)) {
+            directionalShadows = shadows;
+            changed();
+        }
+        return this;
+    }
+
+    /**
+     * @return whether baked blocks opt into scene lighting
+     */
+    public boolean minecraftBlockLighting() {
+        return unlitPasses <= 0 && minecraftBlockLighting;
+    }
+
+    /**
+     * Uses the scene ambient and directional lights for baked Minecraft blocks on Cleanroom 1.12.2 and Minecraft 1.20.1, 1.21.1 and 26.3.
+     *
+     * @param enabled true to use the scene lights with Minecraft's texture tint and ambient occlusion
+     * @return this scene
+     */
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, summary = "<key:scene.api.set.minecraft.block.lighting.summary>")
+    @WikiReturn("<key:scene.api.return.scene>")
+    @AiDoc(section = "Lighting", summary = "Uses scene lights for baked Minecraft blocks while preserving biome tint and ambient occlusion.")
+    public Scene setMinecraftBlockLighting(
+            @WikiParameter(description = "<key:scene.api.set.minecraft.block.lighting.param.enabled>") boolean enabled) {
+        if (minecraftBlockLighting != enabled) {
+            minecraftBlockLighting = enabled;
+            changed();
+        }
+        return this;
+    }
+
+    /**
+     * @return the time in seconds passed to material effects
+     */
+    public float materialTime() {
+        return materialTime;
+    }
+
+    /**
+     * Supplies material effect time from a timeline or another application clock.
+     * Changing the time invalidates the scene, including on-change viewports.
+     *
+     * @param seconds finite time in seconds
+     * @return this scene
+     * @throws IllegalArgumentException if seconds is nonfinite
+     */
+    @WikiMethod(section = "<key:scene.api.section.lighting>", sectionOrder = 20, summary = "<key:scene.api.set.material.time.summary>")
+    @WikiReturn("<key:scene.api.return.scene>")
+    @WikiThrows(type = IllegalArgumentException.class, description = "<key:scene.api.throws.nonfinite.time>")
+    @AiDoc(section = "Lighting", summary = "Sets the GLSL material time in seconds and invalidates cached rendering on change.")
+    public Scene setMaterialTime(
+            @WikiParameter(description = "<key:scene.api.set.material.time.param.seconds>") float seconds) {
+        if (!Float.isFinite(seconds)) throw new IllegalArgumentException("Material time must be finite");
+        if (materialTime != seconds) {
+            materialTime = seconds;
+            changed();
+        }
+        return this;
+    }
+
+    /**
      * Visits visible nodes depth-first in insertion order. Hiding a node hides its subtree.
      * Frustum culling tests each node's own AABB and checks its children independently.
      * Unbounded nodes, including groups, are passed to the visitor.
      *
      * @param frustum view volume, or null to skip frustum culling.
      * @param visitor callback invoked synchronously for each visible node.
-     * @throws NullPointerException if visitor is null.
+     * @throws NullPointerException            if visitor is null.
      * @throws ConcurrentModificationException if the visitor modifies the scene.
      */
     @WikiMethod(section = "Hierarchy", sectionOrder = 10, order = 60,
@@ -250,7 +360,8 @@ public final class Scene {
         SceneNode node = root.nextInSubtree(root, true);
         while (node != null) {
             boolean visible = node.visible();
-            if (visible && (frustum == null || node.intersects(frustum))) {
+            if (visible && !(unlitPasses > 0 && node instanceof LightNode)
+                    && (frustum == null || node.intersects(frustum))) {
                 visitor.accept(node);
                 if (revision != expectedRevision) {
                     throw new ConcurrentModificationException("Scene modified during traversal");
@@ -258,6 +369,58 @@ public final class Scene {
             }
             node = node.nextInSubtree(root, visible);
         }
+    }
+
+    /**
+     * Runs a render pass that sees the scene without lighting, for example an editor viewport with lights turned off.
+     *
+     * <p>During the pass the ambient light reads as {@link AmbientLight#WHITE}, the directional light and its
+     * shadows read as null, baked blocks use their own lighting and {@link #visitVisible} skips every
+     * {@link LightNode}. The stored settings and the revision do not change, so other viewports keep the lit
+     * result. The pass must run synchronously on the render thread.</p>
+     *
+     * @param pass renderer call that reads the scene
+     * @throws NullPointerException if pass is null
+     */
+    public void renderUnlit(Runnable pass) {
+        Objects.requireNonNull(pass, "pass");
+        unlitPasses++;
+        try {
+            pass.run();
+        } finally {
+            unlitPasses--;
+        }
+    }
+
+    /**
+     * Runs a render pass that draws the scene as a wireframe, for example an editor viewport in Wireframe mode.
+     *
+     * <p>During the pass {@link #wireframe()} returns the settings; renderers that support it draw the edges of
+     * the geometry they render. The stored scene and its revision do not change, so other viewports keep the
+     * filled result. Passes nest: the innermost settings apply. The pass must run synchronously on the render
+     * thread.</p>
+     *
+     * @param settings edge colors and whether surfaces stay visible
+     * @param pass     renderer call that reads the scene
+     * @throws NullPointerException if an argument is null
+     */
+    public void renderWireframe(SceneWireframe settings, Runnable pass) {
+        Objects.requireNonNull(settings, "settings");
+        Objects.requireNonNull(pass, "pass");
+        SceneWireframe previous = wireframe;
+        wireframe = settings;
+        try {
+            pass.run();
+        } finally {
+            wireframe = previous;
+        }
+    }
+
+    /**
+     * @return wireframe settings of the render pass in progress, or null to draw filled surfaces only
+     */
+    public SceneWireframe wireframe() {
+        return wireframe;
     }
 
     /**

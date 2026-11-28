@@ -1,6 +1,5 @@
 package dev.sixik.unigui.demo.ui.scene;
 
-import dev.sixik.unigui.api.animation.AnimationClock;
 import dev.sixik.unigui.api.core.FrameContext;
 import dev.sixik.unigui.api.event.EventPhase;
 import dev.sixik.unigui.api.event.PointerPressedEvent;
@@ -12,6 +11,7 @@ import dev.sixik.unigui.api.math.MutableColor;
 import dev.sixik.unigui.api.math.MutableRect;
 import dev.sixik.unigui.api.math.RectView;
 import dev.sixik.unigui.api.render.RenderContext;
+import dev.sixik.unigui.api.scene.ScenePlaybackController;
 import dev.sixik.unigui.api.style.StyleKeys;
 import dev.sixik.unigui.api.text.FontFace;
 import dev.sixik.unigui.api.text.RichText;
@@ -27,6 +27,7 @@ import dev.sixik.unigui.widgets.containers.VBox;
 import dev.sixik.unigui.widgets.core.Orientation;
 import dev.sixik.unigui.widgets.display.Label;
 import dev.sixik.unigui.widgets.interaction.Button;
+import dev.sixik.unigui.widgets.interaction.ComboBox;
 import dev.sixik.unigui.widgets.interaction.Slider;
 import dev.sixik.unigui.widgets.rendering.RenderToTexture;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
@@ -86,6 +87,10 @@ public final class SceneTutorialPlayer extends LinearBox {
      */
     private final Sequence sequence;
     /**
+     * Playback time and transport state for the current sequence.
+     */
+    private final ScenePlaybackController playback;
+    /**
      * Заголовок карточки текущего этапа.
      */
     private final Label caption = new Label();
@@ -126,17 +131,13 @@ public final class SceneTutorialPlayer extends LinearBox {
      */
     private int checkpoint = -1;
     /**
-     * Текущее время в секундах, включая кадр с конечным состоянием.
+     * Index of the material effect selected for the final checkpoint, with zero as the default.
      */
-    private float time;
+    private int selectedEffect;
     /**
      * Округлённое время, уже показанное в счётчике, в десятых долях секунды.
      */
     private int displayedTenths = -1;
-    /**
-     * Продвигается ли время вместе с UI-кадрами.
-     */
-    private boolean playing = true;
 
     /**
      * Привязывает элементы управления к одному времени воспроизведения.
@@ -146,16 +147,14 @@ public final class SceneTutorialPlayer extends LinearBox {
     public SceneTutorialPlayer(Sequence sequence) {
         super(Orientation.VERTICAL);
         this.sequence = sequence;
+        playback = new ScenePlaybackController(sequence.duration(), this::sampleFrame);
         timeSlider = new Slider().range(0, sequence.duration());
         markers = new Button[sequence.checkpoints().size()];
         spacing(9);
         background(MutableColor.fromArgb(0xFF0B111A));
         layout(style -> style.padding(16, 12).alignItems(Align.STRETCH));
 
-        Label title = new Label(RichText.of(sequence.title(), TITLE_FONT, 23, TEXT));
-        title.textAlignment(Alignment.START);
-        title.layout(style -> style.height(26).flexShrink(0));
-        addChild(title);
+        addChild(titleBar());
 
         Scene3D viewport = sequence.viewport();
         viewport.id("tutorial-scene");
@@ -163,7 +162,66 @@ public final class SceneTutorialPlayer extends LinearBox {
         viewport.clearColor().set(0, 0, 0, 0);
         addChild(workspace(viewport));
         addChild(controls());
-        sampleAt(0);
+        playback.replay();
+    }
+
+    /**
+     * Places the optional effect selector at the right of the tutorial title.
+     *
+     * @return the fixed-height header row
+     */
+    private HBox titleBar() {
+        HBox bar = new HBox();
+        bar.spacing(8);
+        bar.layout(style -> style.height(26).flexShrink(0).alignItems(Align.CENTER));
+        Label title = new Label(RichText.of(sequence.title(), TITLE_FONT, 23, TEXT));
+        title.id("tutorial-title");
+        title.textAlignment(Alignment.START);
+        title.layout(style -> style.width(0).height(26).flexGrow(1).overflow(Overflow.HIDDEN));
+        bar.addChild(title);
+        if (sequence.effects() != null) bar.addChild(effectSelector(sequence.effects()));
+        return bar;
+    }
+
+    /**
+     * Builds the effect dropdown using the same palette and typography as the playback controls.
+     *
+     * @param picker options for the final checkpoint
+     * @return a selector with the default preset selected
+     */
+    private ComboBox effectSelector(EffectPicker picker) {
+        ComboBox selector = new ComboBox().dropDownSameWidth().optionRowHeight(21)
+                .optionHoverBackground(HOVER);
+        selector.id("tutorial-effect");
+        selector.layout(style -> style.size(104, 24).flexShrink(0));
+        selector.richItems(picker.options().stream().map(option -> RichText.of(option.label(), UI_FONT, 11, TEXT)).toList());
+        selector.silentSelectedIndex(0);
+        Button header = selector.headerButton();
+        header.themeEnabled(false);
+        header.layout(style -> style.height(24));
+        header.background(BUTTON).border(BORDER).radius(4).textPaddingX(8)
+                .hoverBackground(HOVER).pressedBackground(ACTIVE).textColor(TEXT);
+        var popup = selector.optionsHost();
+        popup.themeEnabled(false);
+        popup.background(PANEL).border(BORDER).radius(6);
+        selector.onSelectionChanged(event -> selectEffect(picker, selector.selectedIndex()));
+        return selector;
+    }
+
+    /**
+     * Applies the selected effect and previews it at the current time or the configured preview frame.
+     *
+     * @param picker options for the final checkpoint
+     * @param index  index of the new option
+     */
+    private void selectEffect(EffectPicker picker, int index) {
+        selectedEffect = index;
+        picker.options().get(index).select().run();
+        float effectStart = sequence.checkpoints().get(markers.length - 1).seconds();
+        float time = playback.timeSeconds();
+        if (time <= effectStart || time >= sequence.duration()) pauseAt(picker.previewSeconds());
+        else playback.seek(time);
+        updateCheckpointText(sequence.checkpoints().get(checkpoint));
     }
 
     /**
@@ -222,16 +280,15 @@ public final class SceneTutorialPlayer extends LinearBox {
         playPause.id("tutorial-play");
         playPause.layout(style -> style.size(66, 19).flexShrink(0));
         playPause.onClick(event -> {
-            if (time == sequence.duration()) sampleAt(0);
-            setPlaying(!playing);
+            if (playback.playing()) playback.pause();
+            else if (playback.timeSeconds() == sequence.duration()) playback.replay();
+            else playback.play();
+            updatePlaybackButton();
         });
         Button replay = button("Replay");
         replay.id("tutorial-replay");
         replay.layout(style -> style.size(57, 19).flexShrink(0));
-        replay.onClick(event -> {
-            sampleAt(0);
-            setPlaying(true);
-        });
+        replay.onClick(event -> playback.replay());
 
         timeSlider.id("tutorial-time");
         timeSlider.themeEnabled(false);
@@ -240,10 +297,13 @@ public final class SceneTutorialPlayer extends LinearBox {
         timeSlider.knobColor().set(TEXT);
         timeSlider.style(style -> style.put(StyleKeys.TRACK_THICKNESS, 3f).put(StyleKeys.THUMB_THICKNESS, 5f));
         timeSlider.on(PointerPressedEvent.TYPE, event -> {
-            if (event.phase() == EventPhase.TARGET && event.button() == PointerButton.PRIMARY) setPlaying(false);
+            if (event.phase() == EventPhase.TARGET && event.button() == PointerButton.PRIMARY) {
+                playback.pause();
+                updatePlaybackButton();
+            }
         });
         timeSlider.onValueChanged(event -> {
-            if (event.newValue() != time) {
+            if (event.newValue() != playback.timeSeconds()) {
                 pauseAt(event.newValue());
             }
         });
@@ -282,22 +342,16 @@ public final class SceneTutorialPlayer extends LinearBox {
      */
     @Override
     public void tick(FrameContext frame) {
-        if (visible() && playing && frame != null) {
-            float delta = AnimationClock.sanitizeDelta(frame.deltaSeconds());
-            if (delta > 0) sampleAt(Math.min(sequence.duration(), time + delta));
-        }
+        if (visible() && frame != null) playback.update(frame.deltaSeconds());
         super.tick(frame);
     }
 
     /**
-     * Устанавливает воспроизведение и синхронизирует подпись кнопки.
-     *
-     * @param playing true для воспроизведения, false для паузы.
+     * Updates the button label to match the controller's playback state.
      */
-    private void setPlaying(boolean playing) {
-        if (this.playing == playing) return;
-        this.playing = playing;
-        playPause.richText(RichText.of(playing ? "Pause" : "Play", UI_FONT, 11));
+    private void updatePlaybackButton() {
+        String label = playback.playing() ? "Pause" : "Play";
+        if (!label.equals(playPause.text())) playPause.richText(RichText.of(label, UI_FONT, 11));
     }
 
     /**
@@ -306,8 +360,8 @@ public final class SceneTutorialPlayer extends LinearBox {
      * @param seconds время в пределах сценария.
      */
     private void pauseAt(float seconds) {
-        setPlaying(false);
-        sampleAt(seconds);
+        playback.pause();
+        playback.seek(seconds);
     }
 
     /**
@@ -315,9 +369,8 @@ public final class SceneTutorialPlayer extends LinearBox {
      *
      * @param seconds время в диапазоне от нуля до длительности сценария.
      */
-    private void sampleAt(float seconds) {
-        time = seconds;
-        if (seconds == sequence.duration()) setPlaying(false);
+    private void sampleFrame(float seconds) {
+        updatePlaybackButton();
         sequence.frame().sample(seconds);
         int next = markers.length - 1;
         while (next > 0 && seconds < sequence.checkpoints().get(next).seconds()) next--;
@@ -344,14 +397,25 @@ public final class SceneTutorialPlayer extends LinearBox {
         styleMarker(markers[next], true);
         Checkpoint point = sequence.checkpoints().get(next);
         stepLabel.richText(RichText.of("STEP " + (next + 1) + " / " + markers.length, UI_FONT, 10, ACCENT));
-        caption.richText(RichText.of(point.title(), TITLE_FONT, 16, TEXT));
-        details.richText(RichText.of(point.details(), UI_FONT, 11, MUTED));
+        updateCheckpointText(point);
         Box preview = point.icon().get();
         preview.background(BUTTON).border(BORDER).radius(6);
         preview.layout(style -> style.sizePercent(100, 100));
         icon.clearChildren();
         icon.addChild(preview);
         info.scrollTo(0, 0);
+    }
+
+    /**
+     * Shows the current checkpoint text, or the selected effect explanation at the final checkpoint.
+     *
+     * @param point active checkpoint
+     */
+    private void updateCheckpointText(Checkpoint point) {
+        EffectOption option = sequence.effects() != null && checkpoint == markers.length - 1
+                ? sequence.effects().options().get(selectedEffect) : null;
+        caption.richText(RichText.of(option == null ? point.title() : option.title(), TITLE_FONT, 16, TEXT));
+        details.richText(RichText.of(option == null ? point.details() : option.details(), UI_FONT, 11, MUTED));
     }
 
     /**
@@ -388,9 +452,25 @@ public final class SceneTutorialPlayer extends LinearBox {
      * @param checkpoints этапы по возрастанию времени. Первый начинается в нуле.
      * @param frame       восстанавливает состояние сцены для любого момента времени.
      * @param backdrop    подложка вьюпорта или null для стандартной сетки.
+     * @param effects     optional material effect picker for the final checkpoint, or null
      */
     public record Sequence(String title, Scene3D viewport, int duration, List<Checkpoint> checkpoints,
-                           FrameSampler frame, WidgetBase backdrop) {
+                           FrameSampler frame, WidgetBase backdrop, EffectPicker effects) {
+        /**
+         * Creates a scenario with a custom backdrop and no material effect picker.
+         *
+         * @param title       screen title
+         * @param viewport    scene widget with its nodes
+         * @param duration    positive duration in seconds
+         * @param checkpoints checkpoints in time order, starting at zero
+         * @param frame       sampler for an absolute time
+         * @param backdrop    viewport background, or null for the default grid
+         */
+        public Sequence(String title, Scene3D viewport, int duration, List<Checkpoint> checkpoints,
+                        FrameSampler frame, WidgetBase backdrop) {
+            this(title, viewport, duration, checkpoints, frame, backdrop, null);
+        }
+
         /**
          * Создаёт сценарий со стандартной подложкой.
          *
@@ -403,6 +483,26 @@ public final class SceneTutorialPlayer extends LinearBox {
         public Sequence(String title, Scene3D viewport, int duration, List<Checkpoint> checkpoints, FrameSampler frame) {
             this(title, viewport, duration, checkpoints, frame, null);
         }
+    }
+
+    /**
+     * Lists selectable effects for the final checkpoint of a tutorial.
+     *
+     * @param previewSeconds time in seconds within the final checkpoint for an immediate preview
+     * @param options        choices in display order, with the default first
+     */
+    public record EffectPicker(float previewSeconds, List<EffectOption> options) {
+    }
+
+    /**
+     * Describes one entry in the tutorial's material effect selector.
+     *
+     * @param label   dropdown label
+     * @param title   final checkpoint heading
+     * @param details final checkpoint description
+     * @param select  changes the effect used by the scenario's frame sampler
+     */
+    public record EffectOption(String label, String title, String details, Runnable select) {
     }
 
     /**

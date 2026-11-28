@@ -4,8 +4,17 @@ import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.scene.EntityNode;
 import dev.sixik.unigui.api.scene.ItemNode;
 import dev.sixik.unigui.backend.shared.LegacyBlockIds;
+import dev.sixik.unigui.backend.shared.LegacyChestModel;
+import dev.sixik.unigui.gtnh.mixins.early.SceneTileRendererAccess;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
+import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.tileentity.TileEntitySkull;
+import net.minecraft.client.model.ModelChest;
 import net.minecraft.client.renderer.ItemRenderer;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderBlocks;
@@ -13,12 +22,12 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EntityList;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +36,7 @@ import org.lwjgl.opengl.GL12;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -79,6 +89,10 @@ final class GtnhSceneContent {
      */
     private static final double PREVIEW_Y = 1024;
     /**
+     * Vanilla repeating texture for enchanted items.
+     */
+    private static final ResourceLocation GLINT = new ResourceLocation("textures/misc/enchanted_item_glint.png");
+    /**
      * Items whose drawing failed and is skipped from then on.
      */
     private static final Set<Item> BROKEN_ITEMS = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -87,9 +101,17 @@ final class GtnhSceneContent {
      */
     private static final Set<Class<?>> BROKEN_ENTITIES = Collections.newSetFromMap(new IdentityHashMap<>());
     /**
+     * Preview tile entity per block state, or null for states without a tile entity renderer.
+     */
+    private static final Map<GtnhScene.GtnhBlockState, TileEntity> BLOCK_ENTITIES = new HashMap<>();
+    /**
      * Block renderer for block items, created on first use.
      */
     private static RenderBlocks renderBlocks;
+    /**
+     * Closed vanilla model reused for chest stacks.
+     */
+    private static ModelChest chestModel;
 
     private GtnhSceneContent() {
     }
@@ -225,25 +247,32 @@ final class GtnhSceneContent {
         try {
             if (display == ItemNode.Display.GROUND) GL11.glScalef(GROUND_SCALE, GROUND_SCALE, GROUND_SCALE);
             if (isBlock3d(stack)) {
+                Block block = Block.getBlockFromItem(value);
+                String chestTexture = GtnhScene.chestTexture(block);
+                if (chestTexture != null) {
+                    drawChestItem(minecraft, chestTexture);
+                    return true;
+                }
                 minecraft.getTextureManager().bindTexture(minecraft.getTextureManager().getResourceLocation(0));
                 if (renderBlocks == null) renderBlocks = new RenderBlocks();
                 renderBlocks.useInventoryTint = true;
-                renderBlocks.renderBlockAsItem(Block.getBlockFromItem(value), stack.getItemDamage(), 1.0f);
+                renderBlocks.renderBlockAsItem(block, stack.getItemDamage(), 1.0f);
                 return true;
             }
-            minecraft.getTextureManager().bindTexture(
-                minecraft.getTextureManager().getResourceLocation(stack.getItemSpriteNumber()));
-            // renderItemIn2D builds the sprite in [0, 1] with its front at z = 0 read from -Z; turn it to +Z.
+            var itemAtlas = minecraft.getTextureManager().getResourceLocation(stack.getItemSpriteNumber());
+            // Undo the held-item renderer's mirrored U orientation and center the extrusion.
             GL11.glRotatef(180, 0, 1, 0);
             GL11.glTranslatef(-0.5f, -0.5f, FLAT_HALF_DEPTH);
             int passes = value.requiresMultipleRenderPasses() ? value.getRenderPasses(stack.getItemDamage()) : 1;
             for (int pass = 0; pass < passes; pass++) {
                 IIcon icon = value.getIcon(stack, pass);
                 if (icon == null) continue;
+                minecraft.getTextureManager().bindTexture(itemAtlas);
                 int color = value.getColorFromItemStack(stack, pass);
                 GL11.glColor4f((color >> 16 & 255) / 255f, (color >> 8 & 255) / 255f, (color & 255) / 255f, 1);
                 ItemRenderer.renderItemIn2D(Tessellator.instance, icon.getMaxU(), icon.getMinV(), icon.getMinU(),
-                    icon.getMaxV(), icon.getIconWidth(), icon.getIconHeight(), 0.0625f);
+                    icon.getMaxV(), icon.getIconWidth(), icon.getIconHeight(), 2 * FLAT_HALF_DEPTH);
+                if (stack.hasEffect(pass)) drawGlint(minecraft, icon.getIconWidth(), icon.getIconHeight());
             }
             GL11.glColor4f(1, 1, 1, 1);
             return true;
@@ -255,6 +284,71 @@ final class GtnhSceneContent {
             return false;
         } finally {
             unwind(depth);
+        }
+    }
+
+    /**
+     * Draws the inventory chest with the client texture manager, which is available before joining a world.
+     * The vanilla chest dispatcher only binds the texture after it has been initialized by a world render.
+     *
+     * @param minecraft client with the active resource textures
+     * @param texture   vanilla chest texture basename
+     */
+    private static void drawChestItem(Minecraft minecraft, String texture) {
+        minecraft.getTextureManager().bindTexture(new ResourceLocation(LegacyChestModel.textureId(texture)));
+        if (chestModel == null) chestModel = new ModelChest();
+        // The inventory rotation follows RenderBlocks. The translation and scale center the TESR coordinates.
+        GL11.glRotatef(90, 0, 1, 0);
+        GL11.glTranslatef(-0.5f, 0.5f, 0.5f);
+        GL11.glScalef(1, -1, -1);
+        chestModel.renderAll();
+    }
+
+    /**
+     * Draws vanilla's two scrolling foil layers. Equal depth clips foil to the sprite's visible pixels.
+     *
+     * @param minecraft client texture manager owner
+     * @param width     atlas sprite width in pixels
+     * @param height    atlas sprite height in pixels
+     */
+    private static void drawGlint(Minecraft minecraft, int width, int height) {
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT
+            | GL11.GL_CURRENT_BIT | GL11.GL_TEXTURE_BIT);
+        try {
+            GL11.glDepthFunc(GL11.GL_EQUAL);
+            GL11.glDepthMask(false);
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glEnable(GL11.GL_BLEND);
+            OpenGlHelper.glBlendFunc(GL11.GL_SRC_COLOR, GL11.GL_ONE, GL11.GL_ZERO, GL11.GL_ONE);
+            minecraft.getTextureManager().bindTexture(GLINT);
+            GL11.glColor4f(0.38f, 0.19f, 0.608f, 1);
+            long time = Minecraft.getSystemTime();
+            drawGlintLayer(width, height, (time % 3000) / 3000f, -50);
+            drawGlintLayer(width, height, -(time % 4873) / 4873f, 10);
+        } finally {
+            GL11.glPopAttrib();
+        }
+    }
+
+    /**
+     * Uses the vanilla texture transform {@code S(1/8) * T(8 * scroll,0) * R(angle)} on UVs.
+     *
+     * @param width  sprite width in pixels
+     * @param height sprite height in pixels
+     * @param scroll horizontal offset in texture repeats
+     * @param angle  rotation in degrees
+     */
+    private static void drawGlintLayer(int width, int height, float scroll, float angle) {
+        GL11.glMatrixMode(GL11.GL_TEXTURE);
+        GL11.glPushMatrix();
+        try {
+            GL11.glScalef(0.125f, 0.125f, 0.125f);
+            GL11.glTranslatef(scroll * 8, 0, 0);
+            GL11.glRotatef(angle, 0, 0, 1);
+            ItemRenderer.renderItemIn2D(Tessellator.instance, 0, 0, 1, 1, width, height, 2 * FLAT_HALF_DEPTH);
+        } finally {
+            GL11.glPopMatrix();
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
         }
     }
 
@@ -271,12 +365,23 @@ final class GtnhSceneContent {
         if (value == null || BROKEN_ENTITIES.contains(value.getClass()) || RenderManager.instance.renderEngine == null) {
             return false;
         }
-        if (node.hasHead()) applyHead(value, node);
+        var renderer = RenderManager.instance.getEntityRenderObject(value);
+        if (renderer == null) return false;
+        var pose = new GtnhEntityPose(value);
+        float lightX = OpenGlHelper.lastBrightnessX, lightY = OpenGlHelper.lastBrightnessY;
+        RenderManager manager = RenderManager.instance;
+        float viewX = manager.playerViewX, viewY = manager.playerViewY;
         int depth = GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH);
         GL11.glPushMatrix();
         try {
             GL11.glColor4f(1, 1, 1, 1);
-            RenderManager.instance.renderEntityWithPosYaw(value, 0, 0, 0, 0, partialTick);
+            // Billboards (fireballs, snowballs, name tags) turn by 180 - viewY around Y and -viewX around X towards
+            // the player's camera, unrelated to the scene camera. A fixed view turns them to +Z, where entities face.
+            manager.playerViewY = 180;
+            manager.playerViewX = 0;
+            GtnhSceneEntityLight.drawing = value;
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240, 240);
+            renderer.doRender(value, 0, 0, 0, 0, pose.apply(value, node, partialTick));
             return true;
         } catch (RuntimeException | LinkageError failure) {
             if (BROKEN_ENTITIES.add(value.getClass())) {
@@ -286,6 +391,11 @@ final class GtnhSceneContent {
             return false;
         } finally {
             unwind(depth);
+            pose.restore(value);
+            manager.playerViewX = viewX;
+            manager.playerViewY = viewY;
+            GtnhSceneEntityLight.drawing = null;
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
             // The hurt overlay enables texturing on the lightmap unit and leaves it on; the lightmap would then tint
             // everything drawn after the scene, like GuiInventory turns it off again.
             OpenGlHelper.setActiveTexture(OpenGlHelper.lightmapTexUnit);
@@ -297,21 +407,90 @@ final class GtnhSceneContent {
     }
 
     /**
-     * Turns the head relative to the body. Minecraft stores the absolute head yaw in degrees; the previous-tick
-     * values are set too, so interpolation does not swing the head.
+     * Tells whether a block is drawn, fully or in part, by a tile entity renderer: signs, skulls, the end portal,
+     * the enchanting table book. Chests are baked by {@link GtnhScene} instead.
      *
-     * @param entity entity to pose.
-     * @param node   node with the head angles in radians.
+     * @param nativeState state resolved by {@link GtnhScene}, or null.
+     * @return true if {@link #drawBlockEntity} has something to draw.
      */
-    private static void applyHead(Entity entity, EntityNode node) {
-        float pitch = (float) Math.toDegrees(node.headPitch());
-        entity.rotationPitch = pitch;
-        entity.prevRotationPitch = pitch;
-        if (entity instanceof EntityLivingBase living) {
-            float yaw = living.renderYawOffset + (float) Math.toDegrees(node.headYaw());
-            living.rotationYawHead = yaw;
-            living.prevRotationYawHead = yaw;
-            living.prevRenderYawOffset = living.renderYawOffset;
+    static boolean hasBlockEntity(Object nativeState) {
+        return nativeState instanceof GtnhScene.GtnhBlockState state && blockEntity(state) != null;
+    }
+
+    /**
+     * Creates the preview tile entity of a state once.
+     *
+     * @param state block and metadata.
+     * @return tile entity with a special renderer, or null.
+     */
+    private static TileEntity blockEntity(GtnhScene.GtnhBlockState state) {
+        if (BLOCK_ENTITIES.containsKey(state)) return BLOCK_ENTITIES.get(state);
+        Block block = state.block();
+        TileEntity created = null;
+        if (GtnhScene.chestTexture(block) == null && block.hasTileEntity(state.meta())) {
+            try {
+                TileEntity value = block.createTileEntity(Minecraft.getMinecraft().theWorld, state.meta());
+                if (value != null && TileEntityRendererDispatcher.instance.getSpecialRenderer(value) != null) {
+                    created = value;
+                }
+            } catch (RuntimeException | LinkageError failure) {
+                LOGGER.error("UniGUI could not create the tile entity of {} for a 3D scene",
+                    Block.blockRegistry.getNameForObject(block), failure);
+            }
+        }
+        BLOCK_ENTITIES.put(state, created);
+        return created;
+    }
+
+    /**
+     * Draws the tile entity part of a block with the block's corner at the origin, like the baked block geometry.
+     * The block and metadata are preset on the tile entity, so renderers do not look them up in a world.
+     *
+     * @param nativeState block state from {@link GtnhScene}.
+     * @param partialTick fraction of the current tick for animations.
+     * @return false if the block has no tile entity renderer or drawing failed.
+     */
+    static boolean drawBlockEntity(Object nativeState, float partialTick) {
+        var state = (GtnhScene.GtnhBlockState) nativeState;
+        TileEntity tile = blockEntity(state);
+        if (tile == null || BROKEN_ENTITIES.contains(tile.getClass())) return false;
+        TileEntityRendererDispatcher dispatcher = TileEntityRendererDispatcher.instance;
+        TileEntitySpecialRenderer renderer = dispatcher.getSpecialRenderer(tile);
+        if (renderer == null) return false;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        var fonts = (SceneTileRendererAccess) dispatcher;
+        TextureManager textures = dispatcher.field_147553_e;
+        FontRenderer font = fonts.unigui$font();
+        float lightX = OpenGlHelper.lastBrightnessX, lightY = OpenGlHelper.lastBrightnessY;
+        int depth = GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH);
+        GL11.glPushMatrix();
+        try {
+            // World rendering prepares the dispatcher; before the first world frame both are still missing.
+            if (textures == null) dispatcher.field_147553_e = minecraft.getTextureManager();
+            if (font == null) fonts.unigui$setFont(minecraft.fontRenderer);
+            tile.setWorldObj(minecraft.theWorld);
+            tile.xCoord = tile.yCoord = tile.zCoord = 0;
+            tile.blockType = state.block();
+            // Skull metadata 0 is unused; 1 stands on the floor like an unplaced skull.
+            tile.blockMetadata = tile instanceof TileEntitySkull && state.meta() == 0 ? 1 : state.meta();
+            GL11.glColor4f(1, 1, 1, 1);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240, 240);
+            renderer.renderTileEntityAt(tile, 0, 0, 0, partialTick);
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            if (BROKEN_ENTITIES.add(tile.getClass())) {
+                LOGGER.error("UniGUI could not draw tile entity {} in a 3D scene; it is skipped from now on",
+                    tile.getClass().getName(), failure);
+            }
+            return false;
+        } finally {
+            dispatcher.field_147553_e = textures;
+            fonts.unigui$setFont(font);
+            tile.setWorldObj(null);
+            unwind(depth);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
+            GL11.glColor4f(1, 1, 1, 1);
+            GL11.glEnable(GL11.GL_CULL_FACE);
         }
     }
 

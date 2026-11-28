@@ -1,12 +1,8 @@
 package dev.sixik.unigui.demo.ui.unity;
 
 import dev.sixik.unigui.api.core.FrameContext;
-import dev.sixik.unigui.api.event.EventPhase;
-import dev.sixik.unigui.api.event.PointerEvent;
-import dev.sixik.unigui.api.event.PointerExitedEvent;
-import dev.sixik.unigui.api.event.PointerMovedEvent;
-import dev.sixik.unigui.api.event.PointerPressedEvent;
-import dev.sixik.unigui.api.event.PointerReleasedEvent;
+import dev.sixik.unigui.api.event.*;
+import dev.sixik.unigui.api.input.KeyCodes;
 import dev.sixik.unigui.api.input.PointerButton;
 import dev.sixik.unigui.api.layout.Align;
 import dev.sixik.unigui.api.math.MutableMat4;
@@ -15,6 +11,8 @@ import dev.sixik.unigui.api.math.Ray;
 import dev.sixik.unigui.api.scene.Camera3D;
 import dev.sixik.unigui.api.scene.Scene;
 import dev.sixik.unigui.api.scene.SceneNode;
+import dev.sixik.unigui.api.scene.SceneWireframe;
+import dev.sixik.unigui.api.widget.Widget;
 import dev.sixik.unigui.demo.ui.scene.SceneTransformGizmo;
 import dev.sixik.unigui.widgets.containers.HBox;
 import dev.sixik.unigui.widgets.containers.LinearBox;
@@ -26,8 +24,10 @@ import dev.sixik.unigui.widgets.dnd.DragSession;
 import dev.sixik.unigui.widgets.interaction.Button;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Scene workspace with orbit controls, mesh picking and camera framing.
@@ -79,9 +79,49 @@ public final class UnityEditorSceneView extends LinearBox {
      */
     private final Button frameButton;
     /**
-     * Selected scene object, or null.
+     * Active scene object, or null.
      */
     private UnitySceneObject selected;
+    /**
+     * Every selected scene object, including the active one.
+     */
+    private List<UnitySceneObject> selectedObjects = List.of();
+    /**
+     * Top bar settings: handle space and pivot, snapping, draw mode and lighting.
+     */
+    private final UnitySceneViewOptions options = new UnitySceneViewOptions();
+    /**
+     * Wireframe and light gizmos drawn over the scene.
+     */
+    private final UnitySceneOverlay overlay;
+    /**
+     * Wire color in Wireframe mode, light over the dark background.
+     */
+    private static final int WIRE_LIGHT = 0xD9D1D9E6;
+    /**
+     * Wire color over shaded surfaces.
+     */
+    private static final int WIRE_DARK = 0xB305080D;
+    /**
+     * Wires of selected objects and their content, Unity's selection orange.
+     */
+    private static final int WIRE_SELECTED = 0xFFFFA028;
+    /**
+     * Wireframe mode: every edge, no surfaces.
+     */
+    private final SceneWireframe edgesOnly;
+    /**
+     * Shaded Wireframe mode: surfaces with their visible edges.
+     */
+    private final SceneWireframe shadedEdges;
+    /**
+     * Top bar built from {@link #options}; rebuilt when the options change from code.
+     */
+    private Widget topBar;
+    /**
+     * Position of the top bar among this view's children.
+     */
+    private final int topBarIndex;
     /**
      * Active transform mode, or null for tools without handles.
      */
@@ -142,12 +182,24 @@ public final class UnityEditorSceneView extends LinearBox {
         focusable(true);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        viewport = new Scene3D(scene).highlightObjects(true).highlightBlocks(true).maxZoomDistance(64.0f);
+        // No frame on hover: selected objects get an orange outline and the hovered one a faint outline instead.
+        viewport = new Scene3D(scene).highlightObjects(false).highlightBlocks(false).maxZoomDistance(64.0f);
         viewport.clearColor().set(0.09f, 0.105f, 0.135f, 1.0f);
         viewport.camera().setPerspective((float) Math.toRadians(FIELD_OF_VIEW), 0.05f, 128.0f);
         viewport.layout(style -> style.sizePercent(100.0f, 100.0f));
         gizmo = new SceneTransformGizmo(viewport);
-        viewport.painter((draw, width, height) -> gizmo.paint(draw));
+        overlay = new UnitySceneOverlay(viewport);
+        // Wireframes are drawn by the scene renderer from the geometry it renders, Minecraft content included.
+        Predicate<SceneNode> wireSelected = node -> UnitySceneOverlay.isSelected(node, selectedObjects);
+        edgesOnly = new SceneWireframe(WIRE_LIGHT, WIRE_SELECTED, false, wireSelected);
+        shadedEdges = new SceneWireframe(WIRE_DARK, WIRE_SELECTED, true, wireSelected);
+        viewport.painter((draw, width, height) -> {
+            overlay.paintOutlines(draw, selectedObjects, hoveredObject());
+            overlay.paintFog(draw, selectedObjects);
+            overlay.paintLights(draw, selectedObjects);
+            gizmo.paint(draw);
+        });
+        viewport.onNodeHover(event -> viewport.requestRender());
         viewport.onNodeClick(event -> onPick.accept(event.node() == ground ? null : event.node()));
         viewport.on(PointerPressedEvent.TYPE, this::press);
         viewport.on(PointerMovedEvent.TYPE, this::move);
@@ -178,10 +230,10 @@ public final class UnityEditorSceneView extends LinearBox {
         projection.onClick(event -> toggleProjection(projection));
         toolbar.addChild(projection);
 
-        addChild(UnitySceneToolbar.createTopBar(space -> {
-            finishGizmo();
-            gizmo.space(space);
-        }));
+        topBarIndex = children().size();
+        topBar = UnitySceneToolbar.createTopBar(options, this::applyOptions);
+        addChild(topBar);
+        applyOptions();
         addChild(UnityStyles.separatorLine());
         addChild(toolbar);
         addChild(UnityStyles.separatorLine());
@@ -200,6 +252,62 @@ public final class UnityEditorSceneView extends LinearBox {
             updateGizmoSelection();
         });
         addChild(host);
+    }
+
+    /**
+     * Applies the top bar settings to the handles and the viewport. Only this view changes.
+     */
+    private void applyOptions() {
+        finishGizmo();
+        gizmo.space(options.space);
+        gizmo.pivot(options.pivot);
+        gizmo.snapSteps(options.moveStep, options.rotateStep, options.scaleStep);
+        viewport.sceneLighting(options.lighting);
+        viewport.wireframe(switch (options.drawMode) {
+            case SHADED -> null;
+            case WIREFRAME -> edgesOnly;
+            case SHADED_WIREFRAME -> shadedEdges;
+        });
+        viewport.requestRender();
+    }
+
+    /**
+     * @return the editor object under the pointer, or null over the ground, the background or while dragging
+     */
+    private UnitySceneObject hoveredObject() {
+        if (gizmoPointer >= 0 || gizmo.dragging()) return null;
+        for (SceneNode node = viewport.hoveredNode(); node != null && node != ground; node = node.parent()) {
+            if (node instanceof UnitySceneObject object) return object;
+        }
+        return null;
+    }
+
+    /**
+     * @return the Scene view top bar settings
+     */
+    UnitySceneViewOptions options() {
+        return options;
+    }
+
+    /**
+     * Changes the top bar settings from code and refreshes the view.
+     *
+     * @param change edits the settings
+     */
+    void updateOptions(java.util.function.Consumer<UnitySceneViewOptions> change) {
+        change.accept(options);
+        applyOptions();
+        // The bar only reads the options when it is built or clicked, so rebuild it to show the new state.
+        removeChild(topBar);
+        topBar = UnitySceneToolbar.createTopBar(options, this::applyOptions);
+        insertChild(topBarIndex, topBar);
+    }
+
+    /**
+     * @return the viewport, for tests and snapshots
+     */
+    Scene3D viewport() {
+        return viewport;
     }
 
     /**
@@ -245,11 +353,25 @@ public final class UnityEditorSceneView extends LinearBox {
      * @param object newly selected object, or null
      */
     void selectObject(UnitySceneObject object) {
-        if (selected == object) return;
+        selectObjects(object == null ? List.of() : List.of(object), object);
+    }
+
+    /**
+     * Places the handles on several objects. They move, rotate and scale together around the active
+     * object pivot or the selection center.
+     *
+     * @param objects every selected object
+     * @param active  active object, or null
+     */
+    void selectObjects(List<UnitySceneObject> objects, UnitySceneObject active) {
+        List<UnitySceneObject> next = active == null ? List.of() : List.copyOf(objects);
+        if (selected == active && selectedObjects.equals(next)) return;
         finishGizmo();
-        selected = object;
+        selected = active;
+        selectedObjects = next;
         updateGizmoSelection();
-        frameButton.enabled(object != null);
+        frameButton.enabled(active != null);
+        viewport.requestRender();
     }
 
     /**
@@ -267,7 +389,8 @@ public final class UnityEditorSceneView extends LinearBox {
      * Shows the selected object's handles when the active tool and play state allow editing.
      */
     private void updateGizmoSelection() {
-        gizmo.select(editable && mode != null ? selected : null);
+        if (editable && mode != null) gizmo.select(selected, selectedObjects);
+        else gizmo.select(null);
     }
 
     /**
@@ -283,9 +406,14 @@ public final class UnityEditorSceneView extends LinearBox {
         if (uiContext().capturedPointer(event.pointerId()) != null) return;
         SceneNode hit = viewport.pickNode(event.localX(), event.localY());
         backgroundPointer = -1;
+        UnitySceneObject light;
         if (gizmo.begin(event.localX(), event.localY())) {
             gizmoPointer = event.pointerId();
             uiContext().capturePointer(gizmoPointer, viewport);
+            event.cancel();
+        } else if ((light = overlay.pickLight(event.localX(), event.localY())) != null) {
+            // Light icons sit in front of the geometry: select the light instead of orbiting or picking a mesh.
+            onPick.accept(light);
             event.cancel();
         } else if (hit == null) {
             backgroundPointer = event.pointerId();
@@ -300,8 +428,8 @@ public final class UnityEditorSceneView extends LinearBox {
     private void move(PointerMovedEvent event) {
         if (!atViewport(event) || uiContext() == null) return;
         if (gizmoPointer == event.pointerId()) {
-            gizmo.drag(event.localX(), event.localY());
-            onTransform.accept(selected);
+            gizmo.drag(event.localX(), event.localY(), snapping());
+            notifyTransform();
             event.cancel();
             return;
         }
@@ -315,8 +443,8 @@ public final class UnityEditorSceneView extends LinearBox {
     private void release(PointerReleasedEvent event) {
         if (!atViewport(event) || event.button() != PointerButton.PRIMARY) return;
         if (gizmoPointer == event.pointerId()) {
-            gizmo.drag(event.localX(), event.localY());
-            onTransform.accept(selected);
+            gizmo.drag(event.localX(), event.localY(), snapping());
+            notifyTransform();
             finishGizmo();
             event.cancel();
         } else if (backgroundPointer == event.pointerId()) {
@@ -324,6 +452,23 @@ public final class UnityEditorSceneView extends LinearBox {
             if (!event.isCancelled() && withinClickDistance(event)
                     && viewport.pickNode(event.localX(), event.localY()) == null) onPick.accept(null);
         }
+    }
+
+    /**
+     * Snapping is on while the magnet toggle is on, and temporarily while Ctrl (or Cmd) is held, as in Unity.
+     *
+     * @return whether the current drag snaps to the configured steps
+     */
+    private boolean snapping() {
+        return options.snap || uiContext() != null && uiContext().keyboard().isAnyDown(KeyCodes.LEFT_CONTROL,
+                KeyCodes.RIGHT_CONTROL, KeyCodes.LEFT_SUPER, KeyCodes.RIGHT_SUPER);
+    }
+
+    /**
+     * Refreshes the Inspector for every object moved by the handles.
+     */
+    private void notifyTransform() {
+        for (UnitySceneObject object : selectedObjects) onTransform.accept(object);
     }
 
     /**
@@ -341,6 +486,8 @@ public final class UnityEditorSceneView extends LinearBox {
      */
     @Override
     public void tick(FrameContext frame) {
+        UnityPlayMode.tick(viewport.scene(), frame);
+        UnitySceneOverlay.syncSceneLighting(viewport.scene());
         if (gizmoPointer >= 0 && (uiContext() == null
                 || uiContext().capturedPointer(gizmoPointer) != viewport)) finishGizmo();
         super.tick(frame);
@@ -385,8 +532,17 @@ public final class UnityEditorSceneView extends LinearBox {
      */
     private void frameSelected() {
         if (selected == null) return;
-        MutableVec3 target = selected.origin(new MutableVec3());
-        if (!selected.worldMatrix(new MutableMat4()).transformPoint(target, target)) return;
+        MutableVec3 target = new MutableVec3();
+        MutableVec3 pivot = new MutableVec3();
+        int count = 0;
+        for (UnitySceneObject object : selectedObjects) {
+            object.origin(pivot);
+            if (!object.worldMatrix(new MutableMat4()).transformPoint(pivot, pivot)) continue;
+            target.add(pivot.x(), pivot.y(), pivot.z());
+            count++;
+        }
+        if (count == 0) return;
+        target.set(target.x() / count, target.y() / count, target.z() / count);
         viewport.orbit().setOrbit(target, viewport.orbit().distance(), viewport.orbit().yaw(), viewport.orbit().pitch());
         viewport.requestRender();
     }

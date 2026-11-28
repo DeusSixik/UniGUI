@@ -38,6 +38,8 @@ import java.util.List;
         bottom center of the widget to the projected point. Remove the anchor with `Scene3D.removeAnchor` to detach
         its widget for reuse.
         """)
+@WikiSection(title = "<key:scene.anchor.section.timeline.title>", order = 20,
+        markdown = "<key:scene.anchor.section.timeline.body>")
 @WikiExample(title = "Place a label above an object", code = """
         SceneAnchor3D badge = viewport.addAnchor(new Label("Furnace"), furnace,
                 new MutableVec3(0.5f, 1.2f, 0.5f)).pivot(0.5f, 1);
@@ -46,6 +48,7 @@ import java.util.List;
 @WikiLink(label = "Scene3D", target = "page:scene-3d")
 @WikiLink(label = "SceneNode", target = "page:scene-node")
 @WikiLink(label = "Camera3D", target = "page:camera-3d")
+@WikiLink(label = "SceneTimeline", target = "page:scene-timeline")
 @AiDoc(
         summary = "Projects a world-space or node-local point to an ordinary UI widget.",
         purpose = "Attach labels and controls to points that move with a rendered scene.",
@@ -53,7 +56,8 @@ import java.util.List;
                 "Create anchors with `Scene3D.addAnchor` and pass a detached widget.",
                 "The anchor follows node and ancestor transforms and visibility. A projection outside the viewport hides the widget.",
                 "Anchor placement uses camera projection, not scene occlusion.",
-                "Pivot is a fraction of the child width and height measured from its top left."
+                "Pivot is a fraction of the child width and height measured from its top left.",
+                "Use `timeline.trackAnchor(anchor)` for seekable position, screen offset and visibility keys. Screen offset is measured in logical UI units after projection, with positive X to the right and positive Y down."
         },
         related = {"Scene3D", "SceneNode", "Camera3D"},
         examples = @AiDoc.Example(title = "Place a label above an object", code = """
@@ -96,6 +100,14 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
      */
     private float pivotY = 0.5f;
     /**
+     * Horizontal displacement after projection, in logical UI units.
+     */
+    private float offsetX;
+    /**
+     * Vertical displacement after projection, in logical UI units.
+     */
+    private float offsetY;
+    /**
      * Whether the anchor projects into the visible viewport.
      */
     private boolean projected;
@@ -104,8 +116,8 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
      * Attaches a detached widget to a point. The owning viewport adds the anchor to the UI tree.
      *
      * @param widget detached UI widget.
-     * @param node anchoring node, or null for world space.
-     * @param point world-space or node-local position.
+     * @param node   anchoring node, or null for world space.
+     * @param point  world-space or node-local position.
      */
     SceneAnchor3D(Widget widget, SceneNode node, Vec3View point) {
         this.widget = widget;
@@ -215,6 +227,25 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
+     * Sets a screen-space displacement from the projected point.
+     *
+     * @param x finite horizontal offset in logical UI units, positive to the right
+     * @param y finite vertical offset in logical UI units, positive down
+     * @return this anchor
+     * @throws IllegalArgumentException if either offset is not finite
+     */
+    public SceneAnchor3D screenOffset(float x, float y) {
+        if (!Float.isFinite(x) || !Float.isFinite(y))
+            throw new IllegalArgumentException("Anchor offset must be finite");
+        if (offsetX != x || offsetY != y) {
+            offsetX = x;
+            offsetY = y;
+            invalidate(InvalidationFlags.VISUAL);
+        }
+        return this;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -228,6 +259,17 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     @Override
     public Visibility visibility() {
         return projected ? super.visibility() : Visibility.HIDDEN;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public SceneAnchor3D visibility(Visibility visibility) {
+        boolean wasVisible = visible();
+        super.visibility(visibility);
+        if (wasVisible && !visible()) clearInteraction();
+        return this;
     }
 
     /**
@@ -283,7 +325,8 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
     }
 
     /**
-     * Places the widget at the projected point using the pivot.
+     * Places the widget at projection plus screen offset minus the pivot fraction times widget size,
+     * independently on each axis in logical UI units.
      *
      * @param x projected horizontal position in layout coordinates.
      * @param y projected vertical position in layout coordinates.
@@ -293,8 +336,8 @@ public final class SceneAnchor3D extends WidgetBase implements HitTestChildrenOn
         if (needsLayout || !projected) measure(UNBOUNDED);
         float width = desiredSize().width();
         float height = desiredSize().height();
-        float left = x - width * pivotX;
-        float top = y - height * pivotY;
+        float left = x - width * pivotX + offsetX;
+        float top = y - height * pivotY + offsetY;
         RectView previous = layoutBounds();
         if (!projected || needsLayout || previous.x() != left || previous.y() != top
                 || previous.width() != width || previous.height() != height) {

@@ -13,6 +13,8 @@ import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Checkpoint;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialPlayer.Sequence;
 import dev.sixik.unigui.demo.ui.scene.SceneTutorialStage;
+import dev.sixik.unigui.widgets.feedback.OverlayLayer;
+import dev.sixik.unigui.widgets.minecraft.MinecraftDemoHost;
 import dev.sixik.unigui.widgets.minecraft.MinecraftItemPreviewWidget;
 import dev.sixik.unigui.widgets.rendering.Scene3D;
 import net.minecraft.client.Minecraft;
@@ -65,9 +67,10 @@ public final class SceneTutorialDemo {
      */
     public static void openFurnace() {
         Minecraft.getInstance().execute(() -> {
+            if (MinecraftClientCompat.NATIVE_SCENE_MATERIALS) MinecraftDemoHost.install();
             var sequence = SceneFurnaceTutorial.create();
             MinecraftClientCompat.setScreen(new MinecraftWidgetScreen(Component.literal(sequence.title()),
-                    new SceneTutorialPlayer(sequence)));
+                    new OverlayLayer(new SceneTutorialPlayer(sequence))));
         });
     }
 

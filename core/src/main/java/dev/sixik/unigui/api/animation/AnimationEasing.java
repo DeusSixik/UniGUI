@@ -21,27 +21,45 @@ package dev.sixik.unigui.api.animation;
  * @see FloatTransition
  */
 public enum AnimationEasing implements Easing {
-    /** Линейный прогресс без ускорения и замедления. */
+    /**
+     * Linear progress without acceleration or deceleration.
+     */
     LINEAR {
         @Override
-        public float apply(float t) { return Easing.clamp01(t); }
+        public float apply(float t) {
+            return Easing.clamp01(t);
+        }
     },
-    /** Совместимое имя для {@link #QUAD_IN}. */
+    /**
+     * Compatibility alias for {@link #QUAD_IN}.
+     */
     EASE_IN {
         @Override
-        public float apply(float t) { return QUAD_IN.apply(t); }
+        public float apply(float t) {
+            return QUAD_IN.apply(t);
+        }
     },
-    /** Совместимое имя для {@link #QUAD_OUT}. */
+    /**
+     * Compatibility alias for {@link #QUAD_OUT}.
+     */
     EASE_OUT {
         @Override
-        public float apply(float t) { return QUAD_OUT.apply(t); }
+        public float apply(float t) {
+            return QUAD_OUT.apply(t);
+        }
     },
-    /** Совместимое имя для {@link #QUAD_IN_OUT}. */
+    /**
+     * Compatibility alias for {@link #QUAD_IN_OUT}.
+     */
     EASE_IN_OUT {
         @Override
-        public float apply(float t) { return QUAD_IN_OUT.apply(t); }
+        public float apply(float t) {
+            return QUAD_IN_OUT.apply(t);
+        }
     },
-    /** Квадратичная кривая: медленный старт, быстрый конец. */
+    /**
+     * Quadratic curve: slow start, fast end.
+     */
     QUAD_IN {
         @Override
         public float apply(float t) {
@@ -49,7 +67,9 @@ public enum AnimationEasing implements Easing {
             return t * t;
         }
     },
-    /** Квадратичная кривая: быстрый старт, мягкий конец. */
+    /**
+     * Quadratic curve: fast start, gentle end.
+     */
     QUAD_OUT {
         @Override
         public float apply(float t) {
@@ -57,7 +77,9 @@ public enum AnimationEasing implements Easing {
             return 1.0f - (1.0f - t) * (1.0f - t);
         }
     },
-    /** Квадратичная кривая: мягкий старт и мягкий конец. */
+    /**
+     * Quadratic curve: gentle start and gentle end.
+     */
     QUAD_IN_OUT {
         @Override
         public float apply(float t) {
@@ -65,7 +87,9 @@ public enum AnimationEasing implements Easing {
             return t < 0.5f ? 2.0f * t * t : 1.0f - square(-2.0f * t + 2.0f) * 0.5f;
         }
     },
-    /** Кубическая кривая: медленный старт, быстрый конец. */
+    /**
+     * Cubic curve: slow start, fast end.
+     */
     CUBIC_IN {
         @Override
         public float apply(float t) {
@@ -73,7 +97,9 @@ public enum AnimationEasing implements Easing {
             return t * t * t;
         }
     },
-    /** Кубическая кривая: быстрый старт, мягкий конец. */
+    /**
+     * Cubic curve: fast start, gentle end.
+     */
     CUBIC_OUT {
         @Override
         public float apply(float t) {
@@ -81,7 +107,9 @@ public enum AnimationEasing implements Easing {
             return 1.0f - t * t * t;
         }
     },
-    /** Кубическая кривая: мягкий старт и мягкий конец. */
+    /**
+     * Cubic curve: gentle start and gentle end.
+     */
     CUBIC_IN_OUT {
         @Override
         public float apply(float t) {
@@ -89,7 +117,9 @@ public enum AnimationEasing implements Easing {
             return t < 0.5f ? 4.0f * t * t * t : 1.0f - cube(-2.0f * t + 2.0f) * 0.5f;
         }
     },
-    /** Экспоненциальная кривая: очень медленный старт, быстрый конец. */
+    /**
+     * Exponential curve: very slow start, fast end.
+     */
     EXPO_IN {
         @Override
         public float apply(float t) {
@@ -97,7 +127,9 @@ public enum AnimationEasing implements Easing {
             return t <= 0.0f ? 0.0f : (float) Math.pow(2.0, 10.0f * t - 10.0f);
         }
     },
-    /** Экспоненциальная кривая: быстрый старт, очень мягкий конец. */
+    /**
+     * Exponential curve: fast start, very gentle end.
+     */
     EXPO_OUT {
         @Override
         public float apply(float t) {
@@ -105,7 +137,9 @@ public enum AnimationEasing implements Easing {
             return t >= 1.0f ? 1.0f : 1.0f - (float) Math.pow(2.0, -10.0f * t);
         }
     },
-    /** Экспоненциальная кривая: очень мягкий старт и конец. */
+    /**
+     * Exponential curve: very gentle start and end.
+     */
     EXPO_IN_OUT {
         @Override
         public float apply(float t) {
@@ -117,6 +151,11 @@ public enum AnimationEasing implements Easing {
         }
     };
 
-    private static float square(float value) { return value * value; }
-    private static float cube(float value) { return value * value * value; }
+    private static float square(float value) {
+        return value * value;
+    }
+
+    private static float cube(float value) {
+        return value * value * value;
+    }
 }

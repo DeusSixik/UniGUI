@@ -117,9 +117,9 @@ public final class MinecraftGuiRenderBackend implements RenderBackend, UiPostEff
     /**
      * Рендерер сцены, владеющий программами и индексированными буферами OpenGL.
      */
-    private final LegacyScene3DRenderer sceneRenderer = new LegacyScene3DRenderer(textureBindings::resolve, () -> {
+    private final GlSceneRenderer sceneRenderer = new GlSceneRenderer(new MinecraftGlScenePlatform(textureBindings::resolve, () -> {
         if (this.graphics != null) this.graphics.flush();
-    });
+    }));
     private final DrawList postEffectDrawList = new DrawList();
     private final FastItemRenderer fastItemRenderer;
     private GuiGraphics graphics;

@@ -4,12 +4,14 @@ import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.render.SimpleTextureHandle;
 import dev.sixik.unigui.api.scene.BlockNode;
 import dev.sixik.unigui.api.scene.BlockSpec;
+import dev.sixik.unigui.api.scene.EntityNode;
 import dev.sixik.unigui.api.scene.Material;
 import dev.sixik.unigui.api.scene.Mesh3D;
 import dev.sixik.unigui.api.scene.ScenePlatform;
 import dev.sixik.unigui.api.scene.StructureNode;
 import dev.sixik.unigui.backend.shared.LegacyBlockIds;
 import dev.sixik.unigui.backend.shared.LegacyBlockModels;
+import dev.sixik.unigui.backend.shared.LegacyChestModel;
 import dev.sixik.unigui.backend.shared.LegacySceneQuads;
 import dev.sixik.unigui.backend.shared.LegacySceneVanilla;
 import net.minecraft.block.Block;
@@ -21,6 +23,7 @@ import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.init.Blocks;
+import net.minecraft.entity.Entity;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -78,6 +81,16 @@ public final class CleanroomScene implements ScenePlatform, LegacyBlockModels.Ba
      */
     public static IBlockState requireState(BlockNode node) {
         return (IBlockState) node.requireNativeState(PLATFORM);
+    }
+
+    /**
+     * Returns the model's live source, for example to equip a preview before displaying it.
+     *
+     * @param node entity node
+     * @return native entity, or null if the source is unavailable or its preview needs a world
+     */
+    public static Entity entity(EntityNode node) {
+        return node.nativeEntity(PLATFORM) instanceof CleanroomSceneContent.SceneEntity handle ? handle.entity() : null;
     }
 
     /**
@@ -304,26 +317,50 @@ public final class CleanroomScene implements ScenePlatform, LegacyBlockModels.Ba
      */
     @Override
     public LegacyBlockModels.Surface bake(Object nativeState) {
+        return bake(nativeState, false);
+    }
+
+    /**
+     * @param nativeState resolved Minecraft block state
+     * @param lit whether to keep normals and biome tint with scene lighting
+     * @return baked surface, or null if there is no block model
+     */
+    LegacyBlockModels.Surface bake(Object nativeState, boolean lit) {
         IBlockState state = (IBlockState) nativeState;
+        Block block = state.getBlock();
+        String chest = chestTexture(block);
+        if (chest != null) return LegacyChestModel.bake(chest, block.getMetaFromState(state), lit);
+        // Banners, beds, shulker boxes and skulls have no block model; their tile entity renderer draws them.
         if (state.getRenderType() != EnumBlockRenderType.MODEL) return null;
         Minecraft minecraft = Minecraft.getMinecraft();
         IBakedModel model = minecraft.getBlockRendererDispatcher().getModelForState(state);
         LegacySceneQuads vertices = new LegacySceneQuads();
         float[] buffer = new float[4];
-        append(vertices, state, model.getQuads(state, null, 0), minecraft, buffer);
+        append(vertices, state, model.getQuads(state, null, 0), minecraft, buffer, lit);
         for (EnumFacing face : EnumFacing.VALUES) {
-            append(vertices, state, model.getQuads(state, face, 0), minecraft, buffer);
+            append(vertices, state, model.getQuads(state, face, 0), minecraft, buffer, lit);
         }
         Mesh3D mesh = vertices.build();
         if (mesh == null) return null;
-        Material.AlphaMode alpha = switch (state.getBlock().getRenderLayer()) {
+        Material.AlphaMode alpha = switch (block.getRenderLayer()) {
             case SOLID -> Material.AlphaMode.OPAQUE;
             case CUTOUT, CUTOUT_MIPPED -> Material.AlphaMode.CUTOUT;
             case TRANSLUCENT -> Material.AlphaMode.TRANSLUCENT;
         };
-        // Face shading is baked like in the world, so scene lights do not change Minecraft blocks.
-        return new LegacyBlockModels.Surface(mesh, new Material(0xFFFFFFFF, ATLAS, Material.Shading.UNLIT, alpha, 0.1f,
+        var shading = lit ? Material.Shading.LIT : Material.Shading.UNLIT;
+        return new LegacyBlockModels.Surface(mesh, new Material(0xFFFFFFFF, ATLAS, shading, alpha, 0.1f,
                 Material.Culling.BACK));
+    }
+
+    /**
+     * @param block block of a placed model
+     * @return chest texture basename for the chests baked by {@link LegacyChestModel}, or null for other blocks
+     */
+    static String chestTexture(Block block) {
+        if (block == Blocks.CHEST) return "normal";
+        if (block == Blocks.TRAPPED_CHEST) return "trapped";
+        if (block == Blocks.ENDER_CHEST) return "ender";
+        return null;
     }
 
     /**
@@ -367,9 +404,10 @@ public final class CleanroomScene implements ScenePlatform, LegacyBlockModels.Ba
      * @param quads     general or face-specific quads.
      * @param minecraft client providing block tints.
      * @param buffer    scratch space for one vertex element of up to four components.
+     * @param lit whether to defer directional shading to the scene
      */
     private static void append(LegacySceneQuads out, IBlockState state, List<BakedQuad> quads, Minecraft minecraft,
-                               float[] buffer) {
+                               float[] buffer, boolean lit) {
         for (BakedQuad quad : quads) {
             VertexFormat format = quad.getFormat();
             int position = -1, uv = -1;
@@ -387,7 +425,7 @@ public final class CleanroomScene implements ScenePlatform, LegacyBlockModels.Ba
                     ? minecraft.getBlockColors().colorMultiplier(state, null, null, quad.getTintIndex()) : -1;
             EnumFacing face = quad.getFace();
             int color = 0xFF000000 | tint;
-            if (quad.shouldApplyDiffuseLighting()) {
+            if (!lit && quad.shouldApplyDiffuseLighting()) {
                 color = LegacySceneQuads.shade(color, face.getXOffset(), face.getYOffset(), face.getZOffset());
             }
             int[] data = quad.getVertexData();

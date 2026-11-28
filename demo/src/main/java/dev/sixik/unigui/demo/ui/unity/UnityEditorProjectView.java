@@ -58,13 +58,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Панель Project в стиле редактора Unity:
+ * Unity Editor-style Project panel:
  * <ul>
- *   <li>Папки всегда отображаются в начале и отсортированы по алфавиту;</li>
- *   <li>Двухколоночный браузер ассетов с компонентом TreeView слева и разделителем SplitPanel;</li>
- *   <li>Полнофункциональное контекстное меню (Screenshot 1) для левой и правой панели;</li>
- *   <li>Горячая клавиша F2 для быстрого переименования элементов как в дереве, так и в сетке;</li>
- *   <li>Сетка и список файлов, хлебные крошки, поиск и тултипы при переполнении текста.</li>
+ *   <li>Folders are always shown first and sorted alphabetically;</li>
+ *   <li>Two-column asset browser with a left TreeView and a SplitPanel divider;</li>
+ *   <li>Full-featured context menu for both the left tree and right asset pane;</li>
+ *   <li>F2 hotkey for quick inline renaming in both the tree and the grid;</li>
+ *   <li>Grid and list file views, breadcrumbs, search, and overflow tooltips.</li>
  * </ul>
  */
 public class UnityEditorProjectView extends LinearBox {
@@ -191,7 +191,7 @@ public class UnityEditorProjectView extends LinearBox {
             event.cancel();
         });
 
-        // 1. Верхняя панель: Хлебные крошки и поиск
+        // 1. Top bar: Breadcrumbs and search
         HBox topBar = new HBox();
         topBar.spacing(6.0f);
         topBar.layout(style -> style.widthPercent(100.0f).height(24.0f)
@@ -223,7 +223,7 @@ public class UnityEditorProjectView extends LinearBox {
         addChild(topBar);
         addChild(UnityStyles.separatorLine());
 
-        // 2. Настройка TreeView для дерева папок
+        // 2. Configure TreeView for the folder tree
         folderTreeView.style(style -> style
                 .put(StyleKeys.TREE_ROW_HEIGHT, UnityStyles.ROW_HEIGHT)
                 .put(StyleKeys.TREE_ROW_STYLE, TreeRowStyle.FULL_WIDTH)
@@ -250,7 +250,7 @@ public class UnityEditorProjectView extends LinearBox {
             }
         });
 
-        // Контекстное меню по ПКМ на строке в TreeView
+        // Right-click context menu on a TreeView row
         folderTreeView.on(PointerPressedEvent.TYPE, e -> {
             if (e.button() == PointerButton.SECONDARY) {
                 Widget target = e.target();
@@ -265,7 +265,7 @@ public class UnityEditorProjectView extends LinearBox {
             }
         });
 
-        // F2 и Delete для TreeView
+        // F2 and Delete shortcuts for TreeView
         folderTreeView.on(KeyPressedEvent.TYPE, e -> {
             if (e.phase() == EventPhase.CAPTURE || e.target() instanceof TextInput) return;
             if (e.keyCode() == KeyCodes.F2) {
@@ -287,7 +287,7 @@ public class UnityEditorProjectView extends LinearBox {
         folderScroll.overlayScrollBars(false);
         folderScroll.layout(style -> style.sizePercent(100.0f, 100.0f));
 
-        // 3. Сетка ассетов справа
+        // 3. Asset grid on the right
         assetContent.spacing(0.0f);
         assetContent.layout(style -> style.widthPercent(100.0f).flexGrow(0.0f).flexShrink(0.0f));
         ScrollView gridScroll = new ScrollView(assetContent);
@@ -299,7 +299,7 @@ public class UnityEditorProjectView extends LinearBox {
         gridScroll.verticalScrollBar().thumbHoverColor().set(UnityStyles.TEXT_PRIMARY);
         gridScroll.layout(style -> style.sizePercent(100.0f, 100.0f));
 
-        // Клик по пустому месту панели снимает выделение и открывает контекстное меню по ПКМ
+        // Clicking empty space clears selection; right-clicking opens the context menu
         gridScroll.on(PointerPressedEvent.TYPE, e -> {
             if (e.phase() == EventPhase.CAPTURE) return;
             if (e.button() == PointerButton.PRIMARY && !e.isCancelled() && selectedAsset != null) {
@@ -315,7 +315,7 @@ public class UnityEditorProjectView extends LinearBox {
             }
         });
 
-        // 4. SplitPanel с перемещаемым разделителем между деревом папок и сеткой ассетов
+        // 4. SplitPanel with draggable divider between folder tree and asset grid
         SplitPanel splitPanel = new SplitPanel(folderScroll, gridScroll);
         splitPanel.orientation(Orientation.HORIZONTAL);
         splitPanel.splitRatio(0.24f);
@@ -331,7 +331,7 @@ public class UnityEditorProjectView extends LinearBox {
         addChild(splitPanel);
         addChild(UnityStyles.separatorLine());
 
-        // 5. Нижняя строка состояния
+        // 5. Bottom status bar
         HBox statusBar = new HBox();
         statusBar.spacing(8.0f);
         statusBar.layout(style -> style.widthPercent(100.0f).height(18.0f)
@@ -364,7 +364,7 @@ public class UnityEditorProjectView extends LinearBox {
 
         addChild(statusBar);
 
-        // Горячие клавиши на уровне панели Project
+        // Project panel-level hotkeys
         on(KeyPressedEvent.TYPE, e -> {
             if (e.phase() == EventPhase.CAPTURE || e.target() instanceof TextInput) return;
             if (e.keyCode() == KeyCodes.F2) {
@@ -389,7 +389,7 @@ public class UnityEditorProjectView extends LinearBox {
             }
         });
 
-        // Выбрать "Scenes" по умолчанию
+        // Select "Scenes" by default
         TreeViewNode scenesNode = treeNodes.get("Scenes");
         if (scenesNode != null) {
             folderTreeView.select(scenesNode);
@@ -528,8 +528,8 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     /**
-     * Сортирует список элементов: папки ВСЕГДА идут в начале, и папки, и файлы
-     * упорядочиваются по алфавиту без учёта регистра.
+     * Sorts items so folders ALWAYS come first, and both folders and files
+     * are ordered case-insensitively alphabetically.
      */
     private void sortItems(List<AssetItem> items) {
         if (items == null) return;
@@ -627,11 +627,11 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     /**
-     * Обновляет панель хлебных крошек в соответствии с текущей выбранной папкой:
-     * - при нажатии на сегмент пути переходим в эту папку;
-     * - текущая папка отображается более ярким/жирным шрифтом (TEXT_BOLD);
-     * - при нажатии на стрелочку шеврона (>) открывается выпадающий список подпапок;
-     * - активная в пути подпапка отмечена галочкой (✓) в голубом квадрате.
+     * Updates the breadcrumb bar to match the currently selected folder:
+     * - clicking a path segment navigates to that folder;
+     * - the current folder uses a brighter/bold style (TEXT_BOLD);
+     * - clicking a chevron arrow (&gt;) opens a dropdown of subfolders;
+     * - the active subfolder along the path is marked with a checkmark in a blue box.
      */
     private void updateBreadcrumbs(String folderName) {
         breadcrumbsBar.clearChildren();
@@ -994,7 +994,7 @@ public class UnityEditorProjectView extends LinearBox {
             }
             nameLbl.layout(style -> style.padding(5.0f, 1.0f).maxWidth(labelMax).alignSelf(Align.CENTER));
 
-            // Тултип с полным названием, если текст обрезается многоточием
+            // Full-name tooltip when text is truncated with an ellipsis
             nameLbl.on(PointerEnteredEvent.TYPE, e -> {
                 if (nameLbl.isTextTruncated()) {
                     showAssetTooltip(card, item.name());
@@ -1053,7 +1053,7 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     /**
-     * Открытие меню кнопки "+" (Create) в верхней панели.
+     * Opens the "+" (Create) button menu in the top bar.
      */
     private void openCreateMenu(Button triggerBtn) {
         OverlayLayer overlay = resolveRootOverlay();
@@ -1091,7 +1091,7 @@ public class UnityEditorProjectView extends LinearBox {
     }
 
     /**
-     * Полноценное контекстное меню окна Project по правому клику мыши (Скриншот 1).
+     * Full-featured right-click context menu for the Project window.
      */
     private void openProjectContextMenu(float menuX, float menuY, TreeViewNode treeNode, AssetItem assetItem) {
         OverlayLayer overlay = resolveRootOverlay();

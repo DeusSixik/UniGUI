@@ -4,15 +4,23 @@ import dev.sixik.unigui.api.math.Aabb;
 import dev.sixik.unigui.api.scene.EntityNode;
 import dev.sixik.unigui.api.scene.ItemNode;
 import dev.sixik.unigui.backend.shared.LegacyBlockIds;
+import dev.sixik.unigui.cleanroom.mixin.SceneTileEntityAccess;
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
+import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
+import net.minecraft.client.settings.GameSettings;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
@@ -28,6 +36,7 @@ import org.lwjgl.opengl.GL11;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -63,6 +72,10 @@ final class CleanroomSceneContent {
      * Entity classes whose drawing failed and is skipped from then on.
      */
     private static final Set<Class<?>> BROKEN_ENTITIES = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * Preview tile entity per canonical block state, or null for states without a tile entity renderer.
+     */
+    private static final Map<IBlockState, TileEntity> BLOCK_ENTITIES = new IdentityHashMap<>();
 
     private CleanroomSceneContent() {
     }
@@ -235,16 +248,25 @@ final class CleanroomSceneContent {
     static boolean drawEntity(Object entity, EntityNode node, float partialTick) {
         Entity value = ((SceneEntity) entity).entity();
         if (value == null || BROKEN_ENTITIES.contains(value.getClass())) return false;
-        if (node.hasHead()) applyHead(value, node);
-        RenderManager renderer = Minecraft.getMinecraft().getRenderManager();
+        var pose = new CleanroomEntityPose(value);
+        Minecraft minecraft = Minecraft.getMinecraft();
+        RenderManager renderer = minecraft.getRenderManager();
         int depth = GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH);
         GlStateManager.pushMatrix();
         boolean shadows = renderer.isRenderShadow();
+        float viewX = renderer.playerViewX, viewY = renderer.playerViewY;
+        GameSettings options = renderer.options;
         try {
             GlStateManager.color(1, 1, 1, 1);
             // A shadow is projected onto world blocks around the entity's real position, not onto the scene.
             renderer.setRenderShadow(false);
-            renderer.renderEntity(value, 0, 0, 0, 0, partialTick, false);
+            // Billboards (fireballs, snowballs, name tags) turn by 180 - viewY around Y and -viewX around X towards
+            // the player's camera, which has no relation to the scene camera; the single-sided quad then faced away
+            // or edge-on. A fixed view turns them to +Z, the direction entities face in a scene.
+            renderer.playerViewY = 180;
+            renderer.playerViewX = 0;
+            if (options == null) renderer.options = minecraft.gameSettings;
+            renderer.renderEntity(value, 0, 0, 0, 0, pose.apply(value, node, partialTick), false);
             return true;
         } catch (RuntimeException | LinkageError failure) {
             if (BROKEN_ENTITIES.add(value.getClass())) {
@@ -253,7 +275,11 @@ final class CleanroomSceneContent {
             }
             return false;
         } finally {
+            pose.restore(value);
             renderer.setRenderShadow(shadows);
+            renderer.playerViewX = viewX;
+            renderer.playerViewY = viewY;
+            renderer.options = options;
             unwind(depth);
             // The hurt overlay enables texturing on the lightmap unit and leaves it on; the lightmap would then tint
             // everything drawn after the scene, like GuiInventory.drawEntityOnScreen turns it off again.
@@ -266,21 +292,92 @@ final class CleanroomSceneContent {
     }
 
     /**
-     * Turns the head relative to the body. Minecraft stores the absolute head yaw in degrees; the previous-tick
-     * values are set too, so interpolation does not swing the head.
+     * Tells whether a block state is drawn, fully or in part, by a tile entity renderer: banners, beds, shulker
+     * boxes, skulls, signs, the enchanting table book. Chests are baked by {@link CleanroomScene} instead.
      *
-     * @param entity entity to pose.
-     * @param node   node with the head angles in radians.
+     * @param nativeState state resolved by {@link CleanroomScene}, or null.
+     * @return true if {@link #drawBlockEntity} has something to draw.
      */
-    private static void applyHead(Entity entity, EntityNode node) {
-        float pitch = (float) Math.toDegrees(node.headPitch());
-        entity.rotationPitch = pitch;
-        entity.prevRotationPitch = pitch;
-        if (entity instanceof EntityLivingBase living) {
-            float yaw = living.renderYawOffset + (float) Math.toDegrees(node.headYaw());
-            living.rotationYawHead = yaw;
-            living.prevRotationYawHead = yaw;
-            living.prevRenderYawOffset = living.renderYawOffset;
+    static boolean hasBlockEntity(Object nativeState) {
+        return nativeState instanceof IBlockState state && blockEntity(state) != null;
+    }
+
+    /**
+     * Creates the preview tile entity of a state once.
+     *
+     * @param state block state.
+     * @return tile entity with a special renderer, or null.
+     */
+    private static TileEntity blockEntity(IBlockState state) {
+        if (BLOCK_ENTITIES.containsKey(state)) return BLOCK_ENTITIES.get(state);
+        Block block = state.getBlock();
+        TileEntity created = null;
+        if (CleanroomScene.chestTexture(block) == null && block.hasTileEntity(state)) {
+            try {
+                TileEntity value = block.createTileEntity(Minecraft.getMinecraft().world, state);
+                if (value != null && TileEntityRendererDispatcher.instance.getRenderer(value) != null) created = value;
+            } catch (RuntimeException | LinkageError failure) {
+                LOGGER.error("UniGUI could not create the tile entity of {} for a 3D scene", state, failure);
+            }
+        }
+        BLOCK_ENTITIES.put(state, created);
+        return created;
+    }
+
+    /**
+     * Draws the tile entity part of a block at the origin cell, with the block's corner at the origin like the baked
+     * block geometry. The tile entity is placed at {@link BlockPos#ORIGIN} of the current world, if any, with its
+     * block and metadata preset, so renderers read the previewed state instead of the world.
+     *
+     * @param nativeState block state from {@link CleanroomScene}.
+     * @param partialTick fraction of the current tick for animations.
+     * @return false if the block has no tile entity renderer or drawing failed.
+     */
+    static boolean drawBlockEntity(Object nativeState, float partialTick) {
+        IBlockState state = (IBlockState) nativeState;
+        TileEntity tile = blockEntity(state);
+        if (tile == null || BROKEN_ENTITIES.contains(tile.getClass())) return false;
+        TileEntityRendererDispatcher dispatcher = TileEntityRendererDispatcher.instance;
+        TileEntitySpecialRenderer<TileEntity> renderer = dispatcher.getRenderer(tile);
+        if (renderer == null) return false;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        TextureManager textures = dispatcher.renderEngine;
+        FontRenderer font = dispatcher.fontRenderer;
+        World dispatcherWorld = dispatcher.world;
+        float lightX = OpenGlHelper.lastBrightnessX, lightY = OpenGlHelper.lastBrightnessY;
+        int depth = GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH);
+        GlStateManager.pushMatrix();
+        try {
+            // The dispatcher is prepared by world rendering; outside a world its texture manager is still missing.
+            if (textures == null) dispatcher.renderEngine = minecraft.getTextureManager();
+            if (font == null) dispatcher.fontRenderer = minecraft.fontRenderer;
+            World world = minecraft.world;
+            if (dispatcherWorld == null) dispatcher.world = world;
+            // Banner and bed renderers use the metadata only when the tile entity has a world.
+            tile.setWorld(world);
+            tile.setPos(BlockPos.ORIGIN);
+            SceneTileEntityAccess access = (SceneTileEntityAccess) tile;
+            access.unigui$setBlockType(state.getBlock());
+            access.unigui$setBlockMetadata(state.getBlock().getMetaFromState(state));
+            GlStateManager.color(1, 1, 1, 1);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240, 240);
+            renderer.render(tile, 0, 0, 0, partialTick, -1, 1);
+            return true;
+        } catch (RuntimeException | LinkageError failure) {
+            if (BROKEN_ENTITIES.add(tile.getClass())) {
+                LOGGER.error("UniGUI could not draw tile entity {} in a 3D scene; it is skipped from now on",
+                        tile.getClass().getName(), failure);
+            }
+            return false;
+        } finally {
+            dispatcher.renderEngine = textures;
+            dispatcher.fontRenderer = font;
+            dispatcher.world = dispatcherWorld;
+            tile.setWorld(null);
+            unwind(depth);
+            OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
+            GlStateManager.color(1, 1, 1, 1);
+            GlStateManager.enableCull();
         }
     }
 

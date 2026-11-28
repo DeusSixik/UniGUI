@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Панель Console в стиле редактора Unity:
- * кнопки управления (Clear, Collapse, Clear on Play, Error Pause),
- * счетчики сообщений (ℹ Info, ⚠ Warning, ⛔ Error),
- * список записей журнала с возможностью выбора
- * и область просмотра подробностей/стектрейса выбранной ошибки.
+ * Unity-style Console panel:
+ * control buttons (Clear, Collapse, Clear on Play, Error Pause),
+ * message counters (Info, Warning, Error),
+ * selectable log entry list,
+ * and a detail/stack-trace view for the selected entry.
  */
 public class UnityEditorConsoleView extends LinearBox {
     public enum LogType {
@@ -46,7 +46,7 @@ public class UnityEditorConsoleView extends LinearBox {
         spacing(0.0f);
         layout(style -> style.sizePercent(100.0f, 100.0f).flexGrow(1.0f).flexShrink(1.0f));
 
-        // 1. Панель инструментов Console
+        // 1. Console toolbar
         HBox toolbar = new HBox();
         toolbar.spacing(4.0f);
         toolbar.layout(style -> style.widthPercent(100.0f).height(22.0f)
@@ -73,7 +73,7 @@ public class UnityEditorConsoleView extends LinearBox {
         spacer.layout(style -> style.flexGrow(1.0f).height(1.0f));
         toolbar.addChild(spacer);
 
-        // Счетчики
+        // Counters
         UnityStyles.styleButton(infoCountBtn);
         infoCountBtn.layout(style -> style.height(18.0f).padding(5.0f, 0.0f));
         toolbar.addChild(infoCountBtn);
@@ -89,7 +89,7 @@ public class UnityEditorConsoleView extends LinearBox {
         addChild(toolbar);
         addChild(UnityStyles.separatorLine());
 
-        // 2. Список логов в ScrollView
+        // 2. Log list in a ScrollView
         logListContainer.spacing(1.0f);
         logListContainer.layout(style -> style.widthPercent(100.0f));
         ScrollView scroll = new ScrollView(logListContainer);
@@ -98,7 +98,7 @@ public class UnityEditorConsoleView extends LinearBox {
 
         addChild(UnityStyles.separatorLine());
 
-        // 3. Область подробностей выбранного лога внизу
+        // 3. Selected log detail area at the bottom
         VBox detailBox = new VBox();
         detailBox.themeEnabled(false);
         detailBox.backgroundVisible(true);
@@ -117,7 +117,7 @@ public class UnityEditorConsoleView extends LinearBox {
 
         addChild(detailBox);
 
-        // Заполнить начальные записи (как в редакторе Unity)
+        // Populate initial entries (like the Unity editor)
         addLog(LogType.WARNING,
                 "Deferred and MultiSampleAntiAliasing is not supported. This camera will render without MSAA buffers.",
                 "UnityEngine.Camera:Render()\nUnityEditor.Handles:DrawCamera(Rect, Camera)",

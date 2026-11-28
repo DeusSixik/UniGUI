@@ -9,7 +9,7 @@ import net.minecraft.world.item.alchemy.Potions;
 /**
  * Item data that the demo gallery builds differently on 1.20.1 (NBT) and 1.21.1 (data components).
  */
-final class MinecraftDemoCompat {
+public final class MinecraftDemoCompat {
     private MinecraftDemoCompat() {
     }
 
@@ -22,8 +22,17 @@ final class MinecraftDemoCompat {
      * animated picture without one, which is what the sample is meant to show.
      */
     static ItemStack enchantedSword() {
-        ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
-        sword.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
-        return sword;
+        return glint(new ItemStack(Items.DIAMOND_SWORD));
+    }
+
+    /**
+     * Enables vanilla foil on a stack owned by a demo.
+     *
+     * @param stack the demo stack to update
+     * @return the same stack with foil
+     */
+    public static ItemStack glint(ItemStack stack) {
+        stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+        return stack;
     }
 }
